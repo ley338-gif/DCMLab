@@ -95,8 +95,28 @@ jobs:
       - run: mypy app
       - run: python -m pytest
 
+  datasets-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: datasets/build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: mypy generate.py
+      - run: python -m pytest
+
   docker-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: docker compose -f infra/docker-compose.yml build
+      # orthanc/toolbox sind keine Compose-Services (Abschnitt 6: der
+      # Orchestrator startet sie dynamisch per Docker-Socket), muessen
+      # deshalb hier extra gebaut werden, damit CI ihre Dockerfiles prueft.
+      - run: docker build -t dcmlab/orthanc:latest containers/orthanc
+      - run: docker build -f containers/toolbox/Dockerfile -t dcmlab/toolbox:latest .
