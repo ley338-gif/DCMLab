@@ -31,4 +31,34 @@ class TrackController extends Controller
             'tracks' => $tracks,
         ]);
     }
+
+    /**
+     * Zeigt die Lektionsliste eines Tracks.
+     */
+    public function show(Track $track): Response
+    {
+        $lessons = $track->lessons()
+            ->withCount(['progress as completed' => fn ($query) => $query
+                ->where('user_id', auth()->id())
+                ->where('status', 'completed'),
+            ])
+            ->get()
+            ->map(fn ($lesson) => [
+                'lesson_id' => $lesson->lesson_id,
+                'title' => $lesson->title['de'] ?? $lesson->lesson_id,
+                'teaser' => $lesson->teaser['de'] ?? '',
+                'duration_minutes' => $lesson->duration_minutes,
+                'level' => $lesson->level,
+                'status' => $lesson->status,
+                'completed' => (bool) $lesson->getAttribute('completed'),
+            ]);
+
+        return Inertia::render('Tracks/Show', [
+            'track' => [
+                'slug' => $track->slug,
+                'title_key' => $track->title_key,
+            ],
+            'lessons' => $lessons,
+        ]);
+    }
 }

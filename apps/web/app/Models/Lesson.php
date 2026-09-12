@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use Database\Factories\LessonFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -39,6 +42,14 @@ use Illuminate\Support\Carbon;
 ])]
 class Lesson extends Model
 {
+    /** @use HasFactory<LessonFactory> */
+    use HasFactory;
+
+    public function getRouteKeyName(): string
+    {
+        return 'lesson_id';
+    }
+
     protected function casts(): array
     {
         return [
@@ -61,5 +72,13 @@ class Lesson extends Model
     public function track(): BelongsTo
     {
         return $this->belongsTo(Track::class);
+    }
+
+    /**
+     * @return HasMany<LessonProgress, $this>
+     */
+    public function progress(): HasMany
+    {
+        return $this->hasMany(LessonProgress::class);
     }
 }

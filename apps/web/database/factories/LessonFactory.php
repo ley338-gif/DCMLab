@@ -1,0 +1,39 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Lesson;
+use App\Models\Track;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Lesson>
+ */
+class LessonFactory extends Factory
+{
+    protected $model = Lesson::class;
+
+    public function definition(): array
+    {
+        return [
+            'lesson_id' => (string) fake()->unique()->randomFloat(1, 1, 9),
+            'track_id' => Track::factory(),
+            'order' => fake()->numberBetween(0, 10),
+            'level' => fake()->randomElement(['einsteiger', 'aufbau', 'fortgeschritten']),
+            'duration_minutes' => fake()->numberBetween(5, 15),
+            'objectives_count' => 3,
+            'requires' => [],
+            'tools' => [],
+            'sandbox' => null,
+            'lab' => null,
+            'glossary_terms' => [],
+            'tools_checked' => now(),
+            'status' => 'draft',
+            'authors' => [],
+            'content_updated_at' => now(),
+            'title' => ['de' => fake()->sentence()],
+            'teaser' => ['de' => fake()->sentence()],
+            'source_hash' => fake()->sha256(),
+        ];
+    }
+}
