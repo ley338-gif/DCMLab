@@ -1,0 +1,67 @@
+slug: oversized-image
+difficulty: medium
+points: 15
+category: integration
+skills: [integration, netzwerk]
+related_lessons: ["4.3"]
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.60.0.50
+      role: shell
+    - name: archive
+      ip: 10.60.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, ct-image-storage]
+          max_object_bytes: 50000000   # 50 MB, siehe conformance-auszug.txt
+      config_visible: false
+
+  known_calling_aets: [DCMLAB-WS]
+
+  tools: [storescu]
+
+  files:
+    - conformance-auszug.txt   # Auszug aus dem Conformance Statement des Archivs
+
+  # Zwei Objekte derselben Serie, eines klassisch, eines ein Enhanced-Volumen
+  # mit vielen Frames -- siehe de.md fuer die Herleitung der Bytezahlen.
+  objects:
+    - filename: "klein.dcm"
+      bytes: 524288
+    - filename: "gross.dcm"
+      bytes: 78643200
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.store_klein
+      command: "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.60.0.10 104 klein.dcm"
+    - label_key: tpl.store_gross
+      command: "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.60.0.10 104 gross.dcm"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:9c3e3e92d4ad0b3065145a5df79e77f238ccaeb2e6c840856a7d0e184d208ee4"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 10
+
+status: draft
+updated: "2026-09-13"

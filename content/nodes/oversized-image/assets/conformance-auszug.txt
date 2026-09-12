@@ -1,0 +1,7 @@
+Conformance Statement KLINIK-ARCHIV, Auszug: SCP-Verhalten (Storage)
+---------------------------------------------------------------------
+Maximale Objektgroesse je C-STORE:  50 MB
+Verhalten bei Ueberschreitung:      Ablehnung des einzelnen Objekts,
+                                     Status 0xA7xx (Refused: Out of
+                                     Resources); die Association selbst
+                                     bleibt bestehen.

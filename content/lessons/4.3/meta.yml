@@ -11,10 +11,11 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
-# ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
+# Node oversized-image deckt nur die Groessenlimit-Haelfte dieser Lektion ab
+# (P10, Feature 2) -- die SOP-Class-Ablehnung fehlt der Engine noch, siehe
+# docs/content-todo.md. Deshalb weiterhin optional.
 lab:
-  node: null
+  node: oversized-image
   optional: true
 
 glossary_terms: [sop-class, c-store, transfer-syntax]

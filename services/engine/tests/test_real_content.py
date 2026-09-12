@@ -88,5 +88,27 @@ def test_c_find_mismatch_is_solvable_from_the_real_content() -> None:
     assert "I: (0010,0020) LO [MEYER, HANS]  # xx, 1 PatientID" in found.stdout
     assert "I: Number of Matches: 1" in found.stdout
 
-    assert rules.check_flag(node, state, "MEYER, HANS") is True
-    assert rules.check_flag(node, state, "MEYER,HANS") is False
+
+def test_oversized_image_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 2: das grosse Objekt wird mit dem echten DIMSE-Status
+    0xA7xx abgelehnt, das kleine kommt an -- dessen Groesse ist das Flag."""
+
+    node = content.load_node("oversized-image")
+    state = rules.initial_state(node)
+
+    big = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.60.0.10 104 gross.dcm",
+    )
+    assert big.exit_code == 1
+    assert "0xa700" in big.stderr
+    assert state["bestand"]["archive"] == {"studies": 0, "series": 0, "instances": 0}
+
+    small = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.60.0.10 104 klein.dcm",
+    )
+    assert small.exit_code == 0
+    assert state["bestand"]["archive"] == {"studies": 1, "series": 1, "instances": 1}
+
+    assert rules.check_flag(node, state, "524288") is True

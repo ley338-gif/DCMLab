@@ -44,6 +44,13 @@ MSG_PLACEHOLDER_LEFT_IN_QUERY = (
     '(Platzhalter "{placeholder}" wurde nicht ersetzt).'
 )
 
+# PS3.7 Annex C: der generische DIMSE-Statuscode 0xA7xx "Refused: Out of
+# Resources" (Feature 2 aus P10) -- kein herstellerspezifischer Fantasie-Code
+# wie der in der P10-Roadmap genannte, nicht existierende Status 122.
+MSG_STORE_OUT_OF_RESOURCES = (
+    "F: Store Failed, file: {filename}\nF:   Status: 0xa700 (Refused: Out of Resources)"
+)
+
 
 @dataclass(frozen=True)
 class AssociationResult:
@@ -246,7 +253,7 @@ def exec_command(
     if tool == "findscu":
         return _exec_findscu(node, state, args)
     if tool == "storescu":
-        return _exec_storescu(host_name)
+        return _exec_storescu(node, state, args)
     if tool == "dcmdump":
         return ExecResult(stderr="dcmdump: keine lokale Datei in dieser Simulation.", exit_code=1)
 
@@ -270,9 +277,17 @@ def _exec_ping(node: NodeDefinition, args: list[str]) -> ExecResult:
 
 
 def _exec_ls(node: NodeDefinition) -> ExecResult:
-    files = node.raw.get("environment", {}).get("files", [])
+    environment = node.raw.get("environment", {})
+    files = environment.get("files", [])
+    objects = environment.get("objects", [])
 
-    return ExecResult(stdout="\n".join(files))
+    # `ls -la`-Stil fuer zu sendende Objekte (Feature 2 aus P10): die Groesse
+    # ist real ablesbar, bevor ueberhaupt ein storescu versucht wird -- wie
+    # bei einer echten Datei auf der eigenen Platte.
+    lines = list(files)
+    lines += [f"{obj['bytes']:>12}  {obj['filename']}" for obj in objects]
+
+    return ExecResult(stdout="\n".join(lines))
 
 
 def _exec_cat(node: NodeDefinition, args: list[str]) -> ExecResult:
@@ -346,8 +361,12 @@ def _parse_dcmtk_args(tool: str, args: list[str]) -> dict[str, Any]:
 
     ip = positional[0] if len(positional) >= 1 else None
     port = int(positional[1]) if len(positional) >= 2 else None
+    file_arg = positional[2] if len(positional) >= 3 else None
 
-    return {"aet": aet, "aec": aec, "query_root": query_root, "keys": keys, "ip": ip, "port": port}
+    return {
+        "aet": aet, "aec": aec, "query_root": query_root, "keys": keys,
+        "ip": ip, "port": port, "file": file_arg,
+    }
 
 
 def _exec_echoscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
@@ -514,10 +533,64 @@ def _exec_findscu_against_records(
     return ExecResult(stdout=stdout)
 
 
-def _exec_storescu(host_name: str) -> ExecResult:
-    # Abschnitt 5.3: Die Bilder liegen auf der Modalitaet, nicht auf der
-    # Workstation -- storescu von dort scheitert strukturell an der Datei.
-    return ExecResult(stderr="storescu: No such file or directory", exit_code=1)
+def _exec_storescu(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
+    parsed = _parse_dcmtk_args("storescu", args)
+
+    if parsed["ip"] is None or parsed["port"] is None:
+        return ExecResult(
+            stderr="usage: storescu [-aet ...] [-aec ...] <peer> <port> <datei>", exit_code=1,
+        )
+
+    objects = node.raw.get("environment", {}).get("objects")
+
+    if not objects:
+        # Abschnitt 5.3: Die Bilder liegen auf der Modalitaet, nicht auf der
+        # Workstation -- storescu von dort scheitert strukturell an der Datei.
+        return ExecResult(stderr="storescu: No such file or directory", exit_code=1)
+
+    if parsed["file"] is None:
+        return ExecResult(
+            stderr="usage: storescu [-aet ...] [-aec ...] <peer> <port> <datei>", exit_code=1,
+        )
+
+    result = check_association(
+        node, state, parsed["aet"], parsed["aec"], parsed["ip"], parsed["port"],
+    )
+
+    if not result.accepted:
+        return ExecResult(stderr=result.message, exit_code=1)
+
+    obj = next((o for o in objects if o["filename"] == parsed["file"]), None)
+
+    if obj is None:
+        return ExecResult(
+            stderr=f"storescu: {parsed['file']}: No such file or directory", exit_code=1,
+        )
+
+    # Feature 2 aus P10: Groessenlimit auf dem Ziel-Dienst pruefen, bevor der
+    # Bestand des Archivs waechst -- ein zu grosses Objekt kommt nie an.
+    target_host = node.host(result.target_host) if result.target_host else None
+    service = next(
+        (s for s in (target_host or {}).get("services", []) if s.get("port") == parsed["port"]),
+        None,
+    )
+    max_bytes = (service or {}).get("max_object_bytes")
+
+    if max_bytes is not None and obj["bytes"] > max_bytes:
+        return ExecResult(
+            stderr=MSG_STORE_OUT_OF_RESOURCES.format(filename=obj["filename"]), exit_code=1,
+        )
+
+    _touch_progress(state)
+
+    bestand = state["bestand"].setdefault(
+        result.target_host, {"studies": 0, "series": 0, "instances": 0},
+    )
+    bestand["studies"] = 1
+    bestand["series"] = 1
+    bestand["instances"] += 1
+
+    return ExecResult(exit_code=0)
 
 
 def set_config(
