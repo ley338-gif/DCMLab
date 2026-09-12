@@ -1,0 +1,23 @@
+id: "4.2"
+track: troubleshooting
+order: 2
+duration_minutes: 12
+level: aufbau
+objectives_count: 3
+requires: ["1.7", "1.8"]
+tools: [storescu, storescp, dcmdump, tshark]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Node verbindung-ohne-bild ist ein Geruest (status: draft), noch nicht
+# spielbar -- siehe docs/content-todo.md.
+lab:
+  node: verbindung-ohne-bild
+  optional: true
+
+glossary_terms: [presentation-context, transfer-syntax, abstract-syntax]
+tools_checked: "2026-09-12"
+status: draft
+updated: "2026-09-12"

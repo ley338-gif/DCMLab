@@ -97,6 +97,84 @@ Redaktionelle Entscheidung nötig: Text für beide Dateien schreiben (macht
 die Node reichhaltiger, ändert aber nicht ihre Lösbarkeit) oder aus
 `environment.files` entfernen.
 
+## Track 4 — zehn Gerüste angelegt, Fließtext fehlt
+
+`content/lessons/4.1` bis `4.10` existieren jetzt als Gerüste
+(`status: draft`): vollständige `meta.yml` (Track, Reihenfolge, Dauer,
+`requires`, höchstens vier Werkzeuge aus der Registry, Glossarbegriffe,
+Datensatz) und eine `de.md` mit Titel, Teaser, drei Lernzielen und der
+geplanten Gliederung. Titel und Lernziele sind aus der Curriculum-Tabelle in
+`konzept-lernplattform.md` (Abschnitt 5, Track 4) abgeleitet, nicht erfunden.
+
+Kein Gerüst enthält Fachprosa oder Werkzeugausgaben — Abschnitt 13 des
+Auftrags. Jede Lektion trägt unter „Was zum Schreiben noch fehlt" ihre
+eigene Liste offener Punkte. Quer durch alle zehn sind das drei Muster:
+
+- **Ausgaben fehlen.** Jedes Beispiel muss in der Spielwiese erzeugt und
+  wörtlich übernommen werden. Das ist der Hauptteil der Arbeit.
+- **Die Spielwiese kann das Szenario noch nicht.** Betrifft 4.7 (kein
+  Worklist-Dienst, `wlmscpfs` ist nur in der Registry vorgesehen), 4.8 (kein
+  MPPS-, kein Storage-Commitment-Gegenpart) und 4.9 (kein TLS-Endpunkt).
+  Diese drei Lektionen sind ohne Ausbau der Spielwiese nicht schreibbar.
+- **Datensätze fehlen.** 4.3 braucht einen Datensatz mit gemischten SOP
+  Classes, 4.5 zwei Studies, die gleich aussehen und verschiedene Study
+  Instance UIDs tragen (Lektion 1.4 nennt dieses Lab bereits). Beide wären
+  neue Einträge in `datasets.yml` samt Erzeugung in `datasets/build/`.
+
+`content:validate` meldet für die zehn neuen Lektionen nichts. (Der
+ursprüngliche Hinweis zu `lab.node: null` in allen zehn ist mit P9
+überholt — 4.2 zeigt jetzt auf die Node `verbindung-ohne-bild`, siehe
+unten.)
+
+## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
+
+Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0
+(1.1, 1.2, 1.3, 1.4, 1.7, 1.8) verwiesen bereits im mitgelieferten
+Content-Paket auf `lab.node`-Slugs, die es nie gab (`first-contact`,
+`zwei-ebenen-tiefer`, `wo-steht-das`, `zwillinge`, `halbe-sache`,
+`mitgehoert`) — mit `optional: false`. `LessonController` blendet eine
+fehlende Node zwar bereits stillschweigend aus (kein Absturz, keine
+sichtbare Lücke), aber das Feld log damit eine falsche Tatsache: „diese
+Node ist Pflicht" für eine Node, die nicht existiert.
+
+**Node `neue-node` (Lektion 1.6, „AE Title, Host, Port: das Adress-Trio")
+ist jetzt vollständig und spielbar.** Sie ist ausschließlich aus dem
+bestehenden Schema erzeugt (wie Wrong Door in P6, keine Engine-Änderung):
+ein neu installierter MR-Scanner mit Werkseinstellungen in allen drei
+Adressfeldern (`remote_host`, `remote_port`, `remote_ae`), die der
+Lernende nacheinander korrigieren muss — jede Korrektur deckt exakt die
+nächste Stufe der Association-Prüfung aus Abschnitt 5.3 auf. Verifiziert
+gegen den echten Stack (siehe ADR 0010).
+
+**Die anderen sechs benannten Slugs plus ein neuer Track-4-Slug
+(`verbindung-ohne-bild`, Lektion 4.2) existieren jetzt als echte, aber
+absichtlich leere Gerüste** (`node.yml` ohne `environment`, `de.md` mit
+einer klar markierten „Gerüst"-Sektion statt Prosa) — dieselbe Diszplin wie
+bei den Track-4-Lektionen oben. Jedes Gerüst nennt seine konkrete
+technische Blockade in seiner eigenen `de.md`:
+
+| Node | Lektion | Blockiert durch |
+|---|---|---|
+| `first-contact` | 1.1 | `dcmdump` auf eine lokale `.dcm`-Datei ist in der Engine nicht gebaut (liefert nur einen Platzhaltertext) |
+| `zwei-ebenen-tiefer` | 1.2 | `findscu` kennt nur STUDY/SERIES, keine PATIENT-/INSTANCE-Ebene; ein Archiv-Host hat höchstens einen Bestand |
+| `wo-steht-das` | 1.3 | dasselbe `dcmdump`-Limit wie `first-contact` |
+| `zwillinge` | 1.4 | kein Datensatz mit zwei gleich aussehenden Studies unterschiedlicher UID; Engine kennt nur einen Bestand pro Archiv-Host |
+| `halbe-sache` | 1.7 | keine Presentation-Context-/Transfer-Syntax-Aushandlung in der Engine |
+| `mitgehoert` | 1.8 | dasselbe Aushandlungs-Limit wie `halbe-sache` |
+| `verbindung-ohne-bild` | 4.2 | dasselbe Aushandlungs-Limit wie `halbe-sache` |
+
+Diese sieben Lücken sind **Engine-Features, keine Content-Lücken** — anders
+als bei Track 4 oben ist hier nicht Fließtext das Fehlende, sondern eine
+Fähigkeit der simulierten Engine selbst (`services/engine/app/rules.py`
+kennt ausschließlich Host/Port/Called-AE/Calling-AE als Prüfstufen). Sobald
+eine dieser Fähigkeiten gebaut ist, kann das jeweilige Gerüst mit echtem
+Szenario, Hints und Write-up gefüllt werden, exakt wie bei `neue-node`.
+
+**Hardening:** Die sechs betroffenen Track-1-Lektionen (1.1, 1.2, 1.3, 1.4,
+1.7, 1.8) sowie 4.2 haben jetzt `lab.optional: true` mit einem Kommentar,
+der auf diesen Abschnitt verweist — die einzige Lektion, deren Node
+tatsächlich fertig ist (1.6, `neue-node`), bleibt `optional: false`.
+
 ## CI
 
 `content:validate` läuft in der CI-Pipeline (`content`-Job), aber mit

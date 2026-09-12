@@ -10,9 +10,12 @@ sandbox:
   required: true
   dataset: ct-thorax-60
   note: "Zwei Serien, 12 und 48 Bilder"
+
+# Node zwei-ebenen-tiefer ist ein Geruest (status: draft), noch nicht
+# spielbar -- siehe docs/content-todo.md. Deshalb optional, bis sie es ist.
 lab:
   node: zwei-ebenen-tiefer
-  optional: false
+  optional: true
 glossary_terms: [study, series, instance, patient-id, sop-instance-uid]
 tools_checked: "2026-09-12"
 status: draft

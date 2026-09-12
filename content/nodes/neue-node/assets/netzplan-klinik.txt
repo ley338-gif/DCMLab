@@ -1,0 +1,5 @@
+AE TITLE         IP            PORT   System
+---------------  ------------  -----  -----------------------------------
+KLINIK-ARCHIV    10.40.0.10    104    Zentralarchiv (Herstellerwartung)
+DCMLAB-WS        10.40.0.50    -      Workstation Radiologie
+MR-NEU           10.40.0.40    -      MR-Scanner Raum 2 (Neuinstallation)
