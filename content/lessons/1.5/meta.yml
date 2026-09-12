@@ -1,0 +1,18 @@
+id: "1.5"
+track: fundamente
+order: 5
+duration_minutes: 8
+level: einsteiger
+objectives_count: 4
+requires: ["1.1"]
+tools: [echoscu, storescu, storescp]
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+lab:
+  node: silent-ct
+  optional: false
+glossary_terms: [scu, scp, ae-title, called-ae-title, calling-ae-title, c-echo, c-move, association, sop-class]
+tools_checked: "2026-09-12"
+status: draft
+updated: "2026-09-12"

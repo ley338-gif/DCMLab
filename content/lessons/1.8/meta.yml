@@ -1,0 +1,18 @@
+id: "1.8"
+track: fundamente
+order: 8
+duration_minutes: 8
+level: einsteiger
+objectives_count: 3
+requires: ["1.5", "1.7"]
+tools: [echoscu, storescu, tshark]
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+lab:
+  node: mitgehoert
+  optional: false
+glossary_terms: [association, presentation-context, abstract-syntax, max-pdu]
+tools_checked: "2026-09-12"
+status: draft
+updated: "2026-09-12"

@@ -1,0 +1,18 @@
+id: "1.6"
+track: fundamente
+order: 6
+duration_minutes: 8
+level: einsteiger
+objectives_count: 3
+requires: ["1.5"]
+tools: [echoscu, storescp, storescu]
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+lab:
+  node: neue-node
+  optional: false
+glossary_terms: [ae-title, called-ae-title, calling-ae-title]
+tools_checked: "2026-09-12"
+status: draft
+updated: "2026-09-12"

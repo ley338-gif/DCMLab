@@ -1,0 +1,19 @@
+id: "1.2"
+track: fundamente
+order: 2
+duration_minutes: 8
+level: einsteiger
+objectives_count: 3
+requires: ["1.0", "1.1"]
+tools: [dcmdump, findscu]
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+  note: "Zwei Serien, 12 und 48 Bilder"
+lab:
+  node: zwei-ebenen-tiefer
+  optional: false
+glossary_terms: [study, series, instance, patient-id, sop-instance-uid]
+tools_checked: "2026-09-12"
+status: draft
+updated: "2026-09-12"

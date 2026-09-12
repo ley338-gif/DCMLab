@@ -1,0 +1,25 @@
+id: "1.0"
+track: fundamente
+order: 0
+duration_minutes: 10
+level: einsteiger
+objectives_count: 3
+requires: []
+
+# 1.0 ist die Übersichtslektion und stellt den ganzen Werkzeugkasten vor.
+# Sie sprengt damit die Vier-Werkzeuge-Grenze aus content-schema.md Abschnitt 1
+# als einzige Lektion bewusst. Alles, was hier steht, ist zugleich die Quelle,
+# auf die die Werkzeugleisten aller anderen Lektionen zurückverweisen.
+exempt_tool_limit: true
+tools: [orthanc, dcmdump, echoscu, storescu, storescp, findscu, tshark, pydicom]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+lab:
+  node: null
+  optional: true
+glossary_terms: [scu, scp]
+tools_checked: "2026-09-12"
+status: draft
+updated: "2026-09-12"

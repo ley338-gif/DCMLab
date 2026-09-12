@@ -1,0 +1,1216 @@
+<title>Silent CT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#0E1519;
+  --surface:#152026;
+  --surface-2:#1B2A31;
+  --raised:#21323A;
+  --line:#26383F;
+  --line-soft:#1E2D34;
+  --text:#DCE6EA;
+  --dim:#93A6AF;
+  --faint:#677C85;
+  --amber:#F0B429;
+  --amber-dim:#B88A22;
+  --amber-wash:rgba(240,180,41,.12);
+  --cyan:#6BB0C4;
+  --ok:#63BC90;
+  --warn:#E0913F;
+  --crit:#D4645A;
+  --term-bg:#090F12;
+  --term-text:#C6D5DB;
+  --radius:3px;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:15px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1480px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+a{color:var(--cyan)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+h1,h2,h3{margin:0;text-wrap:balance}
+
+/* ---------- masthead ---------- */
+.masthead{padding-block:36px 22px;border-bottom:1px solid var(--line)}
+.brandline{
+  font-family:var(--cond);font-weight:600;font-size:.74rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--faint);display:flex;gap:10px;align-items:center;
+}
+.brandline b{color:var(--amber-dim);font-weight:600}
+h1{
+  font-family:var(--cond);font-weight:700;
+  font-size:clamp(2.1rem,5.5vw,3.4rem);line-height:1.02;letter-spacing:-.015em;
+  margin-top:8px;
+}
+.subtitle{color:var(--dim);margin-top:6px;font-size:1.02rem;max-width:62ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.04em;
+  border:1px solid var(--line);padding:3px 9px;color:var(--dim);border-radius:var(--radius);
+  background:var(--surface);
+}
+.chip.diff{border-color:var(--ok);color:var(--ok)}
+.chip.pts{border-color:var(--amber-dim);color:var(--amber)}
+
+/* ---------- status strip ---------- */
+.strip{
+  display:flex;flex-wrap:wrap;gap:0;margin-top:22px;
+  border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);
+}
+.strip>div{
+  padding:10px 18px;border-right:1px solid var(--line-soft);flex:1 1 130px;min-width:0;
+}
+.strip>div:last-child{border-right:0}
+.strip .k{
+  font-family:var(--cond);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);display:block;
+}
+.strip .v{
+  font-family:var(--mono);font-size:1.05rem;font-variant-numeric:tabular-nums;
+  color:var(--text);display:block;margin-top:2px;
+}
+.strip .v.amber{color:var(--amber)}
+.strip .v.ok{color:var(--ok)}
+
+/* ---------- workspace ---------- */
+.workspace{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:22px;margin-top:24px;align-items:start}
+@media (max-width:1020px){.workspace{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.card>header{
+  padding:11px 16px;border-bottom:1px solid var(--line-soft);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.card>header h2{
+  font-family:var(--cond);font-weight:600;font-size:.78rem;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--dim);
+}
+.card .body{padding:16px}
+.card .body>*+*{margin-top:12px}
+.card p{margin:0}
+
+/* ---------- briefing ---------- */
+.briefing p{font-size:.95rem}
+.briefing p strong{color:var(--text);font-weight:600}
+.callout{
+  border-left:2px solid var(--amber);background:var(--amber-wash);
+  padding:10px 14px;font-size:.92rem;
+}
+.callout.calm{border-left-color:var(--cyan);background:rgba(107,176,196,.10)}
+.callout.calm .lbl{color:var(--cyan)}
+.cmdbar{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px 12px;border-top:1px solid var(--line-soft);background:#0B1216}
+.cmdbar .lbl{font-family:var(--cond);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);flex-basis:100%;margin-bottom:2px}
+.cmdbar button{background:var(--surface-2);border:1px solid var(--line);color:var(--dim);font-family:var(--mono);font-size:.72rem;padding:4px 10px;border-radius:var(--radius)}
+.cmdbar button:hover{border-color:var(--amber-dim);color:var(--amber)}
+.callout .lbl{
+  font-family:var(--cond);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--amber);display:block;margin-bottom:2px;
+}
+table.env{width:100%;border-collapse:collapse;font-size:.85rem}
+table.env th{
+  font-family:var(--cond);font-weight:600;font-size:.66rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--faint);text-align:left;
+  padding:0 8px 5px 0;border-bottom:1px solid var(--line-soft);
+}
+table.env td{padding:6px 8px 6px 0;border-bottom:1px solid var(--line-soft);vertical-align:top;color:var(--dim)}
+table.env td:first-child{color:var(--text)}
+table.env code{font-family:var(--mono);font-size:.82em;color:var(--cyan)}
+
+/* ---------- hints ---------- */
+.hint{border:1px solid var(--line-soft);border-radius:var(--radius);background:var(--surface-2)}
+.hint .head{display:flex;align-items:center;gap:10px;padding:9px 12px}
+.hint .num{
+  font-family:var(--mono);font-size:.72rem;color:var(--amber);border:1px solid var(--amber-dim);
+  width:22px;height:22px;display:grid;place-items:center;border-radius:50%;flex:none;
+}
+.hint .ttl{font-family:var(--cond);font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);flex:1}
+.hint button{
+  background:transparent;border:1px solid var(--line);color:var(--dim);
+  font-family:var(--mono);font-size:.72rem;padding:3px 9px;border-radius:var(--radius);
+}
+.hint button:hover{border-color:var(--amber-dim);color:var(--amber)}
+.hint .text{padding:0 12px 12px 44px;font-size:.9rem;color:var(--dim);display:none}
+.hint.open .text{display:block}
+.hint.open .num{background:var(--amber-wash)}
+.nudge{
+  font-size:.86rem;color:var(--warn);border:1px dashed var(--warn);
+  padding:8px 12px;border-radius:var(--radius);display:none;
+}
+.nudge.show{display:block}
+
+/* ---------- flag ---------- */
+.flagrow{display:flex;gap:8px;flex-wrap:wrap}
+input[type=text],textarea{
+  font-family:var(--mono);font-size:.88rem;background:var(--term-bg);color:var(--text);
+  border:1px solid var(--line);border-radius:var(--radius);padding:9px 11px;flex:1 1 160px;min-width:0;
+}
+input[type=text]::placeholder,textarea::placeholder{color:var(--faint)}
+textarea{width:100%;resize:vertical;min-height:64px;font-family:var(--sans);flex:none}
+.btn{
+  background:var(--amber);color:#12181B;border:1px solid var(--amber);
+  font-family:var(--cond);font-weight:600;font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:9px 18px;border-radius:var(--radius);flex:none;
+}
+.btn:hover{background:#FFC63F}
+.btn.ghost{background:transparent;color:var(--dim);border-color:var(--line)}
+.btn.ghost:hover{color:var(--amber);border-color:var(--amber-dim);background:transparent}
+.verdict{font-family:var(--mono);font-size:.85rem;min-height:1.2em}
+.verdict.bad{color:var(--crit)}
+.verdict.good{color:var(--ok)}
+.solved-box{display:none;border-left:2px solid var(--ok);background:rgba(99,188,144,.08);padding:12px 14px}
+.solved-box.show{display:block}
+.solved-box .big{font-family:var(--cond);font-size:1.5rem;font-weight:700;color:var(--ok);line-height:1.1}
+
+/* ---------- writeup ---------- */
+.writeup{display:none}
+.writeup.show{display:block}
+.writeup h3{
+  font-family:var(--cond);font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--amber);margin-top:18px;
+}
+.writeup h3:first-child{margin-top:0}
+.writeup p{font-size:.92rem;color:var(--dim);margin-top:8px}
+.writeup ol,.writeup ul{margin:8px 0 0;padding-left:20px;color:var(--dim);font-size:.92rem}
+.writeup li{margin-top:6px}
+.writeup li strong{color:var(--text)}
+.writeup pre{
+  background:var(--term-bg);border:1px solid var(--line-soft);border-radius:var(--radius);
+  padding:10px 12px;overflow-x:auto;font-family:var(--mono);font-size:.78rem;color:var(--term-text);margin-top:10px;
+}
+
+/* ---------- tabs / environment ---------- */
+.tabs{display:flex;gap:0;border:1px solid var(--line);border-bottom:0;border-radius:var(--radius) var(--radius) 0 0;background:var(--surface);overflow-x:auto}
+.tab{
+  background:transparent;border:0;border-right:1px solid var(--line-soft);
+  padding:11px 16px;color:var(--faint);text-align:left;white-space:nowrap;
+  border-bottom:2px solid transparent;
+}
+.tab .t{font-family:var(--cond);font-weight:600;font-size:.86rem;letter-spacing:.06em;display:block;color:inherit}
+.tab .s{font-family:var(--mono);font-size:.68rem;display:block;color:var(--faint);margin-top:1px}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--amber);background:var(--surface-2)}
+.tab[aria-selected="true"] .s{color:var(--amber-dim)}
+.pane{display:none;border:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius);background:var(--surface)}
+.pane.active{display:block}
+
+/* terminal */
+#termPane{background:var(--term-bg)}
+.term{
+  font-family:var(--mono);font-size:.815rem;line-height:1.5;color:var(--term-text);
+  padding:14px 16px;height:min(62vh,620px);min-height:340px;overflow-y:auto;
+}
+.term .ln{white-space:pre-wrap;word-break:break-word}
+.term .cmd{color:var(--text)}
+.term .cmd .ps{color:var(--amber)}
+.term .err{color:var(--crit)}
+.term .inf{color:var(--dim)}
+.term .okl{color:var(--ok)}
+.term .faint{color:var(--faint)}
+.term .banner{color:var(--faint)}
+.inputline{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line-soft);padding:9px 16px;background:#0B1216}
+.inputline .ps{font-family:var(--mono);font-size:.815rem;color:var(--amber);white-space:nowrap}
+.inputline input{
+  flex:1;background:transparent;border:0;color:var(--term-text);
+  font-family:var(--mono);font-size:.815rem;padding:0;min-width:0;
+}
+.inputline input:focus{outline:none}
+
+/* device panels */
+.device{padding:0}
+.device .dhead{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:12px 16px;background:var(--surface-2);border-bottom:1px solid var(--line);
+}
+.device .dhead .name{font-family:var(--cond);font-weight:600;font-size:.95rem;letter-spacing:.04em}
+.device .dhead .sub{font-family:var(--mono);font-size:.72rem;color:var(--faint)}
+.led{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.72rem;color:var(--dim)}
+.led::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.led.warn::before{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.dbody{padding:16px;display:grid;gap:16px}
+.fieldset{border:1px solid var(--line-soft);border-radius:var(--radius);background:var(--surface-2);padding:14px}
+.fieldset>.lbl{
+  font-family:var(--cond);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);display:block;margin-bottom:10px;
+}
+.frow{display:grid;grid-template-columns:170px minmax(0,1fr);gap:10px;align-items:center;margin-bottom:8px}
+.frow:last-child{margin-bottom:0}
+.frow label{font-family:var(--mono);font-size:.78rem;color:var(--dim)}
+.frow input[type=text]{flex:none;width:100%;padding:6px 9px;font-size:.82rem}
+.frow .ro{font-family:var(--mono);font-size:.82rem;color:var(--text);padding:6px 0}
+@media (max-width:560px){.frow{grid-template-columns:1fr;gap:4px}}
+.joblog{
+  background:var(--term-bg);border:1px solid var(--line-soft);border-radius:var(--radius);
+  font-family:var(--mono);font-size:.76rem;line-height:1.55;padding:10px 12px;
+  height:190px;overflow-y:auto;color:var(--term-text);
+}
+.joblog .t{color:var(--faint)}
+.joblog .e{color:var(--crit)}
+.joblog .g{color:var(--ok)}
+.joblog .empty{color:var(--faint)}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;font-family:var(--mono);font-size:.8rem}
+.kv dt{color:var(--faint)}
+.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+.kv dd.locked{color:var(--faint)}
+.kv dd.ok{color:var(--ok)}
+.kv dd.crit{color:var(--crit)}
+.soplist{font-family:var(--mono);font-size:.74rem;color:var(--dim);line-height:1.7}
+.soplist span{color:var(--faint)}
+.notebox{font-size:.84rem;color:var(--faint);border-top:1px dashed var(--line);padding-top:10px}
+
+/* results */
+.res{width:100%;border-collapse:collapse;font-size:.82rem}
+.res th{
+  font-family:var(--cond);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--faint);text-align:left;padding:0 6px 5px 0;border-bottom:1px solid var(--line-soft);font-weight:600;
+}
+.res td{padding:6px 6px 6px 0;border-bottom:1px solid var(--line-soft);color:var(--dim);vertical-align:top}
+.res td.n{color:var(--text)}
+.res td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.res .fb{color:var(--faint);font-size:.95em}
+.muted{color:var(--faint);font-size:.86rem}
+footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--faint);font-size:.82rem}
+@media (min-width:1021px){.envstack{position:sticky;top:14px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="brandline"><b>DCM Lab</b> <span>/</span> <span>Node</span> <span>/</span> <span>Track 1 &amp; 4</span></div>
+  <h1>Silent CT</h1>
+  <p class="subtitle">Das CT in Raum 3 ist still. Die Bilder sind da, im Archiv kommt nichts an — und am Gerät wurde nichts verändert.</p>
+  <div class="chips">
+    <span class="chip diff">EASY</span>
+    <span class="chip pts">10 Punkte</span>
+    <span class="chip">Kategorie: Netzwerk</span>
+    <span class="chip">Lektion 1.5 &amp; 4.1</span>
+    <span class="chip">≈ 15 Minuten</span>
+  </div>
+  <div class="strip">
+    <div><span class="k">Laufzeit</span><span class="v" id="clock">00:00</span></div>
+    <div><span class="k">Punktestand</span><span class="v amber" id="score">10</span></div>
+    <div><span class="k">Hints genutzt</span><span class="v" id="hintcount">0 / 3</span></div>
+    <div><span class="k">Status</span><span class="v" id="nodestate">offen</span></div>
+  </div>
+</header>
+
+<main class="workspace">
+
+  <!-- ============ linke Spalte ============ -->
+  <div class="col">
+
+    <section class="card briefing">
+      <header><h2>Briefing</h2><span class="chip">Mo 07:15</span></header>
+      <div class="body">
+        <p>Montagmorgen. Die erste Untersuchung im CT-Raum 3 ist durch, die MTRA ruft an: Im PACS kommt nichts an. Am Gerät sieht alles normal aus, die Bilder sind da, der Sendeauftrag läuft angeblich durch.</p>
+        <p>Am Wochenende war Wartung. Die Firma hat am Archiv ein Update eingespielt und anschließend die Netzwerkkonfiguration aus einem Backup zurückgeschrieben. Der Techniker der Modalität sagt, am CT sei nichts verändert worden — <strong>und er hat recht</strong>.</p>
+        <table class="env">
+          <thead><tr><th>System</th><th>Adresse</th><th>Was du darfst</th></tr></thead>
+          <tbody>
+            <tr><td>Deine Workstation</td><td><code>10.20.0.50</code></td><td>Shell mit Befehlsvorlagen</td></tr>
+            <tr><td>Archiv</td><td><code>10.20.0.10</code></td><td>Status ansehen, Konfiguration gesperrt</td></tr>
+            <tr><td>CT-Konsole Raum 3</td><td><code>10.20.0.30</code></td><td>Konfiguration ändern, senden</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">Auf der CT-Konsole gibt es keine Shell — nur das Konfigurationsmenü und den Sende-Knopf. Genau wie im echten Leben.</p>
+        <div class="callout">
+          <span class="lbl">Aufgabe</span>
+          Bring die Thorax-Studie ins Archiv. Der <strong>Flag</strong> ist die <code>SeriesDescription</code> der Serie, die dort ankommt.
+        </div>
+        <div class="callout calm">
+          <span class="lbl">Erster Schritt</span>
+          Noch nie mit DICOM-Kommandozeilenwerkzeugen gearbeitet? Brauchst du nicht. Unter dem Terminal liegen fertige <strong>Befehlsvorlagen</strong> zum Anklicken: Der markierte Platzhalter wird überschrieben, dann Enter. Fang mit <em>Erreichbarkeit prüfen</em> und <em>Verbindung testen</em> an.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header><h2>Hints</h2><span class="chip" id="hintcost">−1 / −2 / −4 Punkte</span></header>
+      <div class="body">
+        <div class="nudge" id="nudge">Seit zehn Minuten dran? Hint 1 kostet dich genau einen Punkt — dafür bleibst du im Spiel.</div>
+        <div class="hint" data-h="1" data-cost="1">
+          <div class="head"><span class="num">1</span><span class="ttl">Wo anfangen</span><button type="button">Anzeigen −1</button></div>
+          <div class="text">
+            <p>Fang nicht bei der Firewall an, sondern beim einfachsten Test: einem C-ECHO von deiner Workstation zum Archiv — und danach mit genau den Werten, die die CT-Konsole benutzt.</p>
+            <p>Wenn eine Verbindung abgelehnt wird, sagt DICOM ziemlich genau, warum. Lies die Fehlermeldung Wort für Wort, nicht nur die erste Zeile.</p>
+          </div>
+        </div>
+        <div class="hint" data-h="2" data-cost="2">
+          <div class="head"><span class="num">2</span><span class="ttl">Die Meldung lesen</span><button type="button">Anzeigen −2</button></div>
+          <div class="text">
+            <p>Die Ablehnung nennt einen Grund: <em>Called AE Title Not Recognized</em>.</p>
+            <p>Das heißt: Das Archiv wurde unter einem Namen angesprochen, den es nicht als seinen eigenen erkennt. Es geht nicht um Netzwerk, nicht um Ports, nicht um Rechte — es geht um einen Namen.</p>
+            <p>Schau dir an, welchen Ziel-AE-Title die CT-Konsole verwendet, und vergleiche ihn zeichengenau mit dem, unter dem das Archiv tatsächlich läuft. Deine eigene Dokumentation liegt auf der Workstation.</p>
+          </div>
+        </div>
+        <div class="hint" data-h="3" data-cost="4">
+          <div class="head"><span class="num">3</span><span class="ttl">Die Lösung</span><button type="button">Anzeigen −4</button></div>
+          <div class="text">
+            <p>Das Archiv läuft unter <code>PACS-ARCHIV</code>, mit <strong>Bindestrich</strong>.<br>Die CT-Konsole sendet an <code>PACS_ARCHIV</code>, mit <strong>Unterstrich</strong>.</p>
+            <p>Trag in der Konsole den korrekten Ziel-AE-Title ein und sende erneut.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header><h2>Flag</h2></header>
+      <div class="body">
+        <div class="flagrow">
+          <input type="text" id="flagInput" placeholder="SeriesDescription" autocomplete="off" spellcheck="false">
+          <button type="button" class="btn" id="flagBtn">Absenden</button>
+        </div>
+        <p class="verdict" id="verdict"></p>
+        <div class="solved-box" id="solvedBox">
+          <span class="big" id="solvedPts">+10 Punkte</span>
+          <p class="muted" id="solvedMeta"></p>
+        </div>
+        <div class="flagrow">
+          <button type="button" class="btn ghost" id="giveUp">Write-up ansehen (0 Punkte)</button>
+          <button type="button" class="btn ghost" id="resetBtn">Node zurücksetzen</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="resultsCard" hidden>
+      <header><h2>Rückmeldung</h2></header>
+      <div class="body">
+        <p class="muted">Zwei Zeilen ausfüllen, kopieren, zurückschicken. Mehr braucht es nicht.</p>
+        <textarea id="summary" style="font-family:var(--mono);font-size:.8rem;min-height:158px;line-height:1.6"></textarea>
+        <div class="flagrow">
+          <button type="button" class="btn ghost" id="copyBtn">In die Zwischenablage</button>
+          <span class="verdict" id="copyState"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card writeup" id="writeup">
+      <header><h2>Write-up</h2></header>
+      <div class="body">
+        <h3>Der Weg</h3>
+        <ol>
+          <li><strong>Erreichbarkeit prüfen</strong> — <code>ping 10.20.0.10</code>. Der Host antwortet. Das sagt über DICOM nichts aus, schließt aber Kabel und Routing aus.</li>
+          <li><strong>C-ECHO von der Workstation</strong> — mit den eigenen, dokumentierten Werten. Erfolgreich: Das Archiv lebt, lauscht auf 104 und nimmt Verbindungen an.</li>
+          <li><strong>Den Fehler nachstellen</strong> — dieselbe Verbindung mit den Werten der CT-Konsole.</li>
+        </ol>
+        <pre>$ echoscu -aet CT_RAUM3 -aec PACS_ARCHIV 10.20.0.10 104
+F: Association Rejected:
+F: Result: Rejected Permanent, Source: Service User
+F: Reason: Called AE Title Not Recognized</pre>
+        <ol start="4">
+          <li><strong>Vergleichen</strong> — Archiv läuft als <code>PACS-ARCHIV</code> (Bindestrich), das CT sendet an <code>PACS_ARCHIV</code> (Unterstrich). Ein Zeichen. AE Titles werden zeichengenau verglichen.</li>
+          <li><strong>Korrigieren und senden</strong> — Ziel-AE-Title in der Konsole ändern, Sendeauftrag erneut auslösen.</li>
+          <li><strong>Flag holen</strong> — erst die Study finden, dann ihre Serien auflisten.</li>
+        </ol>
+        <pre>$ findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=4711 \
+          -k StudyInstanceUID -aet DCMLAB-WS -aec PACS-ARCHIV 10.20.0.10 104
+
+$ findscu -S -k QueryRetrieveLevel=SERIES -k StudyInstanceUID=&lt;aus Schritt 1&gt; \
+          -k SeriesDescription -aet DCMLAB-WS -aec PACS-ARCHIV 10.20.0.10 104</pre>
+        <p>Warum zwei Schritte? Eine Abfrage auf SERIES-Ebene muss die übergeordnete Ebene eindeutig benennen — im Study Root ist das die <code>StudyInstanceUID</code>. Die PatientID allein genügt nicht, und ein strenges Archiv weist eine solche Abfrage zurück. Mehr dazu in Lektion 2.3.</p>
+
+        <h3>Warum das im echten Leben passiert</h3>
+        <p>Diese Node ist kein konstruiertes Rätsel. Das Muster ist einer der häufigsten Ausfälle nach Wartungsarbeiten:</p>
+        <ul>
+          <li>Eine Konfiguration wird aus einem älteren Backup zurückgeschrieben — mit der damaligen Schreibweise.</li>
+          <li>Ein AE Title wird händisch abgetippt, Unterstrich und Bindestrich verwechseln sich.</li>
+          <li>Zwei Firmen pflegen zwei Seiten derselben Verbindung und stimmen die Schreibweise nie ab.</li>
+          <li>Ein System schreibt AE Titles intern in Großbuchstaben um, das andere nicht.</li>
+        </ul>
+        <p>Das Tückische: <strong>Am Gerät sieht alles richtig aus.</strong> Die Konsole zeigt eine vollständige, plausible Konfiguration. Der Fehler ist nur im Vergleich zweier Systeme sichtbar.</p>
+
+        <h3>Was du mitnimmst</h3>
+        <ol>
+          <li><strong>Wenn DICOM dir einen Grund nennt, ist das ein Geschenk.</strong> Die meiste verlorene Zeit entsteht dadurch, dass nur die erste Zeile gelesen wird. Rechne im Alltag damit, dass viele Systeme nur <code>no reason given</code> liefern — dann ist das Log der Gegenstelle deine einzige Quelle.</li>
+          <li><strong>Stell den Fehler dort nach, wo du Werkzeuge hast.</strong> Du musst nicht an der Konsole sitzen — du musst nur ihre Werte kennen und dich genauso melden. Genau das rettet dich, wenn die Gegenseite dir ihre Konfiguration nicht zeigt.</li>
+          <li><strong>Ping beweist nichts, C-ECHO beweist wenig, ein erfolgreiches C-STORE beweist etwas.</strong></li>
+          <li><strong>AE Titles sind zeichengenau.</strong> Keine Toleranz, kein Trimmen, keine Groß-/Kleinschreibungs-Gnade. Bei jeder neuen Verbindung: kopieren, nicht abtippen.</li>
+          <li><strong>Gepflegte eigene Dokumentation schlägt jeden Herstellerzugang.</strong> Der Netzplan auf deiner Workstation hat hier mehr geholfen als das Archiv selbst.</li>
+        </ol>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ============ rechte Spalte ============ -->
+  <div class="col">
+    <div class="envstack">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-pane="termPane" id="tab-term"><span class="t">Workstation</span><span class="s">10.20.0.50 · Shell</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-pane="ctPane" id="tab-ct"><span class="t">CT-Konsole Raum 3</span><span class="s">10.20.0.30 · Bedienfeld</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-pane="arPane" id="tab-ar"><span class="t">Archiv</span><span class="s">10.20.0.10 · Statusseite</span></button>
+      </div>
+
+      <div class="pane active" id="termPane" role="tabpanel" aria-labelledby="tab-term">
+        <div class="term" id="term"></div>
+        <div class="cmdbar" id="cmdbar"><span class="lbl">Befehlsvorlagen — anklicken, Platzhalter überschreiben, Enter</span></div>
+        <div class="inputline">
+          <span class="ps">analyst@dcmlab-ws:~$</span>
+          <input type="text" id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Kommandozeile">
+        </div>
+      </div>
+
+      <div class="pane device" id="ctPane" role="tabpanel" aria-labelledby="tab-ct">
+        <div class="dhead">
+          <div>
+            <div class="name">SOMATOM · CT Raum 3</div>
+            <div class="sub">Konsole · Software 6.1.4 · 10.20.0.30</div>
+          </div>
+          <span class="led warn" id="ctLed">Auftrag in Warteschlange</span>
+        </div>
+        <div class="dbody">
+          <div class="fieldset">
+            <span class="lbl">Netzwerkkonfiguration — DICOM Ziel &bdquo;Archiv&ldquo;</span>
+            <div class="frow"><label for="localAe">Eigener AE Title</label><input type="text" id="localAe" value="CT_RAUM3" spellcheck="false"></div>
+            <div class="frow"><label for="remoteAe">Ziel-AE Title</label><input type="text" id="remoteAe" value="PACS_ARCHIV" spellcheck="false"></div>
+            <div class="frow"><label for="remoteHost">Ziel-Host</label><input type="text" id="remoteHost" value="10.20.0.10" spellcheck="false"></div>
+            <div class="frow"><label for="remotePort">Ziel-Port</label><input type="text" id="remotePort" value="104" spellcheck="false"></div>
+          </div>
+          <div class="fieldset">
+            <span class="lbl">Offener Sendeauftrag</span>
+            <div class="frow"><label>Patient</label><span class="ro">MUSTER^ERIKA · ID 4711</span></div>
+            <div class="frow"><label>Untersuchung</label><span class="ro">CT Thorax nativ · 11.09.2026</span></div>
+            <div class="frow"><label>Objekte</label><span class="ro">3 Bilder · CT Image Storage</span></div>
+            <div class="flagrow" style="margin-top:12px">
+              <button type="button" class="btn" id="sendBtn">Sendeauftrag starten</button>
+            </div>
+          </div>
+          <div>
+            <span class="lbl" style="font-family:var(--cond);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:8px">Auftragsprotokoll</span>
+            <div class="joblog" id="jobLog"><div class="empty">Noch kein Auftrag in dieser Sitzung ausgelöst.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane device" id="arPane" role="tabpanel" aria-labelledby="tab-ar">
+        <div class="dhead">
+          <div>
+            <div class="name">PACS Archiv · Statusseite</div>
+            <div class="sub">Version 4.8.2 · 10.20.0.10 · Nur-Lese-Zugang</div>
+          </div>
+          <span class="led">Dienst läuft</span>
+        </div>
+        <div class="dbody">
+          <div class="fieldset">
+            <span class="lbl">Dienst</span>
+            <dl class="kv">
+              <dt>DICOM-Port</dt><dd>104</dd>
+              <dt>Max PDU</dt><dd>16372</dd>
+              <dt>AE Title</dt><dd class="locked">gesperrt · Herstellerzugang</dd>
+              <dt>Letzter Neustart</dt><dd>Sa 09.09.2026 02:14</dd>
+            </dl>
+          </div>
+          <div class="fieldset">
+            <span class="lbl">Associations · letzte 24 Stunden</span>
+            <dl class="kv">
+              <dt>akzeptiert</dt><dd class="ok" id="accCount">312</dd>
+              <dt>abgelehnt</dt><dd class="crit" id="rejCount">47</dd>
+            </dl>
+            <p class="notebox">Verbindungsprotokoll mit Begründung: nur über Herstellerzugang einsehbar.</p>
+          </div>
+          <div class="fieldset">
+            <span class="lbl">Bestand</span>
+            <dl class="kv">
+              <dt>Studies (heute)</dt><dd id="invStudies">0</dd>
+              <dt>Series (heute)</dt><dd id="invSeries">0</dd>
+              <dt>Instances (heute)</dt><dd id="invInstances">0</dd>
+            </dl>
+          </div>
+          <div class="fieldset">
+            <span class="lbl">Akzeptierte SOP Classes (Auszug)</span>
+            <div class="soplist">
+              1.2.840.10008.1.1 <span>Verification</span><br>
+              1.2.840.10008.5.1.4.1.1.2 <span>CT Image Storage</span><br>
+              1.2.840.10008.5.1.4.1.1.4 <span>MR Image Storage</span><br>
+              1.2.840.10008.5.1.4.1.2.2.1 <span>Study Root Q/R FIND</span><br>
+              1.2.840.10008.5.1.4.1.2.2.2 <span>Study Root Q/R MOVE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  DCM Lab · Prototyp Phase 0 — eine Node, um zu prüfen, ob das Format trägt. Alle Daten synthetisch.
+  DICOM ist eine eingetragene Marke der NEMA; diese Plattform steht in keiner Verbindung zu NEMA.
+</footer>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== Daten ===================== */
+const ARCHIVE_AE = "PACS-ARCHIV";
+const ARCHIVE_IP = "10.20.0.10";
+const ARCHIVE_PORT = 104;
+const KNOWN_CALLING = ["DCMLAB-WS","CT_RAUM1","CT_RAUM3","MR_1","RIS-WL","VIEWER-01"];
+
+const STUDY = {
+  PatientName:"MUSTER^ERIKA", PatientID:"4711", PatientBirthDate:"19580214", PatientSex:"F",
+  StudyDate:"20260911", StudyTime:"070412", AccessionNumber:"A2609110017",
+  StudyDescription:"CT Thorax nativ",
+  StudyInstanceUID:"1.2.276.0.7230010.3.1.2.8323329.11150.1757580901.1",
+  SeriesInstanceUID:"1.2.276.0.7230010.3.1.3.8323329.11150.1757580901.2",
+  SeriesDescription:"Thorax 1.0 B70f", SeriesNumber:"2", Modality:"CT"
+};
+const FLAG = STUDY.SeriesDescription;
+
+const FILES = {
+"netzplan-radiologie.txt":
+"Netzplan Radiologie - Stand 02/2025   (Pflege: Medizintechnik)\n" +
+"AE Titles IMMER hier nachschlagen, nie abtippen.\n\n" +
+"AE TITLE        IP            PORT   System\n" +
+"--------------  ------------  -----  -----------------------------------\n" +
+"PACS-ARCHIV     10.20.0.10    104    Zentralarchiv (Herstellerwartung)\n" +
+"RIS-WL          10.20.0.12    105    RIS Worklist Broker\n" +
+"CT_RAUM1        10.20.0.29    104    Somatom CT Raum 1\n" +
+"CT_RAUM3        10.20.0.30    104    Somatom CT Raum 3\n" +
+"MR_1            10.20.0.31    104    Magnetom MR 1\n" +
+"VIEWER-01       10.20.0.60    104    Befundarbeitsplatz 1\n" +
+"DCMLAB-WS       10.20.0.50    104    Workstation Medizintechnik\n",
+
+"notizen.txt":
+"Wartungsfenster Sa 09.09.2026\n" +
+"  02:00  Archiv-Update 4.7.9 -> 4.8.2 durch Hersteller\n" +
+"  02:14  Neustart Dienst\n" +
+"  02:30  Netzwerkkonfiguration aus Backup zurueckgeschrieben (Stand 02/2024!)\n" +
+"  03:10  Abnahme: C-ECHO von VIEWER-01 ok, C-ECHO von RIS-WL ok\n" +
+"         CT Raum 3 nicht mitgeprueft - kein Personal vor Ort\n\n" +
+"Offen: Herstellerzugang fuer die Archivkonfiguration beantragen (Ticket 2026-1187)\n",
+
+"conformance-pacs-archiv.txt":
+"Auszug DICOM Conformance Statement - PACS Archiv 4.8\n\n" +
+"2.1 Application Entity\n" +
+"    Der AE Title des Archivs wird bei der Installation vergeben\n" +
+"    (Standorteinstellung) und ist nicht Bestandteil dieses Dokuments.\n\n" +
+"2.2 Port\n" +
+"    104 (konfigurierbar)\n\n" +
+"3.1 Association Establishment\n" +
+"    Associations werden ausschliesslich von konfigurierten Calling AE\n" +
+"    Titles akzeptiert. Ein unbekannter Calling AE Title wird mit\n" +
+"    \"Calling AE Title Not Recognized\" abgewiesen, ein abweichender\n" +
+"    Called AE Title mit \"Called AE Title Not Recognized\".\n" +
+"    Die Pruefung erfolgt zeichengenau (case sensitive).\n"
+};
+
+const TAGS = {
+  SpecificCharacterSet:["0008,0005","CS"], SOPInstanceUID:["0008,0018","UI"],
+  StudyDate:["0008,0020","DA"], StudyTime:["0008,0030","TM"],
+  AccessionNumber:["0008,0050","SH"], QueryRetrieveLevel:["0008,0052","CS"],
+  RetrieveAETitle:["0008,0054","AE"], Modality:["0008,0060","CS"],
+  ModalitiesInStudy:["0008,0061","CS"], StudyDescription:["0008,1030","LO"],
+  SeriesDescription:["0008,103E","LO"], PatientName:["0010,0010","PN"],
+  PatientID:["0010,0020","LO"], PatientBirthDate:["0010,0030","DA"],
+  PatientSex:["0010,0040","CS"], StudyInstanceUID:["0020,000D","UI"],
+  SeriesInstanceUID:["0020,000E","UI"], SeriesNumber:["0020,0011","IS"],
+  InstanceNumber:["0020,0013","IS"], NumberOfStudyRelatedSeries:["0020,1206","IS"],
+  NumberOfStudyRelatedInstances:["0020,1208","IS"], NumberOfSeriesRelatedInstances:["0020,1209","IS"]
+};
+const TAG2KW = {}; Object.keys(TAGS).forEach(function(k){ TAG2KW[TAGS[k][0].toLowerCase()] = k; });
+const LC2KW  = {}; Object.keys(TAGS).forEach(function(k){ LC2KW[k.toLowerCase()] = k; });
+
+/* ===================== Zustand ===================== */
+const S = {
+  stored:false, accepted:312, rejected:47, attempt:0,
+  hints:[], gaveUp:false, solved:false, started:Date.now(), elapsed:0,
+  lastExit:0, history:[], hp:0, jobClock:7*3600+15*60+3
+};
+
+const $ = function(id){ return document.getElementById(id); };
+
+/* ===================== Terminal ===================== */
+const term = $("term");
+function push(text, cls){
+  const d = document.createElement("div");
+  d.className = "ln" + (cls ? " " + cls : "");
+  d.textContent = text;
+  term.appendChild(d);
+}
+function pushHTML(html){
+  const d = document.createElement("div");
+  d.className = "ln cmd";
+  d.innerHTML = html;
+  term.appendChild(d);
+}
+function emit(lines){
+  (Array.isArray(lines) ? lines : [lines]).forEach(function(l){
+    let cls = "";
+    if (/^[EF]:/.test(l)) cls = "err";
+    else if (/^I:/.test(l)) cls = "inf";
+    else if (/^W:/.test(l)) cls = "err";
+    push(l, cls);
+  });
+}
+function scrollTerm(){ term.scrollTop = term.scrollHeight; }
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function banner(){
+  term.innerHTML = "";
+  push("DCM Lab Workstation  ·  Debian 12  ·  dcmtk 3.6.8", "banner");
+  push("Angemeldet als analyst@dcmlab-ws (10.20.0.50)", "banner");
+  push("", "banner");
+  push("Tippe  help  fuer die verfuegbaren Werkzeuge.", "faint");
+  push("", "banner");
+}
+
+/* ===================== Argument-Parser ===================== */
+function unquote(s){
+  if (!s) return "";
+  if ((s[0] === '"' && s.slice(-1) === '"') || (s[0] === "'" && s.slice(-1) === "'")) return s.slice(1,-1);
+  return s;
+}
+function normKey(k){
+  k = unquote(k).replace(/^\(|\)$/g,"");
+  if (/^[0-9a-fA-F]{4},[0-9a-fA-F]{4}$/.test(k)) return TAG2KW[k.toLowerCase()] || k;
+  return LC2KW[k.toLowerCase()] || k;
+}
+function parse(tok){
+  const o = { flags:{}, aet:null, aec:null, keys:{}, order:[], pos:[], model:null };
+  for (let i = 1; i < tok.length; i++){
+    const t = tok[i];
+    if (t === "-aet" || t === "--aetitle")      o.aet = unquote(tok[++i] || "");
+    else if (t === "-aec" || t === "--call")    o.aec = unquote(tok[++i] || "");
+    else if (t === "-k" || t === "--key"){
+      const kv = unquote(tok[++i] || "");
+      const p  = kv.indexOf("=");
+      const key = normKey(p > 0 ? kv.slice(0,p) : kv);
+      const val = p > 0 ? unquote(kv.slice(p+1)) : "";
+      if (key){ o.keys[key] = val; if (o.order.indexOf(key) < 0) o.order.push(key); }
+    }
+    else if (t === "-S" || t === "--study")     o.model = "S";
+    else if (t === "-P" || t === "--patient")   o.model = "P";
+    else if (t === "-v" || t === "--verbose")   o.flags.v = true;
+    else if (t === "-d" || t === "--debug")   { o.flags.v = true; o.flags.d = true; }
+    else if (t.charAt(0) === "-")               o.flags[t] = true;
+    else o.pos.push(unquote(t));
+  }
+  return o;
+}
+
+/* ===================== Verbindungslogik ===================== */
+function connect(host, port, calling, called){
+  const knownHost = (host === ARCHIVE_IP || host === "10.20.0.30" || host === "10.20.0.50");
+  if (!knownHost){
+    return { ok:false, lines:[
+      "F: Association Request Failed: TCP Initialization Error: Connection timed out",
+      "F: cannot process association request" ] };
+  }
+  if (host !== ARCHIVE_IP || port !== ARCHIVE_PORT){
+    return { ok:false, lines:[
+      "F: Association Request Failed: TCP Initialization Error: Connection refused",
+      "F: cannot process association request" ] };
+  }
+  if (called !== ARCHIVE_AE){
+    S.rejected++; paintArchive();
+    return { ok:false, lines:[
+      "F: Association Rejected:",
+      "F:   Result: Rejected Permanent, Source: Service User",
+      "F:   Reason: Called AE Title Not Recognized" ] };
+  }
+  if (KNOWN_CALLING.indexOf(calling) < 0){
+    S.rejected++; paintArchive();
+    return { ok:false, lines:[
+      "F: Association Rejected:",
+      "F:   Result: Rejected Permanent, Source: Service User",
+      "F:   Reason: Calling AE Title Not Recognized" ] };
+  }
+  S.accepted++; paintArchive();
+  return { ok:true, lines:[] };
+}
+
+/* ===================== DICOM-Ausgabe ===================== */
+function elem(kw, value){
+  const t = TAGS[kw];
+  if (!t) return "I: (" + kw + ") -- " + value;
+  const v = "[" + value + "]";
+  const len = value.length + (value.length % 2);
+  return "I: (" + t[0].toLowerCase() + ") " + t[1] + " " + v.padEnd(40," ") +
+         " # " + String(len).padStart(3," ") + ", 1 " + kw;
+}
+function matchVal(pattern, value){
+  if (pattern === "") return true;
+  if (value === undefined || value === null) return true;
+  if (pattern.indexOf("*") >= 0 || pattern.indexOf("?") >= 0){
+    const rx = new RegExp("^" + pattern.replace(/[.+^${}()|[\]\\]/g,"\\$&").replace(/\*/g,".*").replace(/\?/g,".") + "$","i");
+    return rx.test(value);
+  }
+  return pattern.toUpperCase() === String(value).toUpperCase();
+}
+
+/* ===================== Kommandos ===================== */
+const CMDS = {};
+
+CMDS.help = function(){
+  emit([
+    "Verfuegbare Werkzeuge auf dieser Workstation:",
+    "",
+    "  ping <host>                       Erreichbarkeit auf IP-Ebene",
+    "  echoscu  [-v] [-aet X] [-aec Y] <host> <port>",
+    "                                    C-ECHO (Verification)",
+    "  findscu  [-S|-P] [-k key=wert] ... [-aet X] [-aec Y] <host> <port>",
+    "                                    C-FIND (Query)",
+    "  storescu [-aet X] [-aec Y] <host> <port> <datei>",
+    "                                    C-STORE (Senden)",
+    "  dcmdump <datei>                   DICOM-Objekt zerlegen",
+    "  ls / cat <datei> / pwd / clear    Dateisystem",
+    "",
+    "Die dcmtk-Werkzeuge sind bei Erfolg still. Exitcode mit  echo $?  pruefen.",
+    "-k akzeptiert Schluesselwoerter (PatientID) und Tags (0010,0020)."
+  ]);
+  return 0;
+};
+
+CMDS.clear = function(){ term.innerHTML = ""; return 0; };
+CMDS.pwd   = function(){ emit("/home/analyst"); return 0; };
+CMDS.whoami= function(){ emit("analyst"); return 0; };
+CMDS.hostname = function(){ emit("dcmlab-ws"); return 0; };
+
+CMDS.ls = function(){
+  emit(Object.keys(FILES).sort().join("  "));
+  return 0;
+};
+
+CMDS.cat = function(tok){
+  const f = tok[1];
+  if (!f){ emit("cat: fehlender Operand"); return 1; }
+  if (!FILES[f]){ emit("cat: " + f + ": Datei oder Verzeichnis nicht gefunden"); return 1; }
+  FILES[f].split("\n").forEach(function(l){ push(l); });
+  return 0;
+};
+
+CMDS.echo = function(tok){
+  const rest = tok.slice(1).join(" ");
+  emit(rest.replace(/\$\?/g, String(S.lastExit)));
+  return 0;
+};
+
+CMDS.ping = function(tok){
+  const h = tok[1];
+  if (!h){ emit("ping: fehlender Host"); return 1; }
+  const known = { "10.20.0.10":"0.31", "10.20.0.30":"0.44", "10.20.0.50":"0.03", "10.20.0.12":"0.29", "10.20.0.60":"0.38" };
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(h)){ emit("ping: " + h + ": Name or service not known"); return 2; }
+  if (!known[h]){
+    emit(["PING " + h + " 56(84) bytes of data.","",
+          "--- " + h + " ping statistics ---",
+          "3 packets transmitted, 0 received, 100% packet loss, time 2043ms"]);
+    return 1;
+  }
+  const t = known[h];
+  emit(["PING " + h + " 56(84) bytes of data.",
+        "64 bytes from " + h + ": icmp_seq=1 ttl=64 time=" + t + " ms",
+        "64 bytes from " + h + ": icmp_seq=2 ttl=64 time=" + t + " ms",
+        "64 bytes from " + h + ": icmp_seq=3 ttl=64 time=" + t + " ms","",
+        "--- " + h + " ping statistics ---",
+        "3 packets transmitted, 3 received, 0% packet loss, time 2003ms"]);
+  return 0;
+};
+
+CMDS.echoscu = function(tok){
+  const o = parse(tok);
+  if (o.pos.length < 2){
+    emit(["echoscu: Zu wenige Parameter","Aufruf: echoscu [optionen] peer port"]);
+    return 1;
+  }
+  const host = o.pos[0], port = parseInt(o.pos[1],10);
+  const calling = o.aet || "ECHOSCU", called = o.aec || "ANY-SCP";
+  const c = connect(host, port, calling, called);
+  if (!c.ok){ emit(c.lines); return 1; }
+  if (o.flags.v){
+    emit(["I: Requesting Association",
+          "I: Association Accepted (Max Send PDV: 16372)",
+          "I: Sending Echo Request (MsgID 1)",
+          "I: Received Echo Response (Success)",
+          "I: Releasing Association"]);
+  }
+  return 0;
+};
+
+CMDS.storescu = function(tok){
+  const o = parse(tok);
+  if (o.pos.length < 3){
+    emit(["storescu: Fehlender Parameter dcmfile-in",
+          "Aufruf: storescu [optionen] peer port dcmfile-in..."]);
+    return 1;
+  }
+  const host = o.pos[0], port = parseInt(o.pos[1],10);
+  const c = connect(host, port, o.aet || "STORESCU", o.aec || "ANY-SCP");
+  if (!c.ok){ emit(c.lines); return 1; }
+  emit("F: cannot access file: " + o.pos[2]);
+  emit("F: no valid input files - no SOP classes to negotiate");
+  return 1;
+};
+
+CMDS.dcmdump = function(tok){
+  const f = tok[1];
+  if (!f){ emit(["dcmdump: Fehlender Parameter dcmfile-in","Aufruf: dcmdump [optionen] dcmfile-in..."]); return 1; }
+  if (!FILES[f]){ emit("E: cannot open file: " + f); return 1; }
+  emit(["E: " + f + ": Invalid DICOM stream (kein DICM ab Byte 128, kein Datensatz)",
+        "E: dcmdump: reading file: " + f]);
+  return 1;
+};
+
+CMDS.findscu = function(tok){
+  const o = parse(tok);
+  if (o.pos.length < 2){
+    emit(["findscu: Zu wenige Parameter","Aufruf: findscu [optionen] peer port"]);
+    return 1;
+  }
+  const host = o.pos[0], port = parseInt(o.pos[1],10);
+  const c = connect(host, port, o.aet || "FINDSCU", o.aec || "ANY-SCP");
+  if (!c.ok){ emit(c.lines); return 1; }
+
+  const model = o.model || "P";
+  const level = (o.keys.QueryRetrieveLevel || (model === "S" ? "STUDY" : "PATIENT")).toUpperCase();
+
+  if (["PATIENT","STUDY","SERIES","IMAGE"].indexOf(level) < 0){
+    emit(["E: Find Failed: 0xa900: Identifier does not match SOP Class",
+          "E: unbekannte QueryRetrieveLevel: " + level]);
+    return 1;
+  }
+  if (level === "SERIES" && !(o.keys.StudyInstanceUID || "").length){
+    emit(["E: Find Failed: 0xa900: Identifier does not match SOP Class",
+          "E: eine Abfrage auf SERIES-Ebene muss den Unique Key der STUDY-Ebene",
+          "E: nennen: (0020,000d) StudyInstanceUID"]);
+    return 1;
+  }
+  if (level === "IMAGE" && !(o.keys.SeriesInstanceUID || "").length){
+    emit(["E: Find Failed: 0xa900: Identifier does not match SOP Class",
+          "E: eine Abfrage auf IMAGE-Ebene muss (0020,000e) SeriesInstanceUID nennen"]);
+    return 1;
+  }
+
+  const badUid = ["StudyInstanceUID","SeriesInstanceUID"].filter(function(k){
+    const v = o.keys[k];
+    return v && !/^[0-9][0-9.]*$/.test(v);
+  })[0];
+  if (badUid){
+    emit(["E: Find Failed: 0xa900: Identifier does not match SOP Class",
+          "E: \"" + o.keys[badUid] + "\" ist keine gueltige UID (VR UI erlaubt nur Ziffern und Punkte)",
+          "E: trag den Wert aus der vorherigen Abfrage ein"]);
+    return 1;
+  }
+
+  const records = [];
+  if (S.stored){
+    if (level === "PATIENT"){
+      records.push({ QueryRetrieveLevel:"PATIENT", PatientName:STUDY.PatientName, PatientID:STUDY.PatientID,
+        PatientBirthDate:STUDY.PatientBirthDate, PatientSex:STUDY.PatientSex });
+    } else if (level === "STUDY"){
+      records.push({ QueryRetrieveLevel:"STUDY", PatientName:STUDY.PatientName, PatientID:STUDY.PatientID,
+        PatientBirthDate:STUDY.PatientBirthDate, PatientSex:STUDY.PatientSex, StudyDate:STUDY.StudyDate,
+        StudyTime:STUDY.StudyTime, AccessionNumber:STUDY.AccessionNumber, StudyDescription:STUDY.StudyDescription,
+        StudyInstanceUID:STUDY.StudyInstanceUID, ModalitiesInStudy:"CT",
+        NumberOfStudyRelatedSeries:"1", NumberOfStudyRelatedInstances:"3" });
+    } else if (level === "SERIES"){
+      records.push({ QueryRetrieveLevel:"SERIES", Modality:"CT", SeriesNumber:STUDY.SeriesNumber,
+        SeriesDescription:STUDY.SeriesDescription, SeriesInstanceUID:STUDY.SeriesInstanceUID,
+        StudyInstanceUID:STUDY.StudyInstanceUID, NumberOfSeriesRelatedInstances:"3" });
+    } else {
+      for (let i = 1; i <= 3; i++){
+        records.push({ QueryRetrieveLevel:"IMAGE", InstanceNumber:String(i),
+          SOPInstanceUID:STUDY.SeriesInstanceUID + "." + i,
+          SeriesInstanceUID:STUDY.SeriesInstanceUID, StudyInstanceUID:STUDY.StudyInstanceUID });
+      }
+    }
+  }
+
+  const hits = records.filter(function(r){
+    return Object.keys(o.keys).every(function(k){
+      if (k === "QueryRetrieveLevel") return true;
+      return matchVal(o.keys[k], r[k]);
+    });
+  });
+
+  emit("I: ---------------------------");
+  hits.forEach(function(r, i){
+    emit("I: Find Response: " + (i+1) + " (Pending)");
+    emit("I:");
+    emit("I: # Dicom-Data-Set");
+    emit("I: # Used TransferSyntax: Little Endian Explicit");
+    emit(elem("SpecificCharacterSet","ISO_IR 100"));
+    emit(elem("RetrieveAETitle", ARCHIVE_AE));
+    const shown = {};
+    o.order.forEach(function(k){
+      if (r[k] !== undefined && !shown[k]){ shown[k] = 1; emit(elem(k, r[k])); }
+    });
+    if (!shown.QueryRetrieveLevel) emit(elem("QueryRetrieveLevel", r.QueryRetrieveLevel));
+    emit("I:");
+    emit("I: ---------------------------");
+  });
+  if (!hits.length) emit("I: 0 passende Antworten");
+  emit("I: Received Final Find Response (Success)");
+  return 0;
+};
+
+/* ===================== Shell ===================== */
+function runLine(raw){
+  const line = raw.trim();
+  pushHTML('<span class="ps">analyst@dcmlab-ws:~$</span> ' + esc(raw));
+  if (!line){ scrollTerm(); return; }
+  S.history.push(line); S.hp = S.history.length;
+  const tok = line.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+  const cmd = tok[0];
+  if (CMDS[cmd]) S.lastExit = CMDS[cmd](tok) || 0;
+  else { push("bash: " + cmd + ": Kommando nicht gefunden", "err"); S.lastExit = 127; }
+  scrollTerm();
+}
+
+const TEMPLATES = [
+  ["Hilfe", "help"],
+  ["Erreichbarkeit prüfen", "ping 10.20.0.10"],
+  ["Dateien ansehen", "ls"],
+  ["Verbindung testen (C-ECHO)", "echoscu -aet DCMLAB-WS -aec ZIEL_AE 10.20.0.10 104"],
+  ["Studie suchen (C-FIND)", "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=4711 -k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec ZIEL_AE 10.20.0.10 104"],
+  ["Serien auflisten (C-FIND)", "findscu -S -k QueryRetrieveLevel=SERIES -k StudyInstanceUID=UID_AUS_SCHRITT_1 -k SeriesDescription -aet DCMLAB-WS -aec ZIEL_AE 10.20.0.10 104"]
+];
+const PLACEHOLDERS = ["ZIEL_AE","UID_AUS_SCHRITT_1"];
+
+const cmdInput = $("cmd");
+cmdInput.addEventListener("keydown", function(e){
+  if (e.key === "Enter"){ runLine(cmdInput.value); cmdInput.value = ""; }
+  else if (e.key === "ArrowUp"){ e.preventDefault(); if (S.hp > 0){ S.hp--; cmdInput.value = S.history[S.hp]; } }
+  else if (e.key === "ArrowDown"){ e.preventDefault(); if (S.hp < S.history.length - 1){ S.hp++; cmdInput.value = S.history[S.hp]; } else { S.hp = S.history.length; cmdInput.value = ""; } }
+  else if (e.key === "l" && e.ctrlKey){ e.preventDefault(); term.innerHTML = ""; }
+});
+(function(){
+  const bar = $("cmdbar");
+  TEMPLATES.forEach(function(t){
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = t[0]; b.title = t[1];
+    b.addEventListener("click", function(e){
+      e.stopPropagation();
+      cmdInput.value = t[1];
+      cmdInput.focus();
+      for (let i = 0; i < PLACEHOLDERS.length; i++){
+        const at = t[1].indexOf(PLACEHOLDERS[i]);
+        if (at >= 0){ cmdInput.setSelectionRange(at, at + PLACEHOLDERS[i].length); return; }
+      }
+      cmdInput.setSelectionRange(t[1].length, t[1].length);
+    });
+    bar.appendChild(b);
+  });
+})();
+
+$("termPane").addEventListener("click", function(e){
+  if (window.getSelection && String(window.getSelection())) return;
+  cmdInput.focus();
+});
+
+/* ===================== Tabs ===================== */
+Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
+  t.addEventListener("click", function(){
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(x){ x.setAttribute("aria-selected","false"); });
+    Array.prototype.forEach.call(document.querySelectorAll(".pane"), function(p){ p.classList.remove("active"); });
+    t.setAttribute("aria-selected","true");
+    $(t.dataset.pane).classList.add("active");
+    if (t.dataset.pane === "termPane") cmdInput.focus();
+  });
+});
+
+/* ===================== CT-Konsole ===================== */
+const jobLog = $("jobLog");
+function jobTime(step){
+  S.jobClock += (step === undefined ? 1 : step);
+  const h = Math.floor(S.jobClock/3600), m = Math.floor((S.jobClock%3600)/60), s = S.jobClock%60;
+  return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+}
+function job(text, cls, step){
+  if (jobLog.querySelector(".empty")) jobLog.innerHTML = "";
+  const d = document.createElement("div");
+  d.innerHTML = '<span class="t">' + jobTime(step) + '</span> ' + '<span class="' + (cls||"") + '">' + esc(text) + '</span>';
+  jobLog.appendChild(d);
+  jobLog.scrollTop = jobLog.scrollHeight;
+}
+$("sendBtn").addEventListener("click", function(){
+  const localAe = $("localAe").value.trim();
+  const remoteAe = $("remoteAe").value.trim();
+  const host = $("remoteHost").value.trim();
+  const port = parseInt($("remotePort").value.trim(),10);
+  S.attempt++;
+  job("Sendeauftrag #" + S.attempt + " – CT Thorax nativ (3 Objekte)", "", 0);
+  job("Verbindungsaufbau " + host + ":" + (isNaN(port) ? "?" : port) + " …", "", 1);
+
+  const reachable = (host === ARCHIVE_IP && port === ARCHIVE_PORT);
+  if (!reachable){
+    job("Kein Verbindungsaufbau möglich – Auftrag bleibt in der Warteschlange", "e", 2);
+    job("Nächster Versuch in 60 s (Versuch " + (S.attempt+1) + ")", "", 0);
+    $("ctLed").textContent = "Auftrag in Warteschlange";
+    $("ctLed").className = "led warn";
+    return;
+  }
+  if (remoteAe !== ARCHIVE_AE || KNOWN_CALLING.indexOf(localAe) < 0){
+    S.rejected++; paintArchive();
+    job("Übertragung nicht möglich – Auftrag bleibt in der Warteschlange", "e", 2);
+    job("Nächster Versuch in 60 s (Versuch " + (S.attempt+1) + ")", "", 0);
+    $("ctLed").textContent = "Auftrag in Warteschlange";
+    $("ctLed").className = "led warn";
+    return;
+  }
+  S.accepted++;
+  job("Association akzeptiert (Max PDU 16372)", "g", 1);
+  job("Bild 1/3 gesendet – Status Success", "g", 1);
+  job("Bild 2/3 gesendet – Status Success", "g", 1);
+  job("Bild 3/3 gesendet – Status Success", "g", 1);
+  job("Auftrag abgeschlossen – 3 von 3 Objekten übertragen", "g", 1);
+  S.stored = true;
+  $("ctLed").textContent = "Bereit";
+  $("ctLed").className = "led";
+  paintArchive();
+});
+
+/* ===================== Archiv-Statusseite ===================== */
+function paintArchive(){
+  $("accCount").textContent = S.accepted;
+  $("rejCount").textContent = S.rejected;
+  $("invStudies").textContent = S.stored ? 1 : 0;
+  $("invSeries").textContent = S.stored ? 1 : 0;
+  $("invInstances").textContent = S.stored ? 3 : 0;
+}
+
+/* ===================== Punkte, Hints, Flag ===================== */
+function points(){
+  if (S.gaveUp) return 0;
+  const cost = S.hints.reduce(function(a,h){ return a + h; }, 0);
+  return Math.max(0, 10 - cost);
+}
+function paintScore(){
+  $("score").textContent = points();
+  $("hintcount").textContent = S.hints.length + " / 3";
+}
+Array.prototype.forEach.call(document.querySelectorAll(".hint"), function(h){
+  h.querySelector("button").addEventListener("click", function(){
+    if (h.classList.contains("open")) return;
+    h.classList.add("open");
+    S.hints.push(parseInt(h.dataset.cost,10));
+    this.remove();
+    $("nudge").classList.remove("show");
+    paintScore();
+  });
+});
+
+function norm(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," "); }
+function fmtTime(sec){
+  const m = Math.floor(sec/60), s = sec%60;
+  return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+}
+function solve(){
+  if (S.solved) return;
+  S.solved = true;
+  $("nodestate").textContent = "gelöst";
+  $("nodestate").className = "v ok";
+  $("writeup").classList.add("show");
+  $("solvedBox").classList.add("show");
+  $("solvedPts").textContent = "+" + points() + " Punkte";
+  $("solvedMeta").textContent = "Gelöst in " + fmtTime(S.elapsed) + " · " + S.hints.length +
+    (S.hints.length === 1 ? " Hint" : " Hints") + " genutzt" + (S.gaveUp ? " · Write-up vorab angesehen" : "");
+  $("nudge").classList.remove("show");
+  showSummary();
+}
+$("flagBtn").addEventListener("click", function(){
+  const v = $("flagInput").value;
+  const out = $("verdict");
+  if (!norm(v)){ out.className = "verdict bad"; out.textContent = "Gib die SeriesDescription ein."; return; }
+  if (norm(v) === norm(FLAG)){
+    out.className = "verdict good";
+    out.textContent = "Korrekt.";
+    solve();
+  } else {
+    out.className = "verdict bad";
+    out.textContent = S.stored
+      ? "Passt nicht — vergleich zeichengenau mit der Antwort des Archivs."
+      : "Passt nicht. Die Serie muss erst im Archiv liegen, dann kannst du sie dort auslesen.";
+  }
+});
+$("flagInput").addEventListener("keydown", function(e){ if (e.key === "Enter") $("flagBtn").click(); });
+
+$("giveUp").addEventListener("click", function(){
+  S.gaveUp = true;
+  paintScore();
+  $("writeup").classList.add("show");
+  showSummary();
+  $("writeup").scrollIntoView({ behavior:"smooth", block:"start" });
+});
+
+$("resetBtn").addEventListener("click", function(){
+  S.stored = false; S.accepted = 312; S.rejected = 47; S.attempt = 0;
+  S.hints = []; S.gaveUp = false; S.solved = false; S.started = Date.now(); S.elapsed = 0;
+  S.jobClock = 7*3600+15*60+3;
+  $("localAe").value = "CT_RAUM3"; $("remoteAe").value = "PACS_ARCHIV";
+  $("remoteHost").value = "10.20.0.10"; $("remotePort").value = "104";
+  jobLog.innerHTML = '<div class="empty">Noch kein Auftrag in dieser Sitzung ausgelöst.</div>';
+  $("ctLed").textContent = "Auftrag in Warteschlange"; $("ctLed").className = "led warn";
+  $("writeup").classList.remove("show");
+  $("solvedBox").classList.remove("show");
+  $("verdict").textContent = ""; $("flagInput").value = "";
+  $("nodestate").textContent = "offen"; $("nodestate").className = "v";
+  $("resultsCard").hidden = true;
+  $("copyState").textContent = "";
+  Array.prototype.forEach.call(document.querySelectorAll(".hint"), function(h){
+    h.classList.remove("open");
+    if (!h.querySelector("button")){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = "Anzeigen −" + h.dataset.cost;
+      b.addEventListener("click", function(){
+        if (h.classList.contains("open")) return;
+        h.classList.add("open"); S.hints.push(parseInt(h.dataset.cost,10)); b.remove(); paintScore();
+      });
+      h.querySelector(".head").appendChild(b);
+    }
+  });
+  banner(); paintArchive(); paintScore();
+});
+
+/* ===================== Uhr ===================== */
+setInterval(function(){
+  if (S.solved) return;
+  S.elapsed = Math.floor((Date.now() - S.started)/1000);
+  $("clock").textContent = fmtTime(S.elapsed);
+  if (S.elapsed >= 600 && !S.hints.length) $("nudge").classList.add("show");
+}, 1000);
+
+/* ===================== Rückmeldung ===================== */
+function buildSummary(){
+  return "Silent CT \u2014 Ergebnis\n" +
+         "Zeit:    " + fmtTime(S.elapsed) + "\n" +
+         "Hints:   " + S.hints.length + " von 3\n" +
+         "Punkte:  " + points() + "\n" +
+         (S.gaveUp ? "Write-up vorab angesehen\n" : "") +
+         "\nFestgehangen bin ich bei:\n  \n" +
+         "Nochmal so eine Aufgabe?  ja / nein, weil:\n  \n";
+}
+function showSummary(){
+  $("resultsCard").hidden = false;
+  $("summary").value = buildSummary();
+}
+$("copyBtn").addEventListener("click", async function(){
+  const ta = $("summary"), st = $("copyState");
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    st.className = "verdict good"; st.textContent = "Kopiert.";
+  } catch(e){
+    ta.focus(); ta.select();
+    st.className = "verdict"; st.textContent = "Markiert \u2014 mit Strg+C kopieren.";
+  }
+});
+
+/* ===================== Start ===================== */
+banner(); paintArchive(); paintScore();
+
+})();
+</script>

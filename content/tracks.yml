@@ -1,0 +1,36 @@
+# Track-Definitionen und Reihenfolge
+
+- slug: fundamente
+  order: 1
+  title_key: track.fundamente.title
+  level: einsteiger
+  hours: 7
+  status: published
+
+- slug: services
+  order: 2
+  title_key: track.services.title
+  level: aufbau
+  hours: 8
+  status: planned
+
+- slug: bild
+  order: 3
+  title_key: track.bild.title
+  level: aufbau
+  hours: 5
+  status: planned
+
+- slug: troubleshooting
+  order: 4
+  title_key: track.troubleshooting.title
+  level: aufbau
+  hours: 10
+  status: planned
+
+- slug: betrieb
+  order: 5
+  title_key: track.betrieb.title
+  level: fortgeschritten
+  hours: 8
+  status: planned
