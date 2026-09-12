@@ -1,10 +1,18 @@
 COMPOSE = docker compose -f infra/docker-compose.yml --env-file .env
 COMPOSE_DEV = $(COMPOSE) -f infra/docker-compose.dev.yml
 
-.PHONY: up down test lint seed content-validate content-build logs
+.PHONY: up down test lint seed content-validate content-build logs sandbox-images
 
-up:
+up: sandbox-images
 	$(COMPOSE_DEV) up --build -d
+
+# Images der Spielwiese (Abschnitt 6): keine Compose-Services, sondern von
+# services/sandbox zur Laufzeit per Docker-Socket gestartete Container-Paare
+# -- muessen deshalb vorab als Images existieren, nicht als `build:`-Eintrag
+# in docker-compose.yml.
+sandbox-images:
+	docker build -t dcmlab/orthanc:latest containers/orthanc
+	docker build -f containers/toolbox/Dockerfile -t dcmlab/toolbox:latest .
 
 down:
 	$(COMPOSE_DEV) down
