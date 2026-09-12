@@ -187,7 +187,7 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | Feature | Status | Node(s) freigeschaltet |
 |---|---|---|
 | C-FIND-Matching (Query-Level, Wildcards) | ✅ P10.1 | `c-find-mismatch` (neu) |
-| Größenlimit (C-STORE) | offen | `oversized-image` |
+| Größenlimit (C-STORE) | ✅ P10.2 | `oversized-image` (neu) |
 | Transfer-Syntax-Aushandlung | offen | `syntax-negotiation-fails`, `halbe-sache`, `mitgehoert`, `verbindung-ohne-bild` |
 | Multiframe-Generator | offen | — (Track 3) |
 | Worklist-Query | offen | `worklist-query-empty` |
@@ -207,7 +207,7 @@ könnte).
 | Node | Status |
 |---|---|
 | `c-find-mismatch` | ✅ P10.1, vollständig und live verifiziert |
-| `oversized-image` | offen (braucht Feature „Größenlimit") |
+| `oversized-image` | ✅ P10.2, vollständig und live verifiziert (Lektion 4.3, teilweise — SOP-Class-Ablehnung fehlt weiterhin) |
 | `syntax-negotiation-fails` | offen (braucht Feature „Transfer-Syntax") |
 | `patient-merge-discovery` | offen (braucht Feature „Patient-Merge") |
 

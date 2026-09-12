@@ -305,6 +305,37 @@ sonst zeichengenau — siehe `services/engine/app/find.py`) statt nur zu
 prüfen, ob vorher gesendet wurde. Ein Host hat entweder `records` **oder**
 den alten Sende-Mechanismus, nie beides. Details und Begründung: ADR 0011.
 
+### 6b. Objekte mit echter Größe und Größenlimits (ab P10)
+
+Für Nodes, in denen ein `storescu` direkt von einer Shell aus versucht
+wird (statt über das Konfigurationsfeld einer Modalitäts-Simulation) und
+die Größe eines Objekts über Erfolg oder Ablehnung entscheidet, trägt die
+Umgebung `objects`, und der Ziel-Dienst trägt `max_object_bytes`:
+
+```yaml
+environment:
+  hosts:
+    - name: archive
+      services:
+        - port: 104
+          ae_title: KLINIK-ARCHIV
+          accepts: [ct-image-storage]
+          max_object_bytes: 50000000   # 50 MB
+  objects:
+    - filename: "klein.dcm"
+      bytes: 524288      # 512 x 512 x 16 Bit, eine klassische Schicht
+    - filename: "gross.dcm"
+      bytes: 78643200    # 150 Frames desselben Formats, ein Enhanced-Volumen
+```
+
+`ls` zeigt die Dateigröße real an (wie `ls -la` vor jedem Sendeversuch),
+`storescu <peer> <port> <datei>` prüft die Größe gegen `max_object_bytes`
+des passenden Diensts und lehnt zu große Objekte mit dem echten DIMSE-
+Statuscode `0xA7xx` ("Refused: Out of Resources", PS3.7 Annex C) ab, ohne
+den Bestand des Archivs zu verändern. Nodes ohne `objects` verhalten sich
+unverändert (Abschnitt 5.3: Bilder liegen auf der Modalität, nicht auf der
+Workstation). Details und Begründung: ADR 0012.
+
 ## 7. Node — `de.md`
 
 ```markdown
