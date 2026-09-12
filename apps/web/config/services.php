@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // Interne Dienste (Abschnitt 3.3) -- nur im Compose-Netz erreichbar.
+    'engine' => [
+        'url' => env('ENGINE_URL', 'http://engine:8100'),
+        'key' => env('DCMLAB_INTERNAL_KEY'),
+    ],
+
 ];

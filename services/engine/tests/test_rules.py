@@ -308,6 +308,18 @@ def test_viewing_the_write_up_zeroes_points_but_keeps_progress() -> None:
     assert state["counters"]["archive"]["accepted"] == 1
 
 
+def test_viewing_the_write_up_after_solving_does_not_zero_points() -> None:
+    # Abschnitt 5.3 sagt ausdruecklich "vorab" -- nach dem Loesen darf man
+    # sich das Write-up straflos ansehen.
+    state = fresh_state()
+    rules.check_flag(NODE, state, "Test Series")
+
+    rules.view_write_up(state)
+
+    assert rules.points(NODE, state) == 10
+    assert state["solved"] is True
+
+
 def test_unknown_hint_id_is_rejected() -> None:
     state = fresh_state()
 

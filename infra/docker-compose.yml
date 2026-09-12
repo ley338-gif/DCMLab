@@ -35,6 +35,7 @@ services:
       - ../apps/web/.env.docker
     environment:
       DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
+      ENGINE_URL: http://engine:8100
       DB_USERNAME: ${POSTGRES_USER:-dcmlab}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
       DB_DATABASE: ${POSTGRES_DB:-dcmlab}
@@ -49,6 +50,8 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      engine:
+        condition: service_started
 
   caddy:
     image: caddy:2-alpine
