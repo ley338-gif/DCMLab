@@ -38,6 +38,7 @@ Rein technische, nicht-redaktionelle Lücken wurden direkt behoben:
 | `lessons/1.0/de.md` | 315 | Abschließende Drei-Befehle-Übung; die Erklärung danach ist freie Prosa statt des festen Wortlauts. |
 | `lessons/1.3/de.md` | 25 | `dcmdump`-Ausgabe mit angehefteter Pfeil-Grafik, die Tag/VR/Wert erklärt — Grenzfall zwischen echtem Beispiel und Diagramm. |
 | `nodes/silent-ct/de.md` | 38, 81, 91, 105, 114, 131, 147, 162 | Das komplette Write-up erklärt jeden Schritt in freier Prosa statt mit dem festen Wortlaut. Inhaltlich vollständig (Befehl, Ausgabe, Erklärung sind alle da), nur die Marker-Phrase fehlt durchgehend. |
+| `nodes/wrong-door/de.md` | 75, 91, 100, 115 | Dieselbe Situation wie bei Silent CT (P6, dieselbe Write-up-Struktur bewusst wiederverwendet): freie Prosa statt fester Marker-Phrase, Inhalt vollständig. |
 
 Für `lessons/1.0` und die Node ist das vermutlich am saubersten mit einer
 bewussten Entscheidung zu lösen: entweder den festen Wortlaut nachtragen

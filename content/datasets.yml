@@ -22,3 +22,13 @@ ct-thorax-3-slices:
   file_count: 3
   path: "daten/ct-thorax-3-slices/"
   note: "Kleiner Ausschnitt fuer die Node Silent CT — reicht fuer einen Sendevorgang."
+
+ct-thorax-1-slice:
+  patient: "MUSTER^ERIKA"
+  patient_id: "4711"
+  study: "CT Thorax nativ"
+  series:
+    - "Thorax 1.0 B70f"
+  file_count: 1
+  path: "daten/ct-thorax-1-slice/"
+  note: "Die andere kanonische Serie aus Abschnitt 4.6 — fuer Node Wrong Door, damit ihr Flag sich von Silent CT unterscheidet."

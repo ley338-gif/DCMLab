@@ -1,0 +1,9 @@
+AE TITLE        Geraet
+--------------  -----------------------------------
+DCMLAB-WS       Workstation (Diagnose/Support)
+CT_RAUM1        CT-Geraet Raum 1
+CT_RAUM3        CT-Geraet Raum 3
+MR_1            MR-Geraet 1
+MR_2            MR-Geraet 2 (Neuzugang)
+RIS-WL          Radiologie-Informationssystem (Worklist)
+VIEWER-01       Diagnose-Viewer
