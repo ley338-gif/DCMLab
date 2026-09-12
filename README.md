@@ -57,7 +57,7 @@ spielbarem Prototyp
 - Laravel 13 + Inertia + Vue 3 + Tailwind, Pest, Pint, PHPStan Level 7
 - FastAPI-Gerüste für Engine und Sandbox-Orchestrator (Endpunkte nach
   Abschnitt 5.5 als `501 Not Implemented`-Stubs, internes Secret geprüft)
-- `docker-compose.yml` mit App, Postgres, Redis, Engine, Orchestrator, Caddy
+- `docker-compose.yml` mit App, Postgres, Valkey, Engine, Orchestrator, Caddy
 - CI-Pipeline (GitHub Actions): Lint, Typen, Tests, Docker-Build für alle Teile
 
 **Plattform (P1 — Content-Pipeline) fertig:**

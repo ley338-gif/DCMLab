@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         validation_alias="DCMLAB_INTERNAL_KEY",
     )
     redis_url: str = Field(
-        default="redis://redis:6379/0",
+        default="redis://valkey:6379/0",
         validation_alias="SANDBOX_REDIS_URL",
     )
     idle_timeout_minutes: int = Field(default=60, validation_alias="SANDBOX_IDLE_TIMEOUT_MINUTES")

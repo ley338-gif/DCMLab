@@ -15,12 +15,15 @@ services:
       timeout: 5s
       retries: 10
 
-  redis:
-    image: redis:7-alpine
+  valkey:
+    # Valkey statt Redis: BSD-3, Linux-Foundation-Fork -- Redis selbst ist seit
+    # 7.4 nicht mehr Open Source (RSALv2/SSPLv2). Protokollkompatibel, daher
+    # ohne Code-Aenderung austauschbar (docs/adr/0003).
+    image: valkey/valkey:8-alpine
     ports:
       - "${REDIS_HOST_PORT:-6380}:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -44,7 +47,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      valkey:
         condition: service_healthy
 
   caddy:
@@ -72,14 +75,14 @@ services:
       context: ../services/sandbox
     environment:
       DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
-      SANDBOX_REDIS_URL: redis://redis:6379/0
+      SANDBOX_REDIS_URL: redis://valkey:6379/0
       SANDBOX_IDLE_TIMEOUT_MINUTES: ${SANDBOX_IDLE_TIMEOUT_MINUTES:-60}
     volumes:
       # Einziger Dienst mit Docker-Socket-Zugriff (Abschnitt 3.3) -- startet und
       # raeumt die Container-Paare der Spielwiese (ab P7).
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      redis:
+      valkey:
         condition: service_healthy
 
 volumes:
