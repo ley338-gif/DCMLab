@@ -1,0 +1,81 @@
+slug: wrong-door
+difficulty: easy
+points: 10
+category: netzwerk
+skills: [netzwerk]
+related_lessons: ["1.5"]
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.20.0.50
+      role: shell
+    - name: archive
+      ip: 10.20.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: PACS-ARCHIV
+          accepts: [verification, ct-image-storage, study-root-find]
+      config_visible: false
+    - name: mr-console
+      ip: 10.20.0.31
+      role: modality-simulator
+      config_editable: true
+      config:
+        local_ae: MR-2            # ← der eingebaute Fehler (Bindestrich statt Unterstrich)
+        remote_ae: PACS-ARCHIV
+        remote_host: 10.20.0.10
+        remote_port: 104
+
+  known_calling_aets: [DCMLAB-WS, CT_RAUM1, CT_RAUM3, MR_1, MR_2, RIS-WL, VIEWER-01]
+
+  tools: [echoscu, storescu, findscu, dcmdump]
+  dataset: ct-thorax-1-slice
+
+  files:
+    - geraeteliste-radiologie.txt   # enthält die korrekt registrierten AE Titles
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ping
+      command: "ping 10.20.0.10"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.echo
+      command: "echoscu -aet KONSOLEN_AE -aec PACS-ARCHIV 10.20.0.10 104"
+    - label_key: tpl.find_study
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=4711 -k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec PACS-ARCHIV 10.20.0.10 104"
+    - label_key: tpl.find_series
+      command: "findscu -S -k QueryRetrieveLevel=SERIES -k StudyInstanceUID=UID_AUS_SCHRITT_1 -k SeriesDescription -aet DCMLAB-WS -aec PACS-ARCHIV 10.20.0.10 104"
+  placeholders: [KONSOLEN_AE, UID_AUS_SCHRITT_1]
+
+# Association-Prüfung, in dieser Reihenfolge (Abschnitt 5.3 -- unveraendert,
+# diesmal schlaegt Stufe 4 zu statt Stufe 3):
+#   1. Host unbekannt              -> TCP Initialization Error: Connection timed out
+#   2. Host bekannt, falscher Port -> Connection refused
+#   3. Called AE != PACS-ARCHIV    -> Called AE Title Not Recognized,  Ablehnzähler +1
+#   4. Calling AE unbekannt        -> Calling AE Title Not Recognized, Ablehnzähler +1
+#   5. sonst                       -> akzeptiert, Annahmezähler +1
+
+flag:
+  type: tag_value
+  source_tag: "0008,103E"
+  hash: "sha256:44f1b7ce0d2d0181364fdbdc91a080df04ae2231b2b2130794dc39a3e0bc0276"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 10
+
+status: draft
+updated: "2026-09-14"
