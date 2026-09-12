@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\NodeController;
+use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\TrackController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,13 @@ Route::prefix('de')->group(function () {
         Route::get('lessons/{lesson}', [LessonController::class, 'show'])->name('lessons.show');
         Route::post('lessons/{lesson}/complete', [LessonController::class, 'complete'])->name('lessons.complete');
         Route::post('lessons/{lesson}/reopen', [LessonController::class, 'reopen'])->name('lessons.reopen');
+        Route::post('lessons/{lesson}/sandbox', [SandboxController::class, 'create'])->name('lessons.sandbox');
+
+        Route::prefix('sandbox/{sandboxId}')->name('sandbox.')->group(function () {
+            Route::get('/', [SandboxController::class, 'state'])->name('state');
+            Route::post('exec', [SandboxController::class, 'exec'])->name('exec');
+            Route::delete('/', [SandboxController::class, 'destroy'])->name('destroy');
+        });
 
         Route::prefix('nodes/{node}')->name('nodes.')->group(function () {
             Route::get('/', [NodeController::class, 'show'])->name('show');

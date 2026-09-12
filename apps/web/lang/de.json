@@ -215,5 +215,12 @@
     "Leider falsch.": "Leider falsch.",
     "Write-up": "Write-up",
     "Write-up ansehen (setzt Punkte auf 0)": "Write-up ansehen (setzt Punkte auf 0)",
-    "Kein Host mit Shell gefunden.": "Kein Host mit Shell gefunden."
+    "Kein Host mit Shell gefunden.": "Kein Host mit Shell gefunden.",
+
+    "Wird gestartet…": "Wird gestartet…",
+    "In der Warteschlange, Platz :position": "In der Warteschlange, Platz :position",
+    "Spielwiese beenden": "Spielwiese beenden",
+    "Die Spielwiese ist gerade nicht erreichbar. Versuch es gleich noch einmal.": "Die Spielwiese ist gerade nicht erreichbar. Versuch es gleich noch einmal.",
+    "Tageskontingent für die Spielwiese aufgebraucht. Versuch es morgen wieder.": "Tageskontingent für die Spielwiese aufgebraucht. Versuch es morgen wieder.",
+    "Keine Spielwiese aktiv.": "Keine Spielwiese aktiv."
 }

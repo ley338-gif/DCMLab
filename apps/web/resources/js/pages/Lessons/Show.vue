@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { CircleCheck, FlaskConical } from '@lucide/vue';
+import { CircleCheck } from '@lucide/vue';
 import { ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
+import SandboxPanel from '@/components/SandboxPanel.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
@@ -156,20 +157,10 @@ const toolbarOpen = ref(!props.progress.is_returning_visit);
                         </span>
                     </div>
 
-                    <Button
+                    <SandboxPanel
                         v-if="toolbar.needs_sandbox"
-                        disabled
-                        variant="outline"
-                        class="w-full"
-                    >
-                        <FlaskConical class="size-4" />
-                        {{ trans('Spielwiese starten') }}
-                        <span class="text-muted-foreground text-xs"
-                            >({{
-                                trans('folgt in einer späteren Phase')
-                            }})</span
-                        >
-                    </Button>
+                        :lesson-id="lesson.lesson_id"
+                    />
                 </CardContent>
             </Card>
 

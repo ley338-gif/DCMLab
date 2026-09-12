@@ -11,9 +11,13 @@ function readCookie(name: string): string | null {
     return match ? decodeURIComponent(match[1]) : null;
 }
 
-export async function postJson<T>(url: string, body: unknown = {}): Promise<T> {
+async function sendJson<T>(
+    method: string,
+    url: string,
+    body: unknown = {},
+): Promise<T> {
     const response = await fetch(url, {
-        method: 'POST',
+        method,
         credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/json',
@@ -29,4 +33,12 @@ export async function postJson<T>(url: string, body: unknown = {}): Promise<T> {
     }
 
     return (await response.json()) as T;
+}
+
+export function postJson<T>(url: string, body: unknown = {}): Promise<T> {
+    return sendJson<T>('POST', url, body);
+}
+
+export function deleteJson<T>(url: string, body: unknown = {}): Promise<T> {
+    return sendJson<T>('DELETE', url, body);
 }

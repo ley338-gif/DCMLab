@@ -4,6 +4,11 @@
   "DicomPort": 4242,
   "HttpPort": 8042,
   "RemoteAccessAllowed": true,
-  "AuthenticationEnabled": true,
-  "DicomAlwaysAllowEcho": true
+  "AuthenticationEnabled": false,
+  "DicomAlwaysAllowEcho": true,
+  "DicomAlwaysAllowStore": true,
+  "DicomAlwaysAllowFind": true,
+  "DicomAlwaysAllowFindWorklist": true,
+  "DicomAlwaysAllowMove": true,
+  "DicomAlwaysAllowGet": true
 }

@@ -41,4 +41,9 @@ return [
         'key' => env('DCMLAB_INTERNAL_KEY'),
     ],
 
+    'sandbox' => [
+        'url' => env('SANDBOX_URL', 'http://sandbox:8200'),
+        'key' => env('DCMLAB_INTERNAL_KEY'),
+    ],
+
 ];

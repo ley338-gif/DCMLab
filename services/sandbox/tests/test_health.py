@@ -12,5 +12,5 @@ def test_health_ok() -> None:
 
 
 def test_sandboxes_requires_internal_key() -> None:
-    response = client.post("/v1/sandboxes")
+    response = client.post("/v1/sandboxes", json={"user_id": "u1", "dataset_slug": "test-set"})
     assert response.status_code == 401

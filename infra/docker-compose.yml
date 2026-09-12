@@ -85,10 +85,14 @@ services:
       DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
       SANDBOX_REDIS_URL: redis://valkey:6379/0
       SANDBOX_IDLE_TIMEOUT_MINUTES: ${SANDBOX_IDLE_TIMEOUT_MINUTES:-60}
+      SANDBOX_MAX_CONCURRENT: ${SANDBOX_MAX_CONCURRENT:-3}
+      SANDBOX_DAILY_QUOTA_MINUTES: ${SANDBOX_DAILY_QUOTA_MINUTES:-60}
+      CONTENT_PATH: /app/content
     volumes:
       # Einziger Dienst mit Docker-Socket-Zugriff (Abschnitt 3.3) -- startet und
-      # raeumt die Container-Paare der Spielwiese (ab P7).
+      # raeumt die Container-Paare der Spielwiese (P7).
       - /var/run/docker.sock:/var/run/docker.sock
+      - ../content:/app/content:ro
     depends_on:
       valkey:
         condition: service_healthy
