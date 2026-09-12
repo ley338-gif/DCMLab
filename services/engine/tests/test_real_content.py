@@ -63,3 +63,30 @@ def test_wrong_door_and_silent_ct_have_different_flags() -> None:
     wrong_door = content.load_node("wrong-door")
 
     assert silent_ct.flag_hash != wrong_door.flag_hash
+
+
+def test_c_find_mismatch_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 1: die Study liegt von Anfang an im Archiv (`records`),
+    keine Sendeaktion noetig. Die falsch abgetippte Patient ID liefert null
+    Treffer, das Wildcard-Muster deckt die echte auf."""
+
+    node = content.load_node("c-find-mismatch")
+    state = rules.initial_state(node)
+
+    wrong = rules.exec_command(
+        node, state, "workstation",
+        "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=MEYER,HANS "
+        "-aet DCMLAB-WS -aec KLINIK-ARCHIV 10.50.0.10 104",
+    )
+    assert wrong.stdout == "I: Number of Matches: 0"
+
+    found = rules.exec_command(
+        node, state, "workstation",
+        "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=MEYER* "
+        "-k PatientName -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.50.0.10 104",
+    )
+    assert "I: (0010,0020) LO [MEYER, HANS]  # xx, 1 PatientID" in found.stdout
+    assert "I: Number of Matches: 1" in found.stdout
+
+    assert rules.check_flag(node, state, "MEYER, HANS") is True
+    assert rules.check_flag(node, state, "MEYER,HANS") is False

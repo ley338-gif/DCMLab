@@ -278,6 +278,33 @@ updated: "2026-09-12"
 - `templates` sind kein Hint und kosten keine Punkte. Ein Platzhalter darf nie die Lösung vorwegnehmen — im Gegenteil: Er markiert genau die Stelle, an der die Node ihre Frage stellt.
 - Auch Nodes nennen ihre Werkzeuge als Slugs. Die Node-Oberfläche zeigt sie in derselben Leiste wie die Lektionen.
 
+### 6a. Archiv-Hosts mit vorhandenen Records (ab P10)
+
+Bis P9 kannte ein Archiv-Host nur einen einzigen Bestand, der erst durch eine
+Sendeaktion entsteht (Silent CT, Wrong Door, Neue Node). Für Nodes, in denen
+das Archiv von Anfang an etwas enthält (z. B. eine C-FIND-Suche, die an der
+Patient ID scheitert), trägt der Archiv-Host stattdessen `records`:
+
+```yaml
+- name: archive
+  ip: 10.50.0.10
+  services: [...]
+  records:
+    - patient_id: "MEYER, HANS"
+      patient_name: "MEYER^HANS"
+      study_uid: "1.2.276.0.7230010.3.1.4.<eindeutig>"
+      study_description: "MR Kopf nativ"
+      study_date: "20260310"
+      series:
+        - series_uid: "1.2.276.0.7230010.3.1.3.<eindeutig>"
+          series_description: "T2 TSE tra"
+```
+
+`findscu` matcht dann echt gegen diese Records (DICOM-Wildcards `*`/`?`,
+sonst zeichengenau — siehe `services/engine/app/find.py`) statt nur zu
+prüfen, ob vorher gesendet wurde. Ein Host hat entweder `records` **oder**
+den alten Sende-Mechanismus, nie beides. Details und Begründung: ADR 0011.
+
 ## 7. Node — `de.md`
 
 ```markdown
