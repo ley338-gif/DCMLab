@@ -6,6 +6,7 @@ use Database\Factories\NodeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -35,6 +36,11 @@ class Node extends Model
     /** @use HasFactory<NodeFactory> */
     use HasFactory;
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     protected function casts(): array
     {
         return [
@@ -44,5 +50,13 @@ class Node extends Model
             'scenario_title' => 'array',
             'content_updated_at' => 'date',
         ];
+    }
+
+    /**
+     * @return HasMany<NodeAttempt, $this>
+     */
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(NodeAttempt::class);
     }
 }

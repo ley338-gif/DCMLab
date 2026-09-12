@@ -71,6 +71,7 @@ def initial_state(node: NodeDefinition) -> dict[str, Any]:
         "bestand": {},
         "hints_used": [],
         "write_up_seen": False,
+        "write_up_seen_before_solve": False,
         "solved": False,
         "created_at": now_iso(),
         "last_progress_at": now_iso(),
@@ -100,7 +101,7 @@ def is_stuck(node: NodeDefinition, state: dict[str, Any], now: datetime | None =
 
 
 def points(node: NodeDefinition, state: dict[str, Any]) -> int:
-    if state.get("write_up_seen"):
+    if state.get("write_up_seen_before_solve"):
         return 0
 
     spent = sum(node.hint_cost(hint_id) or 0 for hint_id in state.get("hints_used", []))
@@ -556,6 +557,11 @@ def use_hint(node: NodeDefinition, state: dict[str, Any], hint_id: str) -> str |
 
 
 def view_write_up(state: dict[str, Any]) -> None:
+    # Abschnitt 5.3: "Write-up VORAB ansehen setzt die Node auf 0 Punkte" --
+    # nach dem Loesen darf man es sich straflos ansehen.
+    if not state.get("solved"):
+        state["write_up_seen_before_solve"] = True
+
     state["write_up_seen"] = True
 
 
