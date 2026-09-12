@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, setLayoutProps } from '@inertiajs/vue3';
+import { watchEffect } from 'vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
+import { trans } from '@/lib/trans';
 
-defineOptions({
-    layout: {
-        title: 'Email verification',
-        description:
+// siehe Register.vue: defineOptions({layout}) laeuft zu frueh fuer trans().
+watchEffect(() => {
+    setLayoutProps({
+        title: trans('Email verification'),
+        description: trans(
             'Please verify your email address by clicking on the link we just emailed to you.',
-    },
+        ),
+    });
 });
 
 defineProps<{
@@ -20,14 +24,17 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Email verification" />
+    <Head :title="trans('Email verification')" />
 
     <div
         v-if="status === 'verification-link-sent'"
         class="mb-4 text-center text-sm font-medium text-green-600"
     >
-        A new verification link has been sent to the email address you provided
-        during registration.
+        {{
+            trans(
+                'A new verification link has been sent to the email address you provided during registration.',
+            )
+        }}
     </div>
 
     <Form
@@ -37,11 +44,11 @@ defineProps<{
     >
         <Button :disabled="processing" variant="secondary">
             <Spinner v-if="processing" />
-            Resend verification email
+            {{ trans('Resend verification email') }}
         </Button>
 
         <TextLink :href="logout()" as="button" class="mx-auto block text-sm">
-            Log out
+            {{ trans('Log out') }}
         </TextLink>
     </Form>
 </template>

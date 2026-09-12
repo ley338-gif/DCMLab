@@ -10,6 +10,7 @@ import {
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { store } from '@/routes/two-factor/login';
+import { trans } from '@/lib/trans';
 import type { TwoFactorConfigContent } from '@/types';
 
 const showRecoveryInput = ref<boolean>(false);
@@ -18,18 +19,20 @@ const code = ref<string>('');
 const authConfigContent = computed<TwoFactorConfigContent>(() => {
     if (showRecoveryInput.value) {
         return {
-            title: 'Recovery code',
-            description:
+            title: trans('Recovery code'),
+            description: trans(
                 'Please confirm access to your account by entering one of your emergency recovery codes.',
-            buttonText: 'login using an authentication code',
+            ),
+            buttonText: trans('login using an authentication code'),
         };
     }
 
     return {
-        title: 'Authentication code',
-        description:
+        title: trans('Authentication code'),
+        description: trans(
             'Enter the authentication code provided by your authenticator application.',
-        buttonText: 'login using a recovery code',
+        ),
+        buttonText: trans('login using a recovery code'),
     };
 });
 
@@ -48,7 +51,7 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
 </script>
 
 <template>
-    <Head title="Two-factor authentication" />
+    <Head :title="trans('Two-factor authentication')" />
 
     <div class="space-y-6">
         <template v-if="!showRecoveryInput">
@@ -82,11 +85,11 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                     </div>
                     <InputError :message="errors.code" />
                 </div>
-                <Button type="submit" class="w-full" :disabled="processing"
-                    >Continue</Button
-                >
+                <Button type="submit" class="w-full" :disabled="processing">{{
+                    trans('Continue')
+                }}</Button>
                 <div class="text-muted-foreground text-center text-sm">
-                    <span>or you can </span>
+                    <span>{{ trans('or you can ') }}</span>
                     <button
                         type="button"
                         class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
@@ -108,17 +111,17 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                 <Input
                     name="recovery_code"
                     type="text"
-                    placeholder="Enter recovery code"
+                    :placeholder="trans('Enter recovery code')"
                     :autofocus="showRecoveryInput"
                     required
                 />
                 <InputError :message="errors.recovery_code" />
-                <Button type="submit" class="w-full" :disabled="processing"
-                    >Continue</Button
-                >
+                <Button type="submit" class="w-full" :disabled="processing">{{
+                    trans('Continue')
+                }}</Button>
 
                 <div class="text-muted-foreground text-center text-sm">
-                    <span>or you can </span>
+                    <span>{{ trans('or you can ') }}</span>
                     <button
                         type="button"
                         class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"

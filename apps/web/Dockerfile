@@ -17,6 +17,11 @@ RUN npm ci
 
 COPY . .
 RUN composer dump-autoload --optimize --no-dev
+
+# Vite braucht VITE_*-Variablen beim Bauen selbst, nicht erst zur Laufzeit --
+# .env existiert an dieser Stelle noch nicht (siehe .dockerignore).
+ARG VITE_APP_NAME="DCM Lab"
+ENV VITE_APP_NAME=$VITE_APP_NAME
 RUN npm run build
 
 ########################

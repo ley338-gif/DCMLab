@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -42,6 +43,26 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'locale' => app()->getLocale(),
+            'translations' => fn () => $this->loadTranslations(),
         ];
+    }
+
+    /**
+     * Abschnitt 8: keine hartkodierten UI-Strings -- alles in lang/<locale>.json.
+     * Dieselbe Datei, die Laravels __() fuer Backend-Meldungen liest, geht hier
+     * komplett an Vue, das ueber resources/js/lib/trans.ts danraus aufloest.
+     *
+     * @return array<string, string>
+     */
+    private function loadTranslations(): array
+    {
+        $path = lang_path(app()->getLocale().'.json');
+
+        if (! File::exists($path)) {
+            return [];
+        }
+
+        return json_decode(File::get($path), true) ?? [];
     }
 }

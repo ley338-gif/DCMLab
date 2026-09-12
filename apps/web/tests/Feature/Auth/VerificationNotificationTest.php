@@ -26,9 +26,12 @@ class VerificationNotificationTest extends TestCase
 
         $user = User::factory()->unverified()->create();
 
+        // Fortifys EmailVerificationNotificationSentResponse nutzt back(); ohne
+        // Referer in der Test-Anfrage faellt das auf die Root-URL zurueck --
+        // unabhaengig davon, wohin die Route "home" zeigt.
         $this->actingAs($user)
             ->post(route('verification.send'))
-            ->assertRedirect(route('home'));
+            ->assertRedirect('/');
 
         Notification::assertSentTo($user, VerifyEmail::class);
     }

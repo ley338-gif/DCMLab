@@ -1,22 +1,25 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, setLayoutProps } from '@inertiajs/vue3';
+import { watchEffect } from 'vue';
 import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
+import { trans } from '@/lib/trans';
 import { dashboard } from '@/routes';
 
-defineOptions({
-    layout: {
+// siehe auth/Register.vue: defineOptions({layout}) laeuft zu frueh fuer trans().
+watchEffect(() => {
+    setLayoutProps({
         breadcrumbs: [
             {
-                title: 'Dashboard',
+                title: trans('Dashboard'),
                 href: dashboard(),
             },
         ],
-    },
+    });
 });
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head :title="trans('Dashboard')" />
 
     <div
         class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"

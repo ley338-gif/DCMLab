@@ -73,7 +73,14 @@ return [
     |
     */
 
-    'home' => '/dashboard',
+    // Abschnitt 8: URL-Schema /de/... von Anfang an, auch mit nur einer Sprache.
+    'home' => '/de/dashboard',
+
+    // LogoutResponse faellt sonst auf "/" zurueck -- vermeidet den zusaetzlichen
+    // Redirect-Hop ueber Route::redirect('/', '/de').
+    'redirects' => [
+        'logout' => '/de',
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -86,7 +93,7 @@ return [
     |
     */
 
-    'prefix' => '',
+    'prefix' => 'de',
 
     'domain' => null,
 

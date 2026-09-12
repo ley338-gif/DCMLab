@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, setLayoutProps } from '@inertiajs/vue3';
+import { watchEffect } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -8,12 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
+import { trans } from '@/lib/trans';
 
-defineOptions({
-    layout: {
-        title: 'Forgot password',
-        description: 'Enter your email to receive a password reset link',
-    },
+// siehe Register.vue: defineOptions({layout}) laeuft zu frueh fuer trans().
+watchEffect(() => {
+    setLayoutProps({
+        title: trans('Forgot password'),
+        description: trans('Enter your email to receive a password reset link'),
+    });
 });
 
 defineProps<{
@@ -22,7 +25,7 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Forgot password" />
+    <Head :title="trans('Forgot password')" />
 
     <div
         v-if="status"
@@ -34,7 +37,7 @@ defineProps<{
     <div class="space-y-6">
         <Form v-bind="email.form()" v-slot="{ errors, processing }">
             <div class="grid gap-2">
-                <Label for="email">Email address</Label>
+                <Label for="email">{{ trans('Email address') }}</Label>
                 <Input
                     id="email"
                     type="email"
@@ -53,14 +56,14 @@ defineProps<{
                     data-test="email-password-reset-link-button"
                 >
                     <Spinner v-if="processing" />
-                    Email password reset link
+                    {{ trans('Email password reset link') }}
                 </Button>
             </div>
         </Form>
 
         <div class="text-muted-foreground space-x-1 text-center text-sm">
-            <span>Or, return to</span>
-            <TextLink :href="login()">log in</TextLink>
+            <span>{{ trans('Or, return to') }}</span>
+            <TextLink :href="login()">{{ trans('log in') }}</TextLink>
         </div>
     </div>
 </template>

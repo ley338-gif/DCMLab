@@ -74,10 +74,24 @@ spielbarem Prototyp
 - Bekannte, dokumentierte Content-Lücken: `docs/content-todo.md`
   (`content:validate` läuft deshalb vorerst mit `continue-on-error` in CI)
 
+**Plattform (P2 — Konten, Locale, UI-Gerüst) fertig:**
+
+- `/de/`-Routing (`Route::prefix('de')`, Root leitet dorthin um), Fortify-
+  Routen darüber mit `config/fortify.php: prefix`
+- Registrierung, Login, 2FA, Passkeys, E-Mail-Bestätigung, Passwort-Reset,
+  Profil — aus dem Starter-Kit, jetzt vollständig lokalisiert
+- Keine hartkodierten sichtbaren UI-Strings mehr: `lang/de.json` (Vue über
+  `resources/js/lib/trans.ts`, PHP über `__()`) plus
+  `lang/de/{validation,auth,passwords}.php`
+- Trackübersicht (`/de`, `TrackController`) ersetzt die Standard-
+  Willkommensseite; Navigation mit Tracks/Dashboard-Eintrag
+- Details und ein gefundener Deploy-Bug (Vite-Manifest bei Redeploy stale):
+  `docs/adr/0004-p2-locale-und-i18n-mechanismus.md`
+
 **Offen (nächste Phasen laut Abschnitt 10):**
 
-- P2 bis P9: Konten, Lektionsansicht, Node-Engine-Logik, Web-Terminal,
-  Spielwiese, Punkte/Ränge — siehe Abschnitt 10 im Auftrag
+- P3 bis P9: Lektionsansicht, Node-Engine-Logik, Web-Terminal, Spielwiese,
+  Punkte/Ränge — siehe Abschnitt 10 im Auftrag
 - Sieben Node-Slugs werden von den Lektionen referenziert, existieren aber noch
   nicht: `first-contact`, `zwei-ebenen-tiefer`, `wo-steht-das`, `zwillinge`,
   `neue-node`, `halbe-sache`, `mitgehoert`
