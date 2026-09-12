@@ -1,4 +1,38 @@
 {
+    "403 — Kein Zugriff": "403 — Kein Zugriff",
+    "Du hast keine Berechtigung, diese Seite zu sehen.": "Du hast keine Berechtigung, diese Seite zu sehen.",
+    "404 — Nicht gefunden": "404 — Nicht gefunden",
+    "Diese Seite gibt es nicht (mehr).": "Diese Seite gibt es nicht (mehr).",
+    "419 — Sitzung abgelaufen": "419 — Sitzung abgelaufen",
+    "Deine Sitzung ist abgelaufen. Bitte lade die Seite neu.": "Deine Sitzung ist abgelaufen. Bitte lade die Seite neu.",
+    "429 — Zu viele Anfragen": "429 — Zu viele Anfragen",
+    "Du warst gerade etwas zu schnell. Versuch es in einer Minute erneut.": "Du warst gerade etwas zu schnell. Versuch es in einer Minute erneut.",
+    "500 — Serverfehler": "500 — Serverfehler",
+    "Da ist etwas schiefgegangen. Wir schauen uns das an.": "Da ist etwas schiefgegangen. Wir schauen uns das an.",
+    "503 — Wartungsarbeiten": "503 — Wartungsarbeiten",
+    "DCM Lab ist kurz nicht erreichbar. Versuch es gleich noch einmal.": "DCM Lab ist kurz nicht erreichbar. Versuch es gleich noch einmal.",
+    ":status — Fehler": ":status — Fehler",
+    "Da ist etwas schiefgegangen.": "Da ist etwas schiefgegangen.",
+    "Zur Startseite": "Zur Startseite",
+
+    "Impressum": "Impressum",
+    "Platzhalter — hier stehen die Angaben nach § 5 TMG (Betreiber, Anschrift, Kontakt, ggf. Registereintrag), sobald DCM Lab von einer echten Rechtsperson betrieben wird.": "Platzhalter — hier stehen die Angaben nach § 5 TMG (Betreiber, Anschrift, Kontakt, ggf. Registereintrag), sobald DCM Lab von einer echten Rechtsperson betrieben wird.",
+    "Betreiber": "Betreiber",
+    "Anschrift": "Anschrift",
+    "Kontakt": "Kontakt",
+
+    "Datenschutzerklärung": "Datenschutzerklärung",
+    "Datenschutz": "Datenschutz",
+    "Platzhalter — hier steht die vollständige Datenschutzerklärung (Verantwortlicher, Zwecke und Rechtsgrundlagen der Verarbeitung, Speicherdauer, Betroffenenrechte, Auftragsverarbeiter), sobald DCM Lab von einer echten Rechtsperson betrieben wird.": "Platzhalter — hier steht die vollständige Datenschutzerklärung (Verantwortlicher, Zwecke und Rechtsgrundlagen der Verarbeitung, Speicherdauer, Betroffenenrechte, Auftragsverarbeiter), sobald DCM Lab von einer echten Rechtsperson betrieben wird.",
+    "Was diese Plattform speichert": "Was diese Plattform speichert",
+    "Kontodaten (Name, E-Mail-Adresse), Lernfortschritt (gelöste Lektionen und Nodes, Punkte, Rang) sowie technische Protokolle für den Betrieb (siehe docs/betrieb.md im Quellcode). Keine echten Patientendaten — die Übungsdaten in Lektionen und der Spielwiese sind ausschließlich synthetisch erzeugt (Abschnitt 1 des Projektauftrags).": "Kontodaten (Name, E-Mail-Adresse), Lernfortschritt (gelöste Lektionen und Nodes, Punkte, Rang) sowie technische Protokolle für den Betrieb (siehe docs/betrieb.md im Quellcode). Keine echten Patientendaten — die Übungsdaten in Lektionen und der Spielwiese sind ausschließlich synthetisch erzeugt (Abschnitt 1 des Projektauftrags).",
+
+    "Nutzungsbedingungen": "Nutzungsbedingungen",
+    "Platzhalter — hier steht die vollständige rechtliche Fassung, sobald DCM Lab von einer echten Rechtsperson betrieben wird. Der folgende Hinweis zur Spielwiese gilt schon jetzt inhaltlich, unabhängig vom endgültigen Wortlaut.": "Platzhalter — hier steht die vollständige rechtliche Fassung, sobald DCM Lab von einer echten Rechtsperson betrieben wird. Der folgende Hinweis zur Spielwiese gilt schon jetzt inhaltlich, unabhängig vom endgültigen Wortlaut.",
+    "Die Spielwiese führt deinen Code aus": "Die Spielwiese führt deinen Code aus",
+    "Wenn du die Spielwiese startest, bekommst du eine eigene, isolierte Umgebung mit einem echten DICOM-Archiv, in der du beliebige Befehle über das Terminal ausführst. Diese Befehle laufen als dein eigener Nutzercode in Containern, die für deine Sitzung erzeugt und danach wieder gelöscht werden. Die Umgebung hat keinen Zugriff auf das Internet oder andere Systeme (Egress ist gesperrt), und es dürfen keine echten oder personenbezogenen Daten hochgeladen oder verarbeitet werden — nur die von der Plattform bereitgestellten, synthetischen Testdaten.": "Wenn du die Spielwiese startest, bekommst du eine eigene, isolierte Umgebung mit einem echten DICOM-Archiv, in der du beliebige Befehle über das Terminal ausführst. Diese Befehle laufen als dein eigener Nutzercode in Containern, die für deine Sitzung erzeugt und danach wieder gelöscht werden. Die Umgebung hat keinen Zugriff auf das Internet oder andere Systeme (Egress ist gesperrt), und es dürfen keine echten oder personenbezogenen Daten hochgeladen oder verarbeitet werden — nur die von der Plattform bereitgestellten, synthetischen Testdaten.",
+    "Ein Missbrauchsversuch (z. B. der Versuch, aus der Umgebung auszubrechen oder Ressourcen anderer Nutzer zu beeinträchtigen) kann zum Ausschluss vom Dienst führen.": "Ein Missbrauchsversuch (z. B. der Versuch, aus der Umgebung auszubrechen oder Ressourcen anderer Nutzer zu beeinträchtigen) kann zum Ausschluss vom Dienst führen.",
+
     "Profile updated.": "Profil aktualisiert.",
     "Password updated.": "Passwort aktualisiert.",
 

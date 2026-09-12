@@ -1,0 +1,23 @@
+id: "4.9"
+track: troubleshooting
+order: 9
+duration_minutes: 12
+level: aufbau
+objectives_count: 3
+requires: ["1.6", "1.8"]
+tools: [echoscu, storescu, tshark]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
+# ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
+lab:
+  node: null
+  optional: true
+
+glossary_terms: [association, transfer-syntax]
+tools_checked: "2026-09-12"
+status: draft
+updated: "2026-09-12"

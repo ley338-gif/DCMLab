@@ -21,21 +21,31 @@ Route::prefix('de')->group(function () {
     Route::get('profiles/{slug}', [PublicProfileController::class, 'show'])->name('profiles.show');
     Route::get('profiles/{slug}/export', [PublicProfileController::class, 'exportPdf'])->name('profiles.export');
 
+    Route::inertia('impressum', 'Legal/Impressum')->name('legal.impressum');
+    Route::inertia('datenschutz', 'Legal/Datenschutz')->name('legal.datenschutz');
+    Route::inertia('nutzungsbedingungen', 'Legal/Nutzungsbedingungen')->name('legal.nutzungsbedingungen');
+
     Route::middleware(['auth', 'verified'])->group(function () {
         Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
         Route::get('lessons/{lesson}', [LessonController::class, 'show'])->name('lessons.show');
         Route::post('lessons/{lesson}/complete', [LessonController::class, 'complete'])->name('lessons.complete');
         Route::post('lessons/{lesson}/reopen', [LessonController::class, 'reopen'])->name('lessons.reopen');
-        Route::post('lessons/{lesson}/sandbox', [SandboxController::class, 'create'])->name('lessons.sandbox');
+        Route::post('lessons/{lesson}/sandbox', [SandboxController::class, 'create'])
+            ->middleware('throttle:10,1')
+            ->name('lessons.sandbox');
 
-        Route::prefix('sandbox/{sandboxId}')->name('sandbox.')->group(function () {
+        Route::prefix('sandbox/{sandboxId}')->name('sandbox.')->middleware('throttle:30,1')->group(function () {
             Route::get('/', [SandboxController::class, 'state'])->name('state');
             Route::post('exec', [SandboxController::class, 'exec'])->name('exec');
             Route::delete('/', [SandboxController::class, 'destroy'])->name('destroy');
         });
 
-        Route::prefix('nodes/{node}')->name('nodes.')->group(function () {
+        // Sandbox fuehrt vom Nutzer eingegebene Befehle in echten Containern aus
+        // (Abschnitt 6) -- die Node-Engine simuliert nur, aber beide Gruppen
+        // bekommen dasselbe Limit, damit kein Skript per Dauerfeuer die Engine
+        // oder den Sandbox-Orchestrator flutet.
+        Route::prefix('nodes/{node}')->name('nodes.')->middleware('throttle:60,1')->group(function () {
             Route::get('/', [NodeController::class, 'show'])->name('show');
             Route::get('state', [NodeController::class, 'state'])->name('state');
             Route::post('exec', [NodeController::class, 'exec'])->name('exec');

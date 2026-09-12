@@ -9,9 +9,12 @@ tools: [dcmftest, dcmdump]
 sandbox:
   required: true
   dataset: ct-thorax-60
+
+# Node first-contact ist ein Geruest (status: draft), noch nicht spielbar
+# -- siehe docs/content-todo.md. Deshalb optional, bis sie es ist.
 lab:
   node: first-contact
-  optional: false
+  optional: true
 glossary_terms: [dicom, instance, tag, c-store, dimse]
 tools_checked: "2026-09-12"
 status: draft

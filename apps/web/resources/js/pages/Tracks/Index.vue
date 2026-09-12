@@ -11,7 +11,8 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
-import { dashboard, login, register } from '@/routes';
+import { dashboard, leaderboard, login, register } from '@/routes';
+import { impressum, datenschutz, nutzungsbedingungen } from '@/routes/legal';
 import { show as showTrack } from '@/routes/tracks';
 
 type TrackSummary = {
@@ -135,5 +136,18 @@ const levelLabels: Record<string, string> = {
                 </component>
             </div>
         </main>
+
+        <footer class="border-t">
+            <div
+                class="text-muted-foreground mx-auto flex max-w-5xl flex-wrap gap-4 px-6 py-6 text-sm"
+            >
+                <Link :href="leaderboard()">{{ trans('Leaderboard') }}</Link>
+                <Link :href="impressum()">{{ trans('Impressum') }}</Link>
+                <Link :href="datenschutz()">{{ trans('Datenschutz') }}</Link>
+                <Link :href="nutzungsbedingungen()">{{
+                    trans('Nutzungsbedingungen')
+                }}</Link>
+            </div>
+        </footer>
     </div>
 </template>

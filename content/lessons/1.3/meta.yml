@@ -9,9 +9,12 @@ tools: [dcmdump, dcm2json]
 sandbox:
   required: true
   dataset: ct-thorax-60
+
+# Node wo-steht-das ist ein Geruest (status: draft), noch nicht spielbar --
+# siehe docs/content-todo.md. Deshalb optional, bis sie es ist.
 lab:
   node: wo-steht-das
-  optional: false
+  optional: true
 glossary_terms: [tag, vr, value-multiplicity, private-creator]
 tools_checked: "2026-09-12"
 status: draft

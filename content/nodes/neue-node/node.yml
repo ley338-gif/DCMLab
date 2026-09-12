@@ -1,0 +1,81 @@
+slug: neue-node
+difficulty: medium
+points: 25
+category: netzwerk
+skills: [netzwerk]
+related_lessons: ["1.6"]
+estimated_minutes: 20
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.40.0.50
+      role: shell
+    - name: archive
+      ip: 10.40.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, ct-image-storage, study-root-find]
+      config_visible: false
+    - name: mr-neu
+      ip: 10.40.0.40
+      role: modality-simulator
+      config_editable: true
+      config:
+        local_ae: MR-NEU
+        remote_ae: PACS            # ← Fehler 1: Werkseinstellung des Herstellers
+        remote_host: 192.168.1.1   # ← Fehler 2: Werkseinstellung des Herstellers
+        remote_port: 11112         # ← Fehler 3: Werkseinstellung des Herstellers
+
+  known_calling_aets: [DCMLAB-WS, MR-NEU, CT_RAUM1, CT_RAUM3, MR_1, MR_2, RIS-WL, VIEWER-01]
+
+  tools: [echoscu, storescu, findscu, dcmdump]
+  dataset: ct-thorax-2-slices
+
+  files:
+    - netzplan-klinik.txt   # enthält AE Title, Host und Port des Archivs
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ping
+      command: "ping 10.40.0.10"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.echo
+      command: "echoscu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.40.0.10 104"
+    - label_key: tpl.find_study
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=4711 -k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.40.0.10 104"
+    - label_key: tpl.find_series
+      command: "findscu -S -k QueryRetrieveLevel=SERIES -k StudyInstanceUID=UID_AUS_SCHRITT_1 -k SeriesDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.40.0.10 104"
+  placeholders: [UID_AUS_SCHRITT_1]
+
+# Association-Pruefung durchlaeuft hier alle drei ersten Stufen nacheinander
+# (Abschnitt 5.3, unveraendert): jede Korrektur am Konfigurationsfeld der
+# neuen Modalitaet deckt die naechste auf.
+#   1. remote_host falsch (Werkseinstellung) -> TCP Initialization Error: Connection timed out
+#   2. remote_host korrigiert, remote_port falsch -> Connection refused
+#   3. remote_port korrigiert, remote_ae falsch    -> Called AE Title Not Recognized
+#   4. alle drei korrigiert                        -> akzeptiert
+
+flag:
+  type: tag_value
+  source_tag: "0008,103E"
+  hash: "sha256:2270a1acc2b523209f9bbdf4fce6ddfdbba6c1e1fd5f50d10c7097dd732eb4d2"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 12
+
+status: draft
+updated: "2026-09-16"

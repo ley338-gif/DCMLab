@@ -32,3 +32,13 @@ ct-thorax-1-slice:
   file_count: 1
   path: "daten/ct-thorax-1-slice/"
   note: "Die andere kanonische Serie aus Abschnitt 4.6 — fuer Node Wrong Door, damit ihr Flag sich von Silent CT unterscheidet."
+
+ct-thorax-2-slices:
+  patient: "MUSTER^ERIKA"
+  patient_id: "4711"
+  study: "CT Thorax nativ"
+  series:
+    - "Thorax 3.0 B60f"
+  file_count: 2
+  path: "daten/ct-thorax-2-slices/"
+  note: "Dritte Serienbezeichnung nach demselben Namensschema wie die beiden kanonischen (Abschnitt 4.6) — fuer Node neue-node, damit ihr Flag sich von Silent CT und Wrong Door unterscheidet."
