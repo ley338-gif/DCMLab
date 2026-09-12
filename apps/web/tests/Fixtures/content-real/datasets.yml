@@ -1,0 +1,24 @@
+# Testdatensaetze, die in der Spielwiese unter ~/daten/<slug>/ bereitliegen
+# (Abschnitt 4.6). Erzeugt ausschliesslich von datasets/build/ (pydicom),
+# nie echte Patientendaten -- auch nicht anonymisiert (Leitplanke 2).
+
+ct-thorax-60:
+  patient: "MUSTER^ERIKA"
+  patient_id: "4711"
+  study: "CT Thorax nativ"
+  series:
+    - "Thorax 1.0 B70f"
+    - "Thorax 5.0 B31f"
+  file_count: 60
+  path: "daten/ct-thorax-60/"
+  note: "Zwei Serien in einem Ordner, absichtlich gemischt."
+
+ct-thorax-3-slices:
+  patient: "MUSTER^ERIKA"
+  patient_id: "4711"
+  study: "CT Thorax nativ"
+  series:
+    - "Thorax 5.0 B31f"
+  file_count: 3
+  path: "daten/ct-thorax-3-slices/"
+  note: "Kleiner Ausschnitt fuer die Node Silent CT — reicht fuer einen Sendevorgang."

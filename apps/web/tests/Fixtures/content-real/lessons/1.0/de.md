@@ -21,7 +21,6 @@ Diese Lektion schließt die Lücke. Jeder Abschnitt endet mit einem Befehl, den 
 
 Bevor die Namen kommen, die Logik dahinter. Sonst wirken sie beliebig — sind sie aber nicht:
 
-<!-- kein-beispiel -->
 ```
       echoscu      findscu      storescu      storescp
       ────┬───     ────┬───     ─────┬──      ─────┬──

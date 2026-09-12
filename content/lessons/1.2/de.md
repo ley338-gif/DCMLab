@@ -17,6 +17,7 @@ Um zu verstehen, wie das passieren kann — und es passiert häufig —, musst d
 
 ## Vier Ebenen
 
+<!-- kein-beispiel -->
 ```
    PATIENT          Muster, Erika · ID 4711
       │

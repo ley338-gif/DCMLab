@@ -1,0 +1,18 @@
+id: "1.1"
+track: fundamente
+order: 1
+duration_minutes: 8
+level: einsteiger
+objectives_count: 3
+requires: ["1.0"]
+tools: [dcmftest, dcmdump]
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+lab:
+  node: first-contact
+  optional: false
+glossary_terms: [dicom, instance, tag, c-store, dimse]
+tools_checked: "2026-09-12"
+status: draft
+updated: "2026-09-12"

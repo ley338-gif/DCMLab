@@ -71,6 +71,9 @@ export default defineConfig({
             'composer.json',
             'resources/js/components/ui/*',
             'resources/views/mail/*',
+            // Testdaten, keine Quelldateien -- absichtlich Kopien echter
+            // Lektionen (siehe tests/Feature/Content/ContentValidateTest.php).
+            'tests/Fixtures/**',
         ],
         sortTailwindcss: {
             functions: ['clsx', 'cn', 'cva'],

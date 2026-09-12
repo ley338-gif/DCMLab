@@ -59,23 +59,32 @@ spielbarem Prototyp
   Abschnitt 5.5 als `501 Not Implemented`-Stubs, internes Secret geprüft)
 - `docker-compose.yml` mit App, Postgres, Redis, Engine, Orchestrator, Caddy
 - CI-Pipeline (GitHub Actions): Lint, Typen, Tests, Docker-Build für alle Teile
+
+**Plattform (P1 — Content-Pipeline) fertig:**
+
+- `content:validate` prüft Struktur-, Beispiel- und Werkzeugregeln
+  (Abschnitt 4.7) mit Datei+Zeile je Verstoß
+- `content:sync` indiziert `tracks`, `lessons`, `nodes` in der Datenbank
+  (Abschnitt 7) — die Prosa bleibt im Dateisystem
+- Markdown-Renderer (`App\Content\MarkdownRenderer`) löst `{{term:x}}` zu
+  Glossar-Tooltips auf und markiert Mermaid-Blöcke fürs Frontend
+- `content/datasets.yml` ergänzt (`ct-thorax-60`, `ct-thorax-3-slices`)
 - `Makefile` mit `up`, `down`, `test`, `lint`, `seed`, `content-validate`,
-  `content-build` (die drei Content-Kommandos sind Platzhalter, siehe unten)
+  `content-build` (`content-build` folgt erst mit der Node-Engine in P4)
+- Bekannte, dokumentierte Content-Lücken: `docs/content-todo.md`
+  (`content:validate` läuft deshalb vorerst mit `continue-on-error` in CI)
 
 **Offen (nächste Phasen laut Abschnitt 10):**
 
-- P1: `content:validate` und `content:sync` sind im Auftrag beschrieben, aber
-  noch nicht implementiert — der Content wird noch nicht eingelesen
 - P2 bis P9: Konten, Lektionsansicht, Node-Engine-Logik, Web-Terminal,
   Spielwiese, Punkte/Ränge — siehe Abschnitt 10 im Auftrag
 - Sieben Node-Slugs werden von den Lektionen referenziert, existieren aber noch
   nicht: `first-contact`, `zwei-ebenen-tiefer`, `wo-steht-das`, `zwillinge`,
   `neue-node`, `halbe-sache`, `mitgehoert`
-- `content/glossary/de.yml` ist nur begonnen — die `{{term:…}}`-Markierungen in
-  den Lektionen zeigen teilweise ins Leere
-- `content/datasets.yml` fehlt
 - Track 2 bis 5 sind im Konzept geplant, nicht geschrieben
 - Track 4 braucht echte Vorfälle aus dem Klinikbetrieb, keine erfundenen
+- Redaktionelle Content-Lücken, die `content:validate` jetzt korrekt aufdeckt:
+  `docs/content-todo.md`
 
 ## Prüfliste für den gemeinsamen Durchgang
 

@@ -35,8 +35,12 @@ services:
       DB_USERNAME: ${POSTGRES_USER:-dcmlab}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
       DB_DATABASE: ${POSTGRES_DB:-dcmlab}
+      CONTENT_PATH: /var/www/html/content
     volumes:
       - web-public:/var/www/html/public
+      # content/ liegt im Git-Repo (Abschnitt 1.4), nie in der Datenbank --
+      # read-only, die App liest nur.
+      - ../content:/var/www/html/content:ro
     depends_on:
       postgres:
         condition: service_healthy

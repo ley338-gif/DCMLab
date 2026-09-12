@@ -17,6 +17,7 @@ Solche Diskussionen enden in drei Minuten, wenn jemand den Verbindungsaufbau mit
 
 Bevor ein einziges Bild fließt, einigen sich die beiden Seiten darauf, **worüber** sie überhaupt reden können. Der Ablauf hat vier Schritte:
 
+<!-- kein-beispiel -->
 ```
    SCU                                              SCP
     │                                                │

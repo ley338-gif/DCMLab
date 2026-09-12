@@ -1,0 +1,216 @@
+# Werkzeugverzeichnis — speist die Werkzeugleiste am Kopf jeder Lektion.
+# name, suite, kind und example sind in allen Sprachdateien identisch.
+# Übersetzt wird nur purpose.
+
+# ---------- Dateien ansehen und verändern ----------
+dcmftest:
+  name: dcmftest
+  suite: dcmtk
+  kind: datei
+  purpose: Prüft, ob eine Datei überhaupt dem DICOM-Dateiformat entspricht.
+  example: "dcmftest datei.dcm"
+  lesson: "1.1"
+  anchor: das-nachpruefen-statt-es-zu-glauben
+  needs_sandbox: false
+
+dcmdump:
+  name: dcmdump
+  suite: dcmtk
+  kind: datei
+  purpose: Kippt den kompletten Inhalt eines DICOM-Objekts als Text aus.
+  example: "dcmdump datei.dcm"
+  lesson: "1.0"
+  anchor: was-steht-in-dieser-datei
+  needs_sandbox: false
+
+dcm2json:
+  name: dcm2json
+  suite: dcmtk
+  kind: skript
+  purpose: Gibt denselben Inhalt als JSON aus, zum Weiterverarbeiten.
+  example: "dcm2json datei.dcm"
+  lesson: "1.3"
+  anchor: wenn-du-es-weiterverarbeiten-willst
+  needs_sandbox: false
+
+dcmconv:
+  name: dcmconv
+  suite: dcmtk
+  kind: datei
+  purpose: Schreibt ein Objekt in einer anderen Transfer Syntax neu.
+  example: "dcmconv +ti datei.dcm neu.dcm"
+  lesson: "1.7"
+  anchor: eine-kodierung-aendern
+  needs_sandbox: false
+
+dcmcjpeg:
+  name: dcmcjpeg
+  suite: dcmtk
+  kind: datei
+  purpose: Komprimiert die Pixeldaten eines Objekts.
+  example: "dcmcjpeg +e1 datei.dcm klein.dcm"
+  lesson: "1.7"
+  anchor: wirklich-komprimieren
+  needs_sandbox: false
+
+dcmdjpeg:
+  name: dcmdjpeg
+  suite: dcmtk
+  kind: datei
+  purpose: Packt ein komprimiertes Objekt wieder aus.
+  example: "dcmdjpeg klein.dcm gross.dcm"
+  lesson: "1.7"
+  anchor: wirklich-komprimieren
+  needs_sandbox: false
+
+dcmodify:
+  name: dcmodify
+  suite: dcmtk
+  kind: datei
+  purpose: Ändert einzelne Tags in einer vorhandenen Datei.
+  example: "dcmodify -m PatientID=4711 datei.dcm"
+  lesson: "1.4"
+  anchor: und-so-passiert-der-unfall-vom-anfang
+  needs_sandbox: false
+
+img2dcm:
+  name: img2dcm
+  suite: dcmtk
+  kind: datei
+  purpose: Macht aus einem gewöhnlichen Bild ein DICOM-Objekt.
+  example: "img2dcm bild.jpg neu.dcm"
+  lesson: "3.2"
+  anchor: pixeldaten
+  needs_sandbox: false
+
+# ---------- Über das Netz reden ----------
+echoscu:
+  name: echoscu
+  suite: dcmtk
+  kind: netz
+  purpose: Fragt eine Gegenstelle, ob sie antwortet (C-ECHO).
+  example: "echoscu -v -aec ORTHANC 127.0.0.1 4242"
+  lesson: "1.0"
+  anchor: kommt-eine-verbindung-ueberhaupt-zustande
+  needs_sandbox: true
+
+storescu:
+  name: storescu
+  suite: dcmtk
+  kind: netz
+  purpose: Schickt Objekte an ein Archiv (C-STORE).
+  example: "storescu -aec ORTHANC 127.0.0.1 4242 datei.dcm"
+  lesson: "1.0"
+  anchor: etwas-hinschicken
+  needs_sandbox: true
+
+storescp:
+  name: storescp
+  suite: dcmtk
+  kind: netz
+  purpose: Nimmt selbst Objekte entgegen — du wirst zum Archiv.
+  example: "storescp -od ./eingang 11112"
+  lesson: "1.0"
+  anchor: selbst-empfangen
+  needs_sandbox: true
+
+dcmsend:
+  name: dcmsend
+  suite: dcmtk
+  kind: netz
+  purpose: Wie storescu, robuster bei vielen Dateien auf einmal.
+  example: "dcmsend 127.0.0.1 4242 ordner/ --scan-directories"
+  lesson: "2.2"
+  anchor: c-store
+  needs_sandbox: true
+
+dcmrecv:
+  name: dcmrecv
+  suite: dcmtk
+  kind: netz
+  purpose: Wie storescp, moderner Nachfolger mit einfacherer Bedienung.
+  example: "dcmrecv 11112 -od ./eingang"
+  lesson: "2.2"
+  anchor: c-store
+  needs_sandbox: true
+
+findscu:
+  name: findscu
+  suite: dcmtk
+  kind: netz
+  purpose: Fragt ab, welche Daten ein Archiv kennt (C-FIND).
+  example: "findscu -S -k QueryRetrieveLevel=STUDY -aec ORTHANC 127.0.0.1 4242"
+  lesson: "1.0"
+  anchor: etwas-suchen
+  needs_sandbox: true
+
+movescu:
+  name: movescu
+  suite: dcmtk
+  kind: netz
+  purpose: Fordert Objekte an, geliefert wird an eine dritte Stelle (C-MOVE).
+  example: "movescu -S -aem ZIEL -k StudyInstanceUID=1.2.3 127.0.0.1 4242"
+  lesson: "2.4"
+  anchor: c-move
+  needs_sandbox: true
+
+getscu:
+  name: getscu
+  suite: dcmtk
+  kind: netz
+  purpose: Fordert Objekte an, geliefert wird auf derselben Verbindung (C-GET).
+  example: "getscu -S -k StudyInstanceUID=1.2.3 127.0.0.1 4242"
+  lesson: "2.4"
+  anchor: c-get
+  needs_sandbox: true
+
+wlmscpfs:
+  name: wlmscpfs
+  suite: dcmtk
+  kind: server
+  purpose: Stellt eine Modality Worklist aus vorbereiteten Dateien bereit.
+  example: "wlmscpfs -dfp ./wl 1234"
+  lesson: "2.5"
+  anchor: worklist
+  needs_sandbox: true
+
+# ---------- Umgebung und Analyse ----------
+orthanc:
+  name: Orthanc
+  suite: server
+  kind: server
+  purpose: Das Archiv der Spielwiese, mit Weboberfläche auf Port 8042.
+  example: "läuft bereits"
+  lesson: "1.0"
+  anchor: schritt-0-deine-spielwiese
+  needs_sandbox: true
+
+tshark:
+  name: tshark
+  suite: extern
+  kind: analyse
+  purpose: Zeigt, was tatsächlich über die Leitung geht.
+  example: "tshark -i any -Y dicom"
+  lesson: "1.8"
+  anchor: wenn-gar-kein-log-hilft
+  needs_sandbox: true
+
+pydicom:
+  name: pydicom
+  suite: python
+  kind: skript
+  purpose: Liest und schreibt DICOM-Objekte im Skript.
+  example: "dcmread(\"datei.dcm\")"
+  lesson: "1.0"
+  anchor: wie-mache-ich-das-fuer-300-dateien
+  needs_sandbox: false
+
+pynetdicom:
+  name: pynetdicom
+  suite: python
+  kind: skript
+  purpose: Baut DICOM-Verbindungen im Skript.
+  example: "AE().associate(host, port)"
+  lesson: "2.2"
+  anchor: c-store
+  needs_sandbox: true

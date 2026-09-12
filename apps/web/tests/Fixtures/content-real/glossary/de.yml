@@ -1,0 +1,205 @@
+# Fachbegriffe für die {{term:…}}-Tooltips.
+# term und expansion sind in allen Sprachen identisch. Übersetzt wird nur short.
+
+dicom:
+  term: DICOM
+  expansion: Digital Imaging and Communications in Medicine
+  short: Gleichzeitig ein Dateiformat und ein Netzwerkprotokoll — deshalb die ständige Verwechslung.
+  see_also: [dimse]
+  lesson: "1.1"
+
+instance:
+  term: Instance
+  expansion: SOP Instance
+  short: Ein einzelnes DICOM-Objekt, meist ein Bild — vollständig, mit allem Kontext darin.
+  see_also: [series, sop-instance-uid]
+  lesson: "1.1"
+
+study:
+  term: Study
+  expansion: Study
+  short: Ein Untersuchungstermin, ein Auftrag. Die Ebene, auf der Menschen von "der Untersuchung" sprechen.
+  see_also: [series, study-instance-uid]
+  lesson: "1.2"
+
+series:
+  term: Series
+  expansion: Series
+  short: Eine Aufnahme oder eine Rekonstruktion daraus. Ein Scan erzeugt meist mehrere.
+  see_also: [study, instance]
+  lesson: "1.2"
+
+patient-id:
+  term: PatientID
+  expansion: Patient ID (0010,0020)
+  short: Der Identifikator des Patienten. Der Name ist es nicht.
+  see_also: [study]
+  lesson: "1.2"
+
+tag:
+  term: Tag
+  expansion: Data Element Tag
+  short: Die Adresse eines Werts, aus Group und Element — je vier Hexziffern.
+  see_also: [vr, private-creator]
+  lesson: "1.3"
+
+vr:
+  term: VR
+  expansion: Value Representation
+  short: Zwei-Buchstaben-Code, der sagt, welcher Art ein Wert ist und was er enthalten darf.
+  see_also: [tag, value-multiplicity]
+  lesson: "1.3"
+
+value-multiplicity:
+  term: VM
+  expansion: Value Multiplicity
+  short: Wie viele Einzelwerte in einem Tag stecken, getrennt durch Backslash.
+  see_also: [vr]
+  lesson: "1.3"
+
+private-creator:
+  term: Private Creator
+  expansion: Private Creator
+  short: Der Eintrag, der einen Block privater Tags einem Hersteller zuordnet. Ohne ihn sind sie bedeutungslos.
+  see_also: [tag]
+  lesson: "1.3"
+
+uid:
+  term: UID
+  expansion: Unique Identifier
+  short: Weltweit eindeutige Zeichenkette aus Ziffern und Punkten, höchstens 64 Zeichen.
+  see_also: [study-instance-uid, sop-instance-uid, sop-class]
+  lesson: "1.4"
+
+study-instance-uid:
+  term: Study Instance UID
+  expansion: Study Instance UID (0020,000D)
+  short: Der einzige Wert, der eine Untersuchung eindeutig identifiziert.
+  see_also: [uid, study]
+  lesson: "1.4"
+
+sop-instance-uid:
+  term: SOP Instance UID
+  expansion: SOP Instance UID (0008,0018)
+  short: Die Identität eines einzelnen Objekts. Zwei Objekte mit derselben UID sind dasselbe Objekt.
+  see_also: [uid, instance]
+  lesson: "1.4"
+
+sop-class:
+  term: SOP Class
+  expansion: Service-Object Pair Class
+  short: Der Objekttyp — etwa CT Image Storage. Wird beim Verbindungsaufbau einzeln ausgehandelt.
+  see_also: [abstract-syntax, presentation-context]
+  lesson: "1.5"
+
+scu:
+  term: SCU
+  expansion: Service Class User
+  short: Die Seite, die eine Anfrage stellt — wer anruft.
+  see_also: [scp, association]
+  lesson: "1.5"
+
+scp:
+  term: SCP
+  expansion: Service Class Provider
+  short: Die Seite, die den Dienst erbringt — wer abnimmt.
+  see_also: [scu, association]
+  lesson: "1.5"
+
+ae-title:
+  term: AE Title
+  expansion: Application Entity Title
+  short: Der Name, unter dem sich eine DICOM-Anwendung meldet. Höchstens 16 Zeichen, zeichengenau verglichen.
+  see_also: [called-ae-title, calling-ae-title]
+  lesson: "1.5"
+
+called-ae-title:
+  term: Called AE Title
+  expansion: Called AE Title
+  short: Der Name der Gegenstelle — wen ich sprechen möchte.
+  see_also: [ae-title, calling-ae-title]
+  lesson: "1.5"
+
+calling-ae-title:
+  term: Calling AE Title
+  expansion: Calling AE Title
+  short: Der eigene Name beim Verbindungsaufbau — wer ich bin.
+  see_also: [ae-title, called-ae-title]
+  lesson: "1.5"
+
+c-echo:
+  term: C-ECHO
+  expansion: Verification Service
+  short: Der Funktionstest. Baut eine vollständige Association auf — beweist aber nichts über Bildübertragung.
+  see_also: [association, scu]
+  lesson: "1.5"
+
+c-store:
+  term: C-STORE
+  expansion: Storage Service
+  short: Der Dienst, mit dem ein Objekt abgelegt wird. Kein Dateikopieren, sondern eine Anfrage.
+  see_also: [dimse, scu]
+  lesson: "1.1"
+
+c-move:
+  term: C-MOVE
+  expansion: Query/Retrieve Move Service
+  short: Anforderung von Objekten, ausgeliefert über eine neue Verbindung — dabei drehen sich die Rollen um.
+  see_also: [scu, scp]
+  lesson: "1.5"
+
+dimse:
+  term: DIMSE
+  expansion: DICOM Message Service Element
+  short: Die Familie der klassischen DICOM-Dienste — C-ECHO, C-STORE, C-FIND, C-MOVE und weitere.
+  see_also: [c-store, c-echo]
+  lesson: "1.1"
+
+association:
+  term: Association
+  expansion: Association
+  short: Die ausgehandelte Verbindung zwischen zwei DICOM-Anwendungen. Angenommen heißt nicht, dass etwas durchgeht.
+  see_also: [presentation-context, max-pdu]
+  lesson: "1.8"
+
+presentation-context:
+  term: Presentation Context
+  expansion: Presentation Context
+  short: Ein Angebot aus Objekttyp und Kodierungen. Jeder wird einzeln angenommen oder abgelehnt.
+  see_also: [abstract-syntax, transfer-syntax, association]
+  lesson: "1.8"
+
+abstract-syntax:
+  term: Abstract Syntax
+  expansion: Abstract Syntax
+  short: Das "was" eines Presentation Context — der Objekttyp, also die SOP Class.
+  see_also: [presentation-context, sop-class]
+  lesson: "1.8"
+
+max-pdu:
+  term: Max PDU
+  expansion: Maximum PDU Length
+  short: Die größte Datenmenge, die eine Seite am Stück entgegennimmt. Jede Richtung hat ihren eigenen Wert.
+  see_also: [association]
+  lesson: "1.8"
+
+transfer-syntax:
+  term: Transfer Syntax
+  expansion: Transfer Syntax
+  short: Legt Byte-Reihenfolge, VR-Kodierung und Kompression fest. Ohne gemeinsame geht nichts durch.
+  see_also: [implicit-vr, explicit-vr, presentation-context]
+  lesson: "1.7"
+
+implicit-vr:
+  term: Implicit VR
+  expansion: Implicit VR Little Endian
+  short: Kodierung ohne VR im Datenstrom — die verpflichtende Rückfallebene jeder DICOM-Anwendung.
+  see_also: [transfer-syntax, explicit-vr]
+  lesson: "1.7"
+
+explicit-vr:
+  term: Explicit VR
+  expansion: Explicit VR Little Endian
+  short: Kodierung mit VR im Datenstrom. Der Normalfall in Dateien und auf der Leitung.
+  see_also: [transfer-syntax, implicit-vr]
+  lesson: "1.7"

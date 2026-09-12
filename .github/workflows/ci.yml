@@ -31,6 +31,27 @@ jobs:
           php artisan key:generate
       - run: ./vendor/bin/pest
 
+  content:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+      - run: composer install --no-interaction --prefer-dist --no-dev
+      - run: cp .env.example .env && php artisan key:generate
+      - name: content:validate
+        # Nicht blockierend: der Content hat bekannte, dokumentierte Luecken
+        # (docs/content-todo.md), die Content-Autoren beheben, nicht der Build.
+        # Sobald die Liste dort leer ist, hier continue-on-error entfernen.
+        continue-on-error: true
+        run: php artisan content:validate
+        env:
+          CONTENT_PATH: ${{ github.workspace }}/content
+
   engine:
     runs-on: ubuntu-latest
     defaults:

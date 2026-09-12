@@ -21,6 +21,7 @@ Wer versteht, warum, macht diesen Fehler nie.
 
 Ein Unique Identifier ist eine Zeichenkette aus **Ziffern und Punkten**, höchstens 64 Zeichen lang. Keine Buchstaben, keine Bindestriche, keine führenden Nullen in den einzelnen Bestandteilen.
 
+<!-- kein-beispiel -->
 ```
 1.2.840.10008.5.1.4.1.1.2
 └──┬──┘└──┬──┘└──────┬─────┘

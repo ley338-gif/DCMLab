@@ -17,6 +17,7 @@ Was du ihm gibst und was du selbst eintragen musst, ist der Inhalt dieser Lektio
 
 Das ist der Kern. Jede DICOM-Verbindung wird an **zwei** Stellen eingetragen, und beide Einträge müssen zusammenpassen:
 
+<!-- kein-beispiel -->
 ```
    SENDER (SCU)                          EMPFÄNGER (SCP)
    ────────────────────────────          ────────────────────────────
