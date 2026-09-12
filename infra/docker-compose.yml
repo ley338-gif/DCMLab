@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dcmlab}
+      POSTGRES_USER: ${POSTGRES_USER:-dcmlab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dcmlab}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: ../apps/web
+    env_file:
+      - ../apps/web/.env.docker
+    environment:
+      DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
+      DB_USERNAME: ${POSTGRES_USER:-dcmlab}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      DB_DATABASE: ${POSTGRES_DB:-dcmlab}
+    volumes:
+      - web-public:/var/www/html/public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "${APP_HOST_PORT:-8080}:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - web-public:/var/www/html/public:ro
+    depends_on:
+      - app
+
+  engine:
+    build:
+      context: ../services/engine
+    environment:
+      DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
+      ENGINE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dcmlab}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-dcmlab}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  sandbox:
+    build:
+      context: ../services/sandbox
+    environment:
+      DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
+      SANDBOX_REDIS_URL: redis://redis:6379/0
+      SANDBOX_IDLE_TIMEOUT_MINUTES: ${SANDBOX_IDLE_TIMEOUT_MINUTES:-60}
+    volumes:
+      # Einziger Dienst mit Docker-Socket-Zugriff (Abschnitt 3.3) -- startet und
+      # raeumt die Container-Paare der Spielwiese (ab P7).
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  web-public:

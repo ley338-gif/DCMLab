@@ -1,0 +1,9 @@
+:80 {
+	# Muss mit dem absoluten Pfad uebereinstimmen, den php-fpm im app-Container
+	# sieht -- sonst passt das von hier gesetzte SCRIPT_FILENAME nicht.
+	root * /var/www/html/public
+	encode gzip
+
+	php_fastcgi app:9000
+	file_server
+}

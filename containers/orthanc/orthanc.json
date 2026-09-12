@@ -1,0 +1,9 @@
+{
+  "Name": "ORTHANC",
+  "DicomAet": "ORTHANC",
+  "DicomPort": 4242,
+  "HttpPort": 8042,
+  "RemoteAccessAllowed": true,
+  "AuthenticationEnabled": true,
+  "DicomAlwaysAllowEcho": true
+}

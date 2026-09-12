@@ -1,0 +1,28 @@
+# Entwickler-Overrides: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up`
+# Bind-Mounts fuer schnelle Iteration ohne Rebuild; vendor/ und node_modules/
+# bleiben im Image, damit der Host sie nicht ueberschreibt.
+services:
+  app:
+    # Nur PHP-Quellverzeichnisse gebindet, damit vendor/, node_modules/ und die
+    # gebauten Assets unter public/ (Shared Volume mit Caddy) aus dem Image
+    # bestehen bleiben.
+    volumes:
+      - ../apps/web/app:/var/www/html/app
+      - ../apps/web/config:/var/www/html/config
+      - ../apps/web/routes:/var/www/html/routes
+      - ../apps/web/resources:/var/www/html/resources
+      - ../apps/web/database:/var/www/html/database
+    environment:
+      APP_DEBUG: "true"
+      LOG_LEVEL: debug
+
+  engine:
+    volumes:
+      - ../services/engine/app:/app/app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8100", "--reload"]
+
+  sandbox:
+    volumes:
+      - ../services/sandbox/app:/app/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8200", "--reload"]
