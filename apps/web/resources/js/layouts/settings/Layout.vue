@@ -7,6 +7,7 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
+import { edit as editPublicProfile } from '@/routes/public-profile';
 import { edit as editSecurity } from '@/routes/security';
 import { trans } from '@/lib/trans';
 import type { NavItem } from '@/types';
@@ -23,6 +24,10 @@ const sidebarNavItems: NavItem[] = [
     {
         title: trans('Appearance'),
         href: editAppearance(),
+    },
+    {
+        title: trans('Public profile'),
+        href: editPublicProfile(),
     },
 ];
 
