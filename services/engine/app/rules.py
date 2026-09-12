@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from app import find
 from app.content import NodeDefinition, load_dataset
 
 NON_NETWORK_COMMANDS = {"ping", "ls", "cat", "echo", "clear", "help"}
@@ -400,6 +401,12 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
 
     level = parsed["keys"].get("QueryRetrieveLevel")
     archive_name = result.target_host
+    archive_host = node.host(archive_name) if archive_name else None
+    records = archive_host.get("records", []) if archive_host else []
+
+    if records:
+        return _exec_findscu_against_records(records, level, parsed["keys"])
+
     bestand = state["bestand"].get(
         archive_name, {"studies": 0, "series": 0, "instances": 0},
     )
@@ -446,6 +453,65 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
     ]
 
     return ExecResult(stdout="I: # Dicom-Data-Set\n" + "".join(lines) + "I: Number of Matches: 1")
+
+
+def _exec_findscu_against_records(
+    records: list[dict[str, Any]], level: str | None, keys: dict[str, str | None],
+) -> ExecResult:
+    """C-FIND gegen vordefinierte Archiv-Records (P10, Feature 1) -- echtes
+    Matching statt nur "wurde vorher etwas gesendet" (siehe `app/find.py`).
+    """
+    if level == "SERIES":
+        study_uid = keys.get("StudyInstanceUID")
+
+        if not study_uid:
+            return ExecResult(stderr=MSG_SERIES_WITHOUT_STUDY, exit_code=1)
+
+        series_matches = find.find_series(records, study_uid, keys)
+
+        blocks = [
+            "".join([
+                _dcmtk_line("0008,0052", "CS", "SERIES", "QueryRetrieveLevel"),
+                _dcmtk_line(
+                    "0020,000e", "UI", series.get("series_uid", "?"), "SeriesInstanceUID",
+                ),
+                _dcmtk_line(
+                    "0008,103e", "LO", series.get("series_description", "?"), "SeriesDescription",
+                ),
+            ])
+            for series in series_matches
+        ]
+
+        stdout = "".join(f"I: # Dicom-Data-Set\n{block}" for block in blocks)
+        stdout += f"I: Number of Matches: {len(series_matches)}"
+
+        return ExecResult(stdout=stdout)
+
+    # STUDY-Ebene (Default, sofern kein anderes Level angegeben ist)
+    study_matches = find.find_studies(records, keys)
+
+    field_order = [
+        ("patient_id", "0010,0020", "LO", "PatientID"),
+        ("patient_name", "0010,0010", "PN", "PatientName"),
+        ("study_uid", "0020,000d", "UI", "StudyInstanceUID"),
+        ("study_description", "0008,1030", "LO", "StudyDescription"),
+        ("study_date", "0008,0020", "DA", "StudyDate"),
+    ]
+
+    blocks = []
+    for study in study_matches:
+        lines = [_dcmtk_line("0008,0052", "CS", "STUDY", "QueryRetrieveLevel")]
+        lines += [
+            _dcmtk_line(tag, vr, study[field], keyword)
+            for field, tag, vr, keyword in field_order
+            if field in study
+        ]
+        blocks.append("".join(lines))
+
+    stdout = "".join(f"I: # Dicom-Data-Set\n{block}" for block in blocks)
+    stdout += f"I: Number of Matches: {len(study_matches)}"
+
+    return ExecResult(stdout=stdout)
 
 
 def _exec_storescu(host_name: str) -> ExecResult:

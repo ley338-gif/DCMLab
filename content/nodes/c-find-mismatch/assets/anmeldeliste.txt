@@ -1,0 +1,5 @@
+Anmeldeliste MR, 10.03.2026
+---------------------------
+Uhrzeit  Patient           Untersuchung
+09:15    MEYER,HANS        MR Kopf nativ
+10:00    SCHMIDT,ANNA      MR Knie li.

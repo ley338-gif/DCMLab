@@ -175,6 +175,44 @@ Szenario, Hints und Write-up gefüllt werden, exakt wie bei `neue-node`.
 der auf diesen Abschnitt verweist — die einzige Lektion, deren Node
 tatsächlich fertig ist (1.6, `neue-node`), bleibt `optional: false`.
 
+## P10 — Fortschritt gegen `P10-Roadmap-DCMLab.md`
+
+Laufende Liste, damit der Stand jederzeit aus dieser Datei ablesbar ist,
+nicht nur aus Commit-Historie. Die Roadmap selbst ist ein extern
+geliefertes Dokument (kein Teil des ursprünglichen Auftrags) — wo sie
+unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
+
+**Engine-Features (sieben laut Roadmap Abschnitt III):**
+
+| Feature | Status | Node(s) freigeschaltet |
+|---|---|---|
+| C-FIND-Matching (Query-Level, Wildcards) | ✅ P10.1 | `c-find-mismatch` (neu) |
+| Größenlimit (C-STORE) | offen | `oversized-image` |
+| Transfer-Syntax-Aushandlung | offen | `syntax-negotiation-fails`, `halbe-sache`, `mitgehoert`, `verbindung-ohne-bild` |
+| Multiframe-Generator | offen | — (Track 3) |
+| Worklist-Query | offen | `worklist-query-empty` |
+| Patient-Merge / Study-Split | offen | `patient-merge-discovery`, `merge-patient` |
+
+**Nebeneffekt von P10.1, noch nicht genutzt:** `zwei-ebenen-tiefer` und
+`zwillinge` waren blockiert, weil ein Archiv-Host nur einen Bestand kannte.
+Mit `records` (siehe ADR 0011, `content-schema.md` Abschnitt 6a) kann ein
+Archiv jetzt mehrere Studies vorhalten — `zwillinge`s eigentliche Blockade
+("zwei gleich aussehende Studies, verschiedene UID") ist damit technisch
+lösbar. Bleibt trotzdem als Gerüst stehen, bis der Content dafür
+geschrieben ist (kein Fließtext erfunden, nur weil die Engine es jetzt
+könnte).
+
+**Nodes (vier laut Roadmap Abschnitt IV):**
+
+| Node | Status |
+|---|---|
+| `c-find-mismatch` | ✅ P10.1, vollständig und live verifiziert |
+| `oversized-image` | offen (braucht Feature „Größenlimit") |
+| `syntax-negotiation-fails` | offen (braucht Feature „Transfer-Syntax") |
+| `patient-merge-discovery` | offen (braucht Feature „Patient-Merge") |
+
+**Track 2, Track 3, Track-4-Vervollständigung:** noch nicht begonnen.
+
 ## CI
 
 `content:validate` läuft in der CI-Pipeline (`content`-Job), aber mit
