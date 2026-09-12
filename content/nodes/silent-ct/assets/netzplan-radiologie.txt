@@ -1,0 +1,7 @@
+AE TITLE        IP            PORT   System
+--------------  ------------  -----  -----------------------------------
+PACS-ARCHIV     10.20.0.10    104    Zentralarchiv (Herstellerwartung)
+...
+
+Archiv läuft als  : PACS-ARCHIV     ← Bindestrich
+CT sendet an      : PACS_ARCHIV     ← Unterstrich

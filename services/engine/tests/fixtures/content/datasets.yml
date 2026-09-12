@@ -1,0 +1,7 @@
+test-dataset:
+  patient: "TEST^PATIENT"
+  patient_id: "0000"
+  study: "Test Study"
+  series: ["Test Series"]
+  file_count: 2
+  path: "daten/test-dataset/"

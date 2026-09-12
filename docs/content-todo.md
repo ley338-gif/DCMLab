@@ -73,6 +73,29 @@ Quiz-Fragen ein strukturiertes `quiz:`-Feld mit echtem Antwortschlüssel
 bekommen (redaktionelle Entscheidung, kein Plattform-Bug), kann die
 interaktive Karten-Funktion nachgezogen werden.
 
+## P4 — Zwei Dateien der Node "silent-ct" ohne Textinhalt
+
+`content/nodes/silent-ct/node.yml: environment.files` listet drei Dateien,
+die der Lernende in der simulierten Shell per `cat` lesen kann:
+`netzplan-radiologie.txt`, `notizen.txt`, `conformance-pacs-archiv.txt`.
+
+Nur `netzplan-radiologie.txt` hat echten Inhalt (`content/nodes/silent-ct/
+assets/netzplan-radiologie.txt`) — wörtlich aus dem mitgelieferten
+`de.md`-Write-up übernommen (Abschnitt "4. Vergleichen"), keine eigene
+Prosa. Für `notizen.txt` (Wartungsprotokoll, Konfig aus Backup 02/2024) und
+`conformance-pacs-archiv.txt` (nennt beide Ablehnungsgründe, nicht den AE
+Title) gibt es keine im Auftrag oder in `de.md` vorgegebene Textfassung —
+sie zu erfinden wäre Abschnitt-13-Verstoß, da beide Dateien konkrete,
+prüfbare Fakten des Szenarios enthalten müssten (welche Ablehnungsgründe
+genau, welche Konfigurationswerte im Backup standen).
+
+Die Node bleibt ohne diese beiden Dateien vollständig lösbar (Hint h3 nennt
+die Lösung bereits direkt), die Engine liefert für sie einen expliziten
+Platzhaltertext statt eines Fehlers oder erfundener Prosa (siehe ADR 0005).
+Redaktionelle Entscheidung nötig: Text für beide Dateien schreiben (macht
+die Node reichhaltiger, ändert aber nicht ihre Lösbarkeit) oder aus
+`environment.files` entfernen.
+
 ## CI
 
 `content:validate` läuft in der CI-Pipeline (`content`-Job), aber mit

@@ -65,7 +65,7 @@ environment:
 flag:
   type: tag_value
   source_tag: "0008,103E"
-  hash: "sha256:<wird beim Build erzeugt>"
+  hash: "sha256:43fb115381aeca6b92bc701207edba03710a3c23d6a0bc336fbe8a295a852e8a"
   case_sensitive: false
 
 hints:

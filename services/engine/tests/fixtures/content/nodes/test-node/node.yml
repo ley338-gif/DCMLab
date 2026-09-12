@@ -1,0 +1,53 @@
+slug: test-node
+difficulty: easy
+points: 10
+category: netzwerk
+skills: [netzwerk]
+related_lessons: []
+estimated_minutes: 10
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.0.0.50
+      role: shell
+    - name: archive
+      ip: 10.0.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: TEST-ARCHIV
+          accepts: [verification, ct-image-storage, study-root-find]
+      config_visible: false
+    - name: modality
+      ip: 10.0.0.30
+      role: modality-simulator
+      config_editable: true
+      config:
+        local_ae: MOD1
+        remote_ae: WRONG_AE
+        remote_host: 10.0.0.10
+        remote_port: 104
+
+  known_calling_aets: [WORKSTATION, MOD1]
+  tools: [echoscu, storescu, findscu, dcmdump]
+  dataset: test-dataset
+  files:
+    - plan.txt
+
+flag:
+  type: tag_value
+  source_tag: "0008,103E"
+  hash: "sha256:7e4a7969fb4b448418cbb5e8de1a29d2a2f660c1423a43d9290cb389f90c57e0"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+
+stuck_timeout_minutes: 10
+status: draft
+updated: "2026-09-13"

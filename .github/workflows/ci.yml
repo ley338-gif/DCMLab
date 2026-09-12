@@ -56,6 +56,14 @@ jobs:
         run: php artisan content:validate
         env:
           CONTENT_PATH: ${{ github.workspace }}/content
+      - name: content:build ist aktuell (Flag-Hashes, Abschnitt 5.2)
+        # content:build ist idempotent -- ein Diff danach heisst, jemand hat
+        # eine Node/einen Datensatz geaendert, ohne den Hash neu zu erzeugen.
+        run: |
+          php artisan content:build
+          git diff --exit-code -- ../../content
+        env:
+          CONTENT_PATH: ${{ github.workspace }}/content
 
   engine:
     runs-on: ubuntu-latest
