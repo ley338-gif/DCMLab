@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\NodeController;
+use App\Http\Controllers\PublicProfileController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\TrackController;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +15,11 @@ Route::redirect('/', '/de');
 Route::prefix('de')->group(function () {
     Route::get('/', [TrackController::class, 'index'])->name('home');
     Route::get('tracks/{track}', [TrackController::class, 'show'])->name('tracks.show');
+
+    // Oeffentlich, kein Login noetig (Abschnitt 7: Profil per Slug erreichbar).
+    Route::get('leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');
+    Route::get('profiles/{slug}', [PublicProfileController::class, 'show'])->name('profiles.show');
+    Route::get('profiles/{slug}/export', [PublicProfileController::class, 'exportPdf'])->name('profiles.export');
 
     Route::middleware(['auth', 'verified'])->group(function () {
         Route::inertia('dashboard', 'Dashboard')->name('dashboard');

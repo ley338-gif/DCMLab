@@ -1,0 +1,161 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Achievement;
+use App\Models\Node;
+use App\Models\NodeAttempt;
+use App\Models\Profile;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Str;
+
+/**
+ * Punkte, Rang und Skill-Radar (Abschnitt 7). Node-Punkte sind die einzige
+ * Quelle -- Lektionen geben keine Punkte (Abschnitt 4.4 kennt dafuer keinen
+ * Mechanismus, nur "erledigt/offen").
+ */
+final class ProfileService
+{
+    /**
+     * Rang-Schwellen (Abschnitt 7 nennt nur die fuenf Namen, keine Punktzahlen
+     * -- das ist eine umkehrbare Balance-Entscheidung, siehe ADR 0009).
+     *
+     * @var array<string, int>
+     */
+    private const RANK_THRESHOLDS = [
+        'novice' => 0,
+        'operator' => 50,
+        'administrator' => 150,
+        'architect' => 300,
+        'standard_bearer' => 500,
+    ];
+
+    /**
+     * Die fuenf Skill-Kategorien aus Abschnitt 7 -- immer alle fuenf im
+     * Radar, auch mit 0 Punkten, damit es Luecken zeigt statt sie zu verschweigen.
+     *
+     * @var list<string>
+     */
+    public const SKILL_CATEGORIES = ['netzwerk', 'datenmodell', 'bildgebung', 'integration', 'security'];
+
+    public function profileFor(User $user): Profile
+    {
+        return Profile::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'public_slug' => $this->generateUniqueSlug(),
+                'rank' => 'novice',
+                'skill_vector' => array_fill_keys(self::SKILL_CATEGORIES, 0),
+            ],
+        );
+    }
+
+    public function totalPoints(User $user): int
+    {
+        return (int) NodeAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'solved')
+            ->sum('points');
+    }
+
+    /**
+     * Nach jedem geloesten Flag aufgerufen (Abschnitt 10, P8-DoD): Rang und
+     * Skill-Radar neu berechnen, First Blood pruefen.
+     */
+    public function recomputeAfterSolve(User $user, Node $node): void
+    {
+        $profile = $this->profileFor($user);
+
+        $solved = NodeAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'solved')
+            ->with('node')
+            ->get();
+
+        $skillVector = array_fill_keys(self::SKILL_CATEGORIES, 0);
+        $totalPoints = 0;
+
+        foreach ($solved as $attempt) {
+            $points = $attempt->points ?? 0;
+            $totalPoints += $points;
+
+            foreach ($attempt->node->skills as $skill) {
+                if (array_key_exists($skill, $skillVector)) {
+                    $skillVector[$skill] += $points;
+                }
+            }
+        }
+
+        $profile->rank = $this->rankFor($totalPoints);
+        $profile->points = $totalPoints;
+        $profile->skill_vector = $skillVector;
+        $profile->save();
+
+        $this->maybeAwardFirstBlood($user, $node);
+    }
+
+    /**
+     * Nutzer, die sich fuer die Bestenliste entschieden haben (Opt-in ist
+     * per Default aus), sortiert nach Punkten.
+     *
+     * @return Collection<int, Profile>
+     */
+    public function leaderboard(): Collection
+    {
+        return Profile::query()
+            ->where('leaderboard_opt_in', true)
+            ->orderByDesc('points')
+            ->with('user')
+            ->get();
+    }
+
+    private function rankFor(int $points): string
+    {
+        $rank = 'novice';
+
+        foreach (self::RANK_THRESHOLDS as $candidate => $threshold) {
+            if ($points >= $threshold) {
+                $rank = $candidate;
+            }
+        }
+
+        return $rank;
+    }
+
+    private function maybeAwardFirstBlood(User $user, Node $node): void
+    {
+        $alreadyAwarded = Achievement::query()
+            ->where('node_id', $node->id)
+            ->where('type', 'first_blood')
+            ->exists();
+
+        if ($alreadyAwarded) {
+            return;
+        }
+
+        // Race-sicher: der Unique-Index (node_id, type) laesst bei
+        // gleichzeitigen Loesungen nur den ersten Insert durch.
+        try {
+            Achievement::create([
+                'user_id' => $user->id,
+                'node_id' => $node->id,
+                'type' => 'first_blood',
+                'awarded_at' => now(),
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            // Ein anderer Nutzer war zwischen der exists()-Pruefung und
+            // diesem Insert schneller -- kein Fehler, nur kein First Blood.
+        }
+    }
+
+    private function generateUniqueSlug(): string
+    {
+        do {
+            $slug = Str::lower(Str::random(10));
+        } while (Profile::where('public_slug', $slug)->exists());
+
+        return $slug;
+    }
+}

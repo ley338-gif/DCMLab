@@ -203,6 +203,35 @@ class NodeControllerTest extends TestCase
         );
     }
 
+    public function test_correct_flag_recomputes_the_profile(): void
+    {
+        [$user, $node, $attempt] = $this->userWithExistingAttempt();
+
+        Http::fake([
+            '*/v1/sessions/existing-session/flag' => Http::response(['correct' => true, 'points' => 9]),
+            '*/v1/sessions/existing-session/state' => Http::response(
+                [...$this->baseState(), 'solved' => true, 'points' => 9],
+            ),
+        ]);
+
+        $this->actingAs($user)->postJson('/de/nodes/test-node/flag', ['value' => 'Testflag'])
+            ->assertOk();
+
+        $attempt->refresh();
+        $this->assertSame(9, $attempt->points);
+
+        $profile = $user->profile;
+        $this->assertNotNull($profile);
+        $this->assertSame(9, $profile->points);
+        $this->assertSame(['netzwerk' => 9, 'datenmodell' => 0, 'bildgebung' => 0, 'integration' => 0, 'security' => 0], $profile->skill_vector);
+
+        $this->assertDatabaseHas('achievements', [
+            'user_id' => $user->id,
+            'node_id' => $node->id,
+            'type' => 'first_blood',
+        ]);
+    }
+
     public function test_incorrect_flag_does_not_mark_the_attempt_solved(): void
     {
         [$user, , $attempt] = $this->userWithExistingAttempt();

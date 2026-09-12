@@ -124,6 +124,37 @@
     "Dark": "Dunkel",
     "System": "System",
 
+    "Public profile": "Öffentliches Profil",
+    "Public profile settings": "Einstellungen zum öffentlichen Profil",
+    "Control whether your profile appears on the leaderboard": "Lege fest, ob dein Profil auf der Bestenliste erscheint",
+    "Show me on the leaderboard": "Mich auf der Bestenliste anzeigen",
+    "Your public profile link": "Dein öffentlicher Profil-Link",
+    "Settings updated.": "Einstellungen aktualisiert.",
+
+    "Leaderboard": "Bestenliste",
+    "The best DCM Lab operators, ranked by points": "Die besten DCM-Lab-Operator:innen, nach Punkten sortiert",
+    "No one has joined the leaderboard yet.": "Noch niemand hat sich auf der Bestenliste eingetragen.",
+    "Points": "Punkte",
+    "Rank": "Rang",
+
+    "rank.novice": "Novize",
+    "rank.operator": "Operator",
+    "rank.administrator": "Administrator",
+    "rank.architect": "Architekt",
+    "rank.standard_bearer": "Bannerträger",
+
+    "Skill radar": "Skill-Radar",
+    "skill.netzwerk": "Netzwerk",
+    "skill.datenmodell": "Datenmodell",
+    "skill.bildgebung": "Bildgebung",
+    "skill.integration": "Integration",
+    "skill.security": "Security",
+
+    "First Blood": "First Blood",
+    "Member since :date": "Mitglied seit :date",
+    "Download as PDF": "Als PDF herunterladen",
+    "No first bloods yet.": "Noch keine First Bloods.",
+
     "Passkeys": "Passkeys",
     "Manage your passkeys for passwordless sign-in": "Verwalte deine Passkeys für die passwortlose Anmeldung",
     "No passkeys yet": "Noch keine Passkeys",

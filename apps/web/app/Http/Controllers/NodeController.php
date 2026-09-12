@@ -8,6 +8,7 @@ use App\Content\NodeSections;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Services\EngineClient;
+use App\Services\ProfileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -139,7 +140,7 @@ class NodeController extends Controller
         ]);
     }
 
-    public function submitFlag(Request $request, Node $node, EngineClient $engine): JsonResponse
+    public function submitFlag(Request $request, Node $node, EngineClient $engine, ProfileService $profiles): JsonResponse
     {
         $data = $request->validate(['value' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
@@ -152,6 +153,10 @@ class NodeController extends Controller
         }
 
         $this->syncAttempt($attempt, $engine, save: true);
+
+        if ($result['correct']) {
+            $profiles->recomputeAfterSolve($request->user(), $node);
+        }
 
         return response()->json($result);
     }
