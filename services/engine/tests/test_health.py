@@ -12,5 +12,5 @@ def test_health_ok() -> None:
 
 
 def test_sessions_requires_internal_key() -> None:
-    response = client.post("/v1/sessions")
+    response = client.post("/v1/sessions", json={"node_slug": "test-node"})
     assert response.status_code == 401

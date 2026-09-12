@@ -66,6 +66,11 @@ services:
     environment:
       DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
       ENGINE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dcmlab}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-dcmlab}
+      CONTENT_PATH: /app/content
+    volumes:
+      # Nodes sind Content (Abschnitt 1.4) -- die Engine liest node.yml nur,
+      # genau wie apps/web (siehe dortiger Kommentar).
+      - ../content:/app/content:ro
     depends_on:
       postgres:
         condition: service_healthy

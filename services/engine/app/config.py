@@ -15,6 +15,10 @@ class Settings(BaseSettings):
         default="change-me-in-production",
         validation_alias="DCMLAB_INTERNAL_KEY",
     )
+    content_path: str = Field(
+        default="../../content",
+        validation_alias="CONTENT_PATH",
+    )
 
 
 settings = Settings()
