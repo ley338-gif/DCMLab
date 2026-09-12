@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { dashboard, login, register } from '@/routes';
+import { show as showTrack } from '@/routes/tracks';
 
 type TrackSummary = {
     slug: string;
@@ -78,47 +79,60 @@ const levelLabels: Record<string, string> = {
             </p>
 
             <div class="grid gap-4 sm:grid-cols-2">
-                <Card
+                <component
+                    :is="track.status === 'published' ? Link : 'div'"
                     v-for="track in tracks"
                     :key="track.slug"
-                    :class="{ 'opacity-60': track.status !== 'published' }"
+                    :href="
+                        track.status === 'published'
+                            ? showTrack(track.slug)
+                            : undefined
+                    "
                 >
-                    <CardHeader>
-                        <div class="flex items-start justify-between gap-2">
-                            <CardTitle>{{ trans(track.title_key) }}</CardTitle>
-                            <Lock
-                                v-if="track.status !== 'published'"
-                                class="text-muted-foreground size-4 shrink-0"
-                            />
-                        </div>
-                        <CardDescription>
-                            {{ levelLabels[track.level] ?? track.level }} ·
-                            {{ trans(':hours Std.', { hours: track.hours }) }}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent class="flex items-center justify-between">
-                        <span class="text-muted-foreground text-sm">
-                            {{
-                                trans(':count Lektionen', {
-                                    count: track.lessons_count,
-                                })
-                            }}
-                        </span>
-                        <Badge
-                            :variant="
-                                track.status === 'published'
-                                    ? 'default'
-                                    : 'secondary'
-                            "
-                        >
-                            {{
-                                track.status === 'published'
-                                    ? trans('Verfügbar')
-                                    : trans('Bald verfügbar')
-                            }}
-                        </Badge>
-                    </CardContent>
-                </Card>
+                    <Card
+                        :class="{ 'opacity-60': track.status !== 'published' }"
+                    >
+                        <CardHeader>
+                            <div class="flex items-start justify-between gap-2">
+                                <CardTitle>{{
+                                    trans(track.title_key)
+                                }}</CardTitle>
+                                <Lock
+                                    v-if="track.status !== 'published'"
+                                    class="text-muted-foreground size-4 shrink-0"
+                                />
+                            </div>
+                            <CardDescription>
+                                {{ levelLabels[track.level] ?? track.level }} ·
+                                {{
+                                    trans(':hours Std.', { hours: track.hours })
+                                }}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent class="flex items-center justify-between">
+                            <span class="text-muted-foreground text-sm">
+                                {{
+                                    trans(':count Lektionen', {
+                                        count: track.lessons_count,
+                                    })
+                                }}
+                            </span>
+                            <Badge
+                                :variant="
+                                    track.status === 'published'
+                                        ? 'default'
+                                        : 'secondary'
+                                "
+                            >
+                                {{
+                                    track.status === 'published'
+                                        ? trans('Verfügbar')
+                                        : trans('Bald verfügbar')
+                                }}
+                            </Badge>
+                        </CardContent>
+                    </Card>
+                </component>
             </div>
         </main>
     </div>

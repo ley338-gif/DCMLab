@@ -173,5 +173,22 @@
 
     "Hide password": "Passwort verbergen",
     "Show password": "Passwort anzeigen",
-    "Something went wrong.": "Etwas ist schiefgelaufen."
+    "Something went wrong.": "Etwas ist schiefgelaufen.",
+
+    "Für diese Lektion": "Für diese Lektion",
+    "Werkzeuge": "Werkzeuge",
+    "NEU": "NEU",
+    "Liegt bereit": "Liegt bereit",
+    ":count Dateien, synthetisch": ":count Dateien, synthetisch",
+    "Vorher": "Vorher",
+    "Danach": "Danach",
+    "Lab: Node „:title\" (:difficulty, :points Pkt.)": "Lab: Node „:title“ (:difficulty, :points Pkt.)",
+    "Spielwiese starten": "Spielwiese starten",
+    "folgt in einer späteren Phase": "folgt in einer späteren Phase",
+    "Lernziele": "Lernziele",
+    ":minutes Min.": ":minutes Min.",
+    "Als erledigt markieren": "Als erledigt markieren",
+    "Als offen markieren": "Als offen markieren",
+    "Erledigt": "Erledigt",
+    "Melde dich an, um Lektionen zu lesen und deinen Fortschritt zu speichern.": "Melde dich an, um Lektionen zu lesen und deinen Fortschritt zu speichern."
 }

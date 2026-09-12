@@ -54,6 +54,25 @@ Bugfix-Aufgabe.
   `content-schema.md`. Eine Entscheidung ist nötig: `storescu` gegen eines
   der vier tauschen, oder das Beispiel umbauen.
 
+## P3 — Quiz-Karten ohne strukturierte Antworten
+
+Abschnitt 4.1 des Auftrags skizziert `meta.yml: quiz` als strukturiertes
+Array mit Fragen, Antwortoptionen und einer korrekten Antwort, aus dem sich
+graded Spaced-Repetition-Karten bauen ließen. Der tatsächliche Content
+(`content/lessons/*/meta.yml`) hat kein solches Feld — die Quiz-Fragen samt
+Antwortoptionen stehen ausschließlich als freie Prosa unter der
+Markdown-Überschrift `## Quiz` in `de.md`, ohne maschinenlesbaren
+Antwortschlüssel.
+
+P3 rendert diese Prosa unverändert als Teil des normalen Lektionstexts
+(korrekt lesbar, wie von der DoD gefordert), baut aber **keine** interaktiven,
+graded Quiz-Karten und keine Spaced-Repetition-Wiederholung. Eine
+Antwort-Auswertung zu implementieren hätte bedeutet, die korrekten Antworten
+selbst zu erfinden — das verbietet Abschnitt 13 ausdrücklich. Sobald die
+Quiz-Fragen ein strukturiertes `quiz:`-Feld mit echtem Antwortschlüssel
+bekommen (redaktionelle Entscheidung, kein Plattform-Bug), kann die
+interaktive Karten-Funktion nachgezogen werden.
+
 ## CI
 
 `content:validate` läuft in der CI-Pipeline (`content`-Job), aber mit
