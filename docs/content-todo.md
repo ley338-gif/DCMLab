@@ -171,7 +171,15 @@ eigene Liste offener Punkte:
   **nicht** darauf, ein weiterer konkreter Beleg für die
   Shadowing-Falle an einem neuen Befehl. Siehe ADR 0035. `tools` dabei
   von `[findscu, wlmscpfs]` auf `[findscu]` reduziert — `wlmscpfs` war
-  im geschriebenen Fließtext nicht nötig. Noch offen: 2.6, 2.7.
+  im geschriebenen Fließtext nicht nötig. **2.6 ist seit P10.26
+  ebenfalls vollständig geschrieben** — ebenfalls kein neuer
+  Infrastruktur-Fund; dabei aber real verifiziert, dass der bestehende
+  MPPS-SCP (ADR 0031) einen dritten, gültigen Endzustand
+  (`DISCONTINUED`, nicht nur `COMPLETED` wie in 4.8 gezeigt) genauso
+  erfolgreich (`0x0`) annimmt — der DIMSE-Erfolgsstatus beschreibt nur
+  die Zustellung, nicht den Inhalt der Meldung. Siehe ADR 0036. `tools`
+  von `[pynetdicom, dcmdump]` auf `[pynetdicom, tshark]` korrigiert.
+  Noch offen: 2.7.
 - **Neue Infrastruktur nötig (2.4, 2.8).** 2.4 (C-MOVE vs. C-GET)
   braucht für ein *echtes* Drei-Parteien-C-MOVE einen zweiten
   Storage-Endpunkt in der Spielwiese — noch nicht vorhanden, ähnlich
