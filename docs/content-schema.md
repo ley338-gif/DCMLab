@@ -522,6 +522,28 @@ eines dieser Felder verhalten sich unverändert (weiterhin der
 Fallback-Fehler `"keine lokale Datei in dieser Simulation"`). Details
 und Begründung: ADR 0022.
 
+### 6h. `dcmftest` und weitere `dcmdump`-Objektfelder (ab P10)
+
+`dcmftest <datei>` (Abschnitt 6b: `environment.objects`) beantwortet
+die reale erste Frage vor jedem `dcmdump`: Ist die Datei überhaupt
+gültiges DICOM-Format? Ein bekanntes Objekt liefert `yes: <datei>`
+(Exit-Code 0), ein unbekannter Dateiname `no: <datei>` (Exit-Code 1) —
+in dieser Simulation gilt jedes deklarierte Objekt als gültiges
+DICOM-Format, ganz gleich, welchen Dateinamen es trägt (wie bei einer
+echten Datei ohne `.dcm`-Endung).
+
+`_exec_dcmdump` ist außerdem um drei weitere reale Objektfelder
+erweitert — `modality` (0008,0060), `study_description` (0008,1030),
+`acquisition_date` (0008,0022), `slice_thickness` (0018,0050) und
+`convolution_kernel` (0018,1210) —, alle in echter aufsteigender
+Tag-Reihenfolge ausgegeben (siehe `DCMDUMP_FIELD_ORDER` in
+`services/engine/app/rules.py`). Für Nodes, in denen ein gesuchter Wert
+per Tag-**Name**, nicht per Tag-**Nummer**, gefunden werden soll (kein
+Query-Key vorgegeben), reicht ein voller `dcmdump <datei>` — der
+Lernende sucht den Wert im vollständigen Dump, statt ihn per `+P
+<Tag>` gezielt anzufragen (diese Simulation kennt `+P` nicht). Details
+und Begründung: ADR 0023.
+
 ## 7. Node — `de.md`
 
 ```markdown

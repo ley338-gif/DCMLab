@@ -1,10 +1,52 @@
 slug: wo-steht-das
 difficulty: easy
-points: 0
+points: 5
 category: datenmodell
 skills: [datenmodell]
 related_lessons: ["1.3"]
-estimated_minutes: 0
+estimated_minutes: 8
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.15.0.50
+      role: shell
+
+  tools: [dcmdump]
+
+  # Drei gesuchte Werte, keine Tag-Nummern vorgegeben -- der Lernende soll
+  # sie per dcmdump finden und dabei erkennen, dass alle drei tatsaechlich
+  # Standard-Tags sind (kein Herstellerspezifikum), auch wenn die Werte
+  # selbst herstellerspezifisch klingen (z. B. der Rekonstruktionskern).
+  objects:
+    - filename: "schicht-0001.dcm"
+      bytes: 524288
+      acquisition_date: "20260910"
+      slice_thickness: "3.0"
+      convolution_kernel: "B60f"
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.dcmdump
+      command: "dcmdump schicht-0001.dcm"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:d036406d4b08ef7074209e54ef5a66e64c2aeeb904784d859503b4985a362609"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 1
+  - id: h3
+    cost: 1
+
+stuck_timeout_minutes: 8
 
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-13"

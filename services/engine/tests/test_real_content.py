@@ -329,3 +329,35 @@ def test_halbe_sache_is_solvable_from_the_real_content() -> None:
     assert "(0028,2110)" not in unflagged.stdout
 
     assert rules.check_flag(node, state, "schicht-02.dcm") is True
+
+
+def test_first_contact_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 8: dcmftest bestaetigt das Format, dcmdump zeigt
+    Modality und StudyDescription -- die Untersuchung ist das Flag."""
+
+    node = content.load_node("first-contact")
+    state = rules.initial_state(node)
+
+    format_check = rules.exec_command(node, state, "workstation", "dcmftest datei-ohne-namen")
+    assert format_check.stdout == "yes: datei-ohne-namen"
+
+    dump = rules.exec_command(node, state, "workstation", "dcmdump datei-ohne-namen")
+    assert "(0008,0060) CS [US]  # xx, 1 Modality" in dump.stdout
+    assert "(0008,1030) LO [Abdomen komplett]  # xx, 1 StudyDescription" in dump.stdout
+
+    assert rules.check_flag(node, state, "Abdomen komplett") is True
+
+
+def test_wo_steht_das_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 8: alle drei gesuchten Werte stehen im vollen dcmdump,
+    ohne dass eine Tag-Nummer vorher bekannt sein muss."""
+
+    node = content.load_node("wo-steht-das")
+    state = rules.initial_state(node)
+
+    dump = rules.exec_command(node, state, "workstation", "dcmdump schicht-0001.dcm")
+    assert "(0008,0022) DA [20260910]  # xx, 1 AcquisitionDate" in dump.stdout
+    assert "(0018,0050) DS [3.0]  # xx, 1 SliceThickness" in dump.stdout
+    assert "(0018,1210) SH [B60f]  # xx, 1 ConvolutionKernel" in dump.stdout
+
+    assert rules.check_flag(node, state, "B60f") is True
