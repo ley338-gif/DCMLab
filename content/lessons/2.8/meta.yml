@@ -1,26 +1,23 @@
 id: "2.8"
 track: services
 order: 8
-duration_minutes: 12
+duration_minutes: 15
 level: aufbau
 objectives_count: 3
 requires: ["2.2", "2.3"]
-tools: []
+tools: [curl, findscu, storescu]
 
 sandbox:
   required: true
   dataset: ct-thorax-60
 
 # Lab laut Curriculum: "Dieselbe Abfrage per DIMSE und per REST" -- noch
-# kein passender Node-Stub vorhanden. Orthanc beherrscht DICOMweb
-# (WADO-RS/QIDO-RS/STOW-RS) nativ ueber dieselbe REST-API wie Storage
-# Commitment (siehe ADR 0031) -- als Client-Werkzeug fehlt bisher curl
-# in content/tools/de.yml (noch nicht registriert, siehe
-# docs/content-todo.md).
+# kein passender Node-Stub vorhanden.
 lab:
   node: null
   optional: true
 
-glossary_terms: []
-status: draft
+glossary_terms: [dicomweb, c-find, c-get]
+tools_checked: "2026-09-13"
+status: fertig
 updated: "2026-09-13"

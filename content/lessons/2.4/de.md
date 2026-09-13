@@ -24,8 +24,8 @@ drittes Ziel lässt sich mit einem eigenen `storescp` und einer
 dynamischen Registrierung beim Archiv aufbauen:
 
 ```
-$ storescp -v -aet DRITTES-ZIEL -od zielverzeichnis 11113 &
-$ curl -s -X PUT http://127.0.0.1:8042/modalities/drittes-ziel \
+$ storescp -v -aet DRITTES-ZIEL -od zielverzeichnis 11113 & curl -s -X PUT \
+    http://127.0.0.1:8042/modalities/drittes-ziel \
     -d '{"AET":"DRITTES-ZIEL","Host":"127.0.0.1","Port":11113}'
 ```
 **Was du daran abliest:** Ein zweiter, unabhängiger `storescp`-Prozess

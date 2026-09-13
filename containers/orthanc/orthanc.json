@@ -14,5 +14,8 @@
   "Worklists": {
     "Enable": true,
     "Database": "/worklists"
+  },
+  "DicomWeb": {
+    "Enable": true
   }
 }
