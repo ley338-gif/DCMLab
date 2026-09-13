@@ -1,10 +1,72 @@
 slug: zwillinge
 difficulty: easy
-points: 0
+points: 10
 category: datenmodell
 skills: [datenmodell]
 related_lessons: ["1.4"]
-estimated_minutes: 0
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.90.0.50
+      role: shell
+    - name: archive
+      ip: 10.90.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, study-root-find]
+      config_visible: false
+      # Zwei Studies derselben Patientin, gleiche Beschreibung -- nur die
+      # Accession Number und die UID unterscheiden sie zuverlaessig
+      # (Feature 1 aus P10, kein neuer Engine-Code).
+      records:
+        - patient_id: "4711"
+          patient_name: "MUSTER^ERIKA"
+          study_uid: "1.2.276.0.7230010.3.1.4.541902387011"
+          study_description: "CT Thorax nativ"
+          study_date: "20260110"
+          accession_number: "R2026-04471"
+        - patient_id: "4711"
+          patient_name: "MUSTER^ERIKA"
+          study_uid: "1.2.276.0.7230010.3.1.4.541902387012"
+          study_description: "CT Thorax nativ"
+          study_date: "20260305"
+          accession_number: "R2026-08812"
+
+  known_calling_aets: [DCMLAB-WS]
+
+  tools: [findscu]
+
+  files:
+    - anforderung.txt   # die aktuelle radiologische Anforderung mit der Accession Number
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.find_patient
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=4711 -k StudyInstanceUID -k StudyDescription -k AccessionNumber -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.90.0.10 104"
+    - label_key: tpl.find_accession
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k AccessionNumber=ZIEL_MUSTER -k StudyInstanceUID -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.90.0.10 104"
+  placeholders: [ZIEL_MUSTER]
+
+flag:
+  type: exact
+  hash: "sha256:02f74389041635f8ab45fb137b273c7ccc159ac23bcdeb00e6621f138b7c639d"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 1
+  - id: h3
+    cost: 2
+
+stuck_timeout_minutes: 8
 
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-13"

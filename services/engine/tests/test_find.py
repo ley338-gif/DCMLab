@@ -43,6 +43,23 @@ def test_find_studies_ignores_unknown_keys() -> None:
     assert find_studies(records, {"PatientID": "MEYER, HANS", "UnbekannterKey": "x"}) == records
 
 
+def test_find_studies_disambiguates_look_alike_studies_by_accession_number() -> None:
+    """P10.5 (zwillinge): zwei Studies mit identischer Beschreibung, nur die
+    Accession Number unterscheidet sie zuverlaessig."""
+    older = {
+        "patient_id": "4711", "study_description": "CT Thorax nativ",
+        "accession_number": "R2026-04471", "study_uid": "1.2.3.old",
+    }
+    newer = {
+        "patient_id": "4711", "study_description": "CT Thorax nativ",
+        "accession_number": "R2026-08812", "study_uid": "1.2.3.new",
+    }
+    records = [older, newer]
+
+    assert find_studies(records, {"PatientID": "4711"}) == records
+    assert find_studies(records, {"AccessionNumber": "R2026-08812"}) == [newer]
+
+
 def test_find_series_requires_the_right_study_uid() -> None:
     records = [
         {

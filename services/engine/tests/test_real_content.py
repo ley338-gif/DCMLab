@@ -160,3 +160,31 @@ def test_patient_merge_discovery_is_solvable_from_the_real_content() -> None:
 
     assert rules.check_flag(node, state, "000123") is True
     assert rules.check_flag(node, state, "00123") is False
+
+
+def test_zwillinge_is_solvable_from_the_real_content() -> None:
+    """P10.5, keine neue Engine-Logik noetig: zwei Studies derselben
+    Patientin mit identischer Beschreibung, nur Accession Number und UID
+    unterscheiden sie -- dieselbe records-Mechanik aus Feature 1."""
+
+    node = content.load_node("zwillinge")
+    state = rules.initial_state(node)
+
+    by_patient = rules.exec_command(
+        node, state, "workstation",
+        "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=4711 "
+        "-k StudyInstanceUID -k StudyDescription -k AccessionNumber "
+        "-aet DCMLAB-WS -aec KLINIK-ARCHIV 10.90.0.10 104",
+    )
+    assert "I: Number of Matches: 2" in by_patient.stdout
+
+    by_accession = rules.exec_command(
+        node, state, "workstation",
+        "findscu -S -k QueryRetrieveLevel=STUDY -k AccessionNumber=R2026-08812 "
+        "-k StudyInstanceUID -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.90.0.10 104",
+    )
+    assert "I: Number of Matches: 1" in by_accession.stdout
+    assert "1.2.276.0.7230010.3.1.4.541902387012" in by_accession.stdout
+
+    assert rules.check_flag(node, state, "1.2.276.0.7230010.3.1.4.541902387012") is True
+    assert rules.check_flag(node, state, "1.2.276.0.7230010.3.1.4.541902387011") is False

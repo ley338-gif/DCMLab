@@ -20,6 +20,7 @@ STUDY_FIELD_MAP = {
     "StudyDescription": "study_description",
     "StudyInstanceUID": "study_uid",
     "StudyDate": "study_date",
+    "AccessionNumber": "accession_number",
 }
 
 SERIES_FIELD_MAP = {
