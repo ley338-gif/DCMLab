@@ -1,0 +1,19 @@
+id: "5.3"
+track: betrieb
+order: 3
+duration_minutes: 10
+level: fortgeschritten
+objectives_count: 3
+requires: ["1.7", "2.5"]
+tools: []
+
+sandbox:
+  required: false
+
+lab:
+  node: null
+  optional: true
+
+glossary_terms: []
+status: draft
+updated: "2026-09-14"

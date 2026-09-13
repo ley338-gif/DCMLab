@@ -394,6 +394,54 @@ geschrieben, derselbe Maßstab wie bei Track 2 (ADR 0042).
 
 `content:validate` meldet für die sechs neuen Lektionen nichts.
 
+## Track 5 — acht Gerüste angelegt, Fließtext fehlt (seit P10.46)
+
+`content/lessons/5.1` bis `5.8` existieren seit P10.46 als Gerüste
+(`status: draft`): vollständige `meta.yml` und eine `de.md` mit Titel,
+Teaser, drei Lernzielen und geplanter Gliederung. Titel sind aus der
+Curriculum-Tabelle (`konzept-lernplattform.md` Abschnitt 5, Track 5)
+übernommen, nicht erfunden. Kein Gerüst enthält Fachprosa oder
+Werkzeugausgaben (Abschnitt 13).
+
+Anders als Track 1–4 hat Track 5 laut Curriculum-Tabelle keine
+Lab-Hinweis-Spalte — konsequenterweise setzen alle acht Gerüste
+erstmals `sandbox: {required: false}` **ohne** `dataset`-Schlüssel und
+`lab.node: null`. Vor dem ersten Gerüst wurde geprüft (Code-Lektüre von
+`ContentValidate::checkDatasetReference()` und `checkLessonStructure()`)
+und anschließend **empirisch bestätigt** (`content:validate` — 0
+Verstöße bei 41 Lektionen), dass dieses Schema-Shape ohne Vorbild
+tatsächlich validator-tolerant ist. Siehe ADR 0055.
+
+Grund: IHE-Profile (5.1), Conformance Statements (5.2), Migration
+(5.3), Datenschutz/Protokollierung (5.5), Security (5.6) und
+Beschaffung (5.8) sind Betriebs-/Prozess-/Rechtsthemen, die sich mit
+der vorhandenen Toolbox (Orthanc + DCMTK-CLI) nicht sinnvoll als
+Hands-on-Übung abbilden lassen, ohne Beispiele zu erfinden. Zwei
+Kandidaten für einen echten, kleinen Hands-on-Baustein sind als zu
+prüfende offene Punkte markiert, nicht vorab angenommen:
+
+- **5.4** (Anonymisierung/Pseudonymisierung): `dcmodify`-basierte
+  Tag-Entfernung an einem real generierten Objekt, Vorher/Nachher per
+  `dcmdump` — noch nicht verifiziert.
+- **5.7** (Monitoring): Orthancs echter REST-Endpunkt `/statistics`
+  bzw. `/changes` (per `curl`, bereits als Tool registriert seit
+  Lektion 2.8) — noch nicht verifiziert, unklar ob die Sandbox
+  aussagekräftige Werte ohne echte Produktionslast liefert.
+
+Beide bleiben vorerst bei `sandbox.required: false`; falls sich der
+Baustein beim Ausschreiben trägt, wird das in der jeweiligen
+Lektions-PR nachträglich auf `true` korrigiert (inkl. `dataset`, falls
+nötig). **5.8** (Beschaffung) ist zusätzlich als reine Synthese der
+übrigen sieben Lektionen markiert und sollte als letzte Lektion des
+Tracks geschrieben werden, da sie inhaltlich auf deren tatsächlichem
+(nicht nur geplantem) Inhalt aufbaut.
+
+`content/tracks.yml: betrieb.status` bleibt `planned`, bis alle acht
+Lektionen tatsächlich geschrieben sind — derselbe Maßstab wie bei
+Track 2 (ADR 0042/PR #44) und Track 3 (ADR 0054/PR #52).
+
+`content:validate` meldet für die acht neuen Lektionen nichts.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0
