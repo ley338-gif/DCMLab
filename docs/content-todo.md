@@ -265,15 +265,16 @@ ungeschriebenen Node-Stubs mehr bekannt** — die ursprüngliche
 Sieben-Node-Liste (siehe oben, Abschnitt "Track 1 — Engine-Limits")
 ist mit P10.14 vollständig abgearbeitet.
 
-**Schema-Lücke aus P10.10:** `lessons/<id>/meta.yml` erlaubt aktuell nur
-einen einzelnen `lab.node`-Wert. Lektion 4.3 bräuchte zwei
-(`oversized-image` für das Größenlimit, `teiltransfer` für die
-SOP-Class-Ablehnung), um beide in ihrem eigenen Fließtext gleichrangig
-zu behandeln, wie es ihre geplante Gliederung vorsieht. Für P10.10 kein
-Problem (nur der Node wurde gebaut, nicht der Lektionstext) — sobald
-Lektion 4.3 geschrieben wird, muss entweder das Schema ein
-`lab.nodes`-Array erlauben, oder die Lektion referenziert die zweite
-Node nur im Fließtext, ohne toolbar-seitige Verknüpfung.
+**Schema-Lücke aus P10.10, weiterhin offen:** `lessons/<id>/meta.yml`
+erlaubt aktuell nur einen einzelnen `lab.node`-Wert. Lektion 4.3
+bräuchte zwei (`oversized-image` für das Größenlimit, `teiltransfer`
+für die SOP-Class-Ablehnung), um beide gleichrangig zu behandeln.
+**Seit P10.16 mit der dokumentierten Übergangslösung gelöst:**
+`lab.node` bleibt `oversized-image`, `teiltransfer` wird im Fließtext
+nur namentlich genannt, ohne toolbar-seitige Verknüpfung (siehe ADR
+0026). Ein `lab.nodes`-Array bliebe die sauberere, aber aufwendigere
+Lösung (PHP-Controller + Vue-Komponente betroffen) — nicht gebaut, da
+die Übergangslösung ausreicht.
 
 **Infrastruktur-Lücke aus P10.11:** Lektion 4.7s eigener Fließtext
 braucht laut ihrer geplanten Gliederung echte Sandbox-Beispiele mit
@@ -300,8 +301,17 @@ ist wie bei 4.1 in der aktuellen Spielwiese nicht live reproduzierbar
 ADR 0025); reale Beispiele decken die erfolgreiche Aushandlung ab
 (`storescu -d -cx` zeigt Proposed/Accepted sauber nebeneinander), die
 eigentliche Ablehnung verweist ehrlich auf Node `verbindung-ohne-bild`.
-Restliche sieben Track-4-Lektionen (4.3–4.5, 4.7–4.10) sind weiterhin
-Gerüst.
+**Lektion 4.3 ("Nur manche Bilder kommen an") ist seit P10.16
+ebenfalls vollständig geschrieben** — dritter, unabhängiger Beleg für
+denselben Infrastruktur-Fund (weder SOP-Class- noch Größenlimit-
+Ablehnung live reproduzierbar, siehe ADR 0026); ein echtes drittes
+Fehlerbild blieb aber reproduzierbar und ist der eigentliche Kern der
+Lektion geworden: ein real unvollständig gesendeter `ct-thorax-60`-
+Datensatz (59 von 60 Dateien), nachgewiesen über das reale
+`findscu`-Feld `NumberOfStudyRelatedInstances`. Löst zugleich die
+Ein-`lab.node`-Schema-Lücke aus P10.10 pragmatisch (`teiltransfer` nur
+im Fließtext genannt). Restliche sechs Track-4-Lektionen (4.4–4.5,
+4.7–4.10) sind weiterhin Gerüst.
 
 **Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
 P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
@@ -323,6 +333,13 @@ SOP-Class- oder Transfer-Syntax-Ablehnung live erzeugbar (ADR 0025).
 Die Redaktionsentscheidung von 4.1 gilt damit für mindestens zwei
 unabhängige Fehlerklassen und dürfte weitere Track-4-Lektionen
 betreffen, die noch nicht geschrieben sind (z. B. 4.9, TLS-Fehler).
+**P10.16 bestätigt es ein drittes Mal:** ein echtes ~400-MB-Objekt und
+ein echtes Secondary-Capture-Objekt wurden beide anstandslos
+gespeichert — weder Größenlimit noch SOP-Class-Ablehnung sind live
+erzeugbar. Diese Grenze betrifft damit inzwischen drei unabhängige
+Fehlerklassen (AE-Title, Presentation Context, Objektgröße/SOP-Class)
+und ist kein Einzelfall mehr, sondern ein wiederkehrendes Muster für
+jede Lektion, die eine serverseitige Ablehnung zeigen will.
 
 **Track 2, Track 3:** noch nicht begonnen.
 

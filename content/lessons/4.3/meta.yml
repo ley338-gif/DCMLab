@@ -5,7 +5,7 @@ duration_minutes: 10
 level: aufbau
 objectives_count: 3
 requires: ["1.8"]
-tools: [storescu, storescp, dcmdump]
+tools: [storescu, storescp, dcmdump, findscu]
 
 sandbox:
   required: true
@@ -14,7 +14,9 @@ sandbox:
 # oversized-image deckt die Groessenlimit-Haelfte dieser Lektion ab
 # (Feature 2), teiltransfer seit P10.10 die SOP-Class-Haelfte (Feature 5,
 # ADR 0020) -- das Schema erlaubt aktuell nur einen lab.node pro Lektion,
-# siehe docs/content-todo.md. Deshalb weiterhin optional.
+# siehe docs/content-todo.md. teiltransfer wird deshalb im Fliesstext
+# genannt, ohne toolbar-seitige Verknuepfung. Fliesstext ist seit P10.16
+# vollstaendig (ADR 0026).
 lab:
   node: oversized-image
   optional: true
