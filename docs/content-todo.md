@@ -161,8 +161,14 @@ eigene Liste offener Punkte:
   AE-Title-Großzügigkeit der Spielwiese (ADR 0017) wurde dabei in
   einer frischen Sitzung erneut real bestätigt statt nur zitiert —
   Lektion verweist ehrlich auf Node „Silent CT" für den
-  Ablehnungsfall. Siehe ADR 0038. `tools` um `tshark` ergänzt. Noch
-  offen: 2.2, 2.3.
+  Ablehnungsfall. Siehe ADR 0038. `tools` um `tshark` ergänzt. **2.2
+  ist seit P10.29 ebenfalls vollständig geschrieben** — sechs echte
+  Beispiele, darunter ein in dieser Slice empirisch geprüfter
+  Mechanismus-Fund: mehrere Dateien in einem `storescu`-Aufruf laufen
+  über **eine** Association mit mehreren `MsgID`s, nicht über mehrere
+  separate Verbindungen (direkt gegen einen Loop mit Einzelaufrufen
+  verglichen, nicht nur angenommen). Siehe ADR 0039. `tools` um
+  `tshark` ergänzt (jetzt am Vier-Werkzeuge-Limit). Noch offen: 2.3.
 - **Infrastruktur bereits vorhanden (2.5, 2.6, 2.7).** Diese drei
   Lektionen (Modality Worklist, MPPS, Storage Commitment) können die
   in P10.20–P10.21 für Track 4 gebaute echte Infrastruktur direkt
