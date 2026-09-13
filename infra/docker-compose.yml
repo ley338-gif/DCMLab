@@ -40,6 +40,11 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
       DB_DATABASE: ${POSTGRES_DB:-dcmlab}
       CONTENT_PATH: /var/www/html/content
+      # Muss mit dem Host-Port von caddy uebereinstimmen (unten) -- sonst
+      # zeigen generierte Redirects/URLs auf einen Port, auf dem nichts
+      # lauscht, und der Login schlaegt scheinbar grundlos fehl. Deshalb hier
+      # aus derselben Variable abgeleitet statt in .env.docker fest verdrahtet.
+      APP_URL: http://localhost:${APP_HOST_PORT:-8080}
     volumes:
       - web-public:/var/www/html/public
       # content/ liegt im Git-Repo (Abschnitt 1.4), nie in der Datenbank --
