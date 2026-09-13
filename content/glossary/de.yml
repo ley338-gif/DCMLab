@@ -259,3 +259,10 @@ iod:
   short: Der Bausatz aus Pflicht- und optionalen Modulen, der festlegt, woraus ein Objekttyp bestehen muss.
   see_also: [tag]
   lesson: "3.1"
+
+photometric-interpretation:
+  term: Photometric Interpretation
+  expansion: Photometric Interpretation (0028,0004)
+  short: Legt fest, wie Pixelbytes als Helligkeit oder Farbe zu lesen sind — z. B. MONOCHROME1, MONOCHROME2 oder RGB.
+  see_also: [iod]
+  lesson: "3.2"
