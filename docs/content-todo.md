@@ -336,6 +336,26 @@ gezeigt, nicht über ein tatsächliches Bild (weiterhin kein Viewer im
 Werkzeugkasten). `tools` von `[]` auf `[dcmdump, dcmodify]` gesetzt,
 neuer Glossarbegriff `hounsfield-unit`. Siehe ADR 0051.
 
+**3.4 ist seit P10.43 ebenfalls vollständig geschrieben — die
+Infrastrukturfrage ist geklärt, ohne den Generator zu ändern.** Ein
+echtes Enhanced-CT-Testobjekt (`pydicom`s externe Testdaten,
+`eCT_Supplemental.dcm`) existiert zwar, lädt aber per Netzwerk nach —
+die Spielwiese verbindet die Toolbox mit einem `internal=True`-Netz
+ohne Egress, das scheidet also aus. Stattdessen liefert `pydicom`s
+**mitgelieferte** Paket-Testdaten (Teil der pip-Installation, kein
+Netzwerk nötig, mit `docker run --network none` bestätigt) ein echtes,
+RLE-komprimiertes 2-Frame-Objekt (`SC_rgb_rle_2frame.dcm`, Secondary
+Capture, pydicoms bekannte fiktive Sherlock-Holmes-Testdaten). Damit
+real gezeigt: Orthanc zählt die Datei als eine Instance
+(`NumberOfStudyRelatedInstances 1`), obwohl real zwei Frames darin
+stecken — und eine echte, leere Abfrage der Functional-Groups-Sequenzen
+am selben Objekt dient als Gegenprobe zur Enhanced-IOD-Erklärung (kein
+echtes Enhanced-Objekt mit gefüllten Sequenzen verfügbar, aber die
+SOP-Class-UIDs und die Struktur bleiben real belegt). `dcmdrle` neu in
+`content/tools/de.yml` registriert. `tools` von `[]` auf `[dcmdump,
+dcmdrle, storescu, findscu]` gesetzt, neuer Glossarbegriff
+`enhanced-iod`. Siehe ADR 0052.
+
 `content/tracks.yml: bild.status` bleibt `planned`, bis alle sechs
 Lektionen tatsächlich geschrieben sind.
 

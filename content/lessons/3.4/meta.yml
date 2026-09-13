@@ -5,7 +5,7 @@ duration_minutes: 10
 level: aufbau
 objectives_count: 3
 requires: ["3.1"]
-tools: []
+tools: [dcmdump, dcmdrle, storescu, findscu]
 
 sandbox:
   required: true
@@ -15,6 +15,7 @@ lab:
   node: null
   optional: true
 
-glossary_terms: []
-status: draft
+glossary_terms: [enhanced-iod]
+tools_checked: "2026-09-13"
+status: fertig
 updated: "2026-09-13"

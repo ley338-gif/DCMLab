@@ -273,3 +273,10 @@ hounsfield-unit:
   short: Die genormte, geräteunabhängige CT-Dichteskala — Luft ≈ -1000, Wasser = 0.
   see_also: [photometric-interpretation]
   lesson: "3.3"
+
+enhanced-iod:
+  term: Enhanced IOD
+  expansion: Enhanced Information Object Definition
+  short: Ein Multiframe-Objekt mit Shared- und Per-Frame Functional Groups Sequences statt einheitlicher Attribute pro Datei.
+  see_also: [iod]
+  lesson: "3.4"
