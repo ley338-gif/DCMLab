@@ -341,8 +341,11 @@ DCMDUMP_FIELD_ORDER = [
     ("acquisition_date", "0008,0022", "DA", "AcquisitionDate"),
     ("modality", "0008,0060", "CS", "Modality"),
     ("study_description", "0008,1030", "LO", "StudyDescription"),
+    ("patient_id", "0010,0020", "LO", "PatientID"),
     ("slice_thickness", "0018,0050", "DS", "SliceThickness"),
     ("convolution_kernel", "0018,1210", "SH", "ConvolutionKernel"),
+    ("study_uid", "0020,000D", "UI", "StudyInstanceUID"),
+    ("series_uid", "0020,000E", "UI", "SeriesInstanceUID"),
     ("lossy_image_compression", "0028,2110", "CS", "LossyImageCompression"),
 ]
 

@@ -1,10 +1,81 @@
 slug: zwei-ebenen-tiefer
 difficulty: easy
-points: 0
+points: 10
 category: datenmodell
 skills: [datenmodell]
 related_lessons: ["1.2"]
-estimated_minutes: 0
+estimated_minutes: 10
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.20.0.50
+      role: shell
+
+  tools: [dcmdump]
+
+  # Zwei Patienten, zwei Studies -- aber nur eine Study hat zwei Series wie
+  # erwartet, die andere nur eine. Die Zaehlschleife je Ebene deckt genau
+  # das auf.
+  objects:
+    - filename: "bild-01.dcm"
+      bytes: 262144
+      patient_id: "4711"
+      study_uid: "1.2.276.0.7230010.3.1.4.881100001"
+      series_uid: "1.2.276.0.7230010.3.1.3.881100011"
+    - filename: "bild-02.dcm"
+      bytes: 262144
+      patient_id: "4711"
+      study_uid: "1.2.276.0.7230010.3.1.4.881100001"
+      series_uid: "1.2.276.0.7230010.3.1.3.881100011"
+    - filename: "bild-03.dcm"
+      bytes: 262144
+      patient_id: "4711"
+      study_uid: "1.2.276.0.7230010.3.1.4.881100001"
+      series_uid: "1.2.276.0.7230010.3.1.3.881100012"
+    - filename: "bild-04.dcm"
+      bytes: 262144
+      patient_id: "4712"
+      study_uid: "1.2.276.0.7230010.3.1.4.881100002"
+      series_uid: "1.2.276.0.7230010.3.1.3.881100021"
+    - filename: "bild-05.dcm"
+      bytes: 262144
+      patient_id: "4712"
+      study_uid: "1.2.276.0.7230010.3.1.4.881100002"
+      series_uid: "1.2.276.0.7230010.3.1.3.881100021"
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.dcmdump_01
+      command: "dcmdump bild-01.dcm"
+    - label_key: tpl.dcmdump_02
+      command: "dcmdump bild-02.dcm"
+    - label_key: tpl.dcmdump_03
+      command: "dcmdump bild-03.dcm"
+    - label_key: tpl.dcmdump_04
+      command: "dcmdump bild-04.dcm"
+    - label_key: tpl.dcmdump_05
+      command: "dcmdump bild-05.dcm"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:4f0e70f993083de9a594904cfe6aef5bdfe134a45c4cb7c24a4fb483d2fc1211"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 1
+  - id: h3
+    cost: 2
+
+stuck_timeout_minutes: 10
 
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-13"

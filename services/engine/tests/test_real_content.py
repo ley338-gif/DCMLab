@@ -361,3 +361,29 @@ def test_wo_steht_das_is_solvable_from_the_real_content() -> None:
     assert "(0018,1210) SH [B60f]  # xx, 1 ConvolutionKernel" in dump.stdout
 
     assert rules.check_flag(node, state, "B60f") is True
+
+
+def test_zwei_ebenen_tiefer_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 9: fuenf Instances, zwei Patienten, zwei Studies, aber
+    nur drei Series -- eine Study hat zwei Series, die andere nur eine."""
+
+    node = content.load_node("zwei-ebenen-tiefer")
+    state = rules.initial_state(node)
+
+    dumps = [
+        rules.exec_command(node, state, "workstation", f"dcmdump bild-0{i}.dcm").stdout
+        for i in range(1, 6)
+    ]
+
+    assert "4711" in dumps[0]
+    assert "4712" in dumps[3]
+    assert "4712" in dumps[4]
+
+    series_a = "1.2.276.0.7230010.3.1.3.881100011"
+    series_b = "1.2.276.0.7230010.3.1.3.881100012"
+    series_c = "1.2.276.0.7230010.3.1.3.881100021"
+    all_series = {series_a if series_a in d else series_b if series_b in d else series_c
+                  for d in dumps}
+    assert all_series == {series_a, series_b, series_c}
+
+    assert rules.check_flag(node, state, "4712") is True
