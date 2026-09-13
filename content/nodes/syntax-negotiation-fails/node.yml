@@ -1,0 +1,69 @@
+slug: syntax-negotiation-fails
+difficulty: medium
+points: 15
+category: netzwerk
+skills: [netzwerk, bildgebung]
+related_lessons: ["1.7", "1.8"]
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.70.0.50
+      role: shell
+    - name: archive
+      ip: 10.70.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, ct-image-storage, study-root-find]
+          # Aeltere Archiv-Software: nur unkomprimiert, keine JPEG-Varianten.
+          accepted_transfer_syntaxes: ["1.2.840.10008.1.2"]
+      config_visible: false
+    - name: ct-3
+      ip: 10.70.0.40
+      role: modality-simulator
+      config_editable: true
+      config:
+        local_ae: CT-3
+        remote_ae: KLINIK-ARCHIV
+        remote_host: 10.70.0.10
+        remote_port: 104
+        # ← der eingebaute Fehler: das Geraet ist werksseitig auf
+        # verlustfreie JPEG-2000-Kompression eingestellt.
+        transfer_syntax: "1.2.840.10008.1.2.4.91"
+
+  known_calling_aets: [DCMLAB-WS, CT-3]
+
+  tools: [findscu, dcmdump]
+  dataset: ct-thorax-1-slice
+
+  files:
+    - transfer-syntax-registry.txt   # Auszug aus PS3.5 Annex A mit den hier relevanten UIDs
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.find_study
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=4711 -k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.70.0.10 104"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:7670866148e0b82a91380d6053ef7a14d89bfc676a5fb6a7baf56eaabde08f23"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 10
+
+status: draft
+updated: "2026-09-13"

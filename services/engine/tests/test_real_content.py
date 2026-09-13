@@ -112,3 +112,22 @@ def test_oversized_image_is_solvable_from_the_real_content() -> None:
     assert state["bestand"]["archive"] == {"studies": 1, "series": 1, "instances": 1}
 
     assert rules.check_flag(node, state, "524288") is True
+
+
+def test_syntax_negotiation_fails_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 3: JPEG 2000 wird abgelehnt (Archiv kennt nur Implicit
+    VR Little Endian), nach der Korrektur kommt die Study an."""
+
+    node = content.load_node("syntax-negotiation-fails")
+    state = rules.initial_state(node)
+
+    wrong = rules.trigger_action(node, state, "ct-3", "send_study")
+    assert wrong.events[-1]["type"] == "presentation_context_rejected"
+    assert state["bestand"]["archive"] == {"studies": 0, "series": 0, "instances": 0}
+
+    rules.set_config(node, state, "ct-3", "transfer_syntax", "1.2.840.10008.1.2")
+    fixed = rules.trigger_action(node, state, "ct-3", "send_study")
+    assert fixed.events[-1]["type"] == "store_completed"
+    assert state["bestand"]["archive"]["studies"] == 1
+
+    assert rules.check_flag(node, state, "1.2.840.10008.1.2") is True
