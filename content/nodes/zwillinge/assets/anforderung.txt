@@ -1,0 +1,6 @@
+Radiologische Anforderung
+--------------------------
+Patientin:        MUSTER, Erika (ID 4711)
+Untersuchung:     CT Thorax nativ
+Accession Number: R2026-08812
+Angefordert:      05.03.2026

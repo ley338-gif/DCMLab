@@ -158,10 +158,10 @@ technische Blockade in seiner eigenen `de.md`:
 | `first-contact` | 1.1 | `dcmdump` auf eine lokale `.dcm`-Datei ist in der Engine nicht gebaut (liefert nur einen Platzhaltertext) |
 | `zwei-ebenen-tiefer` | 1.2 | `findscu` kennt nur STUDY/SERIES, keine PATIENT-/INSTANCE-Ebene; ein Archiv-Host hat höchstens einen Bestand |
 | `wo-steht-das` | 1.3 | dasselbe `dcmdump`-Limit wie `first-contact` |
-| `zwillinge` | 1.4 | kein Datensatz mit zwei gleich aussehenden Studies unterschiedlicher UID; Engine kennt nur einen Bestand pro Archiv-Host |
-| `halbe-sache` | 1.7 | keine Presentation-Context-/Transfer-Syntax-Aushandlung in der Engine |
-| `mitgehoert` | 1.8 | dasselbe Aushandlungs-Limit wie `halbe-sache` |
-| `verbindung-ohne-bild` | 4.2 | dasselbe Aushandlungs-Limit wie `halbe-sache` |
+| ~~`zwillinge`~~ | 1.4 | ✅ P10.5 fertig, siehe unten — nicht mehr blockiert |
+| `halbe-sache` | 1.7 | keine Presentation-Context-/Transfer-Syntax-Aushandlung in der Engine — **seit P10.3 technisch lösbar, siehe unten** |
+| `mitgehoert` | 1.8 | dasselbe Aushandlungs-Limit wie `halbe-sache` — **seit P10.3 technisch lösbar** |
+| `verbindung-ohne-bild` | 4.2 | dasselbe Aushandlungs-Limit wie `halbe-sache` — **seit P10.3 technisch lösbar** |
 
 Diese sieben Lücken sind **Engine-Features, keine Content-Lücken** — anders
 als bei Track 4 oben ist hier nicht Fließtext das Fehlende, sondern eine
@@ -193,23 +193,21 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | Worklist-Query | offen | `worklist-query-empty` |
 | Patient-Merge / Study-Split | ✅ P10.4 (kein neuer Code nötig, siehe ADR 0014) | `patient-merge-discovery` (neu) |
 
-**Nebeneffekte, noch nicht genutzt:**
+**Nebeneffekte:**
 
 - `zwei-ebenen-tiefer` und `zwillinge` waren blockiert, weil ein
   Archiv-Host nur einen Bestand kannte. Mit `records` (ADR 0011,
   `content-schema.md` Abschnitt 6a) kann ein Archiv jetzt mehrere
-  Studies vorhalten — `zwillinge`s eigentliche Blockade ("zwei gleich
-  aussehende Studies, verschiedene UID") ist damit technisch lösbar.
+  Studies vorhalten. **`zwillinge` ist seit P10.5 fertig** (ADR 0015,
+  inkl. eines neuen realen Feldes `AccessionNumber`). `zwei-ebenen-tiefer`
+  bräuchte zusätzlich eine echte PATIENT-/INSTANCE-Ebene im C-FIND — bleibt
+  offen.
 - `halbe-sache` (1.7), `mitgehoert` (1.8) und `verbindung-ohne-bild`
   (4.2) waren blockiert, weil die Engine keine Presentation-Context-
   Aushandlung kannte. Mit Feature 3 (ADR 0013, `content-schema.md`
-  Abschnitt 6c) ist auch das technisch lösbar.
+  Abschnitt 6c) ist das technisch lösbar, aber noch nicht geschrieben.
 
-Alle fünf bleiben trotzdem als Gerüst stehen, bis ihr jeweiliger
-Fließtext geschrieben ist — kein Content erfunden, nur weil die Engine
-es jetzt könnte.
-
-**Nodes (vier laut Roadmap Abschnitt IV):**
+**Nodes (vier laut Roadmap Abschnitt IV, alle fertig):**
 
 | Node | Status |
 |---|---|
@@ -218,10 +216,16 @@ es jetzt könnte.
 | `syntax-negotiation-fails` | ✅ P10.3, vollständig und live verifiziert |
 | `patient-merge-discovery` | ✅ P10.4, vollständig und live verifiziert (Lektion 4.6, teilweise — aktives serverseitiges Merge fehlt weiterhin) |
 
-**Alle vier von der Roadmap benannten Nodes sind jetzt fertig.**
+**Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5, siehe
+oben) — kein Roadmap-Node, aber ein durch Feature 1 unblockierter
+Track-1-Stub.
+
 Verbleibend von den sieben Engine-Features: Multiframe-Generator (für
-Track 3) und Worklist-Query (für `worklist-query-empty`, nicht in der
-Vier-Nodes-Liste, aber eigenständig sinnvoll).
+Track 3) und Worklist-Query (für `worklist-query-empty`, kein
+Roadmap-Pflichtnode, aber eigenständig sinnvoll). Verbleibend an
+unblockierten, aber ungeschriebenen Nodes: `halbe-sache`, `mitgehoert`,
+`verbindung-ohne-bild`, `zwei-ebenen-tiefer`, `first-contact`,
+`wo-steht-das`.
 
 **Track 2, Track 3, Track-4-Vervollständigung:** noch nicht begonnen.
 

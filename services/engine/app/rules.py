@@ -524,6 +524,7 @@ def _exec_findscu_against_records(
         ("study_uid", "0020,000d", "UI", "StudyInstanceUID"),
         ("study_description", "0008,1030", "LO", "StudyDescription"),
         ("study_date", "0008,0020", "DA", "StudyDate"),
+        ("accession_number", "0008,0050", "SH", "AccessionNumber"),
     ]
 
     blocks = []
