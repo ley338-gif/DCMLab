@@ -179,7 +179,17 @@ eigene Liste offener Punkte:
   erfolgreich (`0x0`) annimmt — der DIMSE-Erfolgsstatus beschreibt nur
   die Zustellung, nicht den Inhalt der Meldung. Siehe ADR 0036. `tools`
   von `[pynetdicom, dcmdump]` auf `[pynetdicom, tshark]` korrigiert.
-  Noch offen: 2.7.
+  **2.7 ist seit P10.27 ebenfalls vollständig geschrieben** — letzte
+  der drei Lektionen mit vorhandener Infrastruktur, kein neuer
+  Infrastruktur-Fund; dabei aber ein neuer, echt verifizierter Fund:
+  ein `tshark`-Mitschnitt auf Port 4242 zeigt erstmals die
+  DICOM-Ebene unter der REST-API — zwei vollständig getrennte
+  Assoziationen (`N-ACTION-RQ`/`-RSP`, dann separat
+  `N-EVENT-REPORT-RQ`/`-RSP`), anders als bei MPPS (2.6), wo beide
+  Nachrichten dieselbe Assoziation teilen. 4.8 zeigte bisher nur die
+  REST-Wrapper-Sicht, nie die zugrundeliegende Mechanik. Siehe ADR
+  0037. `tools` um `tshark` ergänzt. **Damit sind alle drei Lektionen
+  mit vorhandener Infrastruktur (2.5, 2.6, 2.7) geschrieben.**
 - **Neue Infrastruktur nötig (2.4, 2.8).** 2.4 (C-MOVE vs. C-GET)
   braucht für ein *echtes* Drei-Parteien-C-MOVE einen zweiten
   Storage-Endpunkt in der Spielwiese — noch nicht vorhanden, ähnlich

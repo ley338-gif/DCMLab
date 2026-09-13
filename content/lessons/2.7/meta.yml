@@ -5,7 +5,7 @@ duration_minutes: 10
 level: aufbau
 objectives_count: 3
 requires: ["2.2", "2.6"]
-tools: [storescu, orthanc]
+tools: [storescu, orthanc, tshark]
 
 sandbox:
   required: true
@@ -21,5 +21,5 @@ lab:
 
 glossary_terms: [storage-commitment]
 tools_checked: "2026-09-13"
-status: draft
+status: fertig
 updated: "2026-09-13"
