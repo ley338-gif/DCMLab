@@ -262,7 +262,7 @@ eigene Liste offener Punkte:
 
 `content:validate` meldet für die acht neuen Lektionen nichts.
 
-## Track 3 — sechs Gerüste angelegt, Fließtext fehlt (seit P10.39)
+## Track 3 — vollständig geschrieben (seit P10.45)
 
 `content/lessons/3.1` bis `3.6` existieren seit P10.39 als Gerüste
 (`status: draft`): vollständige `meta.yml` und eine `de.md` mit Titel,
@@ -374,8 +374,23 @@ dcmdump, storescu, findscu]` gesetzt, drei neue Glossarbegriffe
 (`structured-report`, `key-object-selection`, `presentation-state`).
 Siehe ADR 0053.
 
-`content/tracks.yml: bild.status` bleibt `planned`, bis alle sechs
-Lektionen tatsächlich geschrieben sind.
+**3.6 ist seit P10.45 ebenfalls vollständig geschrieben — damit ist
+Track 3 komplett.** Wie erwartet kein neues IOD nötig, aber ein
+reichhaltigerer echter Befund als angenommen: Ein Hex-Vergleich zeigt,
+dass ein Objekt mit und eines ohne `SpecificCharacterSet` **identische**
+Rohbytes für den Umlautnamen tragen (`pydicom` kodiert unabhängig von
+der Deklaration) — die Lücke zeigt sich nicht als Zeichensalat, sondern
+als uneinheitliche Werkzeugreaktion: `dcm2json` verweigert die Datei
+ohne Deklaration mit einer echten, klaren Fehlermeldung, `storescu`
+nimmt beide Objekte an, und Orthancs eigene DICOMweb-API dekodiert
+beide korrekt und normalisiert sie beim Ausgeben still auf UTF-8. Drei
+echte, unterschiedliche Reaktionen auf dieselbe Lücke. `tools` von
+`[]` auf `[dcmdump, dcm2json, storescu, curl]` gesetzt, neuer
+Glossarbegriff `specific-character-set`. Siehe ADR 0054.
+
+**`content/tracks.yml: bild.status`** von `planned` auf `published`
+gesetzt — alle sechs Lektionen aus Track 3 sind jetzt vollständig
+geschrieben, derselbe Maßstab wie bei Track 2 (ADR 0042).
 
 `content:validate` meldet für die sechs neuen Lektionen nichts.
 
@@ -735,8 +750,8 @@ und ist kein Einzelfall mehr, sondern ein wiederkehrendes Muster für
 jede Lektion, die eine serverseitige Ablehnung zeigen will.
 
 **Track 2:** seit P10.32 vollständig geschrieben (alle acht Lektionen,
-siehe oben). **Track 3:** seit P10.39 als sechs Gerüste angelegt
-(siehe oben), Fließtext folgt lektionsweise.
+siehe oben). **Track 3:** seit P10.45 vollständig geschrieben (alle
+sechs Lektionen, siehe oben), Track veröffentlicht.
 
 **Zehn vorbestehende mypy-Fehler in `services/sandbox/tests/
 test_orchestrator.py` (in ADR 0042 vermerkt, hier nachgetragen):**

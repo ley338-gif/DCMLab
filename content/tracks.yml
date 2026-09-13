@@ -19,7 +19,7 @@
   title_key: track.bild.title
   level: aufbau
   hours: 5
-  status: planned
+  status: published
 
 - slug: troubleshooting
   order: 4
