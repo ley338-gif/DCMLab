@@ -62,12 +62,23 @@ Antwortschlüssel.
 
 P3 rendert diese Prosa unverändert als Teil des normalen Lektionstexts
 (korrekt lesbar, wie von der DoD gefordert), baut aber **keine** interaktiven,
-graded Quiz-Karten und keine Spaced-Repetition-Wiederholung. Eine
-Antwort-Auswertung zu implementieren hätte bedeutet, die korrekten Antworten
-selbst zu erfinden — das verbietet Abschnitt 13 ausdrücklich. Sobald die
-Quiz-Fragen ein strukturiertes `quiz:`-Feld mit echtem Antwortschlüssel
-bekommen (redaktionelle Entscheidung, kein Plattform-Bug), kann die
-interaktive Karten-Funktion nachgezogen werden.
+graded Quiz-Karten und keine Spaced-Repetition-Wiederholung.
+
+**Seit P10.36 geklärt:** Das vermeintlich offene Formatproblem gab es
+nicht — `quiz:` war sowohl im ursprünglichen Projektauftrag
+(`dcm-lab-agent-prompt.md` 4.1) als auch in `docs/content-schema.md`
+bereits vollständig spezifiziert (`{id, type: single|multi|input,
+answer}`). Es fehlten nur die Werte. Da jede der 27 Fragen (9
+Lektionen × 3) eine Verständnisfrage zu einem in derselben Lektion
+bereits real verifizierten Fakt ist, ließ sich der Antwortschlüssel
+ohne Erfindung direkt aus dem jeweiligen Fließtext ableiten. Alle neun
+`content/lessons/{1.0…1.8}/meta.yml` tragen jetzt ein vollständiges
+`quiz:`-Feld — siehe ADR 0046. Weiterhin **nicht** gebaut: die
+interaktive Karten-UI und die Spaced-Repetition-Planung selbst
+(`content:sync` liest `quiz:` bisher nicht einmal in eine
+Datenbankspalte ein) — das bleibt eine eigene, deutlich größere
+Engineering-Slice, für die jetzt aber eine vollständige, korrekte
+Content-Grundlage steht.
 
 ## P4 — Zwei Dateien der Node "silent-ct" ohne Textinhalt
 

@@ -14,6 +14,16 @@ lab:
   node: mitgehoert
   optional: false
 glossary_terms: [association, presentation-context, abstract-syntax, max-pdu]
+quiz:
+  - id: q1
+    type: single
+    answer: 1
+  - id: q2
+    type: multi
+    answer: [0, 2, 3]
+  - id: q3
+    type: input
+    answer: "No presentation context for:"
 tools_checked: "2026-09-13"
 status: draft
 updated: "2026-09-13"
