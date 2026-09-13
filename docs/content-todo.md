@@ -566,6 +566,18 @@ Erkenntniswert gegenüber den vorhandenen Beispielen geliefert hätte.
 `content/lessons/4.10` bereits mit echten `tshark`-Beispielen — kein
 Nachbesserungsbedarf. Siehe ADR 0044.
 
+**Seit P10.35 zwei weitere Fälle desselben Musters gefunden und
+behoben:** `content:validate`s `checkToolInverse` erkennt nur benutzte,
+aber nicht deklarierte Werkzeuge — nie die Umkehrung (deklariert, aber
+nie gezeigt). Gezielt geprüft: 4.3 deklarierte zusätzlich `storescp`
+und `dcmdump`, ohne sie im Fließtext zu benutzen — auf `[storescu,
+findscu]` reduziert. 4.7 deklarierte noch `wlmscpfs`, ein
+Überbleibsel von vor P10.20 (seit Orthancs Worklists-Plugin aktiv ist,
+ADR 0030, beantwortet Orthanc selbst die Worklist-Anfrage — dieselbe
+Korrektur wurde für die Schwesterlektion 2.5 bereits in P10.25 gemacht,
+hier aber übersehen) — auf `[findscu, tshark]` reduziert. Siehe ADR
+0045. Keine weiteren Fälle dieses Musters bekannt.
+
 **Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
 P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
 (`containers/orthanc/orthanc.json`, ADR 0008) **jeden** Called/Calling
