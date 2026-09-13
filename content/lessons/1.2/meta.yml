@@ -17,6 +17,16 @@ lab:
   node: zwei-ebenen-tiefer
   optional: false
 glossary_terms: [study, series, instance, patient-id, sop-instance-uid]
+quiz:
+  - id: q1
+    type: single
+    answer: 2
+  - id: q2
+    type: multi
+    answer: [0, 1]
+  - id: q3
+    type: input
+    answer: "SeriesInstanceUID"
 tools_checked: "2026-09-13"
 status: draft
 updated: "2026-09-13"

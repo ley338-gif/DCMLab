@@ -13,6 +13,16 @@ lab:
   node: silent-ct
   optional: false
 glossary_terms: [scu, scp, ae-title, called-ae-title, calling-ae-title, c-echo, c-move, association, sop-class]
+quiz:
+  - id: q1
+    type: single
+    answer: 1
+  - id: q2
+    type: multi
+    answer: [1, 3]
+  - id: q3
+    type: single
+    answer: 0
 tools_checked: "2026-09-12"
 status: draft
 updated: "2026-09-12"

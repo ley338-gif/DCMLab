@@ -13,6 +13,16 @@ lab:
   node: neue-node
   optional: false
 glossary_terms: [ae-title, called-ae-title, calling-ae-title]
+quiz:
+  - id: q1
+    type: single
+    answer: 2
+  - id: q2
+    type: multi
+    answer: [0, 2]
+  - id: q3
+    type: input
+    answer: "storescp"
 tools_checked: "2026-09-12"
 status: draft
 updated: "2026-09-12"
