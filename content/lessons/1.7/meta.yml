@@ -10,12 +10,12 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Node halbe-sache ist ein Geruest (status: draft), noch nicht spielbar --
-# siehe docs/content-todo.md. Deshalb optional, bis sie es ist.
+# Node halbe-sache ist seit P10.12 vollstaendig und live verifiziert
+# (Feature 7: LossyImageCompression-Pruefung via dcmdump, ADR 0022).
 lab:
   node: halbe-sache
-  optional: true
+  optional: false
 glossary_terms: [transfer-syntax, implicit-vr, explicit-vr]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

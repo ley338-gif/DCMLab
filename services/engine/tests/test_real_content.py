@@ -310,3 +310,22 @@ def test_worklist_query_empty_is_solvable_from_the_real_content() -> None:
     assert "I: Number of Matches: 5" in fixed.stdout
 
     assert rules.check_flag(node, state, "CT5-RAUM3") is True
+
+
+def test_halbe_sache_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 7: beide Dateien liegen in derselben verlustbehafteten
+    Transfer Syntax vor, aber nur eine traegt das dafuer pflichtige
+    LossyImageCompression-Feld -- die andere ist die "halbe Sache"."""
+
+    node = content.load_node("halbe-sache")
+    state = rules.initial_state(node)
+
+    flagged = rules.exec_command(node, state, "workstation", "dcmdump schicht-01.dcm")
+    assert "1.2.840.10008.1.2.4.50" in flagged.stdout
+    assert "(0028,2110)" in flagged.stdout
+
+    unflagged = rules.exec_command(node, state, "workstation", "dcmdump schicht-02.dcm")
+    assert "1.2.840.10008.1.2.4.50" in unflagged.stdout
+    assert "(0028,2110)" not in unflagged.stdout
+
+    assert rules.check_flag(node, state, "schicht-02.dcm") is True

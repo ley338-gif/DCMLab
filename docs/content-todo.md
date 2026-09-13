@@ -159,9 +159,9 @@ technische Blockade in seiner eigenen `de.md`:
 | `zwei-ebenen-tiefer` | 1.2 | `findscu` kennt nur STUDY/SERIES, keine PATIENT-/INSTANCE-Ebene; ein Archiv-Host hat höchstens einen Bestand |
 | `wo-steht-das` | 1.3 | dasselbe `dcmdump`-Limit wie `first-contact` |
 | ~~`zwillinge`~~ | 1.4 | ✅ P10.5 fertig, siehe unten — nicht mehr blockiert |
-| `halbe-sache` | 1.7 | keine Presentation-Context-/Transfer-Syntax-Aushandlung in der Engine — **seit P10.3 technisch lösbar, siehe unten** |
+| ~~`halbe-sache`~~ | 1.7 | ✅ P10.12 fertig, siehe unten — nicht mehr blockiert |
 | ~~`mitgehoert`~~ | 1.8 | ✅ P10.6 fertig, siehe unten — nicht mehr blockiert |
-| `verbindung-ohne-bild` | 4.2 | dasselbe Aushandlungs-Limit wie `halbe-sache` — **seit P10.3 technisch lösbar** |
+| ~~`verbindung-ohne-bild`~~ | 4.2 | ✅ P10.9 fertig, siehe unten — nicht mehr blockiert |
 
 Diese sieben Lücken sind **Engine-Features, keine Content-Lücken** — anders
 als bei Track 4 oben ist hier nicht Fließtext das Fehlende, sondern eine
@@ -199,6 +199,7 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 |---|---|---|
 | Abstract-Syntax-(SOP-Class-)Ablehnung (Sendeauftrag) | ✅ P10.9 (ADR 0019, `content-schema.md` 6d) | `verbindung-ohne-bild` (neu) |
 | Abstract-Syntax-Ablehnung pro Objekt (direktes `storescu`) | ✅ P10.10 (ADR 0020, `content-schema.md` 6e) | `teiltransfer` (neu) |
+| `dcmdump`-Objektmetadaten (Transfer Syntax, LossyImageCompression) | ✅ P10.12 (ADR 0022, `content-schema.md` 6g) | `halbe-sache` |
 
 **Nebeneffekte:**
 
@@ -221,7 +222,12 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
   Hälfte von Feature 3, da ein Presentation Context Abstract Syntax und
   Transfer Syntax unabhängig voneinander aushandelt; hier lehnt das
   Archiv ein per Software-Update umgestelltes Enhanced-CT-Gerät ab,
-  obwohl C-ECHO grün bleibt). `halbe-sache` bleibt offen.
+  obwohl C-ECHO grün bleibt). **`halbe-sache` ist seit P10.12 fertig**
+  (ADR 0022) — allerdings nicht über Feature 3, sondern über ein neues,
+  kleineres Feature 7 (`dcmdump`-Objektmetadaten): die Node braucht gar
+  keine Presentation-Context-Aushandlung, sondern prüft nur, ob das
+  Pflichtfeld `LossyImageCompression` bei einer verlustbehaftet
+  komprimierten Datei tatsächlich gesetzt ist.
 
 **Nodes (vier laut Roadmap Abschnitt IV, alle fertig):**
 
@@ -237,14 +243,15 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 (✅ P10.11, Lektion 4.7).
 
 **Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5),
-`mitgehoert` (✅ P10.6), `verbindung-ohne-bild` (✅ P10.9) und
-`teiltransfer` (✅ P10.10) — keine Roadmap-Nodes, aber durch Feature 1
-bzw. Feature 3/4/5 unblockierte Stubs.
+`mitgehoert` (✅ P10.6), `verbindung-ohne-bild` (✅ P10.9),
+`teiltransfer` (✅ P10.10) und `halbe-sache` (✅ P10.12) — keine
+Roadmap-Nodes, aber durch Feature 1 bzw. Feature 3/4/5/7 unblockierte
+Stubs.
 
 Verbleibend von den sieben Roadmap-Engine-Features: nur noch der
 Multiframe-Generator (für Track 3). Verbleibend an unblockierten, aber
-ungeschriebenen Nodes: `halbe-sache`, `zwei-ebenen-tiefer`,
-`first-contact`, `wo-steht-das`.
+ungeschriebenen Nodes: `zwei-ebenen-tiefer`, `first-contact`,
+`wo-steht-das`.
 
 **Schema-Lücke aus P10.10:** `lessons/<id>/meta.yml` erlaubt aktuell nur
 einen einzelnen `lab.node`-Wert. Lektion 4.3 bräuchte zwei

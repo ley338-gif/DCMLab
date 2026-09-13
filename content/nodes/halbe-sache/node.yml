@@ -1,10 +1,58 @@
 slug: halbe-sache
 difficulty: easy
-points: 0
+points: 10
 category: bildgebung
 skills: [bildgebung]
 related_lessons: ["1.7"]
-estimated_minutes: 0
+estimated_minutes: 10
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.55.0.50
+      role: shell
+
+  tools: [dcmdump]
+
+  # Beide Dateien wurden nachtraeglich verlustbehaftet komprimiert (JPEG
+  # Baseline) -- nur eine davon traegt das dafuer PS3.3-C.7.6.1.1.5-pflichtige
+  # LossyImageCompression-Flag. Die andere sieht dadurch unangetastet aus,
+  # obwohl sie denselben Verlust hat.
+  objects:
+    - filename: "schicht-01.dcm"
+      bytes: 52224
+      transfer_syntax: "1.2.840.10008.1.2.4.50"
+      lossy_image_compression: "01"
+    - filename: "schicht-02.dcm"
+      bytes: 51968
+      transfer_syntax: "1.2.840.10008.1.2.4.50"
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.dcmdump_01
+      command: "dcmdump schicht-01.dcm"
+    - label_key: tpl.dcmdump_02
+      command: "dcmdump schicht-02.dcm"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:64ab1dbfc314bcd856532dfb700927acc76d1f94866a9bae5b558c097f78ab2c"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 1
+  - id: h3
+    cost: 2
+
+stuck_timeout_minutes: 8
 
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-13"
