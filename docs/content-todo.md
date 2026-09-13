@@ -168,7 +168,14 @@ eigene Liste offener Punkte:
   über **eine** Association mit mehreren `MsgID`s, nicht über mehrere
   separate Verbindungen (direkt gegen einen Loop mit Einzelaufrufen
   verglichen, nicht nur angenommen). Siehe ADR 0039. `tools` um
-  `tshark` ergänzt (jetzt am Vier-Werkzeuge-Limit). Noch offen: 2.3.
+  `tshark` ergänzt (jetzt am Vier-Werkzeuge-Limit). **2.3 ist seit
+  P10.30 ebenfalls vollständig geschrieben** — fünf echte Beispiele,
+  darunter eine SERIES-Level-Abfrage, die real zwei getrennte
+  `Find SCP Response`-Blöcke liefert (die reale Zwei-Serien-Struktur
+  von `ct-thorax-60`, nicht nur aus `datasets.yml` übernommen). Siehe
+  ADR 0040. `tools` um `tshark` ergänzt. **Damit sind alle drei
+  Lektionen ohne offene Infrastrukturfrage (2.1, 2.2, 2.3)
+  geschrieben.**
 - **Infrastruktur bereits vorhanden (2.5, 2.6, 2.7).** Diese drei
   Lektionen (Modality Worklist, MPPS, Storage Commitment) können die
   in P10.20–P10.21 für Track 4 gebaute echte Infrastruktur direkt
