@@ -243,7 +243,7 @@ def exec_command(
 
     tool, args = tokens[0], tokens[1:]
 
-    known_tools = {"echoscu", "storescu", "findscu", "dcmdump"}
+    known_tools = {"echoscu", "storescu", "findscu", "dcmdump", "dcmftest"}
     if tool not in NON_NETWORK_COMMANDS and tool not in known_tools:
         return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
 
@@ -273,6 +273,8 @@ def exec_command(
         return _exec_storescu(node, state, args)
     if tool == "dcmdump":
         return _exec_dcmdump(node, args)
+    if tool == "dcmftest":
+        return _exec_dcmftest(node, args)
 
     return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
 
@@ -329,6 +331,22 @@ def _exec_cat(node: NodeDefinition, args: list[str]) -> ExecResult:
     return ExecResult(stdout=asset_path.read_text(encoding="utf-8").rstrip("\n"))
 
 
+# Feature 7/8 aus P10: welche Objekt-Felder `dcmdump` anzeigen kann, in
+# echter aufsteigender Tag-Reihenfolge (File Meta Gruppe 0002 zuerst, dann
+# der Datensatz). Ein Objekt zeigt nur die Felder, die es tatsaechlich
+# deklariert -- wie bei einer echten Datei mit optionalen Elementen.
+DCMDUMP_FIELD_ORDER = [
+    ("transfer_syntax", "0002,0010", "UI", "TransferSyntaxUID"),
+    ("sop_class", "0008,0016", "UI", "SOPClassUID"),
+    ("acquisition_date", "0008,0022", "DA", "AcquisitionDate"),
+    ("modality", "0008,0060", "CS", "Modality"),
+    ("study_description", "0008,1030", "LO", "StudyDescription"),
+    ("slice_thickness", "0018,0050", "DS", "SliceThickness"),
+    ("convolution_kernel", "0018,1210", "SH", "ConvolutionKernel"),
+    ("lossy_image_compression", "0028,2110", "CS", "LossyImageCompression"),
+]
+
+
 def _exec_dcmdump(node: NodeDefinition, args: list[str]) -> ExecResult:
     if not args:
         return ExecResult(stderr="usage: dcmdump <datei>", exit_code=1)
@@ -337,29 +355,32 @@ def _exec_dcmdump(node: NodeDefinition, args: list[str]) -> ExecResult:
     objects = node.raw.get("environment", {}).get("objects", [])
     obj = next((o for o in objects if o["filename"] == filename), None)
 
-    dcmdump_fields = ("sop_class", "transfer_syntax", "lossy_image_compression")
-    if obj is None or not any(field in obj for field in dcmdump_fields):
+    if obj is None or not any(field in obj for field, _, _, _ in DCMDUMP_FIELD_ORDER):
         return ExecResult(stderr="dcmdump: keine lokale Datei in dieser Simulation.", exit_code=1)
 
-    lines = []
-    if "transfer_syntax" in obj:
-        # Feature 7 aus P10: die Transfer Syntax steht real in der File Meta
-        # Information (Gruppe 0002), nicht im Dataset selbst -- dcmdump zeigt
-        # beide Gruppen in einem Aufruf.
-        lines.append(_dcmtk_line("0002,0010", "UI", obj["transfer_syntax"], "TransferSyntaxUID"))
-    if "sop_class" in obj:
-        lines.append(_dcmtk_line("0008,0016", "UI", obj["sop_class"], "SOPClassUID"))
-    if "lossy_image_compression" in obj:
-        # PS3.3 C.7.6.1.1.5: bei verlustbehafteter Kompression PFLICHTFELD,
-        # sonst nicht vorhanden -- fehlt es trotz verlustbehafteter Transfer
-        # Syntax, ist genau das die "halbe Sache".
-        lines.append(
-            _dcmtk_line(
-                "0028,2110", "CS", obj["lossy_image_compression"], "LossyImageCompression",
-            ),
-        )
+    lines = [
+        _dcmtk_line(tag, vr, obj[field], keyword)
+        for field, tag, vr, keyword in DCMDUMP_FIELD_ORDER
+        if field in obj
+    ]
 
     return ExecResult(stdout="".join(lines))
+
+
+def _exec_dcmftest(node: NodeDefinition, args: list[str]) -> ExecResult:
+    if not args:
+        return ExecResult(stderr="usage: dcmftest <datei>", exit_code=1)
+
+    filename = args[0]
+    objects = node.raw.get("environment", {}).get("objects", [])
+    obj = next((o for o in objects if o["filename"] == filename), None)
+
+    # Reale dcmftest-Ausgabe: "yes"/"no" plus Dateiname, kein Fehlertext.
+    # Ein simuliertes Objekt gilt immer als gueltiges DICOM-Format.
+    if obj is None:
+        return ExecResult(stdout=f"no: {filename}", exit_code=1)
+
+    return ExecResult(stdout=f"yes: {filename}", exit_code=0)
 
 
 def _exec_help(node: NodeDefinition) -> ExecResult:

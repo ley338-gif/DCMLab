@@ -10,12 +10,12 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Node wo-steht-das ist ein Geruest (status: draft), noch nicht spielbar --
-# siehe docs/content-todo.md. Deshalb optional, bis sie es ist.
+# Node wo-steht-das ist seit P10.13 vollstaendig und live verifiziert
+# (Feature 8: generalisiertes dcmdump, ADR 0023).
 lab:
   node: wo-steht-das
-  optional: true
+  optional: false
 glossary_terms: [tag, vr, value-multiplicity, private-creator]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

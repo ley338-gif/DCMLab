@@ -1,10 +1,53 @@
 slug: first-contact
 difficulty: easy
-points: 0
+points: 5
 category: datenmodell
 skills: [datenmodell]
 related_lessons: ["1.1"]
-estimated_minutes: 0
+estimated_minutes: 8
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.10.0.50
+      role: shell
+
+  tools: [dcmftest, dcmdump]
+
+  # Eine Datei ohne Endung und ohne Kontext -- genau wie in Lektion 1.1s
+  # "Dein erstes Lab" beschrieben.
+  objects:
+    - filename: "datei-ohne-namen"
+      bytes: 786432
+      modality: "US"
+      study_description: "Abdomen komplett"
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.dcmftest
+      command: "dcmftest datei-ohne-namen"
+    - label_key: tpl.dcmdump
+      command: "dcmdump datei-ohne-namen"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:a659519bf5f13363fbeb3d0e94889ef6cd3e98fa7d330b13906d9a330c55d3f3"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 1
+  - id: h3
+    cost: 1
+
+stuck_timeout_minutes: 8
 
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-13"

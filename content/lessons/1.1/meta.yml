@@ -10,12 +10,12 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Node first-contact ist ein Geruest (status: draft), noch nicht spielbar
-# -- siehe docs/content-todo.md. Deshalb optional, bis sie es ist.
+# Node first-contact ist seit P10.13 vollstaendig und live verifiziert
+# (Feature 8: dcmftest + generalisiertes dcmdump, ADR 0023).
 lab:
   node: first-contact
-  optional: true
+  optional: false
 glossary_terms: [dicom, instance, tag, c-store, dimse]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

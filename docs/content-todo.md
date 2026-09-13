@@ -155,9 +155,9 @@ technische Blockade in seiner eigenen `de.md`:
 
 | Node | Lektion | Blockiert durch |
 |---|---|---|
-| `first-contact` | 1.1 | `dcmdump` auf eine lokale `.dcm`-Datei ist in der Engine nicht gebaut (liefert nur einen Platzhaltertext) |
+| ~~`first-contact`~~ | 1.1 | ✅ P10.13 fertig, siehe unten — nicht mehr blockiert |
 | `zwei-ebenen-tiefer` | 1.2 | `findscu` kennt nur STUDY/SERIES, keine PATIENT-/INSTANCE-Ebene; ein Archiv-Host hat höchstens einen Bestand |
-| `wo-steht-das` | 1.3 | dasselbe `dcmdump`-Limit wie `first-contact` |
+| ~~`wo-steht-das`~~ | 1.3 | ✅ P10.13 fertig, siehe unten — nicht mehr blockiert |
 | ~~`zwillinge`~~ | 1.4 | ✅ P10.5 fertig, siehe unten — nicht mehr blockiert |
 | ~~`halbe-sache`~~ | 1.7 | ✅ P10.12 fertig, siehe unten — nicht mehr blockiert |
 | ~~`mitgehoert`~~ | 1.8 | ✅ P10.6 fertig, siehe unten — nicht mehr blockiert |
@@ -170,10 +170,11 @@ kennt ausschließlich Host/Port/Called-AE/Calling-AE als Prüfstufen). Sobald
 eine dieser Fähigkeiten gebaut ist, kann das jeweilige Gerüst mit echtem
 Szenario, Hints und Write-up gefüllt werden, exakt wie bei `neue-node`.
 
-**Hardening:** Die sechs betroffenen Track-1-Lektionen (1.1, 1.2, 1.3, 1.4,
-1.7, 1.8) sowie 4.2 haben jetzt `lab.optional: true` mit einem Kommentar,
-der auf diesen Abschnitt verweist — die einzige Lektion, deren Node
-tatsächlich fertig ist (1.6, `neue-node`), bleibt `optional: false`.
+**Hardening (Stand P10.13):** Von den ursprünglich sieben betroffenen
+Lektionen (1.1, 1.2, 1.3, 1.4, 1.7, 1.8, 4.2) hat nur noch **1.2**
+(`zwei-ebenen-tiefer`) `lab.optional: true` mit Verweis auf diesen
+Abschnitt — alle anderen sechs sind inzwischen auf `optional: false`
+umgestellt, ihre Nodes sind vollständig.
 
 ## P10 — Fortschritt gegen `P10-Roadmap-DCMLab.md`
 
@@ -200,6 +201,7 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | Abstract-Syntax-(SOP-Class-)Ablehnung (Sendeauftrag) | ✅ P10.9 (ADR 0019, `content-schema.md` 6d) | `verbindung-ohne-bild` (neu) |
 | Abstract-Syntax-Ablehnung pro Objekt (direktes `storescu`) | ✅ P10.10 (ADR 0020, `content-schema.md` 6e) | `teiltransfer` (neu) |
 | `dcmdump`-Objektmetadaten (Transfer Syntax, LossyImageCompression) | ✅ P10.12 (ADR 0022, `content-schema.md` 6g) | `halbe-sache` |
+| `dcmftest` + weitere `dcmdump`-Felder (Modality, StudyDescription, CT-Metadaten) | ✅ P10.13 (ADR 0023, `content-schema.md` 6h) | `first-contact`, `wo-steht-das` |
 
 **Nebeneffekte:**
 
@@ -228,6 +230,12 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
   keine Presentation-Context-Aushandlung, sondern prüft nur, ob das
   Pflichtfeld `LossyImageCompression` bei einer verlustbehaftet
   komprimierten Datei tatsächlich gesetzt ist.
+- `first-contact` (1.1) und `wo-steht-das` (1.3) waren blockiert, weil
+  `dcmdump` auf eine lokale Datei nur einen Platzhaltertext lieferte.
+  **Beide sind seit P10.13 fertig** (ADR 0023, neues Feature 8:
+  `dcmftest` + fünf weitere reale `dcmdump`-Felder) — beide Lektionen
+  hatten dafür bereits eigene, präzise Lab-Spezifikationen im Fließtext
+  ("Dein erstes Lab" / "Dein Lab"), die die Nodes jetzt genau einlösen.
 
 **Nodes (vier laut Roadmap Abschnitt IV, alle fertig):**
 
@@ -244,14 +252,14 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 
 **Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5),
 `mitgehoert` (✅ P10.6), `verbindung-ohne-bild` (✅ P10.9),
-`teiltransfer` (✅ P10.10) und `halbe-sache` (✅ P10.12) — keine
-Roadmap-Nodes, aber durch Feature 1 bzw. Feature 3/4/5/7 unblockierte
-Stubs.
+`teiltransfer` (✅ P10.10), `halbe-sache` (✅ P10.12) sowie
+`first-contact` und `wo-steht-das` (beide ✅ P10.13) — keine
+Roadmap-Nodes, aber durch Feature 1 bzw. Feature 3/4/5/7/8
+unblockierte Stubs.
 
 Verbleibend von den sieben Roadmap-Engine-Features: nur noch der
 Multiframe-Generator (für Track 3). Verbleibend an unblockierten, aber
-ungeschriebenen Nodes: `zwei-ebenen-tiefer`, `first-contact`,
-`wo-steht-das`.
+ungeschriebenen Nodes: nur noch `zwei-ebenen-tiefer` (1.2).
 
 **Schema-Lücke aus P10.10:** `lessons/<id>/meta.yml` erlaubt aktuell nur
 einen einzelnen `lab.node`-Wert. Lektion 4.3 bräuchte zwei
