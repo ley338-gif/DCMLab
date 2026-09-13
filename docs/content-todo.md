@@ -197,7 +197,8 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 
 | Feature | Status | Node(s) freigeschaltet |
 |---|---|---|
-| Abstract-Syntax-(SOP-Class-)Ablehnung | ✅ P10.9 (ADR 0019, `content-schema.md` 6d) | `verbindung-ohne-bild` (neu) |
+| Abstract-Syntax-(SOP-Class-)Ablehnung (Sendeauftrag) | ✅ P10.9 (ADR 0019, `content-schema.md` 6d) | `verbindung-ohne-bild` (neu) |
+| Abstract-Syntax-Ablehnung pro Objekt (direktes `storescu`) | ✅ P10.10 (ADR 0020, `content-schema.md` 6e) | `teiltransfer` (neu) |
 
 **Nebeneffekte:**
 
@@ -227,20 +228,30 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | Node | Status |
 |---|---|
 | `c-find-mismatch` | ✅ P10.1, vollständig und live verifiziert |
-| `oversized-image` | ✅ P10.2, vollständig und live verifiziert (Lektion 4.3, teilweise — SOP-Class-Ablehnung fehlt weiterhin) |
+| `oversized-image` | ✅ P10.2, vollständig und live verifiziert (deckt nur die Größenlimit-Hälfte von Lektion 4.3 ab — die SOP-Class-Hälfte deckt seit P10.10 `teiltransfer` ab, das Schema erlaubt aber nur einen `lab.node` pro Lektion) |
 | `syntax-negotiation-fails` | ✅ P10.3, vollständig und live verifiziert |
 | `patient-merge-discovery` | ✅ P10.4, vollständig und live verifiziert (Lektion 4.6 seit P10.8 ebenfalls vollständig — aktives serverseitiges Merge fehlt weiterhin, siehe unten) |
 
 **Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5),
-`mitgehoert` (✅ P10.6) und `verbindung-ohne-bild` (✅ P10.9) — keine
-Roadmap-Nodes, aber durch Feature 1 bzw. Feature 3/4 unblockierte
-Stubs.
+`mitgehoert` (✅ P10.6), `verbindung-ohne-bild` (✅ P10.9) und
+`teiltransfer` (✅ P10.10) — keine Roadmap-Nodes, aber durch Feature 1
+bzw. Feature 3/4/5 unblockierte Stubs.
 
 Verbleibend von den sieben Roadmap-Engine-Features: Multiframe-Generator
 (für Track 3) und Worklist-Query (für `worklist-query-empty`, kein
 Roadmap-Pflichtnode, aber eigenständig sinnvoll). Verbleibend an
 unblockierten, aber ungeschriebenen Nodes: `halbe-sache`,
 `zwei-ebenen-tiefer`, `first-contact`, `wo-steht-das`.
+
+**Schema-Lücke aus P10.10:** `lessons/<id>/meta.yml` erlaubt aktuell nur
+einen einzelnen `lab.node`-Wert. Lektion 4.3 bräuchte zwei
+(`oversized-image` für das Größenlimit, `teiltransfer` für die
+SOP-Class-Ablehnung), um beide in ihrem eigenen Fließtext gleichrangig
+zu behandeln, wie es ihre geplante Gliederung vorsieht. Für P10.10 kein
+Problem (nur der Node wurde gebaut, nicht der Lektionstext) — sobald
+Lektion 4.3 geschrieben wird, muss entweder das Schema ein
+`lab.nodes`-Array erlauben, oder die Lektion referenziert die zweite
+Node nur im Fließtext, ohne toolbar-seitige Verknüpfung.
 
 **Track-4-Vervollständigung: begonnen.** Lektion 4.1 ("Association
 rejected") ist seit P10.7 vollständig geschrieben (echte

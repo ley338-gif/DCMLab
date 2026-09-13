@@ -114,6 +114,40 @@ def test_oversized_image_is_solvable_from_the_real_content() -> None:
     assert rules.check_flag(node, state, "524288") is True
 
 
+def test_teiltransfer_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 5: die beiden CT-Schichten kommen an, der Screenshot
+    wird wegen einer nicht registrierten SOP Class abgelehnt -- dessen
+    SOP Class UID ist das Flag. dcmdump zeigt sie schon vor dem Senden."""
+
+    node = content.load_node("teiltransfer")
+    state = rules.initial_state(node)
+
+    dump = rules.exec_command(node, state, "workstation", "dcmdump screenshot.dcm")
+    assert "1.2.840.10008.5.1.4.1.1.7" in dump.stdout
+
+    ct_1 = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.65.0.10 104 schicht-01.dcm",
+    )
+    assert ct_1.exit_code == 0
+
+    ct_2 = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.65.0.10 104 schicht-02.dcm",
+    )
+    assert ct_2.exit_code == 0
+
+    screenshot = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.65.0.10 104 screenshot.dcm",
+    )
+    assert screenshot.exit_code == 1
+    assert "abstract-syntax-not-supported" in screenshot.stderr
+
+    assert state["bestand"]["archive"] == {"studies": 1, "series": 1, "instances": 2}
+    assert rules.check_flag(node, state, "1.2.840.10008.5.1.4.1.1.7") is True
+
+
 def test_syntax_negotiation_fails_is_solvable_from_the_real_content() -> None:
     """P10, Feature 3: JPEG 2000 wird abgelehnt (Archiv kennt nur Implicit
     VR Little Endian), nach der Korrektur kommt die Study an."""

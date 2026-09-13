@@ -272,7 +272,7 @@ def exec_command(
     if tool == "storescu":
         return _exec_storescu(node, state, args)
     if tool == "dcmdump":
-        return ExecResult(stderr="dcmdump: keine lokale Datei in dieser Simulation.", exit_code=1)
+        return _exec_dcmdump(node, args)
 
     return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
 
@@ -327,6 +327,20 @@ def _exec_cat(node: NodeDefinition, args: list[str]) -> ExecResult:
         )
 
     return ExecResult(stdout=asset_path.read_text(encoding="utf-8").rstrip("\n"))
+
+
+def _exec_dcmdump(node: NodeDefinition, args: list[str]) -> ExecResult:
+    if not args:
+        return ExecResult(stderr="usage: dcmdump <datei>", exit_code=1)
+
+    filename = args[0]
+    objects = node.raw.get("environment", {}).get("objects", [])
+    obj = next((o for o in objects if o["filename"] == filename), None)
+
+    if obj is None or "sop_class" not in obj:
+        return ExecResult(stderr="dcmdump: keine lokale Datei in dieser Simulation.", exit_code=1)
+
+    return ExecResult(stdout=_dcmtk_line("0008,0016", "UI", obj["sop_class"], "SOPClassUID"))
 
 
 def _exec_help(node: NodeDefinition) -> ExecResult:
@@ -592,6 +606,18 @@ def _exec_storescu(node: NodeDefinition, state: dict[str, Any], args: list[str])
         (s for s in (target_host or {}).get("services", []) if s.get("port") == parsed["port"]),
         None,
     )
+    # Feature 5 aus P10: Abstract-Syntax-Ablehnung gilt auch pro Objekt beim
+    # direkten storescu von der Shell (nicht nur beim Sendeauftrag einer
+    # Modalitaets-Simulation, Feature 4) -- ein gemischter Ordner mit
+    # mehreren SOP Classes kann teilweise ankommen und teilweise nicht.
+    accepted_sop_classes = (service or {}).get("accepted_sop_classes")
+    obj_sop_class = obj.get("sop_class")
+
+    if accepted_sop_classes is not None and obj_sop_class not in accepted_sop_classes:
+        return ExecResult(
+            stderr=MSG_NO_ACCEPTABLE_PRESENTATION_CONTEXT_ABSTRACT, exit_code=1,
+        )
+
     max_bytes = (service or {}).get("max_object_bytes")
 
     if max_bytes is not None and obj["bytes"] > max_bytes:
