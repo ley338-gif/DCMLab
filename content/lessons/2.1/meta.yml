@@ -1,0 +1,25 @@
+id: "2.1"
+track: services
+order: 1
+duration_minutes: 10
+level: aufbau
+objectives_count: 3
+requires: ["1.5", "1.6"]
+tools: [echoscu]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Kein Lab laut Curriculum (konzept-lernplattform.md, Track 2) -- "--" in
+# der Lab-Spalte. C-ECHO selbst wird bereits in Lektion 1.0 angerissen;
+# diese Lektion vertieft den Dienst als solchen (Verification SOP Class,
+# was er beweist und was nicht), nicht nur den Befehlsaufruf.
+lab:
+  node: null
+  optional: true
+
+glossary_terms: [association, sop-class]
+tools_checked: "2026-09-13"
+status: draft
+updated: "2026-09-13"

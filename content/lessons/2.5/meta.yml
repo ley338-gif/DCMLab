@@ -1,0 +1,26 @@
+id: "2.5"
+track: services
+order: 5
+duration_minutes: 12
+level: aufbau
+objectives_count: 3
+requires: ["2.3"]
+tools: [findscu, wlmscpfs]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Lab laut Curriculum: "Worklist-Query aus Modalitätssicht bauen" -- noch
+# kein passender Node-Stub vorhanden. Die Spielwiese hat seit P10.20
+# (ADR 0030) einen echten Worklist-Dienst (Orthancs Worklists-Plugin,
+# per Sitzung frisch generierter Auftrag aus content/worklists.yml) --
+# dieselbe Infrastruktur, die Lektion 4.7 bereits nutzt.
+lab:
+  node: null
+  optional: true
+
+glossary_terms: [worklist]
+tools_checked: "2026-09-13"
+status: draft
+updated: "2026-09-13"

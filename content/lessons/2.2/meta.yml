@@ -1,0 +1,23 @@
+id: "2.2"
+track: services
+order: 2
+duration_minutes: 12
+level: aufbau
+objectives_count: 3
+requires: ["2.1", "1.7"]
+tools: [storescu, storescp, dcmdump]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Lab laut Curriculum: "Eine Serie von A nach B schicken" -- noch kein
+# passender Node-Stub vorhanden.
+lab:
+  node: null
+  optional: true
+
+glossary_terms: [sop-class]
+tools_checked: "2026-09-13"
+status: draft
+updated: "2026-09-13"

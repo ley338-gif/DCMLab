@@ -1,0 +1,25 @@
+id: "2.7"
+track: services
+order: 7
+duration_minutes: 10
+level: aufbau
+objectives_count: 3
+requires: ["2.2", "2.6"]
+tools: [storescu, orthanc]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Lab laut Curriculum: "Commitment-Zyklus durchspielen" -- noch kein
+# passender Node-Stub vorhanden. Orthanc beherrscht Storage Commitment
+# seit P10.21 (ADR 0031) nativ ueber die REST-API -- dieselbe
+# Infrastruktur, die Lektion 4.8 nutzt.
+lab:
+  node: null
+  optional: true
+
+glossary_terms: [storage-commitment]
+tools_checked: "2026-09-13"
+status: draft
+updated: "2026-09-13"

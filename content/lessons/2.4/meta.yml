@@ -1,0 +1,25 @@
+id: "2.4"
+track: services
+order: 4
+duration_minutes: 12
+level: aufbau
+objectives_count: 3
+requires: ["2.3"]
+tools: [movescu, getscu, storescp]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Lab laut Curriculum: "Retrieve an eine dritte Node" -- noch kein
+# passender Node-Stub vorhanden. Braucht vermutlich einen zweiten
+# Storage-Endpunkt in der Spielwiese (dritte Partei fuer C-MOVE) --
+# siehe docs/content-todo.md.
+lab:
+  node: null
+  optional: true
+
+glossary_terms: [c-get]
+tools_checked: "2026-09-13"
+status: draft
+updated: "2026-09-13"
