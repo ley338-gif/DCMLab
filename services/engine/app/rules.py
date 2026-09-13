@@ -60,6 +60,14 @@ MSG_NO_ACCEPTABLE_PRESENTATION_CONTEXT = (
     "F:   Presentation Context Result: 4 (transfer-syntaxes-not-supported)"
 )
 
+# PS3.8 Table 9-18, Wert 3 "abstract-syntax-not-supported" -- derselbe
+# Mechanismus wie Wert 4, aber die Ursache liegt nicht bei der Kodierung,
+# sondern beim vorgeschlagenen SOP Class UID selbst (Feature 4 aus P10).
+MSG_NO_ACCEPTABLE_PRESENTATION_CONTEXT_ABSTRACT = (
+    "F: No Acceptable Presentation Contexts\n"
+    "F:   Presentation Context Result: 3 (abstract-syntax-not-supported)"
+)
+
 
 @dataclass(frozen=True)
 class AssociationResult:
@@ -672,6 +680,29 @@ def trigger_action(
         (s for s in (target_host_def or {}).get("services", []) if s.get("port") == target_port),
         None,
     )
+
+    # Feature 4 aus P10: derselbe Presentation Context traegt neben der
+    # Transfer Syntax auch einen Abstract Syntax (den SOP Class UID). Wird
+    # der nicht unterstuetzt, scheitert die Association-Verhandlung schon
+    # davor -- unabhaengig davon, ob die Transfer Syntax gepasst haette.
+    accepted_sop_classes = (service or {}).get("accepted_sop_classes")
+    proposed_sop_class = config.get("sop_class")
+
+    if accepted_sop_classes is not None and proposed_sop_class not in accepted_sop_classes:
+        return ActionResult(
+            log=[
+                f"{timestamp}  Sendeauftrag – Verbindungsaufbau {target_ip}:{target_port} …",
+                f"{timestamp}  {MSG_NO_ACCEPTABLE_PRESENTATION_CONTEXT_ABSTRACT}",
+            ],
+            events=[
+                {
+                    "type": "presentation_context_rejected",
+                    "host": result.target_host,
+                    "reason": "abstract_syntax_not_supported",
+                },
+            ],
+        )
+
     accepted_syntaxes = (service or {}).get("accepted_transfer_syntaxes")
     proposed_syntax = config.get("transfer_syntax")
 

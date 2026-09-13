@@ -1,0 +1,10 @@
+KLINIK-ARCHIV — Konformitaetserklaerung (Auszug)
+Abschnitt: unterstuetzte SOP Classes als SCP
+
+Verification                              1.2.840.10008.1.1
+CT Image Storage                          1.2.840.10008.5.1.4.1.1.2
+Study Root Q/R Information Model - FIND   1.2.840.10008.5.1.4.1.2.2.1
+
+Hinweis: Enhanced CT Image Storage (1.2.840.10008.5.1.4.1.1.2.1) ist
+nicht registriert. Anfragen fuer nicht registrierte SOP Classes werden
+mit "Abstract Syntax Not Supported" abgelehnt.
