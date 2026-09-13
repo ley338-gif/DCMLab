@@ -5,7 +5,7 @@ duration_minutes: 12
 level: aufbau
 objectives_count: 3
 requires: ["1.5"]
-tools: [findscu, wlmscpfs, tshark]
+tools: [findscu, tshark]
 
 sandbox:
   required: true
