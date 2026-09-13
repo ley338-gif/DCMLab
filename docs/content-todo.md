@@ -292,6 +292,19 @@ wie in jeder Track-2-Slice). 3.1–3.3 verwenden vorläufig `ct-thorax-60`
 als plausiblen, aber ebenfalls noch nicht bestätigten Platzhalter.
 Siehe ADR 0048.
 
+**3.1 ist seit P10.40 vollständig geschrieben** — `ct-thorax-60`
+erwies sich für ein modulweises Durchgehen als ausreichend, kein neuer
+Datensatz nötig. Dabei ein neuer, echt verifizierter Fund: Orthanc
+lehnt ein Objekt mit fehlendem Type-1-Attribut (`StudyInstanceUID`,
+per `dcmodify -e` entfernt) real mit `0xA700 (Failure)` ab und nennt
+den Grund im eigenen Log im Klartext („required tags … are missing")
+— ein fehlendes Type-2-Attribut (`PatientID`) dagegen wird anstandslos
+mit `0x0000 (Success)` angenommen. Anders als die wiederholt
+dokumentierte Großzügigkeit bei AE-Title/Presentation-Context/SOP-Class
+(ADR 0008/0025) prüft Orthanc die Hierarchie-Pflichtfelder also
+tatsächlich streng. `tools` von `[]` auf `[dcmdump, dcmodify,
+storescu]` gesetzt, neuer Glossarbegriff `iod`. Siehe ADR 0049.
+
 `content/tracks.yml: bild.status` bleibt `planned`, bis alle sechs
 Lektionen tatsächlich geschrieben sind.
 

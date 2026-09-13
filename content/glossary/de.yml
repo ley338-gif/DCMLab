@@ -252,3 +252,10 @@ dicomweb:
   short: Dieselben Grunddienste wie DIMSE, aber als HTTP-REST-API — JSON statt DIMSE-PDUs.
   see_also: [dimse, c-find]
   lesson: "2.8"
+
+iod:
+  term: IOD
+  expansion: Information Object Definition
+  short: Der Bausatz aus Pflicht- und optionalen Modulen, der festlegt, woraus ein Objekttyp bestehen muss.
+  see_also: [tag]
+  lesson: "3.1"
