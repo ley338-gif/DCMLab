@@ -18,7 +18,7 @@ lab:
   node: patient-merge-discovery
   optional: true
 
-glossary_terms: [patient-id, study-instance-uid, tag]
-tools_checked: "2026-09-12"
+glossary_terms: [patient-id, study-instance-uid, tag, coercion]
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

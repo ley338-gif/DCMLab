@@ -217,7 +217,7 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | `c-find-mismatch` | ✅ P10.1, vollständig und live verifiziert |
 | `oversized-image` | ✅ P10.2, vollständig und live verifiziert (Lektion 4.3, teilweise — SOP-Class-Ablehnung fehlt weiterhin) |
 | `syntax-negotiation-fails` | ✅ P10.3, vollständig und live verifiziert |
-| `patient-merge-discovery` | ✅ P10.4, vollständig und live verifiziert (Lektion 4.6, teilweise — aktives serverseitiges Merge fehlt weiterhin) |
+| `patient-merge-discovery` | ✅ P10.4, vollständig und live verifiziert (Lektion 4.6 seit P10.8 ebenfalls vollständig — aktives serverseitiges Merge fehlt weiterhin, siehe unten) |
 
 **Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5) und
 `mitgehoert` (✅ P10.6) — keine Roadmap-Nodes, aber durch Feature 1 bzw.
@@ -233,8 +233,12 @@ unblockierten, aber ungeschriebenen Nodes: `halbe-sache`,
 **Track-4-Vervollständigung: begonnen.** Lektion 4.1 ("Association
 rejected") ist seit P10.7 vollständig geschrieben (echte
 Sandbox-Beispiele, kein Node-Text kopiert — siehe ADR 0017) und zeigt
-korrekt auf Node `silent-ct` als Lab. Restliche neun Track-4-Lektionen
-(4.2–4.10) sind weiterhin Gerüst.
+korrekt auf Node `silent-ct` als Lab. **Lektion 4.6 ("Falscher
+Patient") ist seit P10.8 ebenfalls vollständig geschrieben** — anders
+als 4.1 ist ihr Thema (Patient zweimal registriert) voll live
+reproduzierbar, keine `<!-- kein-beispiel -->`-Blöcke nötig (siehe ADR
+0018); neuer Glossarbegriff `coercion` ergänzt. Restliche acht
+Track-4-Lektionen (4.2–4.5, 4.7–4.10) sind weiterhin Gerüst.
 
 **Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
 P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
@@ -251,6 +255,15 @@ entweder Lektionen verweisen für diesen Fehlertyp konsequent auf Nodes
 strengere Konfiguration (eigene Aufgabe, nicht Teil von P10.7).
 
 **Track 2, Track 3:** noch nicht begonnen.
+
+**Lokale Umgebung (seit P10.8 beobachtet, kein Content-Problem):** Die
+lokale PHP-Installation (`8.4.0`) erfüllt `composer.lock`s Anforderung
+`>= 8.4.1` nicht mehr — betrifft `main` unverändert, nicht nur diesen
+Branch. Pest/Pint/PHPStan lassen sich dadurch aktuell nicht direkt lokal
+ausführen; `content:validate`/`content:build` liefen stattdessen im
+echten `app`-Container (Docker-Image, eigenes PHP) desselben isolierten
+Verifikations-Stacks. CI (`shivammathur/setup-php@v2`) ist davon nicht
+betroffen und bleibt die maßgebliche Prüfung für PHP-Tests.
 
 ## CI
 

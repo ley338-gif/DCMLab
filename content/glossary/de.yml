@@ -203,3 +203,10 @@ explicit-vr:
   short: Kodierung mit VR im Datenstrom. Der Normalfall in Dateien und auf der Leitung.
   see_also: [transfer-syntax, implicit-vr]
   lesson: "1.7"
+
+coercion:
+  term: Coercion
+  expansion: Coercion of Data Elements
+  short: Das Archiv überschreibt ankommende Patientendaten aktiv gegen seinen Bestand — quittiert mit Status 0xB000.
+  see_also: [patient-id, c-store]
+  lesson: "4.6"
