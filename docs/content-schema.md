@@ -419,6 +419,45 @@ reale, aus PS3.6 Annex A stammende Werte (siehe
 `accepted_sop_classes` verhalten sich unverändert. Details und
 Begründung: ADR 0019.
 
+### 6e. Abstract-Syntax-Ablehnung pro Objekt beim direkten `storescu` (ab P10)
+
+Abschnitt 6d prüft `accepted_sop_classes` beim Sendeauftrag einer
+Modalitäts-Simulation (ein einzelnes `sop_class`-Feld für den ganzen
+Auftrag). Für Nodes, in denen stattdessen einzelne Objekte per
+`storescu <peer> <port> <datei>` von einer Shell aus gesendet werden
+(Abschnitt 6b), trägt jedes Objekt in `objects` zusätzlich ein eigenes
+`sop_class`-Feld — dieselbe `accepted_sop_classes`-Liste des
+Ziel-Diensts gilt dann pro Objekt, nicht für den ganzen Ordner:
+
+```yaml
+environment:
+  hosts:
+    - name: archive
+      services:
+        - port: 104
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, ct-image-storage]
+          accepted_sop_classes: ["1.2.840.10008.5.1.4.1.1.2"]  # nur CT Image Storage
+  objects:
+    - filename: "schicht-01.dcm"
+      bytes: 524288
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"       # kommt an
+    - filename: "screenshot.dcm"
+      bytes: 262144
+      sop_class: "1.2.840.10008.5.1.4.1.1.7"        # wird abgelehnt
+```
+
+Ein gemischter Ordner kann so **teilweise** ankommen — genau das
+Fehlerbild "Teiltransfer": einzelne `storescu`-Aufrufe scheitern mit
+demselben Ablehnungsgrund wie in Abschnitt 6d
+(`abstract-syntax-not-supported`, PS3.8 Table 9-18, Result-Wert 3),
+ohne dass die bereits angekommenen Objekte betroffen sind. `dcmdump
+<datei>` zeigt dabei die reale SOP Class UID eines Objekts
+(Tag `(0008,0016) SOPClassUID`), sofern es ein `sop_class`-Feld trägt —
+so kann die Ursache schon vor dem Sendeversuch nachgewiesen werden.
+Objekte ohne `sop_class` und Nodes ohne `accepted_sop_classes`
+verhalten sich unverändert. Details und Begründung: ADR 0020.
+
 ## 7. Node — `de.md`
 
 ```markdown

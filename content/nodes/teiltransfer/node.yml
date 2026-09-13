@@ -1,0 +1,79 @@
+slug: teiltransfer
+difficulty: medium
+points: 15
+category: integration
+skills: [integration, netzwerk]
+related_lessons: ["4.3"]
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.65.0.50
+      role: shell
+    - name: archive
+      ip: 10.65.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, ct-image-storage]
+          # Nur klassisches CT Image Storage registriert, siehe
+          # sop-class-uebersicht.txt.
+          accepted_sop_classes: ["1.2.840.10008.5.1.4.1.1.2"]
+      config_visible: false
+
+  known_calling_aets: [DCMLAB-WS]
+
+  tools: [storescu, dcmdump]
+
+  files:
+    - sop-class-uebersicht.txt   # Auszug aus der Konformitaetserklaerung des Archivs
+
+  # Eine Serie mit drei Objekten: zwei echte CT-Schichten und ein
+  # Screenshot, den die Workstation-Software beim Befunden automatisch
+  # mitgespeichert hat -- alle drei liegen im selben Ordner.
+  objects:
+    - filename: "schicht-01.dcm"
+      bytes: 524288
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"
+    - filename: "schicht-02.dcm"
+      bytes: 524288
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"
+    - filename: "screenshot.dcm"
+      bytes: 262144
+      sop_class: "1.2.840.10008.5.1.4.1.1.7"
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.store_schicht_01
+      command: "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.65.0.10 104 schicht-01.dcm"
+    - label_key: tpl.store_schicht_02
+      command: "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.65.0.10 104 schicht-02.dcm"
+    - label_key: tpl.store_screenshot
+      command: "storescu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.65.0.10 104 screenshot.dcm"
+    - label_key: tpl.dcmdump_screenshot
+      command: "dcmdump screenshot.dcm"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:32530d23f0c80c58034de340e39a07b942bbfa0cacd63fb4f59947d9bcc9a78a"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 10
+
+status: draft
+updated: "2026-09-13"

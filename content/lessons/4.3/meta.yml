@@ -11,14 +11,15 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Node oversized-image deckt nur die Groessenlimit-Haelfte dieser Lektion ab
-# (P10, Feature 2) -- die SOP-Class-Ablehnung fehlt der Engine noch, siehe
-# docs/content-todo.md. Deshalb weiterhin optional.
+# oversized-image deckt die Groessenlimit-Haelfte dieser Lektion ab
+# (Feature 2), teiltransfer seit P10.10 die SOP-Class-Haelfte (Feature 5,
+# ADR 0020) -- das Schema erlaubt aktuell nur einen lab.node pro Lektion,
+# siehe docs/content-todo.md. Deshalb weiterhin optional.
 lab:
   node: oversized-image
   optional: true
 
 glossary_terms: [sop-class, c-store, transfer-syntax]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"
