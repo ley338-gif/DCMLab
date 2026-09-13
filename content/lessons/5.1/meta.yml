@@ -1,19 +1,21 @@
 id: "5.1"
 track: betrieb
 order: 1
-duration_minutes: 10
+duration_minutes: 15
 level: fortgeschritten
 objectives_count: 3
 requires: ["2.5", "2.6"]
-tools: []
+tools: [findscu, storescu, pynetdicom]
 
 sandbox:
-  required: false
+  required: true
+  dataset: ct-thorax-60
 
 lab:
   node: null
   optional: true
 
-glossary_terms: []
-status: draft
+glossary_terms: [scheduled-workflow, patient-information-reconciliation, xds-i]
+tools_checked: "2026-09-14"
+status: fertig
 updated: "2026-09-14"

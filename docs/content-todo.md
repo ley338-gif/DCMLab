@@ -442,6 +442,45 @@ Track 2 (ADR 0042/PR #44) und Track 3 (ADR 0054/PR #52).
 
 `content:validate` meldet für die acht neuen Lektionen nichts.
 
+**5.1 ist seit P10.47 vollständig geschrieben — die Scaffold-Annahme
+„kein Hands-on möglich" hat sich als falsch herausgestellt.** Vor dem
+Schreiben real recherchiert (offizielles IHE Radiology Technical
+Framework Supplement „Scheduled Workflow.b" Rev. 1.7, per `pdftotext`
+aus dem Original-PDF extrahiert, nicht aus dem Gedächtnis
+rekonstruiert): Scheduled Workflow besteht exakt aus den DICOM-Diensten,
+die diese Plattform in Lektion 2.5 (Modality Worklist) und 2.6/4.8
+(MPPS) bereits real zeigt, nur mit festen IHE-Transaktionsnummern
+(RAD-5 Query Modality Worklist, RAD-8 Modality Images Stored, RAD-6/
+RAD-7 MPPS In Progress/Completed). Die Lektion zeigt jetzt alle vier
+Transaktionen live in einer zusammenhängenden Sequenz gegen dieselbe
+Patientin (`MUSTER^ERIKA`) — echte `findscu -W`, echter `storescu`,
+echte MPPS-`N-CREATE`/`N-SET`-Nachrichten (identischer Aufbau wie
+Lektion 4.8), gefolgt von einer echten `findscu -S`-Kontrolle. PIR und
+XDS-I bleiben konzeptionell, aber mit echten Querverweisen statt neuen
+Beispielen: PIR über den bereits real verifizierten
+Coercion-Mechanismus aus Lektion 4.6, XDS-I über den real recherchierten
+Fund, dass sein geteiltes Manifest technisch ein Key Object Selection
+Document ist (dieselbe SOP-Klasse wie in Lektion 3.5 von Hand gebaut).
+`sandbox.required` von `false` auf `true` korrigiert (Dataset
+`ct-thorax-60`), `tools` von `[]` auf `[findscu, storescu, pynetdicom]`
+gesetzt, drei neue Glossarbegriffe (`scheduled-workflow`,
+`patient-information-reconciliation`, `xds-i`). Siehe ADR 0056.
+
+**Nebenfund aus P10.47 (kein Content-Bezug, sicherheitsrelevant):**
+Beim Aufräumen dieser Slice wurden neun bereits verwaiste
+`dcmlab-sandbox-<uuid>`-Container samt Volumes aus früheren Slices
+dieser Roadmap-Sitzung gefunden und entfernt — sie waren nie über die
+reguläre „Spielwiese beenden"-Aktion sauber abgebaut worden. Vor dem
+Entfernen wurde geprüft, dass keine dieser Sitzungen zur echten,
+laufenden Live-Umgebung des Nutzers gehörte (kein aktueller
+Valkey-Quota-Schlüssel, keine Aktivität in `infra-sandbox-1`s Logs der
+letzten 30 Minuten) — die `infra-*`-Container und die geteilten
+`dcmlab/*:latest`-Images blieben unangetastet. Für künftige Slices
+festgehalten: verwaiste `dcmlab-sandbox-*`-Ressourcen vor dem Entfernen
+grundsätzlich gegen die Live-Aktivität von `infra-sandbox-1` prüfen,
+nicht ungeprüft per Namensfilter löschen (dieselbe Vorsicht wie beim
+Docker-Image-Nebenfund aus ADR 0048).
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0

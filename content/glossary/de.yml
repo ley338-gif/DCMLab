@@ -308,3 +308,24 @@ specific-character-set:
   short: Legt fest, in welcher Zeichenkodierung alle Textwerte eines Objekts stehen — ohne dieses Attribut gilt reines ASCII.
   see_also: [tag]
   lesson: "3.6"
+
+scheduled-workflow:
+  term: Scheduled Workflow
+  expansion: IHE Radiology Scheduled Workflow (SWF.b)
+  short: Bündelt Worklist-Abfrage, Bildtransfer und MPPS-Statusmeldungen zu einem benannten, prüfbaren Ablauf mit eigenen Transaktionsnummern (RAD-5, RAD-8, RAD-6/7).
+  see_also: [worklist, mpps]
+  lesson: "5.1"
+
+patient-information-reconciliation:
+  term: Patient Information Reconciliation
+  expansion: Patient Information Reconciliation (PIR)
+  short: Regelt, wie ein zunächst unbekannter oder falsch erfasster Patient (z. B. Notfall) nachträglich mit dem echten Patientenstamm zusammengeführt wird.
+  see_also: [coercion]
+  lesson: "5.1"
+
+xds-i:
+  term: XDS-I
+  expansion: Cross-Enterprise Document Sharing for Imaging
+  short: Teilt Bilder zwischen Einrichtungen über Registry/Repository statt direkter Archiv-zu-Archiv-Verbindung — das geteilte Manifest ist technisch ein Key Object Selection Document.
+  see_also: [key-object-selection]
+  lesson: "5.1"
