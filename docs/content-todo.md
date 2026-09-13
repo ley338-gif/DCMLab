@@ -212,15 +212,27 @@ eigene Liste offener Punkte:
   REST-Wrapper-Sicht, nie die zugrundeliegende Mechanik. Siehe ADR
   0037. `tools` um `tshark` ergänzt. **Damit sind alle drei Lektionen
   mit vorhandener Infrastruktur (2.5, 2.6, 2.7) geschrieben.**
-- **Neue Infrastruktur nötig (2.4, 2.8).** 2.4 (C-MOVE vs. C-GET)
-  braucht für ein *echtes* Drei-Parteien-C-MOVE einen zweiten
-  Storage-Endpunkt in der Spielwiese — noch nicht vorhanden, ähnlich
-  dem ursprünglich für Track 4 angenommenen (und dort meist nicht
-  benötigten) Mehraufwand. 2.8 (DICOMweb) braucht `curl` als neu zu
-  registrierendes Werkzeug in `content/tools/de.yml` und eine
-  Verifikation, dass Orthancs QIDO-RS/WADO-RS/STOW-RS ohne weitere
-  Konfiguration laufen (bisher nur die REST-Route für Storage
-  Commitment real getestet, ADR 0031).
+- **Ursprünglich als „neue Infrastruktur nötig" eingeschätzt (2.4,
+  2.8).** 2.4 (C-MOVE vs. C-GET) sollte für ein *echtes*
+  Drei-Parteien-C-MOVE angeblich einen zweiten Storage-Endpunkt in der
+  Spielwiese brauchen. **2.4 ist seit P10.31 vollständig geschrieben —
+  diese Annahme war falsch, wie schon bei Worklist/MPPS/Storage
+  Commitment (P10.20/P10.21):** Ein zweiter, vom Lernenden selbst
+  gestarteter `storescp`-Prozess im selben Toolbox-Container, mit
+  eigenem AE Title, plus dynamischer Registrierung bei Orthanc
+  (`PUT /modalities/<name>`, derselbe Mechanismus wie bei Storage
+  Commitment), genügt bereits für ein echtes, standardkonformes
+  Drei-Parteien-C-MOVE — verifiziert per `tshark`: zwei getrennte
+  Associationen (SCU→Quelle, Quelle→Ziel), real angekommene Dateien am
+  Ziel. Nebenfund: Orthancs C-MOVE-Handler verlangt zwingend die exakte
+  `StudyInstanceUID` als Identifier (ein `PatientID`-only-C-MOVE
+  scheitert mit einem klaren Fehler), anders als C-FIND. Siehe ADR
+  0041. `tools` um `tshark` ergänzt (jetzt am Vier-Werkzeuge-Limit).
+  2.8 (DICOMweb) braucht weiterhin `curl` als neu zu registrierendes
+  Werkzeug in `content/tools/de.yml` und eine Verifikation, dass
+  Orthancs QIDO-RS/WADO-RS/STOW-RS ohne weitere Konfiguration laufen
+  (bisher nur die REST-Route für Storage Commitment real getestet,
+  ADR 0031) — als einzige verbleibende Lektion noch offen.
 
 `content:validate` meldet für die acht neuen Lektionen nichts.
 
