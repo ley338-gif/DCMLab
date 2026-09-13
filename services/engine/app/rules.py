@@ -51,6 +51,15 @@ MSG_STORE_OUT_OF_RESOURCES = (
     "F: Store Failed, file: {filename}\nF:   Status: 0xa700 (Refused: Out of Resources)"
 )
 
+# PS3.8 Table 9-18: Presentation-Context-Result/Reason-Feld, Wert 4
+# "transfer-syntaxes-not-supported" -- die Association selbst kommt zustande,
+# aber ohne akzeptierten Presentation Context bleibt DCMTK nichts anderes
+# uebrig, als abzubrechen (Feature 3 aus P10).
+MSG_NO_ACCEPTABLE_PRESENTATION_CONTEXT = (
+    "F: No Acceptable Presentation Contexts\n"
+    "F:   Presentation Context Result: 4 (transfer-syntaxes-not-supported)"
+)
+
 
 @dataclass(frozen=True)
 class AssociationResult:
@@ -650,6 +659,32 @@ def trigger_action(
                     "type": "association_rejected",
                     "host": result.target_host,
                     "reason": result.reason,
+                },
+            ],
+        )
+
+    # Feature 3 aus P10: Presentation-Context-Aushandlung. Die Association
+    # kommt zustande, aber ohne gemeinsame Transfer Syntax gibt es nichts zu
+    # uebertragen -- unabhaengig von Host/Port/AE-Title, die schon stimmen.
+    target_host_def = node.host(result.target_host) if result.target_host else None
+    service = next(
+        (s for s in (target_host_def or {}).get("services", []) if s.get("port") == target_port),
+        None,
+    )
+    accepted_syntaxes = (service or {}).get("accepted_transfer_syntaxes")
+    proposed_syntax = config.get("transfer_syntax")
+
+    if accepted_syntaxes is not None and proposed_syntax not in accepted_syntaxes:
+        return ActionResult(
+            log=[
+                f"{timestamp}  Sendeauftrag – Verbindungsaufbau {target_ip}:{target_port} …",
+                f"{timestamp}  {MSG_NO_ACCEPTABLE_PRESENTATION_CONTEXT}",
+            ],
+            events=[
+                {
+                    "type": "presentation_context_rejected",
+                    "host": result.target_host,
+                    "reason": "transfer_syntaxes_not_supported",
                 },
             ],
         )

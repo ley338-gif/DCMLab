@@ -336,6 +336,44 @@ den Bestand des Archivs zu verändern. Nodes ohne `objects` verhalten sich
 unverändert (Abschnitt 5.3: Bilder liegen auf der Modalität, nicht auf der
 Workstation). Details und Begründung: ADR 0012.
 
+### 6c. Transfer-Syntax-Aushandlung beim Senden (ab P10)
+
+Für Nodes, in denen eine falsche Transfer Syntax den Sendeauftrag
+scheitern lässt (Host/Port/AE-Title können dabei bereits alle stimmen),
+trägt der Ziel-Dienst `accepted_transfer_syntaxes`, und die
+Modalitäts-Konfiguration bekommt ein zusätzliches editierbares Feld
+`transfer_syntax`:
+
+```yaml
+environment:
+  hosts:
+    - name: archive
+      services:
+        - port: 104
+          ae_title: KLINIK-ARCHIV
+          accepts: [ct-image-storage]
+          accepted_transfer_syntaxes: ["1.2.840.10008.1.2"]  # nur Implicit VR LE
+    - name: ct-3
+      role: modality-simulator
+      config_editable: true
+      config:
+        local_ae: CT-3
+        remote_ae: KLINIK-ARCHIV
+        remote_host: 10.70.0.10
+        remote_port: 104
+        transfer_syntax: "1.2.840.10008.1.2.4.91"  # ← der eingebaute Fehler
+```
+
+Die Sendeaktion prüft `transfer_syntax` erst, nachdem Host, Port und
+AE-Title bereits akzeptiert wurden (Reihenfolge aus Abschnitt 5.3 bleibt
+unverändert) — eine Ablehnung meldet den echten Presentation-Context-
+Ablehnungsgrund `transfer-syntaxes-not-supported` (PS3.8 Table 9-18,
+Result-Wert 4), nicht einen Verbindungsfehler. Die Transfer-Syntax-UIDs
+sind reale, aus PS3.5 Annex A stammende Werte (siehe
+`services/engine/tests/test_transfer_syntax.py`). Nodes ohne
+`accepted_transfer_syntaxes` verhalten sich unverändert. Details und
+Begründung: ADR 0013.
+
 ## 7. Node — `de.md`
 
 ```markdown

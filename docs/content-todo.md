@@ -188,19 +188,26 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 |---|---|---|
 | C-FIND-Matching (Query-Level, Wildcards) | ✅ P10.1 | `c-find-mismatch` (neu) |
 | Größenlimit (C-STORE) | ✅ P10.2 | `oversized-image` (neu) |
-| Transfer-Syntax-Aushandlung | offen | `syntax-negotiation-fails`, `halbe-sache`, `mitgehoert`, `verbindung-ohne-bild` |
+| Transfer-Syntax-Aushandlung | ✅ P10.3 | `syntax-negotiation-fails` (neu) |
 | Multiframe-Generator | offen | — (Track 3) |
 | Worklist-Query | offen | `worklist-query-empty` |
 | Patient-Merge / Study-Split | offen | `patient-merge-discovery`, `merge-patient` |
 
-**Nebeneffekt von P10.1, noch nicht genutzt:** `zwei-ebenen-tiefer` und
-`zwillinge` waren blockiert, weil ein Archiv-Host nur einen Bestand kannte.
-Mit `records` (siehe ADR 0011, `content-schema.md` Abschnitt 6a) kann ein
-Archiv jetzt mehrere Studies vorhalten — `zwillinge`s eigentliche Blockade
-("zwei gleich aussehende Studies, verschiedene UID") ist damit technisch
-lösbar. Bleibt trotzdem als Gerüst stehen, bis der Content dafür
-geschrieben ist (kein Fließtext erfunden, nur weil die Engine es jetzt
-könnte).
+**Nebeneffekte, noch nicht genutzt:**
+
+- `zwei-ebenen-tiefer` und `zwillinge` waren blockiert, weil ein
+  Archiv-Host nur einen Bestand kannte. Mit `records` (ADR 0011,
+  `content-schema.md` Abschnitt 6a) kann ein Archiv jetzt mehrere
+  Studies vorhalten — `zwillinge`s eigentliche Blockade ("zwei gleich
+  aussehende Studies, verschiedene UID") ist damit technisch lösbar.
+- `halbe-sache` (1.7), `mitgehoert` (1.8) und `verbindung-ohne-bild`
+  (4.2) waren blockiert, weil die Engine keine Presentation-Context-
+  Aushandlung kannte. Mit Feature 3 (ADR 0013, `content-schema.md`
+  Abschnitt 6c) ist auch das technisch lösbar.
+
+Alle fünf bleiben trotzdem als Gerüst stehen, bis ihr jeweiliger
+Fließtext geschrieben ist — kein Content erfunden, nur weil die Engine
+es jetzt könnte.
 
 **Nodes (vier laut Roadmap Abschnitt IV):**
 
@@ -208,7 +215,7 @@ könnte).
 |---|---|
 | `c-find-mismatch` | ✅ P10.1, vollständig und live verifiziert |
 | `oversized-image` | ✅ P10.2, vollständig und live verifiziert (Lektion 4.3, teilweise — SOP-Class-Ablehnung fehlt weiterhin) |
-| `syntax-negotiation-fails` | offen (braucht Feature „Transfer-Syntax") |
+| `syntax-negotiation-fails` | ✅ P10.3, vollständig und live verifiziert |
 | `patient-merge-discovery` | offen (braucht Feature „Patient-Merge") |
 
 **Track 2, Track 3, Track-4-Vervollständigung:** noch nicht begonnen.
