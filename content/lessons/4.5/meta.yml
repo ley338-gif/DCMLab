@@ -5,19 +5,22 @@ duration_minutes: 12
 level: aufbau
 objectives_count: 3
 requires: ["1.2", "1.4"]
-tools: [findscu, dcmdump, dcm2json]
+tools: [findscu, dcmdump, dcm2json, storescu]
 
 sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
-# ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
+# Kein passender Node-Stub vorhanden -- Fliesstext seit P10.18
+# vollstaendig ohne Lab (ADR 0028). Node "Zwillinge" (Lektion 1.4) ist
+# thematisch verwandt (zwei aehnliche Studies unterscheiden), aber eine
+# andere Fertigkeit (Accession-Number-Abgleich statt Split/Dublette-
+# Diagnose) -- deshalb nur unter "Verwandte Inhalte" verlinkt.
 lab:
   node: null
   optional: true
 
 glossary_terms: [study-instance-uid, uid, study, series]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"
