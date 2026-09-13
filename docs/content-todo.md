@@ -320,6 +320,22 @@ Hierarchie-UIDs, nicht pauschal für jedes Type-1-Attribut jedes Moduls.
 (am Vier-Werkzeuge-Limit), neuer Glossarbegriff
 `photometric-interpretation`. Siehe ADR 0050.
 
+**3.3 ist seit P10.42 ebenfalls vollständig geschrieben** —
+`ct-thorax-60` trägt tatsächlich keine `RescaleSlope`/`RescaleIntercept`/
+`WindowCenter`/`WindowWidth`-Attribute (real per `dcmdump` bestätigt,
+leere Ausgabe). Bewusst **kein** Generator-Zusatz: Lektion 3.1 zeigt
+bereits einen vollständigen, echten `dcmdump` desselben Testobjekts —
+eine Generator-Änderung hätte diese bereits veröffentlichte, reale
+Ausgabe rückwirkend ungültig gemacht. Stattdessen zeigt 3.3 echt, dass
+die Attribute fehlen, und ergänzt sie live per `dcmodify -i` mit echten
+CT-Praxis-Konventionswerten (`RescaleIntercept -1024`/`RescaleSlope 1`,
+`WindowCenter 40`/`WindowWidth 400`). Der „schwarzes Bild"-Effekt wird
+über eine echte, als `<!-- kein-beispiel -->` markierte Rechnung
+(Rohwert `0` → `HU -1024` → weit unterhalb des Weichteilfensters)
+gezeigt, nicht über ein tatsächliches Bild (weiterhin kein Viewer im
+Werkzeugkasten). `tools` von `[]` auf `[dcmdump, dcmodify]` gesetzt,
+neuer Glossarbegriff `hounsfield-unit`. Siehe ADR 0051.
+
 `content/tracks.yml: bild.status` bleibt `planned`, bis alle sechs
 Lektionen tatsächlich geschrieben sind.
 

@@ -266,3 +266,10 @@ photometric-interpretation:
   short: Legt fest, wie Pixelbytes als Helligkeit oder Farbe zu lesen sind — z. B. MONOCHROME1, MONOCHROME2 oder RGB.
   see_also: [iod]
   lesson: "3.2"
+
+hounsfield-unit:
+  term: Hounsfield Unit
+  expansion: Hounsfield Unit (HU)
+  short: Die genormte, geräteunabhängige CT-Dichteskala — Luft ≈ -1000, Wasser = 0.
+  see_also: [photometric-interpretation]
+  lesson: "3.3"
