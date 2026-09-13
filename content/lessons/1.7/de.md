@@ -108,14 +108,15 @@ $ dcmdump +P TransferSyntaxUID /tmp/zurueck.dcm
 
 ## Und der Fall vom Anfang
 
-```
-$ storescu -v -aet MEINE-WS -aec ORTHANC 127.0.0.1 4242 /tmp/lossless.dcm
-I: Requesting Association
-E: No presentation context for: (JPEGLossless:Non-hierarchical-1stOrderPrediction) CTImageStorage
-F: No presentation context for: CT Image Storage
-```
-
-**Was du daran abliest:** Nicht das Objekt ist falsch und nicht der Name — die Gegenstelle akzeptiert diese *Kodierung* für diesen Objekttyp nicht. Die Verbindung selbst wäre zustande gekommen. Genau deshalb sieht bei diesem Fehlerbild alles gesund aus: C-ECHO grün, AE Titles korrekt, und trotzdem geht kein Bild durch.
+Genau dieses Muster steckt hinter „seit dem Update kommt nichts mehr
+an": Nicht das Objekt ist falsch und nicht der Name — die Gegenstelle
+akzeptiert diese *Kodierung* für diesen Objekttyp nicht. Ein Sendeversuch
+scheitert dabei sofort mit einer Ablehnung, die ausdrücklich keinen
+gemeinsamen Presentation Context findet — die Verbindung selbst wäre
+zustande gekommen. Genau deshalb sieht bei diesem Fehlerbild alles
+gesund aus: C-ECHO grün, AE Titles korrekt, und trotzdem geht kein Bild
+durch. Ein echter Mitschnitt dieser Ablehnung, Zeile für Zeile erklärt,
+folgt in Lektion 4.2.
 
 Zwei Wege heraus: Das Archiv lernt die Kodierung, oder der Sender wandelt vorher um. Welcher richtig ist, steht im Conformance Statement der Gegenstelle — und nicht in deinem Bauchgefühl.
 

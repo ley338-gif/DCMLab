@@ -73,7 +73,7 @@ $ echo $?
 0
 ```
 
-Erfolgreich, und still — genau wie bei jedem anderen funktionierenden
+**Was du daran abliest:** Erfolgreich, und still — genau wie bei jedem anderen funktionierenden
 Gerät. Das Archiv selbst hat also kein Problem mit eingehenden
 Verbindungen. Der Fehler muss auf der Seite des neuen Geräts liegen.
 
@@ -89,7 +89,9 @@ Zweites MR-Gerät — Netzwerkkonfiguration
   Ziel-Port        : 104
 ```
 
-Dieselbe Verbindung von der Workstation aus, mit genau diesen Werten:
+**Was du daran abliest:** Genau diese Werte muss der nächste Testaufruf
+verwenden, um den Fehler des Geräts nachzustellen. Dieselbe Verbindung
+von der Workstation aus, mit genau diesen Werten:
 
 ```
 $ echoscu -aet MR-2 -aec PACS-ARCHIV 10.20.0.10 104
@@ -98,7 +100,7 @@ F:   Result: Rejected Permanent, Source: Service User
 F:   Reason: Calling AE Title Not Recognized
 ```
 
-Ein anderer Grund als bei Silent CT — und diesmal geht es nicht um das
+**Was du daran abliest:** Ein anderer Grund als bei Silent CT — und diesmal geht es nicht um das
 Ziel, sondern um den Absender.
 
 **3. Vergleichen**
@@ -113,7 +115,7 @@ MR_2            MR-Geraet 2 (Neuzugang)
 ...
 ```
 
-Registriert ist `MR_2`, mit Unterstrich. Die Konsole sendet als `MR-2`, mit
+**Was du daran abliest:** Registriert ist `MR_2`, mit Unterstrich. Die Konsole sendet als `MR-2`, mit
 Bindestrich — für DICOM zwei vollständig unterschiedliche Namen.
 
 **4. Korrigieren und senden**

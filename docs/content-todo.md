@@ -25,35 +25,30 @@ Rein technische, nicht-redaktionelle Lücken wurden direkt behoben:
   Der Hinweis auf Lektion 4.1 steht weiterhin in der Prosa unter
   „Verwandte Inhalte" in `nodes/silent-ct/de.md`.
 
-## Was offen bleibt — redaktionelle Entscheidung nötig
+## Behoben in P10.23 — alle 19 Verstöße aus `content:validate`
 
-**Beispielregel, Grenzfälle des `**Was du daran abliest:**`-Musters:**
+Die zwei unten dokumentierten Kategorien (19 Fundstellen, Stand
+12.09.2026) sind seit P10.23 behoben, jeweils als reine Formsache ohne
+neu erfundenen Fachinhalt — siehe ADR 0033:
 
-| Datei | Zeile(n) | Befund |
-|---|---|---|
-| `lessons/1.0/de.md` | 120 | Windows-Zusatzbefehl (PowerShell) ohne eigene Leseanleitung — teilt sich die Erklärung mit dem Befehl darüber. Content-Schema Abschnitt "Weitere Regeln" sagt ausdrücklich, der Windows-Zusatz solle "kurz" bleiben; ob er trotzdem eine eigene Leseanleitung braucht, ist eine Stilfrage. |
-| `lessons/1.0/de.md` | 145 | Exitcode-Demo (`echo $?`) direkt nach einem bereits erklärten Beispiel — die Erklärung steht als Ankündigung *vor* dem Block, nicht danach. |
-| `lessons/1.0/de.md` | 216 | Zwei sehr kurze Wireshark-Filter hintereinander, eine gemeinsame Leseanleitung erst nach dem zweiten. |
-| `lessons/1.0/de.md` | 241 | Python-Quelltext und sein Konsolen-Output stehen in zwei getrennten Codeblöcken; die Leseanleitung folgt erst nach dem zweiten (Output-)Block — für den ersten (Quelltext) wird sie nicht gefunden. |
-| `lessons/1.0/de.md` | 315 | Abschließende Drei-Befehle-Übung; die Erklärung danach ist freie Prosa statt des festen Wortlauts. |
-| `lessons/1.3/de.md` | 25 | `dcmdump`-Ausgabe mit angehefteter Pfeil-Grafik, die Tag/VR/Wert erklärt — Grenzfall zwischen echtem Beispiel und Diagramm. |
-| `nodes/silent-ct/de.md` | 38, 81, 91, 105, 114, 131, 147, 162 | Das komplette Write-up erklärt jeden Schritt in freier Prosa statt mit dem festen Wortlaut. Inhaltlich vollständig (Befehl, Ausgabe, Erklärung sind alle da), nur die Marker-Phrase fehlt durchgehend. |
-| `nodes/wrong-door/de.md` | 75, 91, 100, 115 | Dieselbe Situation wie bei Silent CT (P6, dieselbe Write-up-Struktur bewusst wiederverwendet): freie Prosa statt fester Marker-Phrase, Inhalt vollständig. |
+**Beispielregel, Grenzfälle des `**Was du daran abliest:**`-Musters (15
+Fundstellen):** In `lessons/1.0/de.md` (5), `lessons/1.3/de.md` (1),
+`nodes/silent-ct/de.md` (8, gemeinsam mit Node Wrong Door in P6
+angelegt) und `nodes/wrong-door/de.md` (4) hatte jeder betroffene
+Codeblock bereits eine vollständige, korrekte Erklärung als freie Prosa
+— nur die feste Marker-Phrase `**Was du daran abliest:**` fehlte davor.
+Nachgetragen, ohne den Inhalt der Erklärungen zu ändern.
 
-Für `lessons/1.0` und die Node ist das vermutlich am saubersten mit einer
-bewussten Entscheidung zu lösen: entweder den festen Wortlaut nachtragen
-(reine Formsache, kein neuer Fachinhalt) oder die Regel für "verkettete
-Beispiele mit gemeinsamer Erklärung" im Schema explizit als Ausnahme
-zulassen. Beides ist eine redaktionelle/schema-Entscheidung, keine
-Bugfix-Aufgabe.
-
-**Werkzeuge-Grenze:**
-
-- `lessons/1.7/de.md` Zeile 112 benutzt `storescu` in einem Beispiel, aber
-  `meta.yml: tools` hat bereits vier Einträge (`dcmdump`, `dcmconv`,
-  `dcmcjpeg`, `dcmdjpeg`) — das Limit aus Abschnitt 1 von
-  `content-schema.md`. Eine Entscheidung ist nötig: `storescu` gegen eines
-  der vier tauschen, oder das Beispiel umbauen.
+**Werkzeuge-Grenze (1 Fundstelle):** `lessons/1.7/de.md` benutzte
+`storescu` in einem Beispiel, obwohl `meta.yml: tools` bereits vier
+Einträge hatte (Limit aus Abschnitt 1 von `content-schema.md`).
+Entscheidung: Das Beispiel (eine `storescu`-Ablehnung wegen fehlendem
+Presentation Context) duplizierte ohnehin, was Lektion 4.2 seit P10.15
+bereits mit einem echten Mitschnitt ausführlich behandelt (`tools:
+[storescu, storescp, dcmdump, tshark]`) — der Codeblock wurde durch
+einen kurzen Verweis auf 4.2 ersetzt, die vier ursprünglich deklarierten
+Werkzeuge (`dcmdump`, `dcmconv`, `dcmcjpeg`, `dcmdjpeg`) sind alle für
+den Kernstoff dieser Lektion unverzichtbar und blieben unverändert.
 
 ## P3 — Quiz-Karten ohne strukturierte Antworten
 
