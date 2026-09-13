@@ -11,12 +11,12 @@ sandbox:
   dataset: ct-thorax-60
   note: "Zwei Serien, 12 und 48 Bilder"
 
-# Node zwei-ebenen-tiefer ist ein Geruest (status: draft), noch nicht
-# spielbar -- siehe docs/content-todo.md. Deshalb optional, bis sie es ist.
+# Node zwei-ebenen-tiefer ist seit P10.14 vollstaendig und live verifiziert
+# (Feature 9: dcmdump-Hierarchiefelder, ADR 0024).
 lab:
   node: zwei-ebenen-tiefer
-  optional: true
+  optional: false
 glossary_terms: [study, series, instance, patient-id, sop-instance-uid]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

@@ -156,7 +156,7 @@ technische Blockade in seiner eigenen `de.md`:
 | Node | Lektion | Blockiert durch |
 |---|---|---|
 | ~~`first-contact`~~ | 1.1 | ✅ P10.13 fertig, siehe unten — nicht mehr blockiert |
-| `zwei-ebenen-tiefer` | 1.2 | `findscu` kennt nur STUDY/SERIES, keine PATIENT-/INSTANCE-Ebene; ein Archiv-Host hat höchstens einen Bestand |
+| ~~`zwei-ebenen-tiefer`~~ | 1.2 | ✅ P10.14 fertig, siehe unten — nicht mehr blockiert |
 | ~~`wo-steht-das`~~ | 1.3 | ✅ P10.13 fertig, siehe unten — nicht mehr blockiert |
 | ~~`zwillinge`~~ | 1.4 | ✅ P10.5 fertig, siehe unten — nicht mehr blockiert |
 | ~~`halbe-sache`~~ | 1.7 | ✅ P10.12 fertig, siehe unten — nicht mehr blockiert |
@@ -170,11 +170,10 @@ kennt ausschließlich Host/Port/Called-AE/Calling-AE als Prüfstufen). Sobald
 eine dieser Fähigkeiten gebaut ist, kann das jeweilige Gerüst mit echtem
 Szenario, Hints und Write-up gefüllt werden, exakt wie bei `neue-node`.
 
-**Hardening (Stand P10.13):** Von den ursprünglich sieben betroffenen
-Lektionen (1.1, 1.2, 1.3, 1.4, 1.7, 1.8, 4.2) hat nur noch **1.2**
-(`zwei-ebenen-tiefer`) `lab.optional: true` mit Verweis auf diesen
-Abschnitt — alle anderen sechs sind inzwischen auf `optional: false`
-umgestellt, ihre Nodes sind vollständig.
+**Hardening (Stand P10.14):** Alle ursprünglich sieben betroffenen
+Lektionen (1.1, 1.2, 1.3, 1.4, 1.7, 1.8, 4.2) sind inzwischen auf
+`lab.optional: false` umgestellt — jede dieser sieben Nodes ist
+vollständig. Damit ist diese komplette Liste abgearbeitet.
 
 ## P10 — Fortschritt gegen `P10-Roadmap-DCMLab.md`
 
@@ -202,16 +201,19 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | Abstract-Syntax-Ablehnung pro Objekt (direktes `storescu`) | ✅ P10.10 (ADR 0020, `content-schema.md` 6e) | `teiltransfer` (neu) |
 | `dcmdump`-Objektmetadaten (Transfer Syntax, LossyImageCompression) | ✅ P10.12 (ADR 0022, `content-schema.md` 6g) | `halbe-sache` |
 | `dcmftest` + weitere `dcmdump`-Felder (Modality, StudyDescription, CT-Metadaten) | ✅ P10.13 (ADR 0023, `content-schema.md` 6h) | `first-contact`, `wo-steht-das` |
+| `dcmdump`-Hierarchiefelder (PatientID, StudyInstanceUID, SeriesInstanceUID) | ✅ P10.14 (ADR 0024, `content-schema.md` 6i) | `zwei-ebenen-tiefer` |
 
 **Nebeneffekte:**
 
-- `zwei-ebenen-tiefer` und `zwillinge` waren blockiert, weil ein
-  Archiv-Host nur einen Bestand kannte. Mit `records` (ADR 0011,
-  `content-schema.md` Abschnitt 6a) kann ein Archiv jetzt mehrere
-  Studies vorhalten. **`zwillinge` ist seit P10.5 fertig** (ADR 0015,
-  inkl. eines neuen realen Feldes `AccessionNumber`). `zwei-ebenen-tiefer`
-  bräuchte zusätzlich eine echte PATIENT-/INSTANCE-Ebene im C-FIND — bleibt
-  offen.
+- `zwillinge` war blockiert, weil ein Archiv-Host nur einen Bestand
+  kannte. Mit `records` (ADR 0011, `content-schema.md` Abschnitt 6a)
+  kann ein Archiv jetzt mehrere Studies vorhalten. **`zwillinge` ist
+  seit P10.5 fertig** (ADR 0015, inkl. eines neuen realen Feldes
+  `AccessionNumber`). `zwei-ebenen-tiefer` brauchte am Ende gar keine
+  C-FIND-/Archiv-Erweiterung — ihr eigener, bereits im Fließtext
+  spezifizierter Lab-Auftrag ("Dein Lab") ist eine reine lokale
+  Zählaufgabe über mehrere Objekte; **seit P10.14 fertig** (ADR 0024,
+  neues, kleines Feature 9: drei weitere `dcmdump`-Hierarchiefelder).
 - `halbe-sache` (1.7), `mitgehoert` (1.8) und `verbindung-ohne-bild`
   (4.2) waren blockiert, weil die Engine keine Presentation-Context-
   Aushandlung kannte. Mit Feature 3 (ADR 0013, `content-schema.md`
@@ -252,14 +254,16 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 
 **Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5),
 `mitgehoert` (✅ P10.6), `verbindung-ohne-bild` (✅ P10.9),
-`teiltransfer` (✅ P10.10), `halbe-sache` (✅ P10.12) sowie
-`first-contact` und `wo-steht-das` (beide ✅ P10.13) — keine
-Roadmap-Nodes, aber durch Feature 1 bzw. Feature 3/4/5/7/8
-unblockierte Stubs.
+`teiltransfer` (✅ P10.10), `halbe-sache` (✅ P10.12),
+`first-contact` und `wo-steht-das` (beide ✅ P10.13) sowie
+`zwei-ebenen-tiefer` (✅ P10.14) — keine Roadmap-Nodes, aber durch
+Feature 1 bzw. Feature 3/4/5/7/8/9 unblockierte Stubs.
 
 Verbleibend von den sieben Roadmap-Engine-Features: nur noch der
-Multiframe-Generator (für Track 3). Verbleibend an unblockierten, aber
-ungeschriebenen Nodes: nur noch `zwei-ebenen-tiefer` (1.2).
+Multiframe-Generator (für Track 3). **Keine unblockierten, aber
+ungeschriebenen Node-Stubs mehr bekannt** — die ursprüngliche
+Sieben-Node-Liste (siehe oben, Abschnitt "Track 1 — Engine-Limits")
+ist mit P10.14 vollständig abgearbeitet.
 
 **Schema-Lücke aus P10.10:** `lessons/<id>/meta.yml` erlaubt aktuell nur
 einen einzelnen `lab.node`-Wert. Lektion 4.3 bräuchte zwei

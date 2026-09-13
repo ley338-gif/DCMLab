@@ -544,6 +544,22 @@ Lernende sucht den Wert im vollständigen Dump, statt ihn per `+P
 <Tag>` gezielt anzufragen (diese Simulation kennt `+P` nicht). Details
 und Begründung: ADR 0023.
 
+### 6i. `dcmdump`-Hierarchiefelder (ab P10)
+
+Für Nodes, in denen mehrere Objekte per Zählschleife ausgewertet werden
+sollen (wie viele Patienten/Studies/Series stecken in einem Ordner,
+Abschnitt 6b), trägt jedes Objekt zusätzlich `patient_id`, `study_uid`
+und/oder `series_uid` — dieselben realen Tags, die `app/find.py` schon
+für C-FIND-Matching nutzt (`PatientID` 0010,0020, `StudyInstanceUID`
+0020,000D, `SeriesInstanceUID` 0020,000E), hier aber ohne jede
+Association oder C-FIND: reines lokales `dcmdump` pro Datei. Der
+Lernende zählt selbst, wie viele unterschiedliche Werte pro Ebene
+vorkommen — dieselbe Technik wie die reale Zählschleife
+(`for f in *.dcm; do dcmdump +P StudyInstanceUID "$f"; done | sort |
+uniq -c`) aus Lektion 1.2, nur ohne Shell-Loop-Unterstützung in der
+Simulation (jede Datei wird einzeln gedumpt). Details und Begründung:
+ADR 0024.
+
 ## 7. Node — `de.md`
 
 ```markdown
