@@ -159,11 +159,19 @@ eigene Liste offener Punkte:
   in P10.20–P10.21 für Track 4 gebaute echte Infrastruktur direkt
   mitnutzen (Orthancs Worklists-Plugin, ADR 0030; der eigene
   `pynetdicom`-MPPS-SCP, ADR 0031; Orthancs native
-  Storage-Commitment-REST-API, ADR 0031) — vermutlich die am
-  schnellsten schreibbaren der acht Lektionen, da kein neuer
-  Infrastruktur-Fund zu erwarten ist. Abgrenzung zu 4.7/4.8 nötig:
+  Storage-Commitment-REST-API, ADR 0031). Abgrenzung zu 4.7/4.8:
   Track 2 erklärt den Dienst selbst, Track 4 das jeweilige
-  Troubleshooting-Fehlerbild.
+  Troubleshooting-Fehlerbild. **2.5 ist seit P10.25 vollständig
+  geschrieben** — kein neuer Infrastruktur-Fund nötig, wie erwartet;
+  dabei aber ein neuer, echt verifizierter Fund: DCMTKs `findscu -W`
+  schlägt genau eine Presentation Context vor (die Modality Worklist
+  Information Model FIND), eine gewöhnliche Study-Abfrage dagegen ein
+  Bündel aus 13 Contexts — und pynetdicoms `findscu` (das den echten
+  DCMTK-Namen verdeckt, ADR 0025) beschränkt sich selbst mit `-W`
+  **nicht** darauf, ein weiterer konkreter Beleg für die
+  Shadowing-Falle an einem neuen Befehl. Siehe ADR 0035. `tools` dabei
+  von `[findscu, wlmscpfs]` auf `[findscu]` reduziert — `wlmscpfs` war
+  im geschriebenen Fließtext nicht nötig. Noch offen: 2.6, 2.7.
 - **Neue Infrastruktur nötig (2.4, 2.8).** 2.4 (C-MOVE vs. C-GET)
   braucht für ein *echtes* Drei-Parteien-C-MOVE einen zweiten
   Storage-Endpunkt in der Spielwiese — noch nicht vorhanden, ähnlich
