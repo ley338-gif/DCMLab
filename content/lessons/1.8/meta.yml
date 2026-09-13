@@ -10,11 +10,9 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Node mitgehoert ist ein Geruest (status: draft), noch nicht spielbar --
-# siehe docs/content-todo.md. Deshalb optional, bis sie es ist.
 lab:
   node: mitgehoert
-  optional: true
+  optional: false
 glossary_terms: [association, presentation-context, abstract-syntax, max-pdu]
 tools_checked: "2026-09-12"
 status: draft

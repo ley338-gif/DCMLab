@@ -1,0 +1,14 @@
+Drei Ebenen einer DICOM-Verbindung -- und woran man sie im Log erkennt
+------------------------------------------------------------------------
+1. TCP-Ebene (Host, Port)
+   "Connection timed out"      -> Host nicht erreichbar
+   "Connection refused"        -> Host erreichbar, aber niemand lauscht auf dem Port
+
+2. Association-Ebene (Called/Calling AE Title)
+   "Called AE Title Not Recognized"   -> falscher Zielname
+   "Calling AE Title Not Recognized"  -> Gegenstelle kennt den Absendernamen nicht
+
+3. Presentation-Context-Ebene (Transfer Syntax)
+   "No Acceptable Presentation Contexts" /
+   "transfer-syntaxes-not-supported"  -> Verbindung steht, aber kein
+                                          gemeinsames Bildformat
