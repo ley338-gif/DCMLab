@@ -301,3 +301,10 @@ presentation-state:
   short: Speichert, wie ein vorhandenes Bild dargestellt werden soll (Fensterung, Anmerkungen), ohne dessen Pixel zu verändern.
   see_also: [key-object-selection]
   lesson: "3.5"
+
+specific-character-set:
+  term: Specific Character Set
+  expansion: Specific Character Set (0008,0005)
+  short: Legt fest, in welcher Zeichenkodierung alle Textwerte eines Objekts stehen — ohne dieses Attribut gilt reines ASCII.
+  see_also: [tag]
+  lesson: "3.6"
