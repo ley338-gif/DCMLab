@@ -63,6 +63,16 @@ dcmdjpeg:
   anchor: wirklich-komprimieren
   needs_sandbox: false
 
+dcmdrle:
+  name: dcmdrle
+  suite: dcmtk
+  kind: datei
+  purpose: Packt ein RLE-komprimiertes Objekt wieder aus.
+  example: "dcmdrle klein.dcm gross.dcm"
+  lesson: "3.4"
+  anchor: ein-echtes-multiframe-objekt
+  needs_sandbox: false
+
 dcmodify:
   name: dcmodify
   suite: dcmtk
