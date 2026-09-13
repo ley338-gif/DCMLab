@@ -305,6 +305,21 @@ dokumentierte Großzügigkeit bei AE-Title/Presentation-Context/SOP-Class
 tatsächlich streng. `tools` von `[]` auf `[dcmdump, dcmodify,
 storescu]` gesetzt, neuer Glossarbegriff `iod`. Siehe ADR 0049.
 
+**3.2 ist seit P10.41 ebenfalls vollständig geschrieben** — kein
+Viewer im Werkzeugkasten bestätigt (nicht nur vermutet): Ein
+MONOCHROME1/2-Effekt lässt sich nur auf Tag-Ebene zeigen, die Lektion
+sagt das jetzt ehrlich. `img2dcm` (bereits mit `lesson: "3.2"`
+registriert) liefert dafür echtes, nicht-triviales Material: ein von
+Hand gebautes BMP wird zu einem echten RGB-Objekt, dessen
+Pixeldaten-Bytes exakt den eingegebenen Werten entsprechen. Dabei ein
+Nebenfund, der 3.1 präzisiert: `PhotometricInterpretation` ist ebenfalls
+Type 1, wird von Orthanc beim Fehlen aber trotzdem anstandslos
+angenommen — Orthancs strenge Prüfung aus 3.1 gilt also gezielt für die
+Hierarchie-UIDs, nicht pauschal für jedes Type-1-Attribut jedes Moduls.
+`tools` von `[]` auf `[dcmdump, img2dcm, dcmodify, storescu]` gesetzt
+(am Vier-Werkzeuge-Limit), neuer Glossarbegriff
+`photometric-interpretation`. Siehe ADR 0050.
+
 `content/tracks.yml: bild.status` bleibt `planned`, bis alle sechs
 Lektionen tatsächlich geschrieben sind.
 
