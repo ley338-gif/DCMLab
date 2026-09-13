@@ -11,13 +11,14 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
-# ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
+# Kein passender Node-Stub vorhanden (P10-Roadmap sieht keinen Timeout-
+# spezifischen Node vor) -- Fliesstext seit P10.17 vollstaendig ohne Lab
+# (ADR 0027). Sobald ein passender Node existiert, hier eintragen.
 lab:
   node: null
   optional: true
 
 glossary_terms: [association, max-pdu]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

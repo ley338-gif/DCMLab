@@ -310,8 +310,21 @@ Lektion geworden: ein real unvollständig gesendeter `ct-thorax-60`-
 Datensatz (59 von 60 Dateien), nachgewiesen über das reale
 `findscu`-Feld `NumberOfStudyRelatedInstances`. Löst zugleich die
 Ein-`lab.node`-Schema-Lücke aus P10.10 pragmatisch (`teiltransfer` nur
-im Fließtext genannt). Restliche sechs Track-4-Lektionen (4.4–4.5,
-4.7–4.10) sind weiterhin Gerüst.
+im Fließtext genannt). **Lektion 4.4 ("Timeout") ist seit P10.17
+ebenfalls vollständig geschrieben** — zwei der vier geplanten
+Ursachenklassen sind real reproduzierbar (geschlossener Port: `TCP
+Initialisation Error: Connection refused`; offener Port ohne
+DICOM-Dienst: `Unknown PDU type received`), die anderen beiden
+(unbeantwortete Association, Idle-Timeout/MTU während eines laufenden
+Transfers) sind strukturell nicht in einer einzelnen Docker-Umgebung
+herstellbar — anders begründet als die Orthanc-Großzügigkeit aus ADR
+0017/0025/0026, aber ebenfalls ehrlich als `<!-- kein-beispiel -->`
+markiert (ADR 0027). Kein Lab nötig — kein passender Node-Stub
+vorhanden, `lab.node` bleibt `null`. Nebenbei einen YAML-Fehler in der
+Objectives-Frontmatter gefunden und behoben (unquotierter Doppelpunkt
+führte zu einer sichtbar falsch gerenderten Zuordnung statt Klartext).
+Restliche fünf Track-4-Lektionen (4.5, 4.7–4.10) sind weiterhin
+Gerüst.
 
 **Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
 P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
