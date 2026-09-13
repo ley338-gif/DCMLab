@@ -356,6 +356,24 @@ SOP-Class-UIDs und die Struktur bleiben real belegt). `dcmdrle` neu in
 dcmdrle, storescu, findscu]` gesetzt, neuer Glossarbegriff
 `enhanced-iod`. Siehe ADR 0052.
 
+**3.5 ist seit P10.44 ebenfalls vollständig geschrieben — auch hier
+kein Netzwerk- oder Generator-Bedarf.** Weder `pydicom`s noch
+`pynetdicom`s Paket-Testdaten enthalten ein echtes SR-/GSPS-/
+KOS-Beispiel. Anders als beim Enhanced-CT-Fall (3.4/ADR 0052) erwies
+sich ein minimales, aber echtes Basic Text SR und ein KOS von Hand mit
+`pydicom` gebaut als gut machbar (deutlich einfachere Pflichtstruktur
+als Enhanced-Functional-Groups) — beide referenzieren eine real
+generierte `ct-thorax-60`-Instanz, bestehen `dcmftest` und werden von
+Orthanc real angenommen. Damit gezeigt: `ModalitiesInStudy CT\KO\SR`,
+`NumberOfStudyRelatedInstances 3` in derselben Study. Presentation
+States (GSPS) bewusst **nicht** live gebaut — die dafür nötigen
+zusätzlichen Pflichtmodule wären unverhältnismäßig für den Ertrag
+dieser einen Lektion; Lernziel 2 verlangt nur die Einordnung als
+Verweis-Objekt, kein Live-Beispiel. `tools` von `[]` auf `[dcmftest,
+dcmdump, storescu, findscu]` gesetzt, drei neue Glossarbegriffe
+(`structured-report`, `key-object-selection`, `presentation-state`).
+Siehe ADR 0053.
+
 `content/tracks.yml: bild.status` bleibt `planned`, bis alle sechs
 Lektionen tatsächlich geschrieben sind.
 

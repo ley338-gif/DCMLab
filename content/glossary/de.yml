@@ -280,3 +280,24 @@ enhanced-iod:
   short: Ein Multiframe-Objekt mit Shared- und Per-Frame Functional Groups Sequences statt einheitlicher Attribute pro Datei.
   see_also: [iod]
   lesson: "3.4"
+
+structured-report:
+  term: Structured Report
+  expansion: Structured Report (SR)
+  short: Ein DICOM-Objekt mit strukturiertem Text/Messwerten statt Pixeldaten, jede Aussage mit eigenem Code.
+  see_also: [iod]
+  lesson: "3.5"
+
+key-object-selection:
+  term: Key Object Selection
+  expansion: Key Object Selection Document (KOS)
+  short: Ein Verweis auf bereits vorhandene Objekte als „relevant" — ohne eigene Pixeldaten.
+  see_also: [structured-report]
+  lesson: "3.5"
+
+presentation-state:
+  term: Presentation State
+  expansion: Grayscale Softcopy Presentation State (GSPS)
+  short: Speichert, wie ein vorhandenes Bild dargestellt werden soll (Fensterung, Anmerkungen), ohne dessen Pixel zu verändern.
+  see_also: [key-object-selection]
+  lesson: "3.5"
