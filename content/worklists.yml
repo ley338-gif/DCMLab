@@ -1,0 +1,17 @@
+# Modality-Worklist-Eintraege, die in jeder Sitzung der Spielwiese unter
+# Orthancs Worklists-Plugin bereitliegen (Abschnitt 6, Lektion 4.7). Erzeugt
+# ausschliesslich von datasets/build/ (pydicom, Subcommand "worklist"), nie
+# echte Patientendaten (Leitplanke 2).
+
+ct-thorax-worklist:
+  patient: "MUSTER^ERIKA"
+  patient_id: "4711"
+  accession_number: "4711-0001"
+  requested_procedure_description: "CT Thorax nativ"
+  referring_physician: "ARZT^HANS"
+  modality: "CT"
+  scheduled_station_ae_title: "CT01"
+  scheduled_station_name: "CT Raum 1"
+  scheduled_procedure_step_description: "CT Thorax nativ"
+  scheduled_procedure_step_id: "SPS-0001"
+  note: "Ein Auftrag liegt bereit, geplant fuer AE Title CT01. Datum/Uhrzeit werden bei Sitzungsstart auf 'heute' gesetzt (Abschnitt 6: kein Zustand ueber Sitzungen hinweg)."
