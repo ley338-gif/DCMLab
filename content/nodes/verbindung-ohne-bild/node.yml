@@ -1,10 +1,75 @@
 slug: verbindung-ohne-bild
 difficulty: medium
-points: 0
+points: 15
 category: netzwerk
 skills: [netzwerk, integration]
 related_lessons: ["4.2"]
-estimated_minutes: 0
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.90.0.50
+      role: shell
+    - name: archive
+      ip: 10.90.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, ct-image-storage, study-root-find]
+          # Aelteres Archiv, nur fuer klassische CT-Bilder registriert --
+          # kein Enhanced CT.
+          accepted_sop_classes: ["1.2.840.10008.5.1.4.1.1.2"]
+          accepted_transfer_syntaxes:
+            ["1.2.840.10008.1.2", "1.2.840.10008.1.2.1"]
+      config_visible: false
+    - name: ct-9
+      ip: 10.90.0.41
+      role: modality-simulator
+      config_editable: true
+      config:
+        local_ae: CT-9
+        remote_ae: KLINIK-ARCHIV
+        remote_host: 10.90.0.10
+        remote_port: 104
+        transfer_syntax: "1.2.840.10008.1.2"
+        # ← der eingebaute Fehler: das Geraet ist nach einem Software-
+        # Update werksseitig auf Enhanced CT Image Storage umgestellt.
+        sop_class: "1.2.840.10008.5.1.4.1.1.2.1"
+
+  known_calling_aets: [DCMLAB-WS, CT-9]
+
+  tools: [echoscu, findscu, dcmdump]
+  dataset: ct-thorax-1-slice
+
+  files:
+    - sop-class-registrierung.txt   # Auszug aus der (fiktiven) Konformitaetserklaerung des Archivs
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.echo
+      command: "echoscu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.90.0.10 104"
+    - label_key: tpl.find_study
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=8842 -k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.90.0.10 104"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:5ec8df3429bbe5da5a9354eecb73659f563642d3b1d045fddf5648a2ac773744"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 10
 
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-13"

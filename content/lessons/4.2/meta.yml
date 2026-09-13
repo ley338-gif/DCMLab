@@ -11,13 +11,13 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Node verbindung-ohne-bild ist ein Geruest (status: draft), noch nicht
-# spielbar -- siehe docs/content-todo.md.
+# Node verbindung-ohne-bild ist seit P10.9 vollstaendig und live
+# verifiziert (Feature 4: Abstract-Syntax-Ablehnung, ADR 0019).
 lab:
   node: verbindung-ohne-bild
-  optional: true
+  optional: false
 
 glossary_terms: [presentation-context, transfer-syntax, abstract-syntax]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

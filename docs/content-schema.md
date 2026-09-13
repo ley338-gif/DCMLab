@@ -374,6 +374,51 @@ sind reale, aus PS3.5 Annex A stammende Werte (siehe
 `accepted_transfer_syntaxes` verhalten sich unverändert. Details und
 Begründung: ADR 0013.
 
+### 6d. Abstract-Syntax-(SOP-Class-)Ablehnung beim Senden (ab P10)
+
+Derselbe Presentation Context, der eine Transfer Syntax aushandelt
+(Abschnitt 6c), handelt auch einen Abstract Syntax aus — den
+vorgeschlagenen SOP Class UID. Für Nodes, in denen ein nicht
+unterstützter Objekttyp den Sendeauftrag scheitern lässt (unabhängig
+von einer eventuell passenden Transfer Syntax), trägt der Ziel-Dienst
+`accepted_sop_classes`, und die Modalitäts-Konfiguration bekommt ein
+zusätzliches editierbares Feld `sop_class`:
+
+```yaml
+environment:
+  hosts:
+    - name: archive
+      services:
+        - port: 104
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, ct-image-storage]
+          accepted_sop_classes: ["1.2.840.10008.5.1.4.1.1.2"]  # nur klassisches CT Image Storage
+    - name: ct-9
+      role: modality-simulator
+      config_editable: true
+      config:
+        local_ae: CT-9
+        remote_ae: KLINIK-ARCHIV
+        remote_host: 10.90.0.10
+        remote_port: 104
+        sop_class: "1.2.840.10008.5.1.4.1.1.2.1"  # ← der eingebaute Fehler: Enhanced CT
+```
+
+Die Sendeaktion prüft `sop_class` vor `transfer_syntax` (beide erst,
+nachdem Host, Port und AE-Title bereits akzeptiert wurden — Reihenfolge
+aus Abschnitt 5.3 bleibt unverändert): eine Ablehnung meldet den echten
+Presentation-Context-Ablehnungsgrund `abstract-syntax-not-supported`
+(PS3.8 Table 9-18, Result-Wert 3) statt `transfer-syntaxes-not-supported`
+(Wert 4, Abschnitt 6c) — beide sind reale, im Standard definierte
+Ablehnungsgründe in derselben Tabelle, aber verschiedene Ursachen. Ein
+erfolgreiches C-ECHO (Verification SOP Class, real: `1.2.840.10008.1.1`)
+beweist dabei nichts über diese Aushandlung — es ist eine eigene,
+unabhängige Presentation-Context-Verhandlung. Die SOP-Class-UIDs sind
+reale, aus PS3.6 Annex A stammende Werte (siehe
+`services/engine/tests/test_abstract_syntax.py`). Nodes ohne
+`accepted_sop_classes` verhalten sich unverändert. Details und
+Begründung: ADR 0019.
+
 ## 7. Node — `de.md`
 
 ```markdown

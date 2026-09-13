@@ -193,6 +193,12 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | Worklist-Query | offen | `worklist-query-empty` |
 | Patient-Merge / Study-Split | ✅ P10.4 (kein neuer Code nötig, siehe ADR 0014) | `patient-merge-discovery` (neu) |
 
+**Zusätzlich, über die sieben Roadmap-Features hinaus:**
+
+| Feature | Status | Node(s) freigeschaltet |
+|---|---|---|
+| Abstract-Syntax-(SOP-Class-)Ablehnung | ✅ P10.9 (ADR 0019, `content-schema.md` 6d) | `verbindung-ohne-bild` (neu) |
+
 **Nebeneffekte:**
 
 - `zwei-ebenen-tiefer` und `zwillinge` waren blockiert, weil ein
@@ -208,7 +214,13 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
   Abschnitt 6c) ist das technisch lösbar. **`mitgehoert` ist seit P10.6
   fertig** (ADR 0016: drei unabhängige Fehler — Host, Port, Transfer
   Syntax — nacheinander, damit das eigentliche Lernziel "ein Log lesen
-  und erklären" geübt wird, nicht nur ein einzelner Fix).
+  und erklären" geübt wird, nicht nur ein einzelner Fix). **`verbindung-
+  ohne-bild` ist seit P10.9 fertig** (ADR 0019: neues Feature 4 —
+  Abstract-Syntax-/SOP-Class-Ablehnung, die bislang fehlende zweite
+  Hälfte von Feature 3, da ein Presentation Context Abstract Syntax und
+  Transfer Syntax unabhängig voneinander aushandelt; hier lehnt das
+  Archiv ein per Software-Update umgestelltes Enhanced-CT-Gerät ab,
+  obwohl C-ECHO grün bleibt). `halbe-sache` bleibt offen.
 
 **Nodes (vier laut Roadmap Abschnitt IV, alle fertig):**
 
@@ -219,16 +231,16 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | `syntax-negotiation-fails` | ✅ P10.3, vollständig und live verifiziert |
 | `patient-merge-discovery` | ✅ P10.4, vollständig und live verifiziert (Lektion 4.6 seit P10.8 ebenfalls vollständig — aktives serverseitiges Merge fehlt weiterhin, siehe unten) |
 
-**Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5) und
-`mitgehoert` (✅ P10.6) — keine Roadmap-Nodes, aber durch Feature 1 bzw.
-Feature 3 unblockierte Track-1-Stubs.
+**Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5),
+`mitgehoert` (✅ P10.6) und `verbindung-ohne-bild` (✅ P10.9) — keine
+Roadmap-Nodes, aber durch Feature 1 bzw. Feature 3/4 unblockierte
+Stubs.
 
-Verbleibend von den sieben Engine-Features: Multiframe-Generator (für
-Track 3) und Worklist-Query (für `worklist-query-empty`, kein
+Verbleibend von den sieben Roadmap-Engine-Features: Multiframe-Generator
+(für Track 3) und Worklist-Query (für `worklist-query-empty`, kein
 Roadmap-Pflichtnode, aber eigenständig sinnvoll). Verbleibend an
 unblockierten, aber ungeschriebenen Nodes: `halbe-sache`,
-`verbindung-ohne-bild`, `zwei-ebenen-tiefer`, `first-contact`,
-`wo-steht-das`.
+`zwei-ebenen-tiefer`, `first-contact`, `wo-steht-das`.
 
 **Track-4-Vervollständigung: begonnen.** Lektion 4.1 ("Association
 rejected") ist seit P10.7 vollständig geschrieben (echte

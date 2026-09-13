@@ -133,6 +133,31 @@ def test_syntax_negotiation_fails_is_solvable_from_the_real_content() -> None:
     assert rules.check_flag(node, state, "1.2.840.10008.1.2") is True
 
 
+def test_verbindung_ohne_bild_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 4: Enhanced CT Image Storage wird abgelehnt (Archiv
+    kennt nur klassisches CT Image Storage), nach der Korrektur kommt
+    die Study an. C-ECHO bleibt davon unberuehrt (andere Aushandlung)."""
+
+    node = content.load_node("verbindung-ohne-bild")
+    state = rules.initial_state(node)
+
+    echo_cmd = "echoscu -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.90.0.10 104"
+    echo = rules.exec_command(node, state, "workstation", echo_cmd)
+    assert echo.exit_code == 0
+
+    wrong = rules.trigger_action(node, state, "ct-9", "send_study")
+    assert wrong.events[-1]["type"] == "presentation_context_rejected"
+    assert wrong.events[-1]["reason"] == "abstract_syntax_not_supported"
+    assert state["bestand"]["archive"] == {"studies": 0, "series": 0, "instances": 0}
+
+    rules.set_config(node, state, "ct-9", "sop_class", "1.2.840.10008.5.1.4.1.1.2")
+    fixed = rules.trigger_action(node, state, "ct-9", "send_study")
+    assert fixed.events[-1]["type"] == "store_completed"
+    assert state["bestand"]["archive"]["studies"] == 1
+
+    assert rules.check_flag(node, state, "1.2.840.10008.5.1.4.1.1.2") is True
+
+
 def test_patient_merge_discovery_is_solvable_from_the_real_content() -> None:
     """P10, keine neue Engine-Logik noetig: derselbe records-Mechanismus
     aus Feature 1 (c-find-mismatch) traegt zwei Registrierungen derselben
