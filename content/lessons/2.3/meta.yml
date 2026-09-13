@@ -1,0 +1,23 @@
+id: "2.3"
+track: services
+order: 3
+duration_minutes: 12
+level: aufbau
+objectives_count: 3
+requires: ["2.1"]
+tools: [findscu]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Lab laut Curriculum: "Studie anhand von Bruchstücken finden" -- noch
+# kein passender Node-Stub vorhanden.
+lab:
+  node: null
+  optional: true
+
+glossary_terms: [c-find]
+tools_checked: "2026-09-13"
+status: draft
+updated: "2026-09-13"

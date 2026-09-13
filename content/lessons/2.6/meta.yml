@@ -1,0 +1,25 @@
+id: "2.6"
+track: services
+order: 6
+duration_minutes: 10
+level: aufbau
+objectives_count: 3
+requires: ["2.5"]
+tools: [pynetdicom, dcmdump]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+# Lab laut Curriculum: "MPPS-Ablauf mitlesen" -- noch kein passender
+# Node-Stub vorhanden. Die Spielwiese hat seit P10.21 (ADR 0031) einen
+# echten MPPS-SCP (containers/toolbox/scripts/mppsscp.py) -- dieselbe
+# Infrastruktur, die Lektion 4.8 nutzt.
+lab:
+  node: null
+  optional: true
+
+glossary_terms: [mpps]
+tools_checked: "2026-09-13"
+status: draft
+updated: "2026-09-13"

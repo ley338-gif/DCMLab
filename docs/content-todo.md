@@ -133,6 +133,49 @@ ursprüngliche Hinweis zu `lab.node: null` in allen zehn ist mit P9
 überholt — 4.2 zeigt jetzt auf die Node `verbindung-ohne-bild`, siehe
 unten.)
 
+## Track 2 — acht Gerüste angelegt, Fließtext fehlt (seit P10.24)
+
+`content/lessons/2.1` bis `2.8` existieren seit P10.24 als Gerüste
+(`status: draft`): vollständige `meta.yml` (Track, Reihenfolge, Dauer,
+`requires`, höchstens vier Werkzeuge aus der Registry, Glossarbegriffe,
+Datensatz) und eine `de.md` mit Titel, Teaser, drei Lernzielen und der
+geplanten Gliederung. Titel und Lab-Hinweise sind aus der
+Curriculum-Tabelle in `konzept-lernplattform.md` (Abschnitt 5, Track 2)
+abgeleitet, nicht erfunden. Drei fehlende, aber im Standard eindeutig
+definierte Glossarbegriffe wurden dabei ergänzt (`c-find`, `c-get`,
+`worklist`, `mpps`, `storage-commitment`) — bereits vorhandene Begriffe
+wie `c-echo`, `c-store`, `c-move` folgten demselben Muster, nur für
+diese Dienste fehlten die Einträge noch.
+
+Kein Gerüst enthält Fachprosa oder Werkzeugausgaben — Abschnitt 13 des
+Auftrags. Jede Lektion trägt unter „Was zum Schreiben noch fehlt" ihre
+eigene Liste offener Punkte:
+
+- **Ausgaben fehlen (2.1, 2.2, 2.3).** Jedes Beispiel muss in der
+  Spielwiese erzeugt und wörtlich übernommen werden — reiner
+  Schreibaufwand, keine offene Infrastrukturfrage.
+- **Infrastruktur bereits vorhanden (2.5, 2.6, 2.7).** Diese drei
+  Lektionen (Modality Worklist, MPPS, Storage Commitment) können die
+  in P10.20–P10.21 für Track 4 gebaute echte Infrastruktur direkt
+  mitnutzen (Orthancs Worklists-Plugin, ADR 0030; der eigene
+  `pynetdicom`-MPPS-SCP, ADR 0031; Orthancs native
+  Storage-Commitment-REST-API, ADR 0031) — vermutlich die am
+  schnellsten schreibbaren der acht Lektionen, da kein neuer
+  Infrastruktur-Fund zu erwarten ist. Abgrenzung zu 4.7/4.8 nötig:
+  Track 2 erklärt den Dienst selbst, Track 4 das jeweilige
+  Troubleshooting-Fehlerbild.
+- **Neue Infrastruktur nötig (2.4, 2.8).** 2.4 (C-MOVE vs. C-GET)
+  braucht für ein *echtes* Drei-Parteien-C-MOVE einen zweiten
+  Storage-Endpunkt in der Spielwiese — noch nicht vorhanden, ähnlich
+  dem ursprünglich für Track 4 angenommenen (und dort meist nicht
+  benötigten) Mehraufwand. 2.8 (DICOMweb) braucht `curl` als neu zu
+  registrierendes Werkzeug in `content/tools/de.yml` und eine
+  Verifikation, dass Orthancs QIDO-RS/WADO-RS/STOW-RS ohne weitere
+  Konfiguration laufen (bisher nur die REST-Route für Storage
+  Commitment real getestet, ADR 0031).
+
+`content:validate` meldet für die acht neuen Lektionen nichts.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0

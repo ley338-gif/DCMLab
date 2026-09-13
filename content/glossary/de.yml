@@ -141,12 +141,26 @@ c-store:
   see_also: [dimse, scu]
   lesson: "1.1"
 
+c-find:
+  term: C-FIND
+  expansion: Query/Retrieve Find Service
+  short: Suche nach Studien, Serien oder Instanzen anhand von Matching-Keys — findet, überträgt aber nichts.
+  see_also: [dimse, scu]
+  lesson: "2.3"
+
 c-move:
   term: C-MOVE
   expansion: Query/Retrieve Move Service
   short: Anforderung von Objekten, ausgeliefert über eine neue Verbindung — dabei drehen sich die Rollen um.
   see_also: [scu, scp]
   lesson: "1.5"
+
+c-get:
+  term: C-GET
+  expansion: Query/Retrieve Get Service
+  short: Anforderung von Objekten wie C-MOVE, aber ausgeliefert über dieselbe Association statt eine neue.
+  see_also: [c-move, scu]
+  lesson: "2.4"
 
 dimse:
   term: DIMSE
@@ -210,3 +224,24 @@ coercion:
   short: Das Archiv überschreibt ankommende Patientendaten aktiv gegen seinen Bestand — quittiert mit Status 0xB000.
   see_also: [patient-id, c-store]
   lesson: "4.6"
+
+worklist:
+  term: Modality Worklist
+  expansion: Modality Worklist Information Model - FIND
+  short: Eigenes Informationsmodell für geplante Untersuchungen — kein Query-Retrieve-Level wie STUDY/SERIES, sondern eine flache Liste geplanter Schritte.
+  see_also: [c-find, dimse]
+  lesson: "2.5"
+
+mpps:
+  term: MPPS
+  expansion: Modality Performed Procedure Step
+  short: Die Modalität meldet Beginn (N-CREATE) und Ende (N-SET) einer Untersuchung — unabhängig vom Bildtransfer selbst.
+  see_also: [worklist, dimse]
+  lesson: "2.6"
+
+storage-commitment:
+  term: Storage Commitment
+  expansion: Storage Commitment Push Model
+  short: Das Archiv bestätigt aktiv, ein Objekt dauerhaft übernommen zu haben — nicht nur „angekommen", sondern „gesichert".
+  see_also: [c-store, dimse]
+  lesson: "2.7"
