@@ -36,6 +36,10 @@ findscu -S -k QueryRetrieveLevel=SERIES \
         -aet DCMLAB-WS -aec <ArchivAE> 10.20.0.10 104
 ```
 
+**Was du daran abliest:** Zwei Abfragen, weil eine Abfrage auf
+Serien-Ebene die übergeordnete Study eindeutig benennen muss —
+Schritt 1 liefert die StudyInstanceUID, die Schritt 2 dann braucht.
+
 **Erster Schritt, falls du noch nie mit Kommandozeilenwerkzeugen gearbeitet hast:** Unter dem Terminal liegen fertige Befehlsvorlagen zum Anklicken. Der markierte Platzhalter wird überschrieben, dann Enter.
 
 Vorkenntnisse: Lektion 1.5. Rechne mit 15 Minuten.
@@ -79,7 +83,7 @@ $ ping 10.20.0.10
 64 bytes from 10.20.0.10: icmp_seq=1 ttl=64 time=0.31 ms
 ```
 
-Der Host antwortet. Das sagt über DICOM noch gar nichts aus, schließt aber Kabel und Routing aus.
+**Was du daran abliest:** Der Host antwortet. Das sagt über DICOM noch gar nichts aus, schließt aber Kabel und Routing aus.
 
 **2. C-ECHO von der Workstation**
 
@@ -89,7 +93,7 @@ $ echo $?
 0
 ```
 
-Erfolgreich. Das Archiv lebt, lauscht auf 104 und nimmt Verbindungen an. Der Fehler liegt also nicht am Archiv als solchem.
+**Was du daran abliest:** Erfolgreich. Das Archiv lebt, lauscht auf 104 und nimmt Verbindungen an. Der Fehler liegt also nicht am Archiv als solchem.
 
 **3. Den Fehler nachstellen**
 
@@ -103,7 +107,9 @@ CT-Konsole Raum 3 — Netzwerkkonfiguration
   Ziel-Port        : 104
 ```
 
-Damit von der Workstation aus:
+**Was du daran abliest:** Genau diese Werte — nicht die eigenen der
+Workstation — muss der nächste Testaufruf verwenden, um den Fehler der
+CT-Konsole nachzustellen. Damit von der Workstation aus:
 
 ```
 $ echoscu -aet CT_RAUM3 -aec PACS_ARCHIV 10.20.0.10 104
@@ -112,7 +118,7 @@ F:   Result: Rejected Permanent, Source: Service User
 F:   Reason: Called AE Title Not Recognized
 ```
 
-Da ist er. Und die Meldung sagt wörtlich, was los ist: Der Name, unter dem das Archiv angesprochen wurde, ist ihm fremd.
+**Was du daran abliest:** Da ist er. Und die Meldung sagt wörtlich, was los ist: Der Name, unter dem das Archiv angesprochen wurde, ist ihm fremd.
 
 **4. Vergleichen**
 
@@ -129,7 +135,7 @@ Archiv läuft als  : PACS-ARCHIV     ← Bindestrich
 CT sendet an      : PACS_ARCHIV     ← Unterstrich
 ```
 
-Ein Zeichen. AE Titles werden zeichengenau verglichen — für DICOM sind das zwei völlig verschiedene Namen.
+**Was du daran abliest:** Ein Zeichen. AE Titles werden zeichengenau verglichen — für DICOM sind das zwei völlig verschiedene Namen.
 
 **5. Korrigieren und senden**
 
@@ -145,7 +151,7 @@ Ziel-AE-Title in der CT-Konsole auf `PACS-ARCHIV` ändern, dann den Sendeauftrag
 07:15:09  Auftrag abgeschlossen – 3 von 3 Objekten übertragen
 ```
 
-Auf der Archiv-Statusseite springt gleichzeitig der Bestand von 0 auf 1 Study / 1 Series / 3 Instances.
+**Was du daran abliest:** Auf der Archiv-Statusseite springt gleichzeitig der Bestand von 0 auf 1 Study / 1 Series / 3 Instances.
 
 **6. Flag holen**
 
@@ -160,7 +166,7 @@ $ findscu -S -k QueryRetrieveLevel=SERIES \
           -aet DCMLAB-WS -aec PACS-ARCHIV 10.20.0.10 104
 ```
 
-Die Series Description aus der Antwort ist dein Flag.
+**Was du daran abliest:** Die Series Description aus der Antwort ist dein Flag.
 
 Warum zwei Schritte? Eine Abfrage auf Serien-Ebene muss die übergeordnete Ebene eindeutig benennen — im Study Root ist das die StudyInstanceUID. Die PatientID allein genügt dafür nicht, und ein strenges Archiv weist eine solche Abfrage zurück. Mehr dazu in Lektion 2.3.
 

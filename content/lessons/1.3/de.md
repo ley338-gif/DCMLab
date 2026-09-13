@@ -23,6 +23,9 @@ Das hier ist eine einzige Zeile aus `dcmdump`. Fünf Bestandteile, immer in ders
    Tag      VR        Wert                                Länge VM    Keyword
 ```
 
+**Was du daran abliest:** Fünf Bestandteile in fester Reihenfolge — die
+Tabelle darunter erklärt jeden einzeln.
+
 | Teil | Was er sagt |
 |---|---|
 | **Tag** | Die Adresse: Group und Element, je vier Hexziffern |

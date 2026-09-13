@@ -118,6 +118,9 @@ PS> Get-ChildItem *.dcm | ForEach-Object { dcmdump +P SeriesDescription $_.FullN
         Group-Object | Select-Object Count, Name
 ```
 
+**Was du daran abliest:** Dieselbe Auswertung, nur in PowerShell-Syntax
+— Inhalt und Ergebnis sind identisch mit dem Shell-Beispiel oben.
+
 ---
 
 ## „Kommt eine Verbindung überhaupt zustande?"
@@ -143,7 +146,9 @@ $ echo $?
 0
 ```
 
-Unter Windows heißt das `echo %ERRORLEVEL%`.
+**Was du daran abliest:** Der Exitcode `0` bestätigt denselben Erfolg
+wie eben, nur ohne `-v`-Textausgabe. Unter Windows heißt das
+`echo %ERRORLEVEL%`.
 
 ### Der interessantere Fall: wenn es nicht geht
 
@@ -214,6 +219,9 @@ I: Sending Store Response (Success)
 dicom
 ```
 
+**Was du daran abliest:** Dieser Filter zeigt jedes Paket, das
+Wireshark als DICOM erkennt — als Ausgangspunkt oft schon genug.
+
 oder enger, wenn viel los ist:
 
 ```
@@ -238,6 +246,10 @@ for f in sorted(Path("daten/ct-thorax").glob("*.dcm")):
     ds = dcmread(f, stop_before_pixels=True)
     print(ds.SeriesNumber, ds.Modality, ds.SeriesDescription, sep="\t")
 ```
+
+**Was du daran abliest:** Das Skript druckt für jede Datei
+SeriesNumber, Modality und SeriesDescription — die folgende Ausgabe
+zeigt das Ergebnis für den Beispielordner.
 
 ```
 2	CT	Thorax  1.0  B70f
@@ -313,7 +325,7 @@ $ storescu -v -aet MEINE-WS -aec ORTHANC 127.0.0.1 4242 daten/ct-thorax/0001.dcm
 $ dcmdump +P PatientName +P SeriesDescription daten/ct-thorax/0001.dcm
 ```
 
-Wenn `echoscu` „Received Echo Response (Success)" meldet und das Bild danach in der Weboberfläche auf Port 8042 auftaucht, hast du eine Association aufgebaut, ein DICOM-Objekt übertragen und einen Datensatz gelesen — die drei Dinge, um die sich der Rest dieses Tracks dreht.
+**Was du daran abliest:** Wenn `echoscu` „Received Echo Response (Success)" meldet und das Bild danach in der Weboberfläche auf Port 8042 auftaucht, hast du eine Association aufgebaut, ein DICOM-Objekt übertragen und einen Datensatz gelesen — die drei Dinge, um die sich der Rest dieses Tracks dreht.
 
 > **Für später, freiwillig:** Wenn du dasselbe zu Hause haben willst, reicht eine Zeile — `docker run --rm -p 4242:4242 -p 8042:8042 jodogne/orthanc` — plus DCMTK aus den Paketquellen. Dieselben AE Titles, dieselben Ports, dieselben Befehle. Auf einem Dienstrechner gilt dafür allerdings weiterhin euer Freigabeprozess; der gute Nebeneffekt ist, dass ein Antrag über null Euro leichter zu begründen ist als einer über eine vierstellige Schulung.
 
