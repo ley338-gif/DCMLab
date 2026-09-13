@@ -5,7 +5,7 @@ duration_minutes: 8
 level: aufbau
 objectives_count: 3
 requires: ["1.3"]
-tools: []
+tools: [dcmdump, dcmodify, storescu]
 
 sandbox:
   required: true
@@ -15,6 +15,7 @@ lab:
   node: null
   optional: true
 
-glossary_terms: []
-status: draft
+glossary_terms: [iod]
+tools_checked: "2026-09-13"
+status: fertig
 updated: "2026-09-13"
