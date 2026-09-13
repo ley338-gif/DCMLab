@@ -274,3 +274,39 @@ def test_mitgehoert_is_solvable_from_the_real_content() -> None:
     assert state["bestand"]["archive"] == {"studies": 1, "series": 1, "instances": 1}
 
     assert rules.check_flag(node, state, "1.2.840.10008.1.2.1") is True
+
+
+def test_worklist_query_empty_is_solvable_from_the_real_content() -> None:
+    """P10, Feature 6: der plausible, aber falsche Scheduled Station AE
+    Title liefert null Treffer -- ohne den Filter sind alle fuenf
+    geplanten Verfahren sichtbar, mit dem korrigierten Filter ebenfalls."""
+
+    node = content.load_node("worklist-query-empty")
+    state = rules.initial_state(node)
+
+    wrong = rules.exec_command(
+        node, state, "workstation",
+        "findscu -W -k PatientName= -k ScheduledStationAETitle=CT-5 "
+        "-k ScheduledProcedureStepStartDate=20260913 "
+        "-aet CT-5 -aec RIS-BROKER 10.70.0.10 104",
+    )
+    assert wrong.stdout == "I: Number of Matches: 0"
+
+    unfiltered = rules.exec_command(
+        node, state, "workstation",
+        "findscu -W -k PatientName= -k ScheduledStationAETitle= "
+        "-k ScheduledProcedureStepStartDate=20260913 "
+        "-aet CT-5 -aec RIS-BROKER 10.70.0.10 104",
+    )
+    assert "I: Number of Matches: 5" in unfiltered.stdout
+    assert "I: (0040,0001) AE [CT5-RAUM3]  # xx, 1 ScheduledStationAETitle" in unfiltered.stdout
+
+    fixed = rules.exec_command(
+        node, state, "workstation",
+        "findscu -W -k PatientName= -k ScheduledStationAETitle=CT5-RAUM3 "
+        "-k ScheduledProcedureStepStartDate=20260913 "
+        "-aet CT-5 -aec RIS-BROKER 10.70.0.10 104",
+    )
+    assert "I: Number of Matches: 5" in fixed.stdout
+
+    assert rules.check_flag(node, state, "CT5-RAUM3") is True

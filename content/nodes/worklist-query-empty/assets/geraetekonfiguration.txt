@@ -1,0 +1,11 @@
+CT-5 (Raum 3) — Servicemenue, Abschnitt DICOM
+
+Calling AE Title (dieses Geraet):     CT-5
+Ziel-AE (RIS-Broker):                 RIS-BROKER
+Ziel-Host:Port:                       10.70.0.10:104
+
+Hinweis: "Calling AE Title" ist der Name, unter dem sich dieses Geraet
+selbst meldet -- nicht zwingend derselbe Wert, unter dem der RIS-Broker
+diesen Raum in seiner Terminplanung fuehrt (Scheduled Station AE Title).
+Die beiden Werte werden in unterschiedlichen Systemen gepflegt und
+muessen manuell abgeglichen werden.

@@ -377,6 +377,8 @@ def _parse_dcmtk_args(tool: str, args: list[str]) -> dict[str, Any]:
             query_root = "STUDY"
         elif token == "-P":
             query_root = "PATIENT"
+        elif token == "-W":
+            query_root = "WORKLIST"
         elif token == "-k":
             i += 1
             key_expr = args[i]
@@ -452,6 +454,16 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
     level = parsed["keys"].get("QueryRetrieveLevel")
     archive_name = result.target_host
     archive_host = node.host(archive_name) if archive_name else None
+
+    # Feature 6 aus P10: Modality Worklist ist ein eigenes Query/Retrieve
+    # Information Model (PS3.4 Annex K, SOP Class 1.2.840.10008.5.1.4.31),
+    # kein QueryRetrieveLevel wie STUDY/SERIES -- deshalb ein eigener Zweig,
+    # ausgeloest durch das reale findscu-Flag -W statt -S/-P.
+    if parsed["query_root"] == "WORKLIST":
+        worklist = archive_host.get("worklist", []) if archive_host else []
+
+        return _exec_findscu_against_worklist(worklist, parsed["keys"])
+
     records = archive_host.get("records", []) if archive_host else []
 
     if records:
@@ -561,6 +573,45 @@ def _exec_findscu_against_records(
 
     stdout = "".join(f"I: # Dicom-Data-Set\n{block}" for block in blocks)
     stdout += f"I: Number of Matches: {len(study_matches)}"
+
+    return ExecResult(stdout=stdout)
+
+
+def _exec_findscu_against_worklist(
+    entries: list[dict[str, Any]], keys: dict[str, str | None],
+) -> ExecResult:
+    """C-FIND gegen die Modality Worklist (P10, Feature 6) -- dasselbe reale
+    Wildcard-Matching wie bei STUDY/SERIES (`app/find.py`), nur gegen
+    geplante Verfahren statt vorhandener Studies.
+    """
+    matches = find.find_worklist(entries, keys)
+
+    field_order = [
+        ("patient_id", "0010,0020", "LO", "PatientID"),
+        ("patient_name", "0010,0010", "PN", "PatientName"),
+        ("accession_number", "0008,0050", "SH", "AccessionNumber"),
+        (
+            "scheduled_station_ae_title", "0040,0001", "AE",
+            "ScheduledStationAETitle",
+        ),
+        (
+            "scheduled_procedure_step_start_date", "0040,0002", "DA",
+            "ScheduledProcedureStepStartDate",
+        ),
+        ("modality", "0008,0060", "CS", "Modality"),
+    ]
+
+    blocks = []
+    for entry in matches:
+        lines = [
+            _dcmtk_line(tag, vr, entry[field], keyword)
+            for field, tag, vr, keyword in field_order
+            if field in entry
+        ]
+        blocks.append("".join(lines))
+
+    stdout = "".join(f"I: # Dicom-Data-Set\n{block}" for block in blocks)
+    stdout += f"I: Number of Matches: {len(matches)}"
 
     return ExecResult(stdout=stdout)
 

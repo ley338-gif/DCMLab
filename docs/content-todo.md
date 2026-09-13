@@ -190,7 +190,7 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | Größenlimit (C-STORE) | ✅ P10.2 | `oversized-image` (neu) |
 | Transfer-Syntax-Aushandlung | ✅ P10.3 | `syntax-negotiation-fails` (neu) |
 | Multiframe-Generator | offen | — (Track 3) |
-| Worklist-Query | offen | `worklist-query-empty` |
+| Worklist-Query | ✅ P10.11 (ADR 0021, `content-schema.md` 6f) | `worklist-query-empty` (neu) |
 | Patient-Merge / Study-Split | ✅ P10.4 (kein neuer Code nötig, siehe ADR 0014) | `patient-merge-discovery` (neu) |
 
 **Zusätzlich, über die sieben Roadmap-Features hinaus:**
@@ -232,16 +232,19 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | `syntax-negotiation-fails` | ✅ P10.3, vollständig und live verifiziert |
 | `patient-merge-discovery` | ✅ P10.4, vollständig und live verifiziert (Lektion 4.6 seit P10.8 ebenfalls vollständig — aktives serverseitiges Merge fehlt weiterhin, siehe unten) |
 
+**Weitere, in der Roadmap an anderer Stelle namentlich genannte Nodes
+(Abschnitt III.3.5/V), inzwischen ebenfalls fertig:** `worklist-query-empty`
+(✅ P10.11, Lektion 4.7).
+
 **Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5),
 `mitgehoert` (✅ P10.6), `verbindung-ohne-bild` (✅ P10.9) und
 `teiltransfer` (✅ P10.10) — keine Roadmap-Nodes, aber durch Feature 1
 bzw. Feature 3/4/5 unblockierte Stubs.
 
-Verbleibend von den sieben Roadmap-Engine-Features: Multiframe-Generator
-(für Track 3) und Worklist-Query (für `worklist-query-empty`, kein
-Roadmap-Pflichtnode, aber eigenständig sinnvoll). Verbleibend an
-unblockierten, aber ungeschriebenen Nodes: `halbe-sache`,
-`zwei-ebenen-tiefer`, `first-contact`, `wo-steht-das`.
+Verbleibend von den sieben Roadmap-Engine-Features: nur noch der
+Multiframe-Generator (für Track 3). Verbleibend an unblockierten, aber
+ungeschriebenen Nodes: `halbe-sache`, `zwei-ebenen-tiefer`,
+`first-contact`, `wo-steht-das`.
 
 **Schema-Lücke aus P10.10:** `lessons/<id>/meta.yml` erlaubt aktuell nur
 einen einzelnen `lab.node`-Wert. Lektion 4.3 bräuchte zwei
@@ -252,6 +255,16 @@ Problem (nur der Node wurde gebaut, nicht der Lektionstext) — sobald
 Lektion 4.3 geschrieben wird, muss entweder das Schema ein
 `lab.nodes`-Array erlauben, oder die Lektion referenziert die zweite
 Node nur im Fließtext, ohne toolbar-seitige Verknüpfung.
+
+**Infrastruktur-Lücke aus P10.11:** Lektion 4.7s eigener Fließtext
+braucht laut ihrer geplanten Gliederung echte Sandbox-Beispiele mit
+`wlmscpfs` (Worklist-SCP) — die Spielwiese (P7, `containers/toolbox`)
+stellt bislang keinen Worklist-Dienst und keinen Worklist-Testdatensatz
+bereit. Das ist ein eigenständiges Infrastrukturthema (neuer Container
+oder neuer Dienst im Toolbox-Image plus Eintrag in `datasets.yml`),
+nicht Teil von P10.11 — die zugehörige Node (`worklist-query-empty`)
+ist davon unberührt, da Nodes die simulierte Engine nutzen, nicht die
+Spielwiese.
 
 **Track-4-Vervollständigung: begonnen.** Lektion 4.1 ("Association
 rejected") ist seit P10.7 vollständig geschrieben (echte

@@ -28,6 +28,19 @@ SERIES_FIELD_MAP = {
     "SeriesDescription": "series_description",
 }
 
+# Modality Worklist (PS3.4 Annex K): die fuer diese Engine relevanten Keys
+# liegen real in der Scheduled Procedure Step Sequence (0040,0100), hier wie
+# bei STUDY/SERIES vereinfacht als flache Felder auf demselben Eintrag
+# (Feature 6 aus P10).
+WORKLIST_FIELD_MAP = {
+    "PatientID": "patient_id",
+    "PatientName": "patient_name",
+    "AccessionNumber": "accession_number",
+    "ScheduledStationAETitle": "scheduled_station_ae_title",
+    "ScheduledProcedureStepStartDate": "scheduled_procedure_step_start_date",
+    "Modality": "modality",
+}
+
 
 def dicom_wildcard_match(pattern: str, value: str) -> bool:
     """DICOM-Wildcard-Matching (PS3.4 C.2.2.2.4): `*` steht fuer eine beliebige
@@ -80,3 +93,11 @@ def find_series(
     series = study.get("series", [])
 
     return [s for s in series if _matches(s, keys, SERIES_FIELD_MAP)]
+
+
+def find_worklist(
+    entries: list[dict[str, Any]], keys: dict[str, str | None],
+) -> list[dict[str, Any]]:
+    """Matcht geplante Verfahren (Scheduled Procedure Steps) gegen die
+    Query-Keys einer Modality-Worklist-C-FIND-Anfrage."""
+    return [entry for entry in entries if _matches(entry, keys, WORKLIST_FIELD_MAP)]
