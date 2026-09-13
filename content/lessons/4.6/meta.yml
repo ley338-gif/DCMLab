@@ -11,10 +11,11 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
-# ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
+# Node patient-merge-discovery deckt die Patient-ID-Doppelanlage ab (P10);
+# der zweite in dieser Lektion angedeutete Fall (Coercion/Merge, aktiv vom
+# Archiv durchgefuehrt) ist damit nicht abgedeckt. Deshalb weiterhin optional.
 lab:
-  node: null
+  node: patient-merge-discovery
   optional: true
 
 glossary_terms: [patient-id, study-instance-uid, tag]

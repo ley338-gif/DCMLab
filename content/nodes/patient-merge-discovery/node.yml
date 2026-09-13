@@ -1,0 +1,70 @@
+slug: patient-merge-discovery
+difficulty: medium
+points: 18
+category: datenmodell
+skills: [datenmodell]
+related_lessons: ["4.6"]
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.80.0.50
+      role: shell
+    - name: archive
+      ip: 10.80.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, study-root-find]
+      config_visible: false
+      # Zwei Anmeldungen derselben Person unter zwei Patient IDs -- keine
+      # Sendeaktion noetig (Feature 1 aus P10, hier ohne jede neue
+      # Engine-Logik: derselbe records-Mechanismus wie c-find-mismatch).
+      records:
+        - patient_id: "00123"
+          patient_name: "WEBER^PETRA"
+        - patient_id: "000123"
+          patient_name: "WEBER^PETRA"
+          study_uid: "1.2.276.0.7230010.3.1.4.412738605519"
+          study_description: "CT Abdomen nativ"
+          study_date: "20260228"
+          series:
+            - series_uid: "1.2.276.0.7230010.3.1.3.412738605520"
+              series_description: "Abdomen 3.0 B31f"
+
+  known_calling_aets: [DCMLAB-WS]
+
+  tools: [findscu]
+
+  files:
+    - ueberweisung.txt   # die Ueberweisung mit der (aelteren, nur teilregistrierten) Patient ID
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.find_ueberweisung
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=00123 -k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.80.0.10 104"
+    - label_key: tpl.find_wildcard
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k PatientName=ZIEL_MUSTER -k PatientID -k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.80.0.10 104"
+  placeholders: [ZIEL_MUSTER]
+
+flag:
+  type: exact
+  hash: "sha256:4403e0e0dc9196168d76660d9e6fbf9bc12342cae96d8e275e149db921dd40df"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 10
+
+status: draft
+updated: "2026-09-13"

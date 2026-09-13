@@ -131,3 +131,32 @@ def test_syntax_negotiation_fails_is_solvable_from_the_real_content() -> None:
     assert state["bestand"]["archive"]["studies"] == 1
 
     assert rules.check_flag(node, state, "1.2.840.10008.1.2") is True
+
+
+def test_patient_merge_discovery_is_solvable_from_the_real_content() -> None:
+    """P10, keine neue Engine-Logik noetig: derselbe records-Mechanismus
+    aus Feature 1 (c-find-mismatch) traegt zwei Registrierungen derselben
+    Person unter zwei Patient IDs, nur eine davon hat eine echte Study."""
+
+    node = content.load_node("patient-merge-discovery")
+    state = rules.initial_state(node)
+
+    from_referral = rules.exec_command(
+        node, state, "workstation",
+        "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=00123 "
+        "-aet DCMLAB-WS -aec KLINIK-ARCHIV 10.80.0.10 104",
+    )
+    assert "StudyInstanceUID" not in from_referral.stdout
+    assert "I: Number of Matches: 1" in from_referral.stdout
+
+    by_name = rules.exec_command(
+        node, state, "workstation",
+        "findscu -S -k QueryRetrieveLevel=STUDY -k PatientName=WEBER* -k PatientID "
+        "-k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.80.0.10 104",
+    )
+    assert "I: Number of Matches: 2" in by_name.stdout
+    assert "I: (0010,0020) LO [000123]  # xx, 1 PatientID" in by_name.stdout
+    assert "I: (0008,1030) LO [CT Abdomen nativ]  # xx, 1 StudyDescription" in by_name.stdout
+
+    assert rules.check_flag(node, state, "000123") is True
+    assert rules.check_flag(node, state, "00123") is False

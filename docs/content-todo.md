@@ -191,7 +191,7 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | Transfer-Syntax-Aushandlung | ✅ P10.3 | `syntax-negotiation-fails` (neu) |
 | Multiframe-Generator | offen | — (Track 3) |
 | Worklist-Query | offen | `worklist-query-empty` |
-| Patient-Merge / Study-Split | offen | `patient-merge-discovery`, `merge-patient` |
+| Patient-Merge / Study-Split | ✅ P10.4 (kein neuer Code nötig, siehe ADR 0014) | `patient-merge-discovery` (neu) |
 
 **Nebeneffekte, noch nicht genutzt:**
 
@@ -216,7 +216,12 @@ es jetzt könnte.
 | `c-find-mismatch` | ✅ P10.1, vollständig und live verifiziert |
 | `oversized-image` | ✅ P10.2, vollständig und live verifiziert (Lektion 4.3, teilweise — SOP-Class-Ablehnung fehlt weiterhin) |
 | `syntax-negotiation-fails` | ✅ P10.3, vollständig und live verifiziert |
-| `patient-merge-discovery` | offen (braucht Feature „Patient-Merge") |
+| `patient-merge-discovery` | ✅ P10.4, vollständig und live verifiziert (Lektion 4.6, teilweise — aktives serverseitiges Merge fehlt weiterhin) |
+
+**Alle vier von der Roadmap benannten Nodes sind jetzt fertig.**
+Verbleibend von den sieben Engine-Features: Multiframe-Generator (für
+Track 3) und Worklist-Query (für `worklist-query-empty`, nicht in der
+Vier-Nodes-Liste, aber eigenständig sinnvoll).
 
 **Track 2, Track 3, Track-4-Vervollständigung:** noch nicht begonnen.
 
