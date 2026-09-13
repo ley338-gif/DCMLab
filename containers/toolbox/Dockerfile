@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     iputils-ping \
+    tshark \
+    libcap2-bin \
     && rm -rf /var/lib/apt/lists/*
 
 COPY datasets/build/requirements.txt /opt/datasets-build/requirements.txt
@@ -19,5 +21,9 @@ RUN pip install --break-system-packages --no-cache-dir \
 COPY datasets/build/generate.py /opt/datasets-build/generate.py
 
 RUN adduser --disabled-password --gecos "" dcmlab
+# dumpcap braucht CAP_NET_RAW/CAP_NET_ADMIN, um ohne root mitzuschneiden --
+# sonst muesste jede Node/Lektion mit tshark als root laufen (Abschnitt 6:
+# Lernende bekommen keine Root-Shell in der Spielwiese).
+RUN setcap cap_net_raw,cap_net_admin=eip /usr/bin/dumpcap
 USER dcmlab
 WORKDIR /home/dcmlab

@@ -25,6 +25,22 @@ RESOURCE_LIMITS = {
     "pids_limit": 128,
 }
 
+# Die Toolbox braucht eine gezielte Ausnahme von "no-new-privileges":
+# `dumpcap` (tshark) laeuft als nicht-root-Nutzer "dcmlab" und bekommt
+# CAP_NET_RAW/CAP_NET_ADMIN ausschliesslich ueber eine Datei-Capability
+# auf genau dieses eine Binary (`setcap`, siehe
+# containers/toolbox/Dockerfile) -- "no-new-privileges" wuerde exakt
+# diesen Mechanismus blockieren (das Docker-Daemon-Capability-Bit
+# `cap_add` allein reicht nicht, siehe ADR 0029). Orthanc (der
+# DICOM-SCP im selben Netzwerk-Namespace) behaelt die Einschraenkung
+# unveraendert; die Toolbox bekommt ohnehin nur die beiden minimalen
+# Capabilities dazu, keine root-Rechte und weiterhin kein Egress
+# (--internal-Netz, unveraendert).
+TOOLBOX_RESOURCE_LIMITS = {
+    **{k: v for k, v in RESOURCE_LIMITS.items() if k != "security_opt"},
+    "cap_add": ["NET_RAW", "NET_ADMIN"],
+}
+
 
 @dataclass
 class SessionContainers:
@@ -72,7 +88,7 @@ def build_session(
         network_mode=f"container:{orthanc.id}",
         command=["sleep", "infinity"],
         volumes={volume_name: {"bind": f"/home/dcmlab/daten/{dataset_slug}", "mode": "ro"}},
-        **RESOURCE_LIMITS,
+        **TOOLBOX_RESOURCE_LIMITS,
     )
 
     return SessionContainers(network_name, volume_name, orthanc, toolbox)
