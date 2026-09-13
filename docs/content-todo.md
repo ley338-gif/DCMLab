@@ -153,7 +153,16 @@ eigene Liste offener Punkte:
 
 - **Ausgaben fehlen (2.1, 2.2, 2.3).** Jedes Beispiel muss in der
   Spielwiese erzeugt und wörtlich übernommen werden — reiner
-  Schreibaufwand, keine offene Infrastrukturfrage.
+  Schreibaufwand, keine offene Infrastrukturfrage. **2.1 ist seit
+  P10.28 vollständig geschrieben** — vier echte Beispiele (erfolgreicher
+  C-ECHO mit explizitem DIMSE-Status, Presentation-Context-Mitschnitt
+  mit genau einer Context, `tshark`-Mitschnitt des vollständigen
+  Zyklus, Transport-Fehler gegen einen geschlossenen Port). Die
+  AE-Title-Großzügigkeit der Spielwiese (ADR 0017) wurde dabei in
+  einer frischen Sitzung erneut real bestätigt statt nur zitiert —
+  Lektion verweist ehrlich auf Node „Silent CT" für den
+  Ablehnungsfall. Siehe ADR 0038. `tools` um `tshark` ergänzt. Noch
+  offen: 2.2, 2.3.
 - **Infrastruktur bereits vorhanden (2.5, 2.6, 2.7).** Diese drei
   Lektionen (Modality Worklist, MPPS, Storage Commitment) können die
   in P10.20–P10.21 für Track 4 gebaute echte Infrastruktur direkt
