@@ -575,6 +575,13 @@ jede Lektion, die eine serverseitige Ablehnung zeigen will.
 **Track 2:** seit P10.32 vollständig geschrieben (alle acht Lektionen,
 siehe oben). **Track 3:** noch nicht begonnen.
 
+**Zehn vorbestehende mypy-Fehler in `services/sandbox/tests/
+test_orchestrator.py` (in ADR 0042 vermerkt, hier nachgetragen):**
+seit P10.33 behoben — fehlende Typannotationen ergänzt, `str | None`
+mit `assert ... is not None` an der Quelle verengt statt an jeder
+Aufrufstelle. Siehe ADR 0043. Reine Typkorrektur, kein
+Content-Bezug.
+
 **Lokale Umgebung (seit P10.8 beobachtet, kein Content-Problem):** Die
 lokale PHP-Installation (`8.4.0`) erfüllt `composer.lock`s Anforderung
 `>= 8.4.1` nicht mehr — betrifft `main` unverändert, nicht nur diesen

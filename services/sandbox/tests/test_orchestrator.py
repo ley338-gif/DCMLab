@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import fakeredis
 import pytest
@@ -42,7 +43,9 @@ def redis_client() -> fakeredis.FakeRedis:
 def _fake_docker_ops(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     built: list[str] = []
 
-    def fake_build_session(_client, *, sandbox_id, dataset_slug, dataset_params):  # noqa: ANN001
+    def fake_build_session(
+        _client: Any, *, sandbox_id: str, dataset_slug: str, dataset_params: dict[str, Any],
+    ) -> FakeSession:
         built.append(sandbox_id)
         return FakeSession(
             network_name=f"net-{sandbox_id}",
@@ -51,10 +54,10 @@ def _fake_docker_ops(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             toolbox=FakeContainer(f"toolbox-{sandbox_id}"),
         )
 
-    def fake_exec_command(_client, toolbox_container_id, command):  # noqa: ANN001
+    def fake_exec_command(_client: Any, toolbox_container_id: str, command: str) -> dict[str, Any]:
         return {"exit_code": 0, "stdout": f"ran: {command}", "stderr": ""}
 
-    def fake_teardown_session(_client, *, network_name, volume_name):  # noqa: ANN001
+    def fake_teardown_session(_client: Any, *, network_name: str, volume_name: str) -> None:
         pass
 
     monkeypatch.setattr("app.orchestrator.docker_ops.build_session", fake_build_session)
@@ -105,11 +108,13 @@ def test_create_sandbox_queues_when_at_capacity(redis_client: fakeredis.FakeRedi
 
 
 def test_deleting_a_sandbox_promotes_the_next_queued_request(
-    redis_client: fakeredis.FakeRedis, _fake_docker_ops,
+    redis_client: fakeredis.FakeRedis, _fake_docker_ops: list[str],
 ) -> None:
     a = orchestrator.create_sandbox(redis_client, None, user_id="u1", dataset_slug="d")
     orchestrator.create_sandbox(redis_client, None, user_id="u2", dataset_slug="d")
     queued = orchestrator.create_sandbox(redis_client, None, user_id="u3", dataset_slug="d")
+    assert a.sandbox_id is not None
+    assert queued.sandbox_id is not None
 
     orchestrator.delete_sandbox(redis_client, None, sandbox_id=a.sandbox_id)
 
@@ -132,6 +137,7 @@ def test_quota_exceeded_raises(redis_client: fakeredis.FakeRedis) -> None:
 
 def test_exec_command_touches_activity(redis_client: fakeredis.FakeRedis) -> None:
     view = orchestrator.create_sandbox(redis_client, None, user_id="u1", dataset_slug="d")
+    assert view.sandbox_id is not None
     sandbox = state.get_active(redis_client, view.sandbox_id)
     assert sandbox is not None
     original_activity = sandbox.last_activity_at
@@ -153,6 +159,7 @@ def test_cleanup_removes_idle_sandboxes_and_records_quota(
     redis_client: fakeredis.FakeRedis,
 ) -> None:
     view = orchestrator.create_sandbox(redis_client, None, user_id="u1", dataset_slug="d")
+    assert view.sandbox_id is not None
     sandbox = state.get_active(redis_client, view.sandbox_id)
     assert sandbox is not None
 
