@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $level
  * @property int $hours
  * @property string $status
+ * @property-read int $completed_lessons_count Nur gesetzt nach withCount('lessons as completed_lessons_count' => ...)
  */
 #[Fillable(['slug', 'order', 'title_key', 'level', 'hours', 'status'])]
 class Track extends Model
