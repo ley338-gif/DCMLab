@@ -337,10 +337,29 @@ def _exec_dcmdump(node: NodeDefinition, args: list[str]) -> ExecResult:
     objects = node.raw.get("environment", {}).get("objects", [])
     obj = next((o for o in objects if o["filename"] == filename), None)
 
-    if obj is None or "sop_class" not in obj:
+    dcmdump_fields = ("sop_class", "transfer_syntax", "lossy_image_compression")
+    if obj is None or not any(field in obj for field in dcmdump_fields):
         return ExecResult(stderr="dcmdump: keine lokale Datei in dieser Simulation.", exit_code=1)
 
-    return ExecResult(stdout=_dcmtk_line("0008,0016", "UI", obj["sop_class"], "SOPClassUID"))
+    lines = []
+    if "transfer_syntax" in obj:
+        # Feature 7 aus P10: die Transfer Syntax steht real in der File Meta
+        # Information (Gruppe 0002), nicht im Dataset selbst -- dcmdump zeigt
+        # beide Gruppen in einem Aufruf.
+        lines.append(_dcmtk_line("0002,0010", "UI", obj["transfer_syntax"], "TransferSyntaxUID"))
+    if "sop_class" in obj:
+        lines.append(_dcmtk_line("0008,0016", "UI", obj["sop_class"], "SOPClassUID"))
+    if "lossy_image_compression" in obj:
+        # PS3.3 C.7.6.1.1.5: bei verlustbehafteter Kompression PFLICHTFELD,
+        # sonst nicht vorhanden -- fehlt es trotz verlustbehafteter Transfer
+        # Syntax, ist genau das die "halbe Sache".
+        lines.append(
+            _dcmtk_line(
+                "0028,2110", "CS", obj["lossy_image_compression"], "LossyImageCompression",
+            ),
+        )
+
+    return ExecResult(stdout="".join(lines))
 
 
 def _exec_help(node: NodeDefinition) -> ExecResult:

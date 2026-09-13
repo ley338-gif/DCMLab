@@ -498,6 +498,30 @@ Nodes ohne `worklist` verhalten sich unverändert; `-S`/`-P` fragen
 weiterhin ausschließlich `records` ab, nie `worklist`. Details und
 Begründung: ADR 0021.
 
+### 6g. `dcmdump` auf Objekt-Metadaten (ab P10)
+
+Für Nodes, in denen reines Inspizieren lokaler Objekte die Aufgabe ist
+(kein Senden, kein C-FIND) — etwa ein Vergleich derselben Serie in
+verschiedenen Transfer Syntaxen — kann `dcmdump <datei>` (Abschnitt 6b:
+`environment.objects`) zusätzliche Felder pro Objekt anzeigen:
+
+```yaml
+objects:
+  - filename: "schicht-01.dcm"
+    bytes: 52224
+    transfer_syntax: "1.2.840.10008.1.2.4.50"   # File Meta (0002,0010)
+    sop_class: "1.2.840.10008.5.1.4.1.1.2"      # Dataset (0008,0016)
+    lossy_image_compression: "01"                # Dataset (0028,2110)
+```
+
+Jedes vorhandene Feld erzeugt eine eigene, real getaggte `dcmdump`-Zeile;
+fehlende Felder werden nicht ausgegeben — genau wie bei einer echten
+Datei, der ein optionales oder (bei verlustfreier Kompression bzw.
+fehlender Kennzeichnung) nicht vorhandenes Element fehlt. `objects` ohne
+eines dieser Felder verhalten sich unverändert (weiterhin der
+Fallback-Fehler `"keine lokale Datei in dieser Simulation"`). Details
+und Begründung: ADR 0022.
+
 ## 7. Node — `de.md`
 
 ```markdown
