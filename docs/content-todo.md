@@ -292,8 +292,16 @@ korrekt auf Node `silent-ct` als Lab. **Lektion 4.6 ("Falscher
 Patient") ist seit P10.8 ebenfalls vollständig geschrieben** — anders
 als 4.1 ist ihr Thema (Patient zweimal registriert) voll live
 reproduzierbar, keine `<!-- kein-beispiel -->`-Blöcke nötig (siehe ADR
-0018); neuer Glossarbegriff `coercion` ergänzt. Restliche acht
-Track-4-Lektionen (4.2–4.5, 4.7–4.10) sind weiterhin Gerüst.
+0018); neuer Glossarbegriff `coercion` ergänzt. **Lektion 4.2
+("Verbindung steht, aber nichts kommt an") ist seit P10.15 ebenfalls
+vollständig geschrieben** — ihr Thema (Presentation-Context-Ablehnung)
+ist wie bei 4.1 in der aktuellen Spielwiese nicht live reproduzierbar
+(zweiter, unabhängiger Beleg für denselben Infrastruktur-Fund, siehe
+ADR 0025); reale Beispiele decken die erfolgreiche Aushandlung ab
+(`storescu -d -cx` zeigt Proposed/Accepted sauber nebeneinander), die
+eigentliche Ablehnung verweist ehrlich auf Node `verbindung-ohne-bild`.
+Restliche sieben Track-4-Lektionen (4.3–4.5, 4.7–4.10) sind weiterhin
+Gerüst.
 
 **Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
 P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
@@ -308,6 +316,13 @@ C-ECHO/C-STORE-Grundlagen). Redaktionelle/technische Entscheidung nötig:
 entweder Lektionen verweisen für diesen Fehlertyp konsequent auf Nodes
 (wie in 4.1 gelöst), oder die Spielwiese bekommt optional eine
 strengere Konfiguration (eigene Aufgabe, nicht Teil von P10.7).
+**P10.15 bestätigt dieselbe Großzügigkeit für Presentation-Context-
+Ablehnungen:** Orthanc nimmt in diesem Aufbau auch verlustbehaftet
+komprimierte Objekte (JPEG Lossless) anstandslos an — keine
+SOP-Class- oder Transfer-Syntax-Ablehnung live erzeugbar (ADR 0025).
+Die Redaktionsentscheidung von 4.1 gilt damit für mindestens zwei
+unabhängige Fehlerklassen und dürfte weitere Track-4-Lektionen
+betreffen, die noch nicht geschrieben sind (z. B. 4.9, TLS-Fehler).
 
 **Track 2, Track 3:** noch nicht begonnen.
 
