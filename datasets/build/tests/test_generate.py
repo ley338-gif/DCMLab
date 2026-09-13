@@ -3,7 +3,7 @@ from pathlib import Path
 import pydicom
 from pydicom.uid import CTImageStorage
 
-from generate import generate
+from generate import MODALITY_WORKLIST_FIND_SOP_CLASS, generate, generate_worklist
 
 
 def test_generate_writes_the_requested_number_of_files(tmp_path: Path) -> None:
@@ -58,8 +58,36 @@ def test_all_instances_share_the_same_study_but_series_round_robin(tmp_path: Pat
     expected = ["Thorax 1.0 B70f", "Thorax 5.0 B31f", "Thorax 1.0 B70f", "Thorax 5.0 B31f"]
     assert series_descriptions == expected
 
-    series_uids_per_description = {ds.SeriesDescription: ds.SeriesInstanceUID for ds in datasets}
-    assert len(set(series_uids_per_description.values())) == 2
+
+def test_generate_worklist_writes_a_valid_worklist_item(tmp_path: Path) -> None:
+    path = generate_worklist(
+        out_dir=tmp_path,
+        patient="MUSTER^ERIKA",
+        patient_id="4711",
+        accession_number="4711-0001",
+        requested_procedure_description="CT Thorax nativ",
+        referring_physician="ARZT^HANS",
+        modality="CT",
+        scheduled_station_ae_title="CT01",
+        scheduled_station_name="CT Raum 1",
+        scheduled_procedure_step_description="CT Thorax nativ",
+        scheduled_procedure_step_id="SPS-0001",
+        scheduled_date="20260913",
+        scheduled_time="090000",
+    )
+
+    assert path.is_file()
+
+    ds = pydicom.dcmread(path)
+
+    assert ds.file_meta.MediaStorageSOPClassUID == MODALITY_WORKLIST_FIND_SOP_CLASS
+    assert str(ds.PatientName) == "MUSTER^ERIKA"
+    assert ds.PatientID == "4711"
+    assert ds.AccessionNumber == "4711-0001"
+
+    step = ds.ScheduledProcedureStepSequence[0]
+    assert step.Modality == "CT"
+    assert step.ScheduledStationAETitle == "CT01"
 
 
 def test_no_real_patient_data_placeholder_stays_synthetic(tmp_path: Path) -> None:

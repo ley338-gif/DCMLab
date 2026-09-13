@@ -112,10 +112,14 @@ eigene Liste offener Punkte. Quer durch alle zehn sind das drei Muster:
 
 - **Ausgaben fehlen.** Jedes Beispiel muss in der Spielwiese erzeugt und
   wörtlich übernommen werden. Das ist der Hauptteil der Arbeit.
-- **Die Spielwiese kann das Szenario noch nicht.** Betrifft 4.7 (kein
-  Worklist-Dienst, `wlmscpfs` ist nur in der Registry vorgesehen), 4.8 (kein
-  MPPS-, kein Storage-Commitment-Gegenpart) und 4.9 (kein TLS-Endpunkt).
-  Diese drei Lektionen sind ohne Ausbau der Spielwiese nicht schreibbar.
+- **Die Spielwiese kann das Szenario noch nicht.** Betraf ursprünglich 4.7
+  (kein Worklist-Dienst), 4.8 (kein MPPS-, kein
+  Storage-Commitment-Gegenpart) und 4.9 (kein TLS-Endpunkt). **4.7 ist seit
+  P10.20 keine Ausnahme mehr:** Orthanc (das in diesem Projekt verwendete
+  Image) bringt ein Worklists-Plugin bereits mit — es musste nur per
+  Konfiguration aktiviert werden, kein neuer Container nötig (siehe ADR
+  0030 und den neuen Abschnitt unten). 4.8 und 4.9 sind weiterhin ohne
+  Ausbau der Spielwiese nicht schreibbar.
 - **Datensätze fehlen.** 4.3 braucht einen Datensatz mit gemischten SOP
   Classes, 4.5 zwei Studies, die gleich aussehen und verschiedene Study
   Instance UIDs tragen (Lektion 1.4 nennt dieses Lab bereits). Beide wären
@@ -276,15 +280,22 @@ nur namentlich genannt, ohne toolbar-seitige Verknüpfung (siehe ADR
 Lösung (PHP-Controller + Vue-Komponente betroffen) — nicht gebaut, da
 die Übergangslösung ausreicht.
 
-**Infrastruktur-Lücke aus P10.11:** Lektion 4.7s eigener Fließtext
-braucht laut ihrer geplanten Gliederung echte Sandbox-Beispiele mit
-`wlmscpfs` (Worklist-SCP) — die Spielwiese (P7, `containers/toolbox`)
-stellt bislang keinen Worklist-Dienst und keinen Worklist-Testdatensatz
-bereit. Das ist ein eigenständiges Infrastrukturthema (neuer Container
-oder neuer Dienst im Toolbox-Image plus Eintrag in `datasets.yml`),
-nicht Teil von P10.11 — die zugehörige Node (`worklist-query-empty`)
-ist davon unberührt, da Nodes die simulierte Engine nutzen, nicht die
-Spielwiese.
+**Infrastruktur-Lücke aus P10.11, geschlossen in P10.20:** Lektion
+4.7s eigener Fließtext brauchte laut ihrer geplanten Gliederung echte
+Sandbox-Beispiele für die Modality Worklist — die Spielwiese (P7,
+`containers/toolbox`) stellte bislang keinen Worklist-Dienst und
+keinen Worklist-Testdatensatz bereit. Der ursprünglich angenommene
+Aufwand (neuer Container oder neuer Dienst im Toolbox-Image) hat sich
+beim tatsächlichen Bauen als unnötig erwiesen: Orthanc selbst
+(`orthancteam/orthanc`) bringt das Worklists-Plugin bereits mit, es
+musste nur aktiviert werden (`containers/orthanc/orthanc.json`).
+`datasets/build/generate.py` erzeugt seit P10.20 zusätzlich echte
+Worklist-Einträge (Subcommand `worklist`, neuer Eintrag in
+`content/worklists.yml`), die der Sandbox-Orchestrator pro Sitzung
+frisch generiert und in Orthanc einhängt. Lektion 4.7 ist damit
+vollständig geschrieben, siehe ADR 0030 — die zugehörige Node
+(`worklist-query-empty`) war davon unberührt, da Nodes die simulierte
+Engine nutzen, nicht die Spielwiese.
 
 **Track-4-Vervollständigung: begonnen.** Lektion 4.1 ("Association
 rejected") ist seit P10.7 vollständig geschrieben (echte
@@ -341,8 +352,34 @@ DICOM-Dissektion (A-ASSOCIATE, P-DATA, A-RELEASE) und ein
 mehreren Associations. Dabei wurde ein bisher unbekannter
 Infrastruktur-Fund gemacht und behoben, siehe ADR 0029 und den neuen
 Abschnitt unten. Kein Lab nötig — kein passender Node-Stub,
-`lab.node` bleibt `null`. Restliche zwei Track-4-Lektionen (4.7, 4.8)
-und Lektion 4.9 sind weiterhin Gerüst.
+`lab.node` bleibt `null`. **Lektion 4.7 ("Worklist ist leer") ist seit
+P10.20 ebenfalls vollständig geschrieben** — vollständig real, kein
+`<!-- kein-beispiel -->`-Block nötig: ein `findscu -W` mit passendem
+Modality-Filter liefert den für die Sitzung real generierten
+Worklist-Auftrag, derselbe Aufruf mit nicht-passendem Filter liefert
+ein echtes leeres Ergebnis (dieselbe `Find SCP Result: 0x0000
+(Success)`-Zeile, nur ohne jede Antwort davor — genau die
+Ununterscheidbarkeit, um die es in der Lektion geht), dazu ein echter
+`tshark`-Mitschnitt der zugrundeliegenden C-FIND-Assoziation. Dafür
+musste die Spielwiese erstmals einen echten Worklist-Dienst bekommen —
+Orthancs eigenes Worklists-Plugin, siehe ADR 0030 und den neuen
+Abschnitt unten. Restliche Track-4-Lektion 4.8 und Lektion 4.9 sind
+weiterhin Gerüst.
+
+**Neue Spielwiese-Fähigkeit aus P10.20: ein echter
+Modality-Worklist-Dienst.** Ursprünglich (P10.11) als eigenständiges
+Infrastrukturthema mit angenommenem Aufwand (neuer Container oder
+Dienst im Toolbox-Image) zurückgestellt — beim tatsächlichen Bauen
+zeigte sich, dass Orthanc (`orthancteam/orthanc`) das
+Worklists-Plugin bereits mitbringt und nur per Konfiguration aktiviert
+werden musste. `datasets/build/generate.py` hat dafür einen neuen
+Subcommand `worklist` bekommen (parallel zu `ct`), `content/worklists.yml`
+definiert den Auftrag (analog zu `content/datasets.yml`), und der
+Sandbox-Orchestrator generiert pro Sitzung einen frischen,
+real gültigen Worklist-Eintrag mit aktuellem Datum und mountet ihn in
+Orthanc ein. Details und vollständige Verifikation (inklusive der
+echten "Spielwiese beenden"-Aktion, die auch das neue Volume korrekt
+entfernt) in ADR 0030.
 
 **Neue Spielwiese-Fähigkeit aus P10.19: `tshark` ist jetzt echt
 nutzbar.** Fünf `meta.yml`-Dateien (1.8, 4.1, 4.2, 4.4, 4.10)

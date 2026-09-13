@@ -12,14 +12,15 @@ sandbox:
   dataset: ct-thorax-60
 
 # Node worklist-query-empty ist seit P10.11 vollstaendig und live
-# verifiziert (Feature 6: Modality Worklist, ADR 0021). Die Spielwiese hat
-# weiterhin keinen Worklist-Dienst (wlmscpfs) -- der eigene Fliesstext dieser
-# Lektion bleibt deshalb Geruest, siehe docs/content-todo.md.
+# verifiziert (Feature 6: Modality Worklist, ADR 0021). Seit P10.20 hat die
+# Spielwiese selbst einen echten Worklist-Dienst (Orthancs Worklists-Plugin,
+# siehe ADR 0030) -- der eigene Fliesstext dieser Lektion ist damit
+# vollstaendig geschrieben.
 lab:
   node: worklist-query-empty
   optional: false
 
 glossary_terms: [scu, scp, association]
 tools_checked: "2026-09-13"
-status: draft
+status: fertig
 updated: "2026-09-13"

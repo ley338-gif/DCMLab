@@ -10,5 +10,9 @@
   "DicomAlwaysAllowFind": true,
   "DicomAlwaysAllowFindWorklist": true,
   "DicomAlwaysAllowMove": true,
-  "DicomAlwaysAllowGet": true
+  "DicomAlwaysAllowGet": true,
+  "Worklists": {
+    "Enable": true,
+    "Database": "/worklists"
+  }
 }
