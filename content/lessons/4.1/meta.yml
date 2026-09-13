@@ -11,13 +11,11 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
-# ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
 lab:
-  node: null
-  optional: true
+  node: silent-ct
+  optional: false
 
 glossary_terms: [called-ae-title, calling-ae-title, association]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

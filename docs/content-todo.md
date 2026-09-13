@@ -230,7 +230,27 @@ unblockierten, aber ungeschriebenen Nodes: `halbe-sache`,
 `verbindung-ohne-bild`, `zwei-ebenen-tiefer`, `first-contact`,
 `wo-steht-das`.
 
-**Track 2, Track 3, Track-4-Vervollständigung:** noch nicht begonnen.
+**Track-4-Vervollständigung: begonnen.** Lektion 4.1 ("Association
+rejected") ist seit P10.7 vollständig geschrieben (echte
+Sandbox-Beispiele, kein Node-Text kopiert — siehe ADR 0017) und zeigt
+korrekt auf Node `silent-ct` als Lab. Restliche neun Track-4-Lektionen
+(4.2–4.10) sind weiterhin Gerüst.
+
+**Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
+P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
+(`containers/orthanc/orthanc.json`, ADR 0008) **jeden** Called/Calling
+AE Title — verifiziert mit `echoscu -aet BELIEBIGER-NAME -aec
+FALSCHER-NAME 127.0.0.1 4242`, erfolgreich angenommen. Das heißt: Eine
+AE-Title-basierte Association-Ablehnung lässt sich in der aktuellen
+Spielwiese **nicht** live erzeugen — nur in den simulierten Nodes. Das
+betrifft nicht nur Lektion 4.1, sondern jede künftige Lektion, die genau
+diesen Fehler in der Spielwiese demonstrieren will (potenziell Track 2,
+C-ECHO/C-STORE-Grundlagen). Redaktionelle/technische Entscheidung nötig:
+entweder Lektionen verweisen für diesen Fehlertyp konsequent auf Nodes
+(wie in 4.1 gelöst), oder die Spielwiese bekommt optional eine
+strengere Konfiguration (eigene Aufgabe, nicht Teil von P10.7).
+
+**Track 2, Track 3:** noch nicht begonnen.
 
 ## CI
 
