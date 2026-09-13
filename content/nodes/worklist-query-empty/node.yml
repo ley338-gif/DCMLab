@@ -1,0 +1,90 @@
+slug: worklist-query-empty
+difficulty: medium
+points: 15
+category: integration
+skills: [integration, netzwerk]
+related_lessons: ["4.7"]
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.70.0.50
+      role: shell
+    - name: archive
+      ip: 10.70.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: RIS-BROKER
+          accepts: [verification, modality-worklist-find]
+      config_visible: false
+      # Fuenf fuer heute geplante Verfahren -- der RIS-Broker fuehrt den
+      # Raum unter einem anderen AE Title, als am Geraet eingetragen ist
+      # (siehe geraetekonfiguration.txt).
+      worklist:
+        - patient_id: "20261"
+          patient_name: "MEYER^HANS"
+          accession_number: "A20261"
+          scheduled_station_ae_title: "CT5-RAUM3"
+          scheduled_procedure_step_start_date: "20260913"
+          modality: "CT"
+        - patient_id: "20262"
+          patient_name: "SCHMIDT^ANNA"
+          accession_number: "A20262"
+          scheduled_station_ae_title: "CT5-RAUM3"
+          scheduled_procedure_step_start_date: "20260913"
+          modality: "CT"
+        - patient_id: "20263"
+          patient_name: "WEBER^JONAS"
+          accession_number: "A20263"
+          scheduled_station_ae_title: "CT5-RAUM3"
+          scheduled_procedure_step_start_date: "20260913"
+          modality: "CT"
+        - patient_id: "20264"
+          patient_name: "FISCHER^LENA"
+          accession_number: "A20264"
+          scheduled_station_ae_title: "CT5-RAUM3"
+          scheduled_procedure_step_start_date: "20260913"
+          modality: "CT"
+        - patient_id: "20265"
+          patient_name: "KOCH^PAUL"
+          accession_number: "A20265"
+          scheduled_station_ae_title: "CT5-RAUM3"
+          scheduled_procedure_step_start_date: "20260913"
+          modality: "CT"
+
+  known_calling_aets: [CT-5]
+
+  tools: [findscu]
+
+  files:
+    - geraetekonfiguration.txt   # Auszug aus dem Servicemenue des CT-Geraets
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.worklist_device_filter
+      command: "findscu -W -k PatientName= -k ScheduledStationAETitle=CT-5 -k ScheduledProcedureStepStartDate=20260913 -aet CT-5 -aec RIS-BROKER 10.70.0.10 104"
+    - label_key: tpl.worklist_no_filter
+      command: "findscu -W -k PatientName= -k ScheduledStationAETitle= -k ScheduledProcedureStepStartDate=20260913 -aet CT-5 -aec RIS-BROKER 10.70.0.10 104"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:99da2867b1b5eb10246b9dccb03700690481554068e6f24571ff5f328722723f"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 10
+
+status: draft
+updated: "2026-09-13"

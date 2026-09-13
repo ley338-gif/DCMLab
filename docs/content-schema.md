@@ -458,6 +458,46 @@ so kann die Ursache schon vor dem Sendeversuch nachgewiesen werden.
 Objekte ohne `sop_class` und Nodes ohne `accepted_sop_classes`
 verhalten sich unverändert. Details und Begründung: ADR 0020.
 
+### 6f. Modality Worklist (ab P10)
+
+Modality Worklist ist ein eigenes Query/Retrieve Information Model
+(PS3.4 Annex K, SOP Class Modality Worklist Information Model - FIND,
+real: `1.2.840.10008.5.1.4.31`) — kein `QueryRetrieveLevel` wie
+STUDY/SERIES (Abschnitt 6a), sondern eine flache Liste geplanter
+Verfahren (Scheduled Procedure Steps). Ein Archiv-Host trägt dafür
+`worklist` statt `records`:
+
+```yaml
+environment:
+  hosts:
+    - name: archive
+      services:
+        - port: 104
+          ae_title: RIS-BROKER
+          accepts: [verification, modality-worklist-find]
+      worklist:
+        - patient_id: "20261"
+          patient_name: "MEYER^HANS"
+          accession_number: "A20261"
+          scheduled_station_ae_title: "CT5-RAUM3"
+          scheduled_procedure_step_start_date: "20260913"
+          modality: "CT"
+```
+
+Ausgelöst wird die Abfrage über das reale `findscu`-Flag `-W` (statt
+`-S`/`-P`) — matcht dann per Wildcard (dieselbe `dicom_wildcard_match`
+aus Abschnitt 6a) gegen `worklist` statt `records`. Eine leere Antwort
+ist dabei technisch immer eine **gültige** Antwort, kein Fehler — genau
+das macht das typische Fehlerbild "Worklist leer" aus: ein plausibler,
+aber falscher Query-Key (häufig `ScheduledStationAETitle`, real
+Tag `(0040,0001)`) liefert `Number of Matches: 0`, ohne dass irgendwas
+technisch schiefgeht. Die vereinfacht flachen Felder stehen real in der
+Scheduled Procedure Step Sequence `(0040,0100)` — dieselbe Vereinfachung
+wie bei STUDY/SERIES (Abschnitt 6a), keine echte Sequenz-Verschachtelung.
+Nodes ohne `worklist` verhalten sich unverändert; `-S`/`-P` fragen
+weiterhin ausschließlich `records` ab, nie `worklist`. Details und
+Begründung: ADR 0021.
+
 ## 7. Node — `de.md`
 
 ```markdown

@@ -11,13 +11,15 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-# Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
-# ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
+# Node worklist-query-empty ist seit P10.11 vollstaendig und live
+# verifiziert (Feature 6: Modality Worklist, ADR 0021). Die Spielwiese hat
+# weiterhin keinen Worklist-Dienst (wlmscpfs) -- der eigene Fliesstext dieser
+# Lektion bleibt deshalb Geruest, siehe docs/content-todo.md.
 lab:
-  node: null
-  optional: true
+  node: worklist-query-empty
+  optional: false
 
 glossary_terms: [scu, scp, association]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"
