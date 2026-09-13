@@ -323,8 +323,15 @@ markiert (ADR 0027). Kein Lab nötig — kein passender Node-Stub
 vorhanden, `lab.node` bleibt `null`. Nebenbei einen YAML-Fehler in der
 Objectives-Frontmatter gefunden und behoben (unquotierter Doppelpunkt
 führte zu einer sichtbar falsch gerenderten Zuordnung statt Klartext).
-Restliche fünf Track-4-Lektionen (4.5, 4.7–4.10) sind weiterhin
-Gerüst.
+**Lektion 4.5 ("Studie ist gesplittet / doppelt") ist seit P10.18
+ebenfalls vollständig geschrieben** — wie 4.6 vollständig real, kein
+`<!-- kein-beispiel -->`-Block nötig: Split (zwei Studies, frische
+UIDs) und Dublette (dieselbe Study zweimal gesendet) wurden beide real
+erzeugt und zeigen am Archiv fundamental unterschiedliches Verhalten
+(zwei `findscu`-Responses vs. unveränderte Instance-Zahl), siehe ADR
+0028. Kein Lab nötig — Node „Zwillinge" (1.4) behandelt ein verwandtes,
+aber anderes Problem und wird nur verlinkt. Restliche vier
+Track-4-Lektionen (4.7–4.10) sind weiterhin Gerüst.
 
 **Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
 P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
