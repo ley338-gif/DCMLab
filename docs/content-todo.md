@@ -228,11 +228,26 @@ eigene Liste offener Punkte:
   `StudyInstanceUID` als Identifier (ein `PatientID`-only-C-MOVE
   scheitert mit einem klaren Fehler), anders als C-FIND. Siehe ADR
   0041. `tools` um `tshark` ergänzt (jetzt am Vier-Werkzeuge-Limit).
-  2.8 (DICOMweb) braucht weiterhin `curl` als neu zu registrierendes
-  Werkzeug in `content/tools/de.yml` und eine Verifikation, dass
-  Orthancs QIDO-RS/WADO-RS/STOW-RS ohne weitere Konfiguration laufen
-  (bisher nur die REST-Route für Storage Commitment real getestet,
-  ADR 0031) — als einzige verbleibende Lektion noch offen.
+  **2.8 (DICOMweb) ist seit P10.32 ebenfalls vollständig geschrieben —
+  dieselbe Annahme war auch hier nur zur Hälfte richtig:** Kein neuer
+  Storage-Endpunkt, keine neue Infrastruktur nötig — Orthancs
+  DICOMweb-Plugin liegt bereits im Image, aktiviert wird es exakt wie
+  das Worklists-Plugin (ADR 0030) über eine einzige Konfigurationszeile
+  (`"DicomWeb": {"Enable": true}`). Damit laufen QIDO-RS, WADO-RS und
+  STOW-RS sofort real gegen dieselbe Ablage wie DIMSE (per `findscu`
+  auf Bild- und Studienebene bestätigt: DIMSE-gesendete und
+  STOW-RS-hochgeladene Instanzen landen im selben Index). `curl` war
+  bereits seit P10.21 im Toolbox-Image installiert, aber tatsächlich
+  noch nicht in `content/tools/de.yml` registriert — jetzt nachgeholt.
+  Nebenfund: STOW-RS verlangt eine präzise `multipart/related`-Kodierung;
+  ein naiver Body ohne `boundary=`-Angabe scheitert nicht still, sondern
+  mit einer echten `415 Unsupported Media Type`-Antwort. Die neue
+  Registrierung von `curl` als Werkzeug deckte drei bereits fertige
+  Lektionen (2.4, 2.7, 4.8) auf, die `curl` in Beispielen verwenden,
+  ohne es zu deklarieren — 2.7 und 4.8 hatten Platz unter dem
+  Vier-Werkzeuge-Limit, bei 2.4 wurden zwei Befehle zu einer Zeile
+  zusammengefasst, um das Limit zu halten. Siehe ADR 0042. **Damit sind
+  alle acht Lektionen aus Track 2 vollständig geschrieben.**
 
 `content:validate` meldet für die acht neuen Lektionen nichts.
 
@@ -557,7 +572,8 @@ Fehlerklassen (AE-Title, Presentation Context, Objektgröße/SOP-Class)
 und ist kein Einzelfall mehr, sondern ein wiederkehrendes Muster für
 jede Lektion, die eine serverseitige Ablehnung zeigen will.
 
-**Track 2, Track 3:** noch nicht begonnen.
+**Track 2:** seit P10.32 vollständig geschrieben (alle acht Lektionen,
+siehe oben). **Track 3:** noch nicht begonnen.
 
 **Lokale Umgebung (seit P10.8 beobachtet, kein Content-Problem):** Die
 lokale PHP-Installation (`8.4.0`) erfüllt `composer.lock`s Anforderung

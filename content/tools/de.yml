@@ -214,3 +214,13 @@ pynetdicom:
   lesson: "2.2"
   anchor: c-store
   needs_sandbox: true
+
+curl:
+  name: curl
+  suite: extern
+  kind: netz
+  purpose: Spricht DICOMweb (QIDO-RS/WADO-RS/STOW-RS) und andere REST-APIs.
+  example: "curl -s http://127.0.0.1:8042/dicom-web/studies"
+  lesson: "2.8"
+  anchor: qido-rs-dieselbe-suche-per-http
+  needs_sandbox: true

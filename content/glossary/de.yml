@@ -245,3 +245,10 @@ storage-commitment:
   short: Das Archiv bestätigt aktiv, ein Objekt dauerhaft übernommen zu haben — nicht nur „angekommen", sondern „gesichert".
   see_also: [c-store, dimse]
   lesson: "2.7"
+
+dicomweb:
+  term: DICOMweb
+  expansion: DICOMweb (QIDO-RS, WADO-RS, STOW-RS)
+  short: Dieselben Grunddienste wie DIMSE, aber als HTTP-REST-API — JSON statt DIMSE-PDUs.
+  see_also: [dimse, c-find]
+  lesson: "2.8"
