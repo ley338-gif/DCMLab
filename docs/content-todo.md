@@ -118,8 +118,12 @@ eigene Liste offener Punkte. Quer durch alle zehn sind das drei Muster:
   P10.20 keine Ausnahme mehr:** Orthanc (das in diesem Projekt verwendete
   Image) bringt ein Worklists-Plugin bereits mit — es musste nur per
   Konfiguration aktiviert werden, kein neuer Container nötig (siehe ADR
-  0030 und den neuen Abschnitt unten). 4.8 und 4.9 sind weiterhin ohne
-  Ausbau der Spielwiese nicht schreibbar.
+  0030 und den neuen Abschnitt unten). **4.8 ist seit P10.21 ebenfalls
+  keine Ausnahme mehr:** Orthanc beherrscht Storage Commitment nativ
+  (REST-API, kein Plugin nötig); für MPPS, das Orthanc tatsächlich nicht
+  unterstützt, wurde ein eigener, echter `pynetdicom`-SCP in die Toolbox
+  aufgenommen (siehe ADR 0031). Nur 4.9 (TLS) ist weiterhin ohne Ausbau der
+  Spielwiese nicht schreibbar.
 - **Datensätze fehlen.** 4.3 braucht einen Datensatz mit gemischten SOP
   Classes, 4.5 zwei Studies, die gleich aussehen und verschiedene Study
   Instance UIDs tragen (Lektion 1.4 nennt dieses Lab bereits). Beide wären
@@ -363,7 +367,17 @@ Ununterscheidbarkeit, um die es in der Lektion geht), dazu ein echter
 `tshark`-Mitschnitt der zugrundeliegenden C-FIND-Assoziation. Dafür
 musste die Spielwiese erstmals einen echten Worklist-Dienst bekommen —
 Orthancs eigenes Worklists-Plugin, siehe ADR 0030 und den neuen
-Abschnitt unten. Restliche Track-4-Lektion 4.8 und Lektion 4.9 sind
+Abschnitt unten. **Lektion 4.8 ("Bilder da, aber Befund geht nicht
+raus") ist seit P10.21 ebenfalls vollständig geschrieben** —
+vollständig real, kein `<!-- kein-beispiel -->`-Block nötig: ein
+echter MPPS-`N-CREATE`/`N-SET`-Austausch gegen einen eigenen,
+neu geschriebenen `pynetdicom`-SCP (`mppsscp.py`), dazu ein echter
+`tshark`-Mitschnitt der Assoziation; für Storage Commitment (das
+Orthanc nativ beherrscht, kein neuer Dienst nötig) sowohl ein
+erfolgreicher Fall (echtes, gespeichertes Objekt) als auch eine echte
+Ablehnung (`FailureReason 274` für eine nie gespeicherte SOP Instance
+UID) — siehe ADR 0031. Kein Lab nötig — kein passender Node-Stub
+vorhanden, `lab.node` bleibt `null`. Nur noch Lektion 4.9 (TLS) ist
 weiterhin Gerüst.
 
 **Neue Spielwiese-Fähigkeit aus P10.20: ein echter

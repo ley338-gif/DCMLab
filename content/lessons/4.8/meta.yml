@@ -13,11 +13,14 @@ sandbox:
 
 # Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
 # ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
+# Seit P10.21 (ADR 0031) hat die Spielwiese echte Gegenparts: Orthanc
+# beherrscht Storage Commitment nativ, MPPS beantwortet ein eigener,
+# echter pynetdicom-SCP (containers/toolbox/scripts/mppsscp.py).
 lab:
   node: null
   optional: true
 
 glossary_terms: [scu, scp, association, sop-class]
-tools_checked: "2026-09-12"
-status: draft
-updated: "2026-09-12"
+tools_checked: "2026-09-13"
+status: fertig
+updated: "2026-09-13"

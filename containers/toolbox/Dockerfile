@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     tshark \
     libcap2-bin \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY datasets/build/requirements.txt /opt/datasets-build/requirements.txt
@@ -19,6 +20,10 @@ RUN pip install --break-system-packages --no-cache-dir \
     pynetdicom==3.0.*
 
 COPY datasets/build/generate.py /opt/datasets-build/generate.py
+
+# Orthanc beherrscht Storage Commitment nativ, aber keinen MPPS-Dienst
+# (Lektion 4.8) -- dieser echte pynetdicom-SCP ist die Gegenstelle dafuer.
+COPY containers/toolbox/scripts/mppsscp.py /opt/tools/mppsscp.py
 
 RUN adduser --disabled-password --gecos "" dcmlab
 # dumpcap braucht CAP_NET_RAW/CAP_NET_ADMIN, um ohne root mitzuschneiden --
