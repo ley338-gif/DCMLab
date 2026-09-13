@@ -5,7 +5,7 @@ duration_minutes: 12
 level: aufbau
 objectives_count: 3
 requires: ["1.7", "1.8"]
-tools: [storescu, storescp, dcmdump, tshark]
+tools: [storescu, dcmdump]
 
 sandbox:
   required: true

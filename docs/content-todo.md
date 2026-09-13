@@ -539,10 +539,32 @@ Nutzerfreigabe wurde `no-new-privileges` **ausschließlich für den
 Toolbox-Container** aufgehoben (Orthanc unverändert, keine weiteren
 Rechte, weiterhin kein Egress) — Details und vollständige
 Verifikation über den echten Orchestrator in ADR 0029. Die bereits
-gemergten Lektionen 4.1, 4.2, 4.4 (sowie 1.8) wurden **nicht**
+gemergten Lektionen 4.1, 4.2, 4.4 (sowie 1.8) wurden zunächst **nicht**
 rückwirkend um echte `tshark`-Beispiele ergänzt — nur der neue Fund
-dokumentiert; ob sich eine nachträgliche Überarbeitung lohnt, ist eine
-eigene, spätere Entscheidung.
+dokumentiert.
+
+**Seit P10.34 aufgegriffen und geklärt:** Lektion 1.8 zeigte tatsächlich
+einen echten Bug — einen `tshark`-Mitschnitt mit erfundenen IP-Adressen
+und PDU-Typ-Werten, ohne `<!-- kein-beispiel -->`-Markierung (ein
+Abschnitt-13-Verstoß, den `content:validate` nicht erkennen konnte, da
+der Validator nur die Existenz einer Erklärung prüft, nicht deren
+Wahrheitsgehalt). Jetzt durch einen echten, im Sitzungscontainer
+aufgezeichneten Mitschnitt ersetzt (`-T fields`-Extraktion des rohen
+`dicom.pdu.type`, echte Werte `0x01/0x02/0x04/0x04/0x05/0x06` für einen
+erfolgreichen C-ECHO-Zyklus), ergänzt um einen ehrlich markierten
+`<!-- kein-beispiel -->`-Block für die beiden real definierten, aber
+nicht live erzeugbaren Ablehnungs-PDU-Typen (`0x03`, `0x07`). 4.1, 4.2
+und 4.4 zeigten `tshark` dagegen in ihrem Fließtext gar nicht — bei der
+Prüfung fiel zusätzlich auf, dass auch `storescu` (4.1, 4.4) und
+`storescp` (4.2) nie im Text vorkamen, obwohl deklariert. `tools:` in
+allen drei `meta.yml`-Dateien auf die tatsächlich gezeigten Werkzeuge
+reduziert (4.1: nur `echoscu`; 4.2: `storescu`, `dcmdump`; 4.4: nur
+`echoscu`) — kein neuer tshark-Beispielbedarf, da das eigentliche Thema
+dieser drei Lektionen strukturell nicht live erzeugbar ist (ADR
+0008/0025) und ein Mitschnitt der erfolgreichen Gegenprobe keinen neuen
+Erkenntniswert gegenüber den vorhandenen Beispielen geliefert hätte.
+`content/lessons/4.10` bereits mit echten `tshark`-Beispielen — kein
+Nachbesserungsbedarf. Siehe ADR 0044.
 
 **Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
 P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
