@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, Link } from '@inertiajs/vue3';
 import { CircleCheck } from '@lucide/vue';
 import { ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { complete, reopen } from '@/routes/lessons';
+import { show as showNode } from '@/routes/nodes';
 
 type ToolbarTool = {
     slug: string;
@@ -143,7 +144,10 @@ const toolbarOpen = ref(!props.progress.is_returning_visit);
                             class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
                             >{{ trans('Danach') }}</span
                         >
-                        <span class="ml-2">
+                        <Link
+                            :href="showNode(toolbar.lab_node.slug)"
+                            class="ml-2 underline-offset-2 hover:underline"
+                        >
                             {{
                                 trans(
                                     'Lab: Node „:title" (:difficulty, :points Pkt.)',
@@ -154,7 +158,7 @@ const toolbarOpen = ref(!props.progress.is_returning_visit);
                                     },
                                 )
                             }}
-                        </span>
+                        </Link>
                     </div>
 
                     <SandboxPanel

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\NodeController;
@@ -26,7 +27,7 @@ Route::prefix('de')->group(function () {
     Route::inertia('nutzungsbedingungen', 'Legal/Nutzungsbedingungen')->name('legal.nutzungsbedingungen');
 
     Route::middleware(['auth', 'verified'])->group(function () {
-        Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+        Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('lessons/{lesson}', [LessonController::class, 'show'])->name('lessons.show');
         Route::post('lessons/{lesson}/complete', [LessonController::class, 'complete'])->name('lessons.complete');
