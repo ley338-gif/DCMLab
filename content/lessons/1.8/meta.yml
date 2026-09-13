@@ -14,6 +14,6 @@ lab:
   node: mitgehoert
   optional: false
 glossary_terms: [association, presentation-context, abstract-syntax, max-pdu]
-tools_checked: "2026-09-12"
+tools_checked: "2026-09-13"
 status: draft
-updated: "2026-09-12"
+updated: "2026-09-13"

@@ -135,18 +135,44 @@ Diese eine Unterscheidung erspart die häufigste Fehlmaßnahme bei Übertragungs
 
 ## Wenn gar kein Log hilft
 
-Manche Gegenstellen protokollieren nichts Brauchbares. Dann bleibt der Mitschnitt:
+Manche Gegenstellen protokollieren nichts Brauchbares. Dann bleibt der Mitschnitt — auch ohne Wiresharks DICOM-Dissektion liest sich der rohe PDU-Typ direkt aus den Feldern:
 
 ```
-$ tshark -i any -Y 'dicom' -T fields -e ip.src -e ip.dst -e dicom.pdu.type
-10.20.0.30  10.20.0.10  1
-10.20.0.10  10.20.0.30  3
-10.20.0.30  10.20.0.10  7
+$ tshark -i lo -Y 'dicom' -T fields -e ip.src -e ip.dst -e dicom.pdu.type
+127.0.0.1	127.0.0.1	0x01
+127.0.0.1	127.0.0.1	0x02
+127.0.0.1	127.0.0.1	0x04
+127.0.0.1	127.0.0.1	0x04
+127.0.0.1	127.0.0.1	0x05
+127.0.0.1	127.0.0.1	0x06
 ```
 
-**Was du daran abliest:** Ein Verbindungsversuch von der Modalität (PDU-Typ 1 = A-ASSOCIATE-RQ), gefolgt von einer Ablehnung (3 = A-ASSOCIATE-RJ) und einem Abbruch (7 = A-ABORT). Ohne ein einziges Log einer der beiden Seiten steht damit fest: Die Modalität sendet wirklich, und das Archiv weist sie ab. Damit ist die Diskussion aus dem Anfang beendet.
+**Was du daran abliest:** Sechs PDUs, genau der Ablauf von oben — `0x01`
+(A-ASSOCIATE-RQ), `0x02` (A-ASSOCIATE-AC), zweimal `0x04` (P-DATA: die
+C-ECHO-Anfrage, dann die Antwort), `0x05`/`0x06` (A-RELEASE-RQ/-RP).
+Kein Name, kein Grund — nur Typnummern. Aber schon das reicht, um eine
+angenommene Association von einer laufenden Übertragung zu
+unterscheiden, ganz ohne Wiresharks DICOM-Dissektion.
 
-Der vollständige Inhalt der RQ — Namen und alle angebotenen Kontexte — steht im aufgeklappten Paket und ist die sauberste Quelle überhaupt, weil sie keiner der beiden Hersteller geschrieben hat.
+<!-- kein-beispiel -->
+```
+Eine echte Ablehnung laesst sich in der aktuellen Spielwiese nicht live
+erzeugen -- aus demselben Grund wie in Lektion 4.1: Orthanc laeuft hier
+bewusst mit DicomAlwaysAllowEcho und den verwandten Optionen
+(containers/orthanc/orthanc.json, ADR 0008) und nimmt deshalb jeden
+Called/Calling AE Title an. Real, im Standard definiert (PS3.8, Tabelle
+9-1), sind trotzdem zwei weitere PDU-Typen, die an genau dieser Stelle
+auftauchen koennten:
+
+  0x03   A-ASSOCIATE-RJ   Die Association wird abgelehnt, mit Grund.
+  0x07   A-ABORT          Abbruch, meist ohne brauchbare Begruendung.
+
+Ein Mitschnitt mit `0x01` gefolgt von `0x03` (statt `0x02`) waere damit
+schon am reinen Zahlenpaar als Ablehnung erkennbar -- ganz ohne ein
+einziges Log einer der beiden Seiten.
+```
+
+Der vollständige Inhalt der RQ — Namen und alle angebotenen Kontexte — steht im aufgeklappten Paket (ohne `-T fields`) und ist die sauberste Quelle überhaupt, weil sie keiner der beiden Hersteller geschrieben hat.
 
 ## Im Alltag heißt das
 
