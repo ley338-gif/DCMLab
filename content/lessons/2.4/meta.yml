@@ -5,21 +5,24 @@ duration_minutes: 12
 level: aufbau
 objectives_count: 3
 requires: ["2.3"]
-tools: [movescu, getscu, storescp]
+tools: [movescu, getscu, storescp, tshark]
 
 sandbox:
   required: true
   dataset: ct-thorax-60
 
 # Lab laut Curriculum: "Retrieve an eine dritte Node" -- noch kein
-# passender Node-Stub vorhanden. Braucht vermutlich einen zweiten
-# Storage-Endpunkt in der Spielwiese (dritte Partei fuer C-MOVE) --
-# siehe docs/content-todo.md.
+# passender Node-Stub vorhanden. Kein neuer Storage-Endpunkt noetig
+# (siehe ADR 0041): ein zweiter, vom Lernenden selbst gestarteter
+# storescp im selben Toolbox-Container plus dynamische
+# Modality-Registrierung bei Orthanc (PUT /modalities/<name>, wie bei
+# Storage Commitment, ADR 0031) reichen fuer ein echtes
+# Drei-Parteien-C-MOVE.
 lab:
   node: null
   optional: true
 
 glossary_terms: [c-get]
 tools_checked: "2026-09-13"
-status: draft
+status: fertig
 updated: "2026-09-13"
