@@ -330,8 +330,40 @@ UIDs) und Dublette (dieselbe Study zweimal gesendet) wurden beide real
 erzeugt und zeigen am Archiv fundamental unterschiedliches Verhalten
 (zwei `findscu`-Responses vs. unveränderte Instance-Zahl), siehe ADR
 0028. Kein Lab nötig — Node „Zwillinge" (1.4) behandelt ein verwandtes,
-aber anderes Problem und wird nur verlinkt. Restliche vier
-Track-4-Lektionen (4.7–4.10) sind weiterhin Gerüst.
+aber anderes Problem und wird nur verlinkt. **Lektion 4.10
+("Systematik: Logs, Wireshark-Filter, Reproduzieren"), die
+Abschlusslektion des Tracks, ist seit P10.19 ebenfalls vollständig
+geschrieben** — vollständig real, kein `<!-- kein-beispiel -->`-Block
+nötig: ein Verbositätsvergleich `storescu`/`storescu -v`/
+`storescu -d -cx` sowie ein echter `tshark`-Mitschnitt mit korrekter
+DICOM-Dissektion (A-ASSOCIATE, P-DATA, A-RELEASE) und ein
+`tcp.stream eq N`-Beispiel zum Eingrenzen eines Mitschnitts mit
+mehreren Associations. Dabei wurde ein bisher unbekannter
+Infrastruktur-Fund gemacht und behoben, siehe ADR 0029 und den neuen
+Abschnitt unten. Kein Lab nötig — kein passender Node-Stub,
+`lab.node` bleibt `null`. Restliche zwei Track-4-Lektionen (4.7, 4.8)
+und Lektion 4.9 sind weiterhin Gerüst.
+
+**Neue Spielwiese-Fähigkeit aus P10.19: `tshark` ist jetzt echt
+nutzbar.** Fünf `meta.yml`-Dateien (1.8, 4.1, 4.2, 4.4, 4.10)
+deklarieren `tshark` als Werkzeug; keine davon konnte es bisher live
+zeigen. Der Grund war zweistufig: (1) `tshark` war in
+`containers/toolbox/Dockerfile` schlicht nie installiert — jede
+frühere Zurückstellung auf `<!-- kein-beispiel -->` war also korrekt
+vorsichtig, aber aus einem nie geprüften Grund; (2) nach Installation
+verhinderte `security_opt: "no-new-privileges"`
+(`services/sandbox/app/docker_ops.py`) weiterhin echte Mitschnitte,
+weil `dumpcap` als Nicht-root-Nutzer auf eine Datei-Capability
+(`setcap`) angewiesen ist, die genau dieses Flag blockiert — selbst mit
+korrekt gesetztem `cap_add: [NET_RAW, NET_ADMIN]`. Mit expliziter
+Nutzerfreigabe wurde `no-new-privileges` **ausschließlich für den
+Toolbox-Container** aufgehoben (Orthanc unverändert, keine weiteren
+Rechte, weiterhin kein Egress) — Details und vollständige
+Verifikation über den echten Orchestrator in ADR 0029. Die bereits
+gemergten Lektionen 4.1, 4.2, 4.4 (sowie 1.8) wurden **nicht**
+rückwirkend um echte `tshark`-Beispiele ergänzt — nur der neue Fund
+dokumentiert; ob sich eine nachträgliche Überarbeitung lohnt, ist eine
+eigene, spätere Entscheidung.
 
 **Wichtiger Infrastruktur-Fund aus P10.7:** Die Spielwiese (Orthanc,
 P7) akzeptiert wegen `DicomAlwaysAllowEcho`/`DicomAlwaysAllowStore`/etc.
