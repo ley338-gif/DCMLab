@@ -176,9 +176,7 @@ watchEffect(() => {
                         :href="showLesson(lesson.lesson_id)"
                         class="hover:bg-accent/50 flex items-center justify-between rounded-lg border p-3 text-sm transition-colors"
                     >
-                        <span
-                            >{{ lesson.lesson_id }} — {{ lesson.title }}</span
-                        >
+                        <span>{{ lesson.lesson_id }} — {{ lesson.title }}</span>
                         <Badge
                             :variant="
                                 lesson.status === 'completed'
