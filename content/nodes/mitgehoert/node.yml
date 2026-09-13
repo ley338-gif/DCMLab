@@ -1,10 +1,66 @@
 slug: mitgehoert
-difficulty: easy
-points: 0
+difficulty: medium
+points: 20
 category: netzwerk
-skills: [netzwerk]
+skills: [netzwerk, bildgebung]
 related_lessons: ["1.8"]
-estimated_minutes: 0
+estimated_minutes: 20
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.100.0.50
+      role: shell
+    - name: archive
+      ip: 10.100.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: KLINIK-ARCHIV
+          accepts: [verification, ct-image-storage]
+          # Diesmal Explicit statt Implicit VR -- andere Serie derselben
+          # Registry als in Node "syntax-negotiation-fails".
+          accepted_transfer_syntaxes: ["1.2.840.10008.1.2.1"]
+      config_visible: false
+    - name: us-2
+      ip: 10.100.0.41
+      role: modality-simulator
+      config_editable: true
+      config:
+        local_ae: US-2
+        remote_ae: KLINIK-ARCHIV
+        # ← drei unabhaengige Fehler, nacheinander aufzudecken: Host, Port,
+        # dann erst die Transfer Syntax. AE Title ist von Anfang an richtig.
+        remote_host: 10.100.0.99
+        remote_port: 11112
+        transfer_syntax: "1.2.840.10008.1.2.4.50"
+
+  known_calling_aets: [US-2]
+
+  tools: []
+  dataset: ct-thorax-1-slice
+
+  files:
+    - protokoll-vorlage.txt   # Vorlage: welche Zeile zu welcher Verhandlungsebene gehoert
+
+  templates: []
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:5b7f4d181a9be58676df21f33a370c788d1c31ffe2f4ea57a7bc184b27e01e5f"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 3
+
+stuck_timeout_minutes: 12
 
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-13"

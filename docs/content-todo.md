@@ -160,7 +160,7 @@ technische Blockade in seiner eigenen `de.md`:
 | `wo-steht-das` | 1.3 | dasselbe `dcmdump`-Limit wie `first-contact` |
 | ~~`zwillinge`~~ | 1.4 | ✅ P10.5 fertig, siehe unten — nicht mehr blockiert |
 | `halbe-sache` | 1.7 | keine Presentation-Context-/Transfer-Syntax-Aushandlung in der Engine — **seit P10.3 technisch lösbar, siehe unten** |
-| `mitgehoert` | 1.8 | dasselbe Aushandlungs-Limit wie `halbe-sache` — **seit P10.3 technisch lösbar** |
+| ~~`mitgehoert`~~ | 1.8 | ✅ P10.6 fertig, siehe unten — nicht mehr blockiert |
 | `verbindung-ohne-bild` | 4.2 | dasselbe Aushandlungs-Limit wie `halbe-sache` — **seit P10.3 technisch lösbar** |
 
 Diese sieben Lücken sind **Engine-Features, keine Content-Lücken** — anders
@@ -205,7 +205,10 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 - `halbe-sache` (1.7), `mitgehoert` (1.8) und `verbindung-ohne-bild`
   (4.2) waren blockiert, weil die Engine keine Presentation-Context-
   Aushandlung kannte. Mit Feature 3 (ADR 0013, `content-schema.md`
-  Abschnitt 6c) ist das technisch lösbar, aber noch nicht geschrieben.
+  Abschnitt 6c) ist das technisch lösbar. **`mitgehoert` ist seit P10.6
+  fertig** (ADR 0016: drei unabhängige Fehler — Host, Port, Transfer
+  Syntax — nacheinander, damit das eigentliche Lernziel "ein Log lesen
+  und erklären" geübt wird, nicht nur ein einzelner Fix).
 
 **Nodes (vier laut Roadmap Abschnitt IV, alle fertig):**
 
@@ -216,14 +219,14 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | `syntax-negotiation-fails` | ✅ P10.3, vollständig und live verifiziert |
 | `patient-merge-discovery` | ✅ P10.4, vollständig und live verifiziert (Lektion 4.6, teilweise — aktives serverseitiges Merge fehlt weiterhin) |
 
-**Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5, siehe
-oben) — kein Roadmap-Node, aber ein durch Feature 1 unblockierter
-Track-1-Stub.
+**Zusätzlich, über die Roadmap hinaus:** `zwillinge` (✅ P10.5) und
+`mitgehoert` (✅ P10.6) — keine Roadmap-Nodes, aber durch Feature 1 bzw.
+Feature 3 unblockierte Track-1-Stubs.
 
 Verbleibend von den sieben Engine-Features: Multiframe-Generator (für
 Track 3) und Worklist-Query (für `worklist-query-empty`, kein
 Roadmap-Pflichtnode, aber eigenständig sinnvoll). Verbleibend an
-unblockierten, aber ungeschriebenen Nodes: `halbe-sache`, `mitgehoert`,
+unblockierten, aber ungeschriebenen Nodes: `halbe-sache`,
 `verbindung-ohne-bild`, `zwei-ebenen-tiefer`, `first-contact`,
 `wo-steht-das`.
 

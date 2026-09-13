@@ -188,3 +188,30 @@ def test_zwillinge_is_solvable_from_the_real_content() -> None:
 
     assert rules.check_flag(node, state, "1.2.276.0.7230010.3.1.4.541902387012") is True
     assert rules.check_flag(node, state, "1.2.276.0.7230010.3.1.4.541902387011") is False
+
+
+def test_mitgehoert_is_solvable_from_the_real_content() -> None:
+    """P10.6: drei unabhaengige Fehler nacheinander (Host, Port, Transfer
+    Syntax) -- jede Stufe zeigt eine andere Verhandlungsebene im Log."""
+
+    node = content.load_node("mitgehoert")
+    state = rules.initial_state(node)
+
+    host_stage = rules.trigger_action(node, state, "us-2", "send_study")
+    assert host_stage.events[-1]["reason"] == "host_unreachable"
+
+    rules.set_config(node, state, "us-2", "remote_host", "10.100.0.10")
+    port_stage = rules.trigger_action(node, state, "us-2", "send_study")
+    assert port_stage.events[-1]["reason"] == "wrong_port"
+
+    rules.set_config(node, state, "us-2", "remote_port", 104)
+    ts_stage = rules.trigger_action(node, state, "us-2", "send_study")
+    assert ts_stage.events[-1]["type"] == "presentation_context_rejected"
+    assert state["bestand"]["archive"] == {"studies": 0, "series": 0, "instances": 0}
+
+    rules.set_config(node, state, "us-2", "transfer_syntax", "1.2.840.10008.1.2.1")
+    success = rules.trigger_action(node, state, "us-2", "send_study")
+    assert success.events[-1]["type"] == "store_completed"
+    assert state["bestand"]["archive"] == {"studies": 1, "series": 1, "instances": 1}
+
+    assert rules.check_flag(node, state, "1.2.840.10008.1.2.1") is True
