@@ -13,11 +13,16 @@ sandbox:
 
 # Die zugehoerige Node ist noch nicht geschrieben. Sobald sie existiert, hier
 # ihren Slug eintragen und optional auf false setzen (siehe docs/content-todo.md).
+# Seit P10.22 (ADR 0032) hat die Spielwiese einen echten TLS-Endpunkt: ein
+# eigener DCMTK-storescp mit einem beim Image-Build erzeugten
+# Testzertifikat (containers/toolbox/, /opt/tools/tls/) -- unabhaengig von
+# Orthanc, das nur einen einzigen, nicht-TLS-faehig zu haltenden DicomPort
+# fuer alle anderen Lektionen bereitstellt.
 lab:
   node: null
   optional: true
 
 glossary_terms: [association, transfer-syntax]
-tools_checked: "2026-09-12"
-status: draft
-updated: "2026-09-12"
+tools_checked: "2026-09-13"
+status: fertig
+updated: "2026-09-13"

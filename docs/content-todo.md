@@ -122,8 +122,12 @@ eigene Liste offener Punkte. Quer durch alle zehn sind das drei Muster:
   keine Ausnahme mehr:** Orthanc beherrscht Storage Commitment nativ
   (REST-API, kein Plugin nötig); für MPPS, das Orthanc tatsächlich nicht
   unterstützt, wurde ein eigener, echter `pynetdicom`-SCP in die Toolbox
-  aufgenommen (siehe ADR 0031). Nur 4.9 (TLS) ist weiterhin ohne Ausbau der
-  Spielwiese nicht schreibbar.
+  aufgenommen (siehe ADR 0031). **4.9 ist seit P10.22 ebenfalls keine
+  Ausnahme mehr:** ein eigener, echter DCMTK-`storescp` mit TLS läuft
+  direkt in der Toolbox, unabhängig von Orthanc (dessen einziger
+  `DicomPort` sich nicht ohne alle anderen Lektionen zu brechen auf TLS
+  umstellen ließe — siehe ADR 0032). Damit sind alle zehn
+  Track-4-Lektionen geschrieben.
 - **Datensätze fehlen.** 4.3 braucht einen Datensatz mit gemischten SOP
   Classes, 4.5 zwei Studies, die gleich aussehen und verschiedene Study
   Instance UIDs tragen (Lektion 1.4 nennt dieses Lab bereits). Beide wären
@@ -377,8 +381,19 @@ Orthanc nativ beherrscht, kein neuer Dienst nötig) sowohl ein
 erfolgreicher Fall (echtes, gespeichertes Objekt) als auch eine echte
 Ablehnung (`FailureReason 274` für eine nie gespeicherte SOP Instance
 UID) — siehe ADR 0031. Kein Lab nötig — kein passender Node-Stub
-vorhanden, `lab.node` bleibt `null`. Nur noch Lektion 4.9 (TLS) ist
-weiterhin Gerüst.
+vorhanden, `lab.node` bleibt `null`. **Lektion 4.9 ("Nach
+TLS-Aktivierung geht nichts mehr") ist seit P10.22 ebenfalls
+vollständig geschrieben** — ein eigener, echter DCMTK-`storescp` mit
+TLS läuft in der Toolbox (unabhängig von Orthanc, siehe ADR 0032):
+echter erfolgreicher `echoscu`/`storescu`-Aufruf über anonyme TLS,
+echte Ablehnung ohne vertrauenswürdiges Zertifikat (reiner
+TLS-Fehlercode, keine DICOM-Statusmeldung), ein realer Fund zur
+fehlenden Namensprüfung bei DCMTK-TLS, und ein echter
+`tshark`-Mitschnitt, der ab dem Handshake nur noch verschlüsselte
+`Application Data` zeigt. Zwei der drei ursprünglich geplanten
+Ursachenklassen (abgelaufenes Zertifikat, Cipher-Konflikt) sind ehrlich
+als nicht reproduzierbar markiert. **Damit sind alle zehn
+Track-4-Lektionen (4.1–4.10) vollständig geschrieben.**
 
 **Neue Spielwiese-Fähigkeit aus P10.20: ein echter
 Modality-Worklist-Dienst.** Ursprünglich (P10.11) als eigenständiges
