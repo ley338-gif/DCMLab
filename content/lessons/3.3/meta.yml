@@ -1,0 +1,20 @@
+id: "3.3"
+track: bild
+order: 3
+duration_minutes: 10
+level: aufbau
+objectives_count: 3
+requires: ["3.2"]
+tools: []
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+lab:
+  node: null
+  optional: true
+
+glossary_terms: []
+status: draft
+updated: "2026-09-13"

@@ -262,6 +262,41 @@ eigene Liste offener Punkte:
 
 `content:validate` meldet für die acht neuen Lektionen nichts.
 
+## Track 3 — sechs Gerüste angelegt, Fließtext fehlt (seit P10.39)
+
+`content/lessons/3.1` bis `3.6` existieren seit P10.39 als Gerüste
+(`status: draft`): vollständige `meta.yml` und eine `de.md` mit Titel,
+Teaser, drei Lernzielen und geplanter Gliederung. Titel und Lab-Hinweise
+sind aus der Curriculum-Tabelle (`konzept-lernplattform.md` Abschnitt 5,
+Track 3) übernommen, nicht erfunden. Kein Gerüst enthält Fachprosa oder
+Werkzeugausgaben (Abschnitt 13).
+
+Anders als bei Track 2, wo sich am Ende jede „braucht neue
+Infrastruktur"-Annahme als falsch herausstellte, sind hier von
+vornherein drei echte, noch ungeprüfte Infrastrukturfragen markiert,
+weil `content/datasets.yml` aktuell ausschließlich klassische
+Single-Frame-CT-Objekte kennt:
+
+- **3.4** (Multiframe/Enhanced IODs) braucht wahrscheinlich ein echtes
+  Enhanced-CT-Testobjekt — deckt sich mit dem Roadmap-Punkt
+  „Multiframe-Generator" (siehe P10-Roadmap-Tabelle oben, Status
+  weiterhin `offen`).
+- **3.5** (Structured Reports/Presentation States/Key Objects) braucht
+  wahrscheinlich ein echtes SR-/GSPS-/KOS-Testobjekt.
+- **3.6** (Specific Character Set) braucht ein Testobjekt mit echtem
+  Umlaut-Patientennamen — vermutlich ohne neuen Datensatz-Slug lösbar.
+
+Alle drei noch nicht empirisch geprüft — wird beim Schreiben der
+jeweiligen Lektion getan, nicht vorab angenommen (dieselbe Disziplin
+wie in jeder Track-2-Slice). 3.1–3.3 verwenden vorläufig `ct-thorax-60`
+als plausiblen, aber ebenfalls noch nicht bestätigten Platzhalter.
+Siehe ADR 0048.
+
+`content/tracks.yml: bild.status` bleibt `planned`, bis alle sechs
+Lektionen tatsächlich geschrieben sind.
+
+`content:validate` meldet für die sechs neuen Lektionen nichts.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0
@@ -618,7 +653,8 @@ und ist kein Einzelfall mehr, sondern ein wiederkehrendes Muster für
 jede Lektion, die eine serverseitige Ablehnung zeigen will.
 
 **Track 2:** seit P10.32 vollständig geschrieben (alle acht Lektionen,
-siehe oben). **Track 3:** noch nicht begonnen.
+siehe oben). **Track 3:** seit P10.39 als sechs Gerüste angelegt
+(siehe oben), Fließtext folgt lektionsweise.
 
 **Zehn vorbestehende mypy-Fehler in `services/sandbox/tests/
 test_orchestrator.py` (in ADR 0042 vermerkt, hier nachgetragen):**
