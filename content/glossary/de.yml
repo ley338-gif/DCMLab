@@ -357,3 +357,10 @@ atna:
   short: IHE-Profil für echte Zugriffsprotokollierung — Knoten authentifizieren sich gegenseitig und senden strukturierte Audit-Nachrichten an ein zentrales Audit-Repository. Orthanc selbst implementiert das nicht eingebaut.
   see_also: [conformance-statement]
   lesson: "5.5"
+
+netzsegmentierung:
+  term: Netzsegmentierung
+  expansion: Netzwerksegmentierung (VLAN-Isolation)
+  short: Trennt Modalitäten/Archive in ein eigenes, von anderen Netzen abgeschottetes Segment — die verbreitetste Kompensation dafür, dass DICOM selbst kaum eingebaute Authentifizierung kennt.
+  see_also: [association]
+  lesson: "5.6"
