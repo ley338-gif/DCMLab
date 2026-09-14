@@ -1,7 +1,7 @@
 id: "5.8"
 track: betrieb
 order: 8
-duration_minutes: 10
+duration_minutes: 12
 level: fortgeschritten
 objectives_count: 3
 requires: ["5.2", "5.6"]
@@ -15,5 +15,5 @@ lab:
   optional: true
 
 glossary_terms: []
-status: draft
+status: fertig
 updated: "2026-09-14"
