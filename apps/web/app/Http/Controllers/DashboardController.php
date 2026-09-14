@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Achievement;
 use App\Models\LessonProgress;
+use App\Models\QuizReview;
 use App\Models\Track;
 use App\Services\ProfileService;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +66,11 @@ class DashboardController extends Controller
                 'awarded_at' => $achievement->awarded_at->toIso8601String(),
             ]);
 
+        $dueReviewsCount = QuizReview::query()
+            ->where('user_id', $user->id)
+            ->where('due_at', '<=', now())
+            ->count();
+
         return Inertia::render('Dashboard', [
             'profile' => [
                 'points' => $profile->points,
@@ -74,6 +80,7 @@ class DashboardController extends Controller
             'tracks' => $tracks,
             'recent_lessons' => $recentLessons,
             'achievements' => $achievements,
+            'due_reviews_count' => $dueReviewsCount,
         ]);
     }
 }

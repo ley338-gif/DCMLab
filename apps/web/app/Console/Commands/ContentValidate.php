@@ -137,6 +137,125 @@ class ContentValidate extends Command
                 );
             }
         }
+
+        $this->checkQuizStructure($metaFile, $metaRaw, $lesson['md_file'], $lesson['md_raw'], $meta);
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    private function checkQuizStructure(string $metaFile, string $metaRaw, string $mdFile, ?string $mdRaw, array $meta): void
+    {
+        $quiz = $meta['quiz'] ?? [];
+
+        if ($quiz === []) {
+            return;
+        }
+
+        $mdRaw ??= '';
+        preg_match_all('/^\*\*(q\d+)\s*—/mu', $mdRaw, $matches);
+        $presentIds = $matches[1];
+
+        foreach ($quiz as $entry) {
+            $id = (string) ($entry['id'] ?? '');
+            $type = (string) ($entry['type'] ?? '');
+            $answer = $entry['answer'] ?? null;
+
+            if (! in_array($id, $presentIds, true)) {
+                $this->issue(
+                    $mdFile,
+                    null,
+                    "Quiz-Frage \"{$id}\" aus meta.yml hat keinen \"**{$id} — ...**\"-Abschnitt in de.md",
+                );
+
+                continue;
+            }
+
+            $optionCount = $this->countQuizOptions($mdRaw, $id);
+
+            match ($type) {
+                'single' => $this->checkQuizIndexAnswer($metaFile, $metaRaw, $id, $answer, $optionCount),
+                'multi' => $this->checkQuizMultiAnswer($metaFile, $metaRaw, $id, $answer, $optionCount),
+                'input' => $this->checkQuizInputAnswer($metaFile, $metaRaw, $id, $answer),
+                default => $this->issue(
+                    $metaFile,
+                    LineFinder::firstLineContaining($metaRaw, $id),
+                    "Quiz-Frage \"{$id}\": unbekannter type \"{$type}\" (erlaubt: single, multi, input)",
+                ),
+            };
+        }
+    }
+
+    private function checkQuizIndexAnswer(string $metaFile, string $metaRaw, string $id, mixed $answer, int $optionCount): void
+    {
+        if (! is_int($answer) || $answer < 0 || $answer >= $optionCount) {
+            $this->issue(
+                $metaFile,
+                LineFinder::firstLineContaining($metaRaw, $id),
+                "Quiz-Frage \"{$id}\": answer-Index liegt ausserhalb der {$optionCount} vorhandenen Optionen",
+            );
+        }
+    }
+
+    private function checkQuizMultiAnswer(string $metaFile, string $metaRaw, string $id, mixed $answer, int $optionCount): void
+    {
+        if (! is_array($answer) || $answer === []) {
+            $this->issue(
+                $metaFile,
+                LineFinder::firstLineContaining($metaRaw, $id),
+                "Quiz-Frage \"{$id}\": answer muss bei type multi eine nicht-leere Liste sein",
+            );
+
+            return;
+        }
+
+        foreach ($answer as $index) {
+            if (! is_int($index) || $index < 0 || $index >= $optionCount) {
+                $this->issue(
+                    $metaFile,
+                    LineFinder::firstLineContaining($metaRaw, $id),
+                    "Quiz-Frage \"{$id}\": answer-Index liegt ausserhalb der {$optionCount} vorhandenen Optionen",
+                );
+
+                return;
+            }
+        }
+    }
+
+    private function checkQuizInputAnswer(string $metaFile, string $metaRaw, string $id, mixed $answer): void
+    {
+        if (! is_string($answer) || trim($answer) === '') {
+            $this->issue(
+                $metaFile,
+                LineFinder::firstLineContaining($metaRaw, $id),
+                "Quiz-Frage \"{$id}\": answer muss bei type input ein nicht-leerer String sein",
+            );
+        }
+    }
+
+    private function countQuizOptions(string $mdRaw, string $questionId): int
+    {
+        $lines = preg_split('/\R/', $mdRaw) ?: [];
+        $collecting = false;
+        $count = 0;
+
+        foreach ($lines as $line) {
+            if (preg_match('/^\*\*(q\d+)\s*—/mu', $line, $match)) {
+                if ($collecting) {
+                    break;
+                }
+
+                $collecting = $match[1] === $questionId;
+
+                continue;
+            }
+
+            if ($collecting && preg_match('/^\d+\.\s+/', $line)) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     /**

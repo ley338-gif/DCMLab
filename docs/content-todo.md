@@ -1025,6 +1025,20 @@ echten `app`-Container (Docker-Image, eigenes PHP) desselben isolierten
 Verifikations-Stacks. CI (`shivammathur/setup-php@v2`) ist davon nicht
 betroffen und bleibt die maßgebliche Prüfung für PHP-Tests.
 
+**Quiz-Feature (P10.59, kein Content-Problem, aber `content:validate`
+betroffen):** Die seit P10.36 in `content/lessons/1.0`–`1.8/meta.yml`
+vorhandenen `quiz:`-Daten wurden bisher von keinem Code gelesen. Seit
+P10.59 liest `ContentValidate::checkQuizStructure()` sie real (jede
+`quiz[].id` braucht eine passende `**qN — ...**`-Überschrift in `de.md`,
+Antwortindizes müssen innerhalb der geparsten Optionsanzahl liegen) —
+real gegen alle neun bestehenden Quiz-Lektionen geprüft, 0 neue
+Verstöße. Das eigentliche Feature (interaktives Beantworten,
+Spaced-Repetition-Wiederholung, eigene Review-Seite) ist Anwendungscode
+(`app/Services/QuizSchedulerService.php`,
+`app/Content/QuizContent.php`, `app/Http/Controllers/{Quiz,Review}
+Controller.php`), kein Content — siehe ADR 0065 für Details und
+Verifikation.
+
 ## CI
 
 **Seit P10.55 blockierend.** `content:validate` läuft in der

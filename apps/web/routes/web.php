@@ -5,6 +5,8 @@ use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\NodeController;
 use App\Http\Controllers\PublicProfileController;
+use App\Http\Controllers\QuizController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\TrackController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +30,7 @@ Route::prefix('de')->group(function () {
 
     Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('review', [ReviewController::class, 'index'])->name('review.index');
 
         Route::get('lessons/{lesson}', [LessonController::class, 'show'])->name('lessons.show');
         Route::post('lessons/{lesson}/complete', [LessonController::class, 'complete'])->name('lessons.complete');
@@ -35,6 +38,10 @@ Route::prefix('de')->group(function () {
         Route::post('lessons/{lesson}/sandbox', [SandboxController::class, 'create'])
             ->middleware('throttle:10,1')
             ->name('lessons.sandbox');
+
+        Route::prefix('lessons/{lesson}/quiz')->name('quiz.')->middleware('throttle:60,1')->group(function () {
+            Route::post('{questionId}/answer', [QuizController::class, 'answer'])->name('answer');
+        });
 
         Route::prefix('sandbox/{sandboxId}')->name('sandbox.')->middleware('throttle:30,1')->group(function () {
             Route::get('/', [SandboxController::class, 'state'])->name('state');

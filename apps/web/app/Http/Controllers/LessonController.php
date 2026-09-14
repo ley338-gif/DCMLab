@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Content\ContentRepository;
 use App\Content\MarkdownRenderer;
+use App\Content\QuizContent;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Node;
+use App\Models\QuizReview;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,7 +31,17 @@ class LessonController extends Controller
         $datasets = $content->datasets();
 
         $renderer = new MarkdownRenderer($content->glossary());
-        $bodyHtml = $renderer->render($lessonContent['body']);
+
+        // Der "## Quiz"-Abschnitt wird nicht als Prosa mitgerendert (das
+        // waere die alte, nicht-interaktive Darstellung) -- er wird
+        // herausgetrennt und stattdessen strukturiert an eine eigene
+        // Vue-Komponente uebergeben (Abschnitt 4.7).
+        $split = QuizContent::splitBody($lessonContent['body']);
+        $bodyHtml = $renderer->render($split['before']);
+        $bodyAfterQuizHtml = trim($split['after']) !== '' ? $renderer->render($split['after']) : null;
+
+        $quizMeta = $lessonContent['meta']['quiz'] ?? [];
+        $questions = QuizContent::parseQuestions($split['quiz_raw'], $quizMeta, $renderer);
 
         $userId = Auth::id();
         $progress = LessonProgress::firstOrNew(['user_id' => $userId, 'lesson_id' => $lesson->id]);
@@ -41,6 +53,17 @@ class LessonController extends Controller
             $progress->save();
         }
 
+        $reviewsByQuestion = QuizReview::query()
+            ->where('user_id', $userId)
+            ->where('lesson_id', $lesson->id)
+            ->get()
+            ->keyBy('question_id');
+
+        $quiz = collect($questions)->map(fn (array $question) => [
+            ...$question,
+            'last_result' => $reviewsByQuestion[$question['id']]->last_result ?? null,
+        ])->values();
+
         return Inertia::render('Lessons/Show', [
             'lesson' => [
                 'lesson_id' => $lesson->lesson_id,
@@ -49,7 +72,9 @@ class LessonController extends Controller
                 'objectives' => $lessonContent['frontmatter']['objectives'] ?? [],
                 'duration_minutes' => $lesson->duration_minutes,
                 'body_html' => $bodyHtml,
+                'body_after_quiz_html' => $bodyAfterQuizHtml,
             ],
+            'quiz' => $quiz,
             'toolbar' => $this->toolbarData($lesson, $tools, $datasets),
             'progress' => [
                 'status' => $progress->status,

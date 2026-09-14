@@ -12,6 +12,7 @@ import {
 import { trans } from '@/lib/trans';
 import { dashboard } from '@/routes';
 import { show as showLesson } from '@/routes/lessons';
+import { index as reviewIndex } from '@/routes/review';
 import { show as showTrack } from '@/routes/tracks';
 
 type TrackProgress = {
@@ -44,6 +45,7 @@ const props = defineProps<{
     tracks: TrackProgress[];
     recent_lessons: RecentLesson[];
     achievements: AchievementEntry[];
+    due_reviews_count: number;
 }>();
 
 const rankLabels: Record<string, string> = {
@@ -154,6 +156,25 @@ watchEffect(() => {
                             })
                         }}
                     </Badge>
+                </Link>
+            </CardContent>
+        </Card>
+
+        <Card v-if="props.due_reviews_count > 0">
+            <CardHeader>
+                <CardTitle>{{ trans('Fällige Wiederholungen') }}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Link
+                    :href="reviewIndex()"
+                    class="hover:bg-accent/50 flex items-center justify-between rounded-lg border p-3 text-sm transition-colors"
+                >
+                    <span>{{
+                        trans(':count Wissenskarten sind fällig', {
+                            count: props.due_reviews_count,
+                        })
+                    }}</span>
+                    <Badge variant="outline">{{ trans('Jetzt wiederholen') }}</Badge>
                 </Link>
             </CardContent>
         </Card>
