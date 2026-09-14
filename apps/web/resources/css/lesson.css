@@ -91,6 +91,30 @@
     color: var(--accent-foreground);
 }
 
+.lesson-app-nav a.is-active {
+    background: color-mix(in srgb, var(--lesson-accent) 14%, transparent);
+    color: var(--foreground);
+    font-weight: 600;
+}
+
+.lesson-app-guest-link {
+    padding: 7px 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+}
+
+.lesson-app-guest-link:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.lesson-app-guest-link-primary {
+    color: var(--lesson-accent);
+    font-weight: 600;
+}
+
 .lesson-app-header-right {
     margin-left: auto;
     display: flex;
@@ -200,6 +224,11 @@
 
 .lesson-app-drawer-nav a:hover {
     background: var(--accent);
+}
+
+.lesson-app-drawer-nav a.is-active {
+    background: color-mix(in srgb, var(--lesson-accent) 14%, transparent);
+    font-weight: 600;
 }
 
 /* -------------------- Hero -------------------- */

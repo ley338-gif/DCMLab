@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Models\AchievementUnlock;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\User;
+use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -32,6 +34,7 @@ class NodeControllerTest extends TestCase
         $this->contentDir = storage_path('framework/testing/node-content-'.Str::random(12));
         $this->buildContentFixture();
         $this->app->instance(ContentRepository::class, new ContentRepository($this->contentDir));
+        $this->seed(AchievementSeeder::class);
     }
 
     protected function tearDown(): void
@@ -232,6 +235,64 @@ class NodeControllerTest extends TestCase
         ]);
     }
 
+    public function test_correct_flag_unlocks_the_personal_first_blood_achievement_once(): void
+    {
+        [$user, , $attempt] = $this->userWithExistingAttempt();
+
+        Http::fake([
+            '*/v1/sessions/existing-session/flag' => Http::response(['correct' => true, 'points' => 9]),
+            '*/v1/sessions/existing-session/state' => Http::response(
+                [...$this->baseState(), 'solved' => true, 'points' => 9],
+            ),
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/de/nodes/test-node/flag', ['value' => 'Testflag']);
+
+        $response->assertOk();
+        $this->assertSame(['first-blood'], array_column($response->json('unlocked_achievements'), 'slug'));
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()
+                ->where('user_id', $user->id)
+                ->whereRelation('definition', 'slug', 'first-blood')
+                ->count(),
+        );
+
+        // Ein zweiter geloester Node darf first-blood nicht erneut vergeben,
+        // aber sein eigenes, node-gebundenes Achievement schon (siehe
+        // node.yml-Fixture unten: "achievements: [echo-heard]").
+        $secondNode = Node::factory()->create(['slug' => 'test-node-2']);
+        $secondAttempt = NodeAttempt::create([
+            'user_id' => $user->id,
+            'node_id' => $secondNode->id,
+            'engine_session_id' => 'second-session',
+            'status' => 'started',
+            'started_at' => now(),
+        ]);
+
+        Http::fake([
+            '*/v1/sessions/second-session/flag' => Http::response(['correct' => true, 'points' => 5]),
+            '*/v1/sessions/second-session/state' => Http::response(
+                [...$this->baseState(), 'node_slug' => 'test-node-2', 'solved' => true, 'points' => 5],
+            ),
+        ]);
+
+        $secondResponse = $this->actingAs($user)->postJson('/de/nodes/test-node-2/flag', ['value' => 'Testflag2']);
+
+        $secondResponse->assertOk();
+        $this->assertSame(
+            ['echo-heard'],
+            array_column($secondResponse->json('unlocked_achievements'), 'slug'),
+        );
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()
+                ->where('user_id', $user->id)
+                ->whereRelation('definition', 'slug', 'first-blood')
+                ->count(),
+        );
+    }
+
     public function test_incorrect_flag_does_not_mark_the_attempt_solved(): void
     {
         [$user, , $attempt] = $this->userWithExistingAttempt();
@@ -356,11 +417,66 @@ class NodeControllerTest extends TestCase
         Die Lösung steht hier.
         MD;
 
+        $nodeYml2 = <<<'YAML'
+        slug: test-node-2
+        difficulty: easy
+        points: 5
+        category: netzwerk
+        skills: [netzwerk]
+        achievements: [echo-heard]
+        related_lessons: []
+        estimated_minutes: 10
+
+        environment:
+          engine: simulated
+          hosts:
+            - name: workstation
+              ip: 10.0.0.50
+              role: shell
+          known_calling_aets: []
+          tools: [echoscu]
+          dataset: test-set
+          templates: []
+          placeholders: []
+
+        flag:
+          type: tag_value
+          source_tag: "0008,103E"
+          hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          case_sensitive: false
+
+        hints: []
+
+        stuck_timeout_minutes: 10
+        status: draft
+        updated: "2026-09-14"
+        YAML;
+
+        $nodeMd2 = <<<'MD'
+        ---
+        title: Testnode 2
+        scenario_title: Ein zweites Testszenario
+        ---
+
+        ## Briefing
+
+        Testauftrag 2.
+
+        ---
+
+        ## Write-up
+
+        Die Lösung steht hier.
+        MD;
+
         File::ensureDirectoryExists($this->contentDir.'/nodes/test-node');
+        File::ensureDirectoryExists($this->contentDir.'/nodes/test-node-2');
         File::ensureDirectoryExists($this->contentDir.'/tools');
         File::ensureDirectoryExists($this->contentDir.'/glossary');
         File::put($this->contentDir.'/nodes/test-node/node.yml', $nodeYml);
         File::put($this->contentDir.'/nodes/test-node/de.md', $nodeMd);
+        File::put($this->contentDir.'/nodes/test-node-2/node.yml', $nodeYml2);
+        File::put($this->contentDir.'/nodes/test-node-2/de.md', $nodeMd2);
         File::put($this->contentDir.'/datasets.yml', "test-set:\n  series: [\"Test Series\"]\n  file_count: 1\n");
     }
 }

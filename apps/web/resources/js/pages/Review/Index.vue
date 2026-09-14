@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { reactive, ref } from 'vue';
+import PageContainer from '@/components/PageContainer.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -106,118 +107,127 @@ function next(card: ReviewCard) {
 <template>
     <Head :title="trans('Wiederholung')" />
 
-    <div class="mx-auto max-w-2xl space-y-6 p-4">
-        <h1 class="text-2xl font-semibold">
-            {{ trans('Fällige Wiederholungen') }}
-        </h1>
+    <PageContainer>
+        <div class="mx-auto max-w-2xl space-y-6">
+            <h1 class="text-2xl font-semibold">
+                {{ trans('Fällige Wiederholungen') }}
+            </h1>
 
-        <p v-if="remaining.length === 0" class="text-muted-foreground text-sm">
-            {{ trans('Für heute fertig — keine fälligen Karten mehr.') }}
-        </p>
+            <p
+                v-if="remaining.length === 0"
+                class="text-muted-foreground text-sm"
+            >
+                {{ trans('Für heute fertig — keine fälligen Karten mehr.') }}
+            </p>
 
-        <Card v-for="card in remaining" :key="key(card)">
-            <CardHeader>
-                <CardTitle class="text-muted-foreground text-sm">{{
-                    card.lesson_title
-                }}</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-4">
-                <p
-                    class="text-sm font-medium"
-                    v-html="card.question.question_html"
-                />
+            <Card v-for="card in remaining" :key="key(card)">
+                <CardHeader>
+                    <CardTitle class="text-muted-foreground text-sm">{{
+                        card.lesson_title
+                    }}</CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-4">
+                    <p
+                        class="text-sm font-medium"
+                        v-html="card.question.question_html"
+                    />
 
-                <RadioGroup
-                    v-if="card.question.type === 'single'"
-                    v-model="state[key(card)].single"
-                    class="space-y-2"
-                >
+                    <RadioGroup
+                        v-if="card.question.type === 'single'"
+                        v-model="state[key(card)].single"
+                        class="space-y-2"
+                    >
+                        <div
+                            v-for="(option, index) in card.question
+                                .options_html"
+                            :key="index"
+                            class="flex items-center gap-2"
+                        >
+                            <RadioGroupItem
+                                :id="`${key(card)}-${index}`"
+                                :value="String(index)"
+                            />
+                            <Label
+                                :for="`${key(card)}-${index}`"
+                                class="text-sm font-normal"
+                                v-html="option"
+                            />
+                        </div>
+                    </RadioGroup>
+
                     <div
-                        v-for="(option, index) in card.question.options_html"
-                        :key="index"
-                        class="flex items-center gap-2"
+                        v-else-if="card.question.type === 'multi'"
+                        class="space-y-2"
                     >
-                        <RadioGroupItem
-                            :id="`${key(card)}-${index}`"
-                            :value="String(index)"
-                        />
-                        <Label
-                            :for="`${key(card)}-${index}`"
-                            class="text-sm font-normal"
-                            v-html="option"
-                        />
+                        <div
+                            v-for="(option, index) in card.question
+                                .options_html"
+                            :key="index"
+                            class="flex items-center gap-2"
+                        >
+                            <Checkbox
+                                :id="`${key(card)}-${index}`"
+                                :model-value="state[key(card)].multi.has(index)"
+                                @update:model-value="
+                                    () => toggleMulti(card, index)
+                                "
+                            />
+                            <Label
+                                :for="`${key(card)}-${index}`"
+                                class="text-sm font-normal"
+                                v-html="option"
+                            />
+                        </div>
                     </div>
-                </RadioGroup>
 
-                <div
-                    v-else-if="card.question.type === 'multi'"
-                    class="space-y-2"
-                >
-                    <div
-                        v-for="(option, index) in card.question.options_html"
-                        :key="index"
-                        class="flex items-center gap-2"
-                    >
-                        <Checkbox
-                            :id="`${key(card)}-${index}`"
-                            :model-value="state[key(card)].multi.has(index)"
-                            @update:model-value="() => toggleMulti(card, index)"
-                        />
-                        <Label
-                            :for="`${key(card)}-${index}`"
-                            class="text-sm font-normal"
-                            v-html="option"
-                        />
-                    </div>
-                </div>
-
-                <Input
-                    v-else
-                    v-model="state[key(card)].input"
-                    :placeholder="trans('Antwort eingeben')"
-                    class="font-mono text-sm"
-                />
-
-                <div class="flex items-center gap-3">
-                    <Button
-                        v-if="state[key(card)].feedback === null"
-                        type="button"
-                        size="sm"
-                        :disabled="state[key(card)].checking"
-                        @click="checkAnswer(card)"
-                    >
-                        {{ trans('Prüfen') }}
-                    </Button>
-                    <Button
+                    <Input
                         v-else
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        @click="next(card)"
-                    >
-                        {{ trans('Weiter') }}
-                    </Button>
-                    <span
-                        v-if="state[key(card)].feedback === 'correct'"
-                        class="text-sm text-green-600"
-                    >
-                        {{ trans('Richtig!') }}
-                    </span>
-                    <span
-                        v-else-if="state[key(card)].feedback === 'wrong'"
-                        class="text-destructive text-sm"
-                    >
-                        {{ trans('Leider falsch.') }}
-                    </span>
-                </div>
-            </CardContent>
-        </Card>
+                        v-model="state[key(card)].input"
+                        :placeholder="trans('Antwort eingeben')"
+                        class="font-mono text-sm"
+                    />
 
-        <Link
-            :href="dashboard()"
-            class="text-muted-foreground text-sm underline-offset-2 hover:underline"
-        >
-            {{ trans('Zurück zum Dashboard') }}
-        </Link>
-    </div>
+                    <div class="flex items-center gap-3">
+                        <Button
+                            v-if="state[key(card)].feedback === null"
+                            type="button"
+                            size="sm"
+                            :disabled="state[key(card)].checking"
+                            @click="checkAnswer(card)"
+                        >
+                            {{ trans('Prüfen') }}
+                        </Button>
+                        <Button
+                            v-else
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="next(card)"
+                        >
+                            {{ trans('Weiter') }}
+                        </Button>
+                        <span
+                            v-if="state[key(card)].feedback === 'correct'"
+                            class="text-sm text-green-600"
+                        >
+                            {{ trans('Richtig!') }}
+                        </span>
+                        <span
+                            v-else-if="state[key(card)].feedback === 'wrong'"
+                            class="text-destructive text-sm"
+                        >
+                            {{ trans('Leider falsch.') }}
+                        </span>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Link
+                :href="dashboard()"
+                class="text-muted-foreground text-sm underline-offset-2 hover:underline"
+            >
+                {{ trans('Zurück zum Dashboard') }}
+            </Link>
+        </div>
+    </PageContainer>
 </template>

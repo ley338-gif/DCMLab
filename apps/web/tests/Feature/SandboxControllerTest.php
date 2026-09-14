@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\AchievementUnlock;
 use App\Models\Lesson;
 use App\Models\Track;
 use App\Models\User;
+use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -41,6 +43,45 @@ class SandboxControllerTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/sandboxes')
             && $request['user_id'] === (string) $user->id
             && $request['dataset_slug'] === 'ct-thorax-3-slices');
+    }
+
+    public function test_successful_sandbox_creation_unlocks_the_sandbox_starter_achievement(): void
+    {
+        $this->seed(AchievementSeeder::class);
+        $lesson = $this->lessonWithSandbox();
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1', 'queue_position' => null], 201),
+        ]);
+
+        $response = $this->actingAs($user)->postJson("/de/lessons/{$lesson->lesson_id}/sandbox");
+
+        $response->assertCreated();
+        $this->assertSame(
+            ['sandbox-starter'],
+            array_column($response->json('unlocked_achievements'), 'slug'),
+        );
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()
+                ->where('user_id', $user->id)
+                ->whereRelation('definition', 'slug', 'sandbox-starter')
+                ->count(),
+        );
+    }
+
+    public function test_failed_sandbox_creation_does_not_unlock_any_achievement(): void
+    {
+        $this->seed(AchievementSeeder::class);
+        $lesson = $this->lessonWithSandbox();
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response([], 429)]);
+
+        $this->actingAs($user)->postJson("/de/lessons/{$lesson->lesson_id}/sandbox")->assertStatus(429);
+
+        $this->assertSame(0, AchievementUnlock::query()->where('user_id', $user->id)->count());
     }
 
     public function test_it_rejects_lessons_without_a_sandbox_dataset(): void

@@ -3,7 +3,6 @@ import { Form, Head } from '@inertiajs/vue3';
 import { CircleCheck } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import LessonHero from '@/components/lesson/LessonHero.vue';
-import LessonNavigation from '@/components/lesson/LessonNavigation.vue';
 import LessonSummary from '@/components/lesson/LessonSummary.vue';
 import LessonToc from '@/components/lesson/LessonToc.vue';
 import LearningObjectives from '@/components/lesson/LearningObjectives.vue';
@@ -13,6 +12,9 @@ import TrackSidebar, {
     type SidebarLesson,
     type SidebarTrackSummary,
 } from '@/components/lesson/TrackSidebar.vue';
+import PreviousNextNavigation, {
+    type NavNeighbor,
+} from '@/components/PreviousNextNavigation.vue';
 import QuizSection, {
     type QuizQuestion,
 } from '@/components/quiz/QuizSection.vue';
@@ -21,7 +23,7 @@ import { useLessonProseEnhancements } from '@/composables/useLessonProseEnhancem
 import { useLessonToc } from '@/composables/useLessonToc';
 import LessonLayout from '@/layouts/lesson/LessonLayout.vue';
 import { trans } from '@/lib/trans';
-import { complete, reopen } from '@/routes/lessons';
+import { complete, reopen, show as showLesson } from '@/routes/lessons';
 
 type ToolbarTool = {
     slug: string;
@@ -82,6 +84,23 @@ const bodyHtml = computed(() => props.lesson.body_html);
 
 const { entries, activeId, scrollToEntry } = useLessonToc(contentRef, bodyHtml);
 useLessonProseEnhancements(contentRef);
+
+function toNavNeighbor(neighbor: NeighborLesson, label: string): NavNeighbor {
+    return neighbor
+        ? {
+              href: showLesson(neighbor.lesson_id).url,
+              label,
+              title: neighbor.title,
+          }
+        : null;
+}
+
+const prevNav = computed(() =>
+    toNavNeighbor(props.lesson.prev, trans('Vorherige Lektion')),
+);
+const nextNav = computed(() =>
+    toNavNeighbor(props.lesson.next, trans('Nächste Lektion')),
+);
 </script>
 
 <template>
@@ -174,6 +193,6 @@ useLessonProseEnhancements(contentRef);
             </span>
         </div>
 
-        <LessonNavigation :prev="lesson.prev" :next="lesson.next" />
+        <PreviousNextNavigation :prev="prevNav" :next="nextNav" />
     </LessonLayout>
 </template>

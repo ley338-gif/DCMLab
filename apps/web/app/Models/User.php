@@ -73,4 +73,16 @@ class User extends Authenticatable implements PasskeyUser
     {
         return $this->hasMany(Achievement::class);
     }
+
+    /**
+     * Freischaltungen des generischen Achievement-Systems (App\Achievements).
+     * Bewusst nicht "achievements" genannt -- das meint bereits die aeltere
+     * First-Blood-Tabelle oben.
+     *
+     * @return HasMany<AchievementUnlock, $this>
+     */
+    public function achievementUnlocks(): HasMany
+    {
+        return $this->hasMany(AchievementUnlock::class);
+    }
 }

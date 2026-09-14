@@ -7,7 +7,9 @@ use App\Models\NodeAttempt;
 use App\Models\Track;
 use App\Models\TrackBadge;
 use App\Models\User;
+use App\Services\AchievementService;
 use App\Services\ProfileService;
+use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\View;
 use Tests\TestCase;
@@ -127,6 +129,34 @@ class PublicProfileControllerTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('Noch keine Abschlussprüfung bestanden.', $html);
+    }
+
+    /**
+     * Achievement-System: das oeffentliche Profil zeigt die generische
+     * Achievement-Liste (gesperrt und freigeschaltet), aber niemals das
+     * interne `metadata`-Feld eines Unlocks -- AchievementService::toArray()
+     * gibt es ohnehin nie aus, dieser Test haelt das fest.
+     */
+    public function test_profile_page_exposes_unlocked_achievements_without_leaking_internal_metadata(): void
+    {
+        $this->seed(AchievementSeeder::class);
+        $user = User::factory()->create();
+        $profile = (new ProfileService)->profileFor($user);
+        (new AchievementService)->unlock($user, 'sandbox-starter', ['lesson' => 'geheime-lektion-id']);
+
+        $response = $this->get("/de/profiles/{$profile->public_slug}");
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('profile.achievements', 6)
+            ->where('profile.achievements', function ($achievements) {
+                $sandboxStarter = collect($achievements)->firstWhere('slug', 'sandbox-starter');
+
+                return $sandboxStarter['unlocked'] === true
+                    && ! array_key_exists('metadata', $sandboxStarter)
+                    && collect($achievements)->firstWhere('slug', 'echo-heard')['unlocked'] === false;
+            }),
+        );
     }
 
     /**

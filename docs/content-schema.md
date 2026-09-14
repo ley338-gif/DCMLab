@@ -212,6 +212,7 @@ difficulty: easy                # easy | medium | hard | insane
 points: 10                      # 10 | 25 | 50 | 100
 category: netzwerk              # netzwerk | datenmodell | bildgebung | integration | security
 skills: [netzwerk]              # fließt ins Skill-Radar des Profils
+achievements: [echo-heard]      # optional, siehe docs/achievements.md
 related_lessons: ["1.5", "4.1"]
 estimated_minutes: 15
 
@@ -277,6 +278,7 @@ updated: "2026-09-12"
 - Der Flag-Klartext liegt **nie** im Repo, nur sein Hash.
 - `config_editable` markiert, woran der Lernende schrauben darf. Alles andere ist Umgebung.
 - `skills` speist das Radar-Chart — sparsam vergeben, maximal zwei je Node.
+- `achievements` ist optional (Default: keins) und verweist auf Slugs aus der zentralen Achievement-Registry (`App\Achievements\AchievementRegistry`, siehe `docs/achievements.md`). Löst ein Nutzer die Node, werden alle dort genannten Achievements freigeschaltet — praktisch für Achievements, die an ein bestimmtes Lernziel gebunden sind (z. B. "erstes erfolgreiches C-ECHO"), aber kein eigenes, von der Engine gemeldetes Ereignis haben. `content:validate` prüft, dass jeder genannte Slug existiert.
 - `templates` sind kein Hint und kosten keine Punkte. Ein Platzhalter darf nie die Lösung vorwegnehmen — im Gegenteil: Er markiert genau die Stelle, an der die Node ihre Frage stellt.
 - Auch Nodes nennen ihre Werkzeuge als Slugs. Die Node-Oberfläche zeigt sie in derselben Leiste wie die Lektionen.
 

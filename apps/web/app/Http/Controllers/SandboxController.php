@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lesson;
+use App\Services\AchievementService;
 use App\Services\SandboxClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,7 @@ use Illuminate\Validation\ValidationException;
  */
 class SandboxController extends Controller
 {
-    public function create(Lesson $lesson, SandboxClient $sandbox): JsonResponse
+    public function create(Lesson $lesson, SandboxClient $sandbox, AchievementService $achievements): JsonResponse
     {
         $datasetSlug = $lesson->sandbox['dataset'] ?? null;
 
@@ -32,7 +33,18 @@ class SandboxController extends Controller
             return response()->json($result, 429);
         }
 
-        return response()->json($result, 201);
+        // "sandbox-starter" nur bei wirklich erzeugter Umgebung, nicht beim
+        // reinen Anklicken der Lektion (Achievement-System, Abschnitt 6).
+        $unlockResult = $achievements->unlock(Auth::user(), 'sandbox-starter', [
+            'lesson' => $lesson->lesson_id,
+            'source' => 'sandbox_started',
+        ]);
+
+        $unlockedAchievements = $unlockResult->isNewlyUnlocked() && $unlockResult->definition !== null
+            ? [$achievements->toArray($unlockResult->definition, $unlockResult->unlock)]
+            : [];
+
+        return response()->json([...$result, 'unlocked_achievements' => $unlockedAchievements], 201);
     }
 
     public function state(string $sandboxId, SandboxClient $sandbox): JsonResponse

@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
+import { ArrowLeft, ArrowRight } from '@lucide/vue';
 import { computed, reactive, ref } from 'vue';
+import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
+import PreviousNextNavigation, {
+    type NavNeighbor,
+} from '@/components/PreviousNextNavigation.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { showAchievementUnlockToasts } from '@/lib/achievementToast';
 import { postJson } from '@/lib/api';
+import { categoryLabels } from '@/lib/nodeCatalog';
 import { trans } from '@/lib/trans';
 import {
     action as triggerActionRoute,
@@ -15,9 +22,12 @@ import {
     exec as execRoute,
     flag as flagRoute,
     hint as hintRoute,
+    index as nodesIndex,
+    show as showNode,
     state as stateRoute,
     writeUp as writeUpRoute,
 } from '@/routes/nodes';
+import type { Achievement } from '@/types/achievement';
 
 type HostService = {
     port: number;
@@ -52,6 +62,8 @@ type Hint = {
     text_html: string | null;
 };
 
+type NodeNeighbor = { slug: string; title: string } | null;
+
 const props = defineProps<{
     node: {
         slug: string;
@@ -59,8 +71,11 @@ const props = defineProps<{
         scenario_title: string;
         difficulty: string;
         points: number;
+        category: string;
         estimated_minutes: number;
     };
+    prev: NodeNeighbor;
+    next: NodeNeighbor;
     briefing_html: string;
     hints: Hint[];
     write_up_html: string | null;
@@ -69,6 +84,19 @@ const props = defineProps<{
     state: EngineState;
     attempt: { status: string };
 }>();
+
+function toNavNeighbor(neighbor: NodeNeighbor, label: string): NavNeighbor {
+    return neighbor
+        ? { href: showNode(neighbor.slug).url, label, title: neighbor.title }
+        : null;
+}
+
+const prevNav = computed(() =>
+    toNavNeighbor(props.prev, trans('Vorherige Node')),
+);
+const nextNav = computed(() =>
+    toNavNeighbor(props.next, trans('Nächste Node')),
+);
 
 const state = ref<EngineState>(props.state);
 const hints = reactive<Hint[]>(props.hints.map((h) => ({ ...h })));
@@ -173,18 +201,20 @@ async function viewWriteUp() {
 }
 
 async function submitFlag() {
-    const result = await postJson<{ correct: boolean; points?: number }>(
-        flagRoute.url(props.node.slug),
-        {
-            value: flagValue.value,
-        },
-    );
+    const result = await postJson<{
+        correct: boolean;
+        points?: number;
+        unlocked_achievements: Achievement[];
+    }>(flagRoute.url(props.node.slug), {
+        value: flagValue.value,
+    });
     flagFeedback.value = result.correct ? 'correct' : 'wrong';
     if (result.correct) {
         await fetchState();
         // Nach dem Loesen wird das Write-up automatisch gezeigt, ohne
         // Punktabzug (Engine straft das nur "vorab" ab, Abschnitt 5.3).
         await viewWriteUp();
+        showAchievementUnlockToasts(result.unlocked_achievements);
     }
 }
 </script>
@@ -192,9 +222,48 @@ async function submitFlag() {
 <template>
     <Head :title="node.title" />
 
-    <div class="bg-background min-h-screen">
+    <div class="mx-auto max-w-6xl px-6 pt-10">
+        <Breadcrumbs
+            class="mb-3"
+            :breadcrumbs="[
+                { title: trans('Labs'), href: nodesIndex() },
+                {
+                    title: categoryLabels[node.category] ?? node.category,
+                    href: nodesIndex(),
+                },
+                { title: node.title, href: showNode(node.slug) },
+            ]"
+        />
+
+        <nav
+            v-if="prev || next"
+            class="text-muted-foreground mb-6 flex items-center justify-between text-sm"
+            :aria-label="trans('Node-Navigation')"
+        >
+            <Link
+                v-if="prev"
+                :href="showNode(prev.slug)"
+                class="hover:text-foreground inline-flex items-center gap-1"
+            >
+                <ArrowLeft class="size-3.5" aria-hidden="true" />
+                {{ trans('Vorherige Node') }}
+            </Link>
+            <span v-else />
+
+            <Link
+                v-if="next"
+                :href="showNode(next.slug)"
+                class="hover:text-foreground inline-flex items-center gap-1"
+            >
+                {{ trans('Nächste Node') }}
+                <ArrowRight class="size-3.5" aria-hidden="true" />
+            </Link>
+        </nav>
+    </div>
+
+    <div>
         <main
-            class="mx-auto grid max-w-6xl gap-6 px-6 py-10 lg:grid-cols-[1fr_22rem]"
+            class="mx-auto grid max-w-6xl gap-6 px-6 pb-10 lg:grid-cols-[1fr_22rem]"
         >
             <div class="space-y-6">
                 <div>
@@ -390,6 +459,36 @@ async function submitFlag() {
                         v-html="briefing_html"
                     />
                 </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="text-sm">{{
+                            trans('Lösung & Write-up')
+                        }}</CardTitle>
+                    </CardHeader>
+                    <CardContent
+                        v-if="writeUpHtml"
+                        class="node-prose text-sm"
+                        v-html="writeUpHtml"
+                    />
+                    <CardContent v-else class="space-y-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="viewWriteUp"
+                        >
+                            {{ trans('Write-up ansehen') }}
+                        </Button>
+                        <p class="text-muted-foreground text-xs">
+                            {{
+                                trans(
+                                    'Hinweis: Das Öffnen des Write-ups setzt die erreichbaren Punkte auf 0.',
+                                )
+                            }}
+                        </p>
+                    </CardContent>
+                </Card>
             </div>
 
             <aside class="space-y-4">
@@ -459,29 +558,12 @@ async function submitFlag() {
                         </p>
                     </CardContent>
                 </Card>
-
-                <Card v-if="writeUpHtml">
-                    <CardHeader>
-                        <CardTitle class="text-sm">{{
-                            trans('Write-up')
-                        }}</CardTitle>
-                    </CardHeader>
-                    <CardContent
-                        class="node-prose text-sm"
-                        v-html="writeUpHtml"
-                    />
-                </Card>
-                <Button
-                    v-else
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    @click="viewWriteUp"
-                >
-                    {{ trans('Write-up ansehen (setzt Punkte auf 0)') }}
-                </Button>
             </aside>
         </main>
+
+        <div v-if="prevNav || nextNav" class="mx-auto max-w-6xl px-6 pb-10">
+            <PreviousNextNavigation :prev="prevNav" :next="nextNav" />
+        </div>
     </div>
 </template>
 

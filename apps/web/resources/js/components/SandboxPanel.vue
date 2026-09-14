@@ -3,6 +3,7 @@ import { FlaskConical, Loader2, Square } from '@lucide/vue';
 import { onBeforeUnmount, ref } from 'vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
 import { Button } from '@/components/ui/button';
+import { showAchievementUnlockToasts } from '@/lib/achievementToast';
 import { deleteJson, postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
 import { sandbox as createSandboxRoute } from '@/routes/lessons';
@@ -11,6 +12,7 @@ import {
     exec as execSandbox,
     state as sandboxState,
 } from '@/routes/sandbox';
+import type { Achievement } from '@/types/achievement';
 
 const props = defineProps<{ lessonId: string }>();
 
@@ -64,8 +66,10 @@ async function start() {
         status: string;
         sandbox_id: string;
         queue_position: number | null;
+        unlocked_achievements: Achievement[];
     };
     sandboxId.value = result.sandbox_id;
+    showAchievementUnlockToasts(result.unlocked_achievements);
 
     if (result.status === 'running') {
         status.value = 'running';

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Achievements\AchievementRegistry;
 use App\Content\ContentIssue;
 use App\Content\ContentRepository;
 use App\Content\ExamContent;
@@ -64,6 +65,7 @@ class ContentValidate extends Command
                 );
                 $this->checkPlaceholders($node);
                 $this->checkFlagFormat($node);
+                $this->checkNodeAchievements($node);
             }
         }
 
@@ -545,6 +547,29 @@ class ContentValidate extends Command
                 LineFinder::firstLineContaining($node['def_raw'] ?? '', 'hash'),
                 'flag.hash beginnt nicht mit "sha256:" — sieht nach Flag-Klartext statt Hash aus',
             );
+        }
+    }
+
+    /**
+     * Optionales `achievements:`-Feld (Achievement-System, Abschnitt 7):
+     * jeder deklarierte Slug muss in der zentralen Registry existieren,
+     * damit eine Node nicht auf ein nie vergebenes Achievement verweist.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function checkNodeAchievements(array $node): void
+    {
+        $declared = data_get($node['def'], 'achievements', []);
+        $knownSlugs = AchievementRegistry::slugs();
+
+        foreach ($declared as $slug) {
+            if (! in_array((string) $slug, $knownSlugs, true)) {
+                $this->issue(
+                    $node['def_file'],
+                    LineFinder::firstLineContaining($node['def_raw'] ?? '', 'achievements'),
+                    "achievements verweist auf unbekanntes Achievement \"{$slug}\"",
+                );
+            }
         }
     }
 

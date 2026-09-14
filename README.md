@@ -46,6 +46,71 @@ synchronisiert `content/` in die Datenbank (`content:sync`).
 `make up` baut auch die Spielwiese-Images (`sandbox-images`) — ohne die
 scheitert das Starten einer Spielwiese-Sitzung aus einer Lektion heraus.
 
+## Tests sicher ausführen
+
+> **Warnung:** Die Testsuite darf niemals gegen die Entwicklungsdatenbank
+> (`dcmlab`) laufen. `./vendor/bin/pest` bzw. `php artisan test` NIEMALS mit
+> `--env=local` oder innerhalb eines Containers erzwingen, dessen
+> `DB_CONNECTION` schon auf Postgres zeigt — siehe
+> `docs/adr/0069-test-datenbank-isolation.md` für den Vorfall, der zu den
+> Sperren unten geführt hat.
+
+Datenbanknamen:
+
+| Zweck | Name |
+|---|---|
+| Laravel, Entwicklung | `dcmlab` |
+| Laravel, Tests (Standard) | SQLite `:memory:` — kann die Dev-DB per Bauart nie berühren |
+| Laravel, Tests (optional, Postgres-Parität) | `dcmlab_test` |
+| Engine, Entwicklung | `dcmlab` (Tabelle `engine_sessions`, geteilte DB mit Laravel) |
+| Engine, Tests (Standard) | SQLite `:memory:` |
+
+Benötigte Umgebungsvariable: keine manuell zu setzende — `phpunit.xml` und
+`services/engine/tests/conftest.py` erzwingen `APP_ENV=testing` bzw. die
+SQLite-Testkonfiguration selbst (mit `force="true"` bzw. per Zuweisung statt
+`setdefault`), unabhängig davon, was im aufrufenden Prozess/Container schon
+gesetzt ist. Eine zusätzliche Laufzeitsperre
+(`tests/Support/DatabaseSafety.php`, `tests/database_safety.py`) bricht jeden
+Testlauf hart ab, falls die Umgebung trotzdem nicht eindeutig nach „Test"
+aussieht.
+
+**Lokal** (Standard, empfohlen — läuft direkt auf dem Host, nicht im
+Container):
+
+```bash
+cd apps/web && ./vendor/bin/pest
+cd services/engine && python -m pytest
+cd services/sandbox && python -m pytest
+```
+
+oder gebündelt: `make test`.
+
+**Optionale Postgres-Paritätssuite** (fängt Postgres-spezifisches Verhalten,
+z. B. strikte `uuid`-Spalten, die SQLite nicht durchsetzt):
+
+```bash
+# einmalig: Testdatenbank anlegen
+make test-db-pgsql
+
+cd apps/web && ./vendor/bin/pest --configuration phpunit.pgsql.xml
+```
+
+**Im Docker-Container** (z. B. zum Reproduzieren eines CI-Problems): die
+Sperren oben machen das unabhängig vom Container sicher, trotzdem der
+empfohlene Weg (kein Composer/pytest-Setup im Runtime-Image nötig):
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file .env \
+  -f infra/docker-compose.dev.yml exec app ./vendor/bin/pest
+```
+
+**CI** (`.github/workflows/ci.yml`, Job `web`/`engine`): läuft auf einem
+frischen Runner ohne vorbelegte `DB_*`/`ENGINE_DATABASE_URL`-Variablen — die
+Sperren greifen dort also ebenso, sind dort aber ohnehin nie das Problem
+gewesen (das Risiko besteht ausschließlich, wenn die Suite in einer Umgebung
+läuft, die schon reale Datenbank-Zugangsdaten im Prozess hat, also lokal
+oder im Dev-Container).
+
 ## Was funktioniert
 
 - **Track 1 „Fundamente"** (1.0–1.8, veröffentlicht): vollständiger
