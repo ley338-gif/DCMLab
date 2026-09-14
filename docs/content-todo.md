@@ -1024,7 +1024,11 @@ betroffen und bleibt die maßgebliche Prüfung für PHP-Tests.
 
 ## CI
 
-`content:validate` läuft in der CI-Pipeline (`content`-Job), aber mit
-`continue-on-error: true`, solange diese Liste nicht leer ist. Sobald die
-obigen Punkte entschieden und behoben sind, das `continue-on-error` in
-`.github/workflows/ci.yml` entfernen.
+**Seit P10.55 blockierend.** `content:validate` läuft in der
+CI-Pipeline (`content`-Job) und meldet seit P10.23 (0 Verstöße nach
+Behebung aller 19 damaligen Fundstellen) durchgehend keine Verstöße
+mehr — bestätigt in jeder einzelnen Content-Slice seither (zuletzt
+P10.54: 41 Lektionen, 52 Glossarbegriffe, 0 Verstöße). Das ursprünglich
+vorgesehene `continue-on-error: true` in `.github/workflows/ci.yml`
+wurde entsprechend entfernt: `content:validate` ist jetzt ein
+blockierender Check wie jeder andere CI-Job, nicht mehr informativ.

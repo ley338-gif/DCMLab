@@ -49,10 +49,6 @@ jobs:
       - run: composer install --no-interaction --prefer-dist --no-dev
       - run: cp .env.example .env && php artisan key:generate
       - name: content:validate
-        # Nicht blockierend: der Content hat bekannte, dokumentierte Luecken
-        # (docs/content-todo.md), die Content-Autoren beheben, nicht der Build.
-        # Sobald die Liste dort leer ist, hier continue-on-error entfernen.
-        continue-on-error: true
         run: php artisan content:validate
         env:
           CONTENT_PATH: ${{ github.workspace }}/content
