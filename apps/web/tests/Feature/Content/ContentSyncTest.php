@@ -3,6 +3,7 @@
 namespace Tests\Feature\Content;
 
 use App\Content\ContentRepository;
+use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\Track;
@@ -36,6 +37,24 @@ class ContentSyncTest extends TestCase
 
         $lesson11 = Lesson::where('lesson_id', '1.1')->first();
         $this->assertNotNull($lesson11);
+    }
+
+    public function test_it_also_registers_an_activity_entry_per_lesson(): void
+    {
+        $dir = base_path('tests/Fixtures/content-real');
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $track = Track::where('slug', 'fundamente')->first();
+        $lesson15 = Lesson::where('lesson_id', '1.5')->first();
+
+        $activity = Activity::query()->where('type', 'lesson')->where('key', '1.5')->first();
+        $this->assertNotNull($activity);
+        $this->assertSame($track->id, $activity->track_id);
+        $this->assertSame($lesson15->status, $activity->status);
+        $this->assertSame($lesson15->title, $activity->title);
+        $this->assertSame($lesson15->source_hash, $activity->source_hash);
     }
 
     public function test_it_is_idempotent(): void
@@ -88,5 +107,29 @@ class ContentSyncTest extends TestCase
         $this->assertNotNull($node);
         $this->assertSame('Silent CT', $node->title['de']);
         $this->assertSame(10, $node->points);
+
+        $activity = Activity::query()->where('type', 'node')->where('key', 'silent-ct')->first();
+        $this->assertNotNull($activity);
+        $this->assertSame($node->status, $activity->status);
+    }
+
+    public function test_it_registers_an_activity_entry_per_track_exam_from_real_content(): void
+    {
+        $dir = base_path('../../content');
+
+        if (! is_dir($dir.'/exams/fundamente')) {
+            $this->markTestSkipped('content/exams/fundamente nicht gefunden.');
+        }
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $track = Track::where('slug', 'fundamente')->first();
+        $activity = Activity::query()->where('type', 'exam')->where('key', 'fundamente')->first();
+
+        $this->assertNotNull($activity);
+        $this->assertSame($track->id, $activity->track_id);
+        $this->assertSame('published', $activity->status);
     }
 }

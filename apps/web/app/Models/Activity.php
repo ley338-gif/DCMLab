@@ -1,0 +1,63 @@
+<?php
+
+namespace App\Models;
+
+use Database\Factories\ActivityFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+/**
+ * Verzeichniseintrag einer Aktivitaet (ADR 0072). `type` + `key` sind der
+ * fachliche Schluessel (siehe Migration); die eigentlichen Nutzdaten bleiben
+ * bei der jeweiligen Fachtabelle (Lesson, Node, ...) bzw. bei content/.
+ * `App\Activities\ActivityRegistry` loest einen Datensatz in die passende
+ * `App\Activities\ActivityContract`-Instanz auf.
+ *
+ * @property int $id
+ * @property string $type
+ * @property string $key
+ * @property int|null $track_id
+ * @property int $order
+ * @property string $status
+ * @property array<int, string> $authors
+ * @property array<string, string>|null $title
+ * @property array<string, string>|null $teaser
+ * @property string|null $source_hash
+ * @property-read Track|null $track
+ */
+#[Fillable([
+    'type', 'key', 'track_id', 'order', 'status', 'authors', 'title', 'teaser', 'source_hash',
+])]
+class Activity extends Model
+{
+    /** @use HasFactory<ActivityFactory> */
+    use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'authors' => 'array',
+            'title' => 'array',
+            'teaser' => 'array',
+        ];
+    }
+
+    /**
+     * @return BelongsTo<Track, $this>
+     */
+    public function track(): BelongsTo
+    {
+        return $this->belongsTo(Track::class);
+    }
+
+    /**
+     * @return HasMany<ActivityProgress, $this>
+     */
+    public function progress(): HasMany
+    {
+        return $this->hasMany(ActivityProgress::class);
+    }
+}

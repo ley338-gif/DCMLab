@@ -136,6 +136,20 @@ oder im Dev-Container).
   explizitem Hinweis, dass die Spielwiese Nutzercode ausführt;
   Betriebsdokumentation (`docs/betrieb.md`).
 
+## Ausbau zum Lightweight LMS (in Arbeit)
+
+Laufender Umbau nach `dcm-lab-lms-agent-prompt.md` (ADR 0071/0072/0073):
+Lektion, Quiz, Prüfung, Node und Spielwiese hinter einen gemeinsamen
+Aktivitätsvertrag stellen, `content/` von einem Speicherort zu einem
+erzeugten Artefakt machen.
+
+- **W0 — Aktivitätsvertrag** (fertig): `App\Activities\ActivityContract`,
+  `activities`-Verzeichnis, `activity_progress`-Tabelle, `ActivityRegistry`.
+  `ProfileService`/`AchievementService` lesen noch nicht davon — das ist der
+  nächste Schritt (siehe ADR 0073 für den Stand und die bewusst
+  zurückgestellten Teile).
+- W1–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+
 ## Bekannte Lücken
 
 - Track 2, 3, 5 sind im Konzept geplant, aber nicht angelegt.
