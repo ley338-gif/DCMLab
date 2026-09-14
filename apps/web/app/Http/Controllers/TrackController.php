@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Content\ContentRepository;
-use App\Models\ExamAttempt;
 use App\Models\Track;
-use App\Models\TrackBadge;
+use App\Services\ExamAttemptService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -38,7 +36,7 @@ class TrackController extends Controller
     /**
      * Zeigt die Lektionsliste eines Tracks.
      */
-    public function show(Track $track, ContentRepository $content): Response
+    public function show(Track $track, ExamAttemptService $exams): Response
     {
         $lessons = $track->lessons()
             ->withCount(['progress as completed' => fn ($query) => $query
@@ -56,20 +54,7 @@ class TrackController extends Controller
                 'completed' => (bool) $lesson->getAttribute('completed'),
             ]);
 
-        $examAvailable = array_key_exists($track->slug, $content->exams());
-        $allLessonsCompleted = $lessons->isNotEmpty() && $lessons->every(fn ($lesson) => $lesson['completed']);
-
-        $inProgressAttempt = auth()->check()
-            ? ExamAttempt::query()
-                ->where('user_id', auth()->id())
-                ->where('track_id', $track->id)
-                ->where('status', 'in_progress')
-                ->first()
-            : null;
-
-        $hasPassed = auth()->check()
-            ? TrackBadge::query()->where('user_id', auth()->id())->where('track_id', $track->id)->exists()
-            : false;
+        $status = $exams->statusForTracks(auth()->user(), [$track])[$track->id];
 
         return Inertia::render('Tracks/Show', [
             'track' => [
@@ -78,10 +63,10 @@ class TrackController extends Controller
             ],
             'lessons' => $lessons,
             'exam' => [
-                'available' => $examAvailable,
-                'all_lessons_completed' => $allLessonsCompleted,
-                'in_progress_attempt_id' => $inProgressAttempt?->id,
-                'passed' => $hasPassed,
+                'available' => $status['exam_defined'],
+                'all_lessons_completed' => $status['all_lessons_completed'],
+                'in_progress_attempt_id' => $status['in_progress_attempt_id'],
+                'passed' => $status['passed'],
             ],
         ]);
     }

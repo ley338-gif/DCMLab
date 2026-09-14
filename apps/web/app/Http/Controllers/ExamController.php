@@ -8,6 +8,7 @@ use App\Content\MarkdownRenderer;
 use App\Models\ExamAttempt;
 use App\Models\Track;
 use App\Services\ExamAttemptService;
+use App\Services\ProfileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -137,6 +138,8 @@ class ExamController extends Controller
                 'score_correct' => $attempt->score_correct,
                 'score_total' => $attempt->score_total,
                 'passed' => $attempt->passed,
+                'badge_awarded' => $attempt->badge_awarded,
+                'points_awarded' => $attempt->badge_awarded ? ProfileService::TRACK_PASS_POINTS : null,
             ],
             'error_breakdown' => $errorBreakdown,
             'wrong_questions' => $wrongQuestions,

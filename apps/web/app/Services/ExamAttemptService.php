@@ -9,8 +9,11 @@ use App\Content\MarkdownRenderer;
 use App\Models\ExamAttempt;
 use App\Models\Lesson;
 use App\Models\Track;
+use App\Models\TrackBadge;
 use App\Models\User;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Zieht und fuehrt einen Versuch der Track-Abschlusspruefung (P10.60). Die
@@ -131,13 +134,6 @@ final class ExamAttemptService
         $passPercent = (int) ($exam['meta']['pass_percent'] ?? 80);
         $passed = $total > 0 && (($correctCount / $total) * 100) >= $passPercent;
 
-        $attempt->status = 'completed';
-        $attempt->score_correct = $correctCount;
-        $attempt->score_total = $total;
-        $attempt->passed = $passed;
-        $attempt->completed_at = now();
-        $attempt->save();
-
         $answeredQuestions = [];
         foreach ($answers as $questionId => $answer) {
             $entry = $poolById->get($questionId);
@@ -152,9 +148,78 @@ final class ExamAttemptService
             ];
         }
 
-        $this->profiles->recomputeAfterExamAttempt($attempt->user, $attempt->track, $passed, $answeredQuestions);
+        $badgeNewlyAwarded = $this->profiles->recomputeAfterExamAttempt($attempt->user, $attempt->track, $passed, $answeredQuestions);
+
+        $attempt->status = 'completed';
+        $attempt->score_correct = $correctCount;
+        $attempt->score_total = $total;
+        $attempt->passed = $passed;
+        $attempt->badge_awarded = $badgeNewlyAwarded;
+        $attempt->completed_at = now();
+        $attempt->save();
 
         return $attempt;
+    }
+
+    /**
+     * Pruefungsstatus je Track fuer einen Nutzer -- die eine Stelle fuer die
+     * Verfuegbarkeitslogik (P10.65), gemeinsam genutzt von TrackController
+     * und DashboardController statt an zwei Stellen dupliziert.
+     *
+     * @param  iterable<Track>  $tracks
+     * @return array<int, array{exam_defined: bool, all_lessons_completed: bool, in_progress_attempt_id: ?int, passed: bool, passed_at: ?string}>
+     */
+    public function statusForTracks(?User $user, iterable $tracks): array
+    {
+        $tracks = $tracks instanceof Collection ? $tracks : collect($tracks);
+        $trackIds = $tracks->pluck('id')->all();
+        $examSlugs = array_keys($this->content->exams());
+
+        $lessonTotals = Lesson::query()
+            ->whereIn('track_id', $trackIds)
+            ->select('track_id', DB::raw('count(*) as total'))
+            ->groupBy('track_id')
+            ->pluck('total', 'track_id');
+
+        $completedTotals = $user === null ? collect() : Lesson::query()
+            ->whereIn('track_id', $trackIds)
+            ->whereHas('progress', fn ($query) => $query
+                ->where('user_id', $user->id)
+                ->where('status', 'completed'),
+            )
+            ->select('track_id', DB::raw('count(*) as completed'))
+            ->groupBy('track_id')
+            ->pluck('completed', 'track_id');
+
+        $inProgressAttempts = $user === null ? collect() : ExamAttempt::query()
+            ->where('user_id', $user->id)
+            ->whereIn('track_id', $trackIds)
+            ->where('status', 'in_progress')
+            ->pluck('id', 'track_id');
+
+        $badges = $user === null ? collect() : TrackBadge::query()
+            ->where('user_id', $user->id)
+            ->whereIn('track_id', $trackIds)
+            ->get()
+            ->keyBy('track_id');
+
+        $status = [];
+
+        foreach ($tracks as $track) {
+            $total = (int) ($lessonTotals[$track->id] ?? 0);
+            $completed = (int) ($completedTotals[$track->id] ?? 0);
+            $badge = $badges->get($track->id);
+
+            $status[$track->id] = [
+                'exam_defined' => in_array($track->slug, $examSlugs, true),
+                'all_lessons_completed' => $total > 0 && $completed === $total,
+                'in_progress_attempt_id' => $inProgressAttempts[$track->id] ?? null,
+                'passed' => $badge !== null,
+                'passed_at' => $badge?->awarded_at->toDateString(),
+            ];
+        }
+
+        return $status;
     }
 
     /**

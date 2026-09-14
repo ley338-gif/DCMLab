@@ -14,12 +14,21 @@ import { dashboard } from '@/routes';
 import { show as showLesson } from '@/routes/lessons';
 import { index as reviewIndex } from '@/routes/review';
 import { show as showTrack } from '@/routes/tracks';
+import { start as startExam } from '@/routes/tracks/exam';
+
+type TrackExamStatus = {
+    available: boolean;
+    defined: boolean;
+    passed: boolean;
+    passed_at: string | null;
+};
 
 type TrackProgress = {
     slug: string;
     title_key: string;
     lessons_count: number;
     completed_lessons_count: number;
+    exam: TrackExamStatus;
 };
 
 type RecentLesson = {
@@ -139,24 +148,54 @@ watchEffect(() => {
                 >
                     {{ trans('Noch keine Tracks verfügbar.') }}
                 </p>
-                <Link
+                <div
                     v-for="track in props.tracks"
                     :key="track.slug"
-                    :href="showTrack(track.slug)"
-                    class="hover:bg-accent/50 flex items-center justify-between rounded-lg border p-3 transition-colors"
+                    class="flex items-center justify-between gap-3 rounded-lg border p-3"
                 >
-                    <span class="font-medium">{{
-                        trans(track.title_key)
-                    }}</span>
-                    <Badge variant="outline">
-                        {{
-                            trans(':completed von :total Lektionen', {
-                                completed: track.completed_lessons_count,
-                                total: track.lessons_count,
-                            })
-                        }}
-                    </Badge>
-                </Link>
+                    <Link :href="showTrack(track.slug)" class="hover:underline">
+                        <span class="font-medium">{{
+                            trans(track.title_key)
+                        }}</span>
+                    </Link>
+                    <div class="flex items-center gap-2">
+                        <Badge variant="outline">
+                            {{
+                                trans(':completed von :total Lektionen', {
+                                    completed: track.completed_lessons_count,
+                                    total: track.lessons_count,
+                                })
+                            }}
+                        </Badge>
+                        <Badge
+                            v-if="track.exam.passed"
+                            variant="default"
+                            :title="
+                                track.exam.passed_at
+                                    ? formatDate(track.exam.passed_at)
+                                    : undefined
+                            "
+                        >
+                            {{ trans('Bestanden') }}
+                        </Badge>
+                        <Link
+                            v-else-if="track.exam.available"
+                            :href="startExam({ track: track.slug })"
+                            method="post"
+                            as="button"
+                        >
+                            <Badge
+                                variant="secondary"
+                                class="hover:bg-accent cursor-pointer"
+                            >
+                                {{ trans('Prüfung verfügbar') }}
+                            </Badge>
+                        </Link>
+                        <Badge v-else-if="track.exam.defined" variant="outline">
+                            {{ trans('Prüfung noch nicht verfügbar') }}
+                        </Badge>
+                    </div>
+                </div>
             </CardContent>
         </Card>
 

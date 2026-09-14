@@ -30,6 +30,22 @@
         </tbody>
     </table>
 
+    <h2>{{ __('Bestandene Abschlussprüfungen') }}</h2>
+    @if (count($profile['track_badges']) === 0)
+        <p>{{ __('Noch keine Abschlussprüfung bestanden.') }}</p>
+    @else
+        <table>
+            <tbody>
+                @foreach ($profile['track_badges'] as $badge)
+                    <tr>
+                        <td>{{ __($badge['track_title_key']) }}</td>
+                        <td>{{ $badge['awarded_at'] }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
     <h2>{{ __('First Blood') }}</h2>
     @if (count($profile['first_bloods']) === 0)
         <p>{{ __('No first bloods yet.') }}</p>
