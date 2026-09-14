@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Content\ContentRepository;
+use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\Themenfeld;
@@ -13,12 +14,15 @@ use Illuminate\Console\Command;
  * Liest content/ ein und aktualisiert den Index in der Datenbank
  * (Abschnitt 7): tracks, lessons, nodes. Die Prosa bleibt im Dateisystem --
  * hier landen nur Slug, Reihenfolge, Titel/Teaser und ein Hash der Quelle.
+ *
+ * Zusaetzlich (ADR 0072): ein `activities`-Verzeichniseintrag je Lektion,
+ * Node und Track-Pruefung, damit sie ueber ActivityRegistry aufloesbar sind.
  */
 class ContentSync extends Command
 {
     protected $signature = 'content:sync';
 
-    protected $description = 'Aktualisiert den DB-Index (tracks, lessons, nodes) aus content/ (Abschnitt 7)';
+    protected $description = 'Aktualisiert den DB-Index (tracks, lessons, nodes, activities) aus content/ (Abschnitt 7)';
 
     public function handle(ContentRepository $content): int
     {
@@ -26,13 +30,15 @@ class ContentSync extends Command
         $trackIds = $this->syncTracks($content, $themenfeldIds);
         $lessonCount = $this->syncLessons($content, $trackIds);
         $nodeCount = $this->syncNodes($content, $themenfeldIds);
+        $examCount = $this->syncExamActivities($content, $trackIds);
 
         $this->info(sprintf(
-            'content:sync — %d Themenfelder, %d Tracks, %d Lektionen, %d Nodes synchronisiert.',
+            'content:sync — %d Themenfelder, %d Tracks, %d Lektionen, %d Nodes, %d Pruefungen synchronisiert.',
             count($themenfeldIds),
             count($trackIds),
             $lessonCount,
             $nodeCount,
+            $examCount,
         ));
 
         return self::SUCCESS;
@@ -118,11 +124,18 @@ class ContentSync extends Command
                 continue;
             }
 
+            $status = $lesson['meta']['status'] ?? 'draft';
+            $authors = $lesson['meta']['authors'] ?? [];
+            $title = ['de' => $lesson['frontmatter']['title'] ?? ''];
+            $teaser = ['de' => $lesson['frontmatter']['teaser'] ?? ''];
+            $order = $lesson['meta']['order'] ?? 0;
+            $sourceHash = hash('sha256', $lesson['meta_raw'].$lesson['md_raw']);
+
             Lesson::updateOrCreate(
                 ['lesson_id' => $id],
                 [
                     'track_id' => $trackIds[$trackSlug],
-                    'order' => $lesson['meta']['order'] ?? 0,
+                    'order' => $order,
                     'level' => $lesson['meta']['level'] ?? 'einsteiger',
                     'duration_minutes' => $lesson['meta']['duration_minutes'] ?? 0,
                     'objectives_count' => $lesson['meta']['objectives_count'] ?? 0,
@@ -132,12 +145,25 @@ class ContentSync extends Command
                     'lab' => $lesson['meta']['lab'] ?? null,
                     'glossary_terms' => $lesson['meta']['glossary_terms'] ?? [],
                     'tools_checked' => $lesson['meta']['tools_checked'] ?? null,
-                    'status' => $lesson['meta']['status'] ?? 'draft',
-                    'authors' => $lesson['meta']['authors'] ?? [],
+                    'status' => $status,
+                    'authors' => $authors,
                     'content_updated_at' => $lesson['meta']['updated'] ?? null,
-                    'title' => ['de' => $lesson['frontmatter']['title'] ?? ''],
-                    'teaser' => ['de' => $lesson['frontmatter']['teaser'] ?? ''],
-                    'source_hash' => hash('sha256', $lesson['meta_raw'].$lesson['md_raw']),
+                    'title' => $title,
+                    'teaser' => $teaser,
+                    'source_hash' => $sourceHash,
+                ],
+            );
+
+            Activity::updateOrCreate(
+                ['type' => 'lesson', 'key' => $id],
+                [
+                    'track_id' => $trackIds[$trackSlug],
+                    'order' => $order,
+                    'status' => $status,
+                    'authors' => $authors,
+                    'title' => $title,
+                    'teaser' => $teaser,
+                    'source_hash' => $sourceHash,
                 ],
             );
 
@@ -169,6 +195,10 @@ class ContentSync extends Command
                 continue;
             }
 
+            $status = $node['def']['status'] ?? 'draft';
+            $title = ['de' => $node['frontmatter']['title'] ?? ''];
+            $sourceHash = hash('sha256', $node['def_raw'].$node['md_raw']);
+
             Node::updateOrCreate(
                 ['slug' => $slug],
                 [
@@ -180,11 +210,65 @@ class ContentSync extends Command
                     'skills' => $node['def']['skills'] ?? [],
                     'related_lessons' => $node['def']['related_lessons'] ?? [],
                     'estimated_minutes' => $node['def']['estimated_minutes'] ?? 0,
-                    'status' => $node['def']['status'] ?? 'draft',
+                    'status' => $status,
                     'content_updated_at' => $node['def']['updated'] ?? null,
-                    'title' => ['de' => $node['frontmatter']['title'] ?? ''],
+                    'title' => $title,
                     'scenario_title' => ['de' => $node['frontmatter']['scenario_title'] ?? ''],
-                    'source_hash' => hash('sha256', $node['def_raw'].$node['md_raw']),
+                    'source_hash' => $sourceHash,
+                ],
+            );
+
+            // Nodes tragen anders als Lektionen/Tracks kein eigenes
+            // `order`-Feld (ihre Reihenfolge ergibt sich in NodeController
+            // aus Themenfeld/Kategorie/Schwierigkeit/Slug) und kein
+            // `authors`-Feld -- beides bleibt hier auf dem Standardwert.
+            Activity::updateOrCreate(
+                ['type' => 'node', 'key' => $slug],
+                [
+                    'track_id' => null,
+                    'status' => $status,
+                    'title' => $title,
+                    'source_hash' => $sourceHash,
+                ],
+            );
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * @param  array<string, int>  $trackIds
+     */
+    private function syncExamActivities(ContentRepository $content, array $trackIds): int
+    {
+        $count = 0;
+
+        foreach ($content->exams() as $trackSlug => $exam) {
+            if ($exam['meta'] === null || $exam['frontmatter'] === null) {
+                $this->warn("Pruefung {$trackSlug}: exam.yml oder de.md fehlt/unlesbar — uebersprungen.");
+
+                continue;
+            }
+
+            if (! isset($trackIds[$trackSlug])) {
+                $this->warn("Pruefung {$trackSlug}: unbekannter Track \"{$trackSlug}\" — uebersprungen.");
+
+                continue;
+            }
+
+            // Pruefungen kennen heute keinen eigenen Entwurfsstatus --
+            // exam.yml hat kein `status`-Feld, jede vorhandene Pruefung ist
+            // fuer Lernende erreichbar (ExamController: "kein harter
+            // Zugangsschutz").
+            Activity::updateOrCreate(
+                ['type' => 'exam', 'key' => $trackSlug],
+                [
+                    'track_id' => $trackIds[$trackSlug],
+                    'status' => 'published',
+                    'title' => ['de' => $exam['frontmatter']['title'] ?? ''],
+                    'source_hash' => hash('sha256', $exam['meta_raw'].$exam['md_raw']),
                 ],
             );
 
