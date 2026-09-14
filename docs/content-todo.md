@@ -1072,6 +1072,27 @@ und wurden unverändert wiederverwendet. Reale Verifikation: `content:
 validate` grün, echter Browser-E2E im isolierten Compose-Stack (22/22
 Fragen richtig, 100 %, bestanden, Ergebnisseite korrekt).
 
+**Track-Abschlussprüfung Das Bild selbst (P10.62):** neuer Content unter
+`content/exams/bild/{exam.yml,de.md}`, 30 Fragen (12 single, 7 multi,
+7 truefalse, 4 input), je 4 aus den Lektionen 3.1–3.6 sowie 6
+`cross`-Fragen (u. a. die beiden unabhängigen Umrechnungsschritte
+Photometric Interpretation/Fensterung, das Type-System aus 3.1/3.2, und
+die Instance-vs-Frame-Zählfalle aus 3.4/3.5). Wie Track 2 hatte keine
+der sechs Track-3-Lektionen `quiz:`-Daten in ihrer `meta.yml` — der Pool
+ist komplett neu geschrieben, bleibt aber an echten Fakten und
+Stolperfallen aus dem jeweiligen Lektionstext verankert. Ein Nebenfund
+beim Schreiben: die Überschrift „Was ein {{term:enhanced-iod}}
+tatsächlich anders macht" (3.4) enthält die `{{term:x}}`-Syntax wörtlich
+im Rohtext, wodurch `HeadingSlug` sie mit in den Anker-Slug einrechnet
+(`was-ein-term-enhanced-iod-tatsaechlich-anders-macht`) — kein Bug,
+`MarkdownRenderer` und `ContentValidate` berechnen beide denselben Slug
+aus demselben Rohtext (siehe ADR 0066), nur optisch ungewöhnlich; für
+künftige Lektionen ist es einfacher, `{{term:x}}` nicht in
+Überschriften zu verwenden, auf die ein Rückverweis zeigen soll. Keine
+neuen Architekturentscheidungen. Reale Verifikation: `content:validate`
+grün, echter Browser-E2E im isolierten Compose-Stack (16/16 Fragen
+richtig, 100 %, bestanden).
+
 ## CI
 
 **Seit P10.55 blockierend.** `content:validate` läuft in der

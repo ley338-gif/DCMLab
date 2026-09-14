@@ -1,0 +1,263 @@
+track: bild
+title_key: exam.bild.title
+pass_percent: 80
+draw: 16
+duration_minutes: 15
+shuffle: true
+
+# Antwortindizes 0-basiert (single/multi), siehe ADR 0066. Wie Track 2
+# hatte keine der sechs Track-3-Lektionen zum Zeitpunkt dieser Pruefung
+# quiz:-Daten in ihrer meta.yml -- der Pool ist komplett neu geschrieben.
+
+questions:
+  - id: f01
+    type: single
+    answer: 0
+    lesson: "3.1"
+    review: { lesson: "3.1", anchor: "type-1-type-2-type-3-drei-verschiedene-pflichten" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f02
+    type: single
+    answer: 1
+    lesson: "3.1"
+    review: { lesson: "3.1", anchor: "ein-echtes-objekt-modulweise-gelesen" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f03
+    type: multi
+    answer: [0, 2]
+    lesson: "3.1"
+    review: { lesson: "3.1", anchor: "type-1-type-2-type-3-drei-verschiedene-pflichten" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f04
+    type: truefalse
+    answer: false
+    lesson: "3.1"
+    review: { lesson: "3.1", anchor: "stolperfallen" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f05
+    type: single
+    answer: 0
+    lesson: "3.2"
+    review: { lesson: "3.2", anchor: "monochrome1-gegen-monochrome2" }
+    difficulty: 1
+    tags: [bildgebung]
+
+  - id: f06
+    type: single
+    answer: 0
+    lesson: "3.2"
+    review: { lesson: "3.2", anchor: "ein-ct-bild-und-ein-umgewandeltes-foto-nebeneinander" }
+    difficulty: 2
+    tags: [bildgebung]
+
+  - id: f07
+    type: multi
+    answer: [1, 2, 3]
+    lesson: "3.2"
+    review: { lesson: "3.2", anchor: "ein-ct-bild-und-ein-umgewandeltes-foto-nebeneinander" }
+    difficulty: 2
+    tags: [bildgebung, datenmodell]
+
+  - id: f08
+    type: truefalse
+    answer: false
+    lesson: "3.2"
+    review: { lesson: "3.2", anchor: "ein-nebenfund-type-1-heisst-nicht-wird-immer-geprueft" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f09
+    type: single
+    answer: 0
+    lesson: "3.3"
+    review: { lesson: "3.3", anchor: "zwei-getrennte-umrechnungen" }
+    difficulty: 1
+    tags: [bildgebung]
+
+  - id: f10
+    type: multi
+    answer: [0, 2]
+    lesson: "3.3"
+    review: { lesson: "3.3", anchor: "und-wenn-die-werte-selbst-nicht-linear-sind-luts" }
+    difficulty: 2
+    tags: [bildgebung]
+
+  - id: f11
+    type: truefalse
+    answer: false
+    lesson: "3.3"
+    review: { lesson: "3.3", anchor: "stolperfallen" }
+    difficulty: 2
+    tags: [bildgebung]
+
+  - id: f12
+    type: input
+    answer: "-1000"
+    lesson: "3.3"
+    review: { lesson: "3.3", anchor: "beide-schritte-real-ergaenzen-und-nachrechnen" }
+    difficulty: 2
+    tags: [bildgebung]
+
+  - id: f13
+    type: single
+    answer: 0
+    lesson: "3.4"
+    review: { lesson: "3.4", anchor: "ins-archiv-senden-und-real-nachzaehlen" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f14
+    type: single
+    answer: 1
+    lesson: "3.4"
+    review: { lesson: "3.4", anchor: "was-ein-term-enhanced-iod-tatsaechlich-anders-macht" }
+    difficulty: 2
+    tags: [datenmodell, bildgebung]
+
+  - id: f15
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "3.4"
+    review: { lesson: "3.4", anchor: "was-ein-term-enhanced-iod-tatsaechlich-anders-macht" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f16
+    type: truefalse
+    answer: false
+    lesson: "3.4"
+    review: { lesson: "3.4", anchor: "stolperfallen" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f17
+    type: single
+    answer: 1
+    lesson: "3.5"
+    review: { lesson: "3.5", anchor: "ein-echter-structured-report" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f18
+    type: single
+    answer: 0
+    lesson: "3.5"
+    review: { lesson: "3.5", anchor: "ein-key-object-selection-ein-verweis-kein-bild" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f19
+    type: truefalse
+    answer: false
+    lesson: "3.5"
+    review: { lesson: "3.5", anchor: "stolperfallen" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f20
+    type: input
+    answer: "ModalitiesInStudy"
+    lesson: "3.5"
+    review: { lesson: "3.5", anchor: "dieselbe-study-drei-voellig-verschiedene-objekttypen" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f21
+    type: single
+    answer: 2
+    lesson: "3.6"
+    review: { lesson: "3.6", anchor: "specificcharacterset-legt-die-kodierung-fest" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f22
+    type: multi
+    answer: [0, 3]
+    lesson: "3.6"
+    review: { lesson: "3.6", anchor: "dasselbe-objekt-drei-werkzeuge-drei-reaktionen" }
+    difficulty: 2
+    tags: [datenmodell, integration]
+
+  - id: f23
+    type: truefalse
+    answer: false
+    lesson: "3.6"
+    review: { lesson: "3.6", anchor: "stolperfallen" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f24
+    type: input
+    answer: "SpecificCharacterSet"
+    lesson: "3.6"
+    review: { lesson: "3.6", anchor: "derselbe-name-einmal-mit-einmal-ohne-deklaration" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f25
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "3.1", anchor: "type-1-type-2-type-3-drei-verschiedene-pflichten" }
+      - { lesson: "3.6", anchor: "dasselbe-objekt-drei-werkzeuge-drei-reaktionen" }
+    difficulty: 3
+    tags: [datenmodell, integration]
+
+  - id: f26
+    type: multi
+    answer: [0, 1, 2]
+    lesson: "cross"
+    review:
+      - { lesson: "3.4", anchor: "eine-serie-eine-datei-und-ein-skript-das-falsch-zaehlt" }
+      - { lesson: "3.5", anchor: "ein-bild-das-niemand-fotografiert-hat" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f27
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "3.2", anchor: "monochrome1-gegen-monochrome2" }
+      - { lesson: "3.3", anchor: "zwei-getrennte-umrechnungen" }
+    difficulty: 3
+    tags: [bildgebung]
+
+  - id: f28
+    type: input
+    answer: "Type 3"
+    lesson: "cross"
+    review:
+      - { lesson: "3.1", anchor: "type-1-type-2-type-3-drei-verschiedene-pflichten" }
+      - { lesson: "3.2", anchor: "ein-nebenfund-type-1-heisst-nicht-wird-immer-geprueft" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f29
+    type: truefalse
+    answer: false
+    lesson: "cross"
+    review:
+      - { lesson: "3.5", anchor: "dieselbe-study-drei-voellig-verschiedene-objekttypen" }
+      - { lesson: "3.4", anchor: "eine-serie-eine-datei-und-ein-skript-das-falsch-zaehlt" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f30
+    type: multi
+    answer: [0, 2]
+    lesson: "cross"
+    review:
+      - { lesson: "3.3", anchor: "und-wenn-die-werte-selbst-nicht-linear-sind-luts" }
+      - { lesson: "3.6", anchor: "dasselbe-objekt-drei-werkzeuge-drei-reaktionen" }
+    difficulty: 3
+    tags: [datenmodell, integration]
