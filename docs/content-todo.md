@@ -620,6 +620,31 @@ Zugriffsverhalten. `tools` von `[]` auf `[curl, storescu]` gesetzt,
 Track-5-Lektionen geschrieben — nur 5.8 (Beschaffung, geplant als
 reine Synthese) steht noch aus.**
 
+**5.8 ist seit P10.54 vollständig geschrieben — damit ist Track 5
+komplett.** Wie geplant reine Synthese, keine neuen technischen
+Befunde: sieben Fragenkategorien, jede mit direktem Verweis auf den
+real verifizierten Befund der jeweiligen Quelllektion (5.1–5.7).
+Zusätzlich real recherchiert statt erfunden: die Deutsche
+Röntgengesellschaft (AGIT) hat eine reale, öffentlich referenzierte
+PACS-Beschaffungs-Checkliste veröffentlicht (orientiert an der
+IEEE-Praxis für Anforderungsspezifikationen, RFI-/RFP-Unterscheidung)
+— nur ihre Existenz/Struktur zitiert, ihr Inhalt nicht nacherzählt.
+`content/tracks.yml: bild.status`-Muster wiederholt:
+**`betrieb.status`** von `planned` auf `published` gesetzt — alle acht
+Lektionen aus Track 5 sind jetzt vollständig geschrieben, real gegen
+den Stack verifiziert (Tracks-Übersicht zeigt „8 Lektionen ·
+Verfügbar"). Siehe ADR 0063.
+
+**Rückblick auf Track 5:** Jede einzelne der in ADR 0055 vorsichtig als
+„möglicherweise kein Hands-on möglich" markierten Lektionen (5.1, 5.2,
+5.4, 5.5, 5.6, 5.7) erwies sich bei tatsächlicher Prüfung als
+hands-on-fähig — nur 5.3 brauchte eine Umgebung außerhalb der
+Standard-Sandbox (zwei Orthanc-Instanzen), 5.8 blieb wie geplant reine
+Synthese. Dasselbe Muster wie bei Track 2 (P10.24–P10.32) und Track 3
+(P10.39–P10.45) beobachtet: vorsichtige Scaffold-Annahmen über
+fehlende Hands-on-Möglichkeiten halten der tatsächlichen Prüfung
+selten stand.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0
@@ -977,7 +1002,9 @@ jede Lektion, die eine serverseitige Ablehnung zeigen will.
 
 **Track 2:** seit P10.32 vollständig geschrieben (alle acht Lektionen,
 siehe oben). **Track 3:** seit P10.45 vollständig geschrieben (alle
-sechs Lektionen, siehe oben), Track veröffentlicht.
+sechs Lektionen, siehe oben), Track veröffentlicht. **Track 5:** seit
+P10.54 vollständig geschrieben (alle acht Lektionen, siehe oben),
+Track veröffentlicht.
 
 **Zehn vorbestehende mypy-Fehler in `services/sandbox/tests/
 test_orchestrator.py` (in ADR 0042 vermerkt, hier nachgetragen):**
