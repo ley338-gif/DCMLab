@@ -1,19 +1,21 @@
 id: "5.5"
 track: betrieb
 order: 5
-duration_minutes: 10
+duration_minutes: 15
 level: fortgeschritten
 objectives_count: 3
 requires: ["5.4"]
-tools: []
+tools: [curl, storescu]
 
 sandbox:
-  required: false
+  required: true
+  dataset: ct-thorax-60
 
 lab:
   node: null
   optional: true
 
-glossary_terms: []
-status: draft
+glossary_terms: [atna]
+tools_checked: "2026-09-14"
+status: fertig
 updated: "2026-09-14"

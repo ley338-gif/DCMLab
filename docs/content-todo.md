@@ -559,6 +559,27 @@ von `false` auf `true` korrigiert (Dataset `ct-thorax-60`), zwei neue
 Glossarbegriffe (`de-identification`, `encrypted-attributes`). Siehe
 ADR 0059.
 
+**5.5 ist seit P10.51 vollständig geschrieben — ein realer Test
+widerlegte die naive Annahme "das Archiv protokolliert Zugriffe".**
+Real per `WebSearch` bestätigt: Orthanc hat kein eingebautes
+Zugriffsprotokoll, die Projektdokumentation selbst empfiehlt einen
+vorgeschalteten Reverse-Proxy dafür. Was Orthanc real bietet
+(`/changes`) wurde live getestet: nach einem echten `storescu` wuchs
+das Protokoll real um vier Einträge (`NewInstance`/`NewSeries`/
+`NewStudy`/`NewPatient`, echte Zeitstempel/Sequenznummern) — nach
+einem anschließenden echten Datei-Download blieb es unverändert. Der
+zentrale, live demonstrierte Fund: `/changes` ist ein
+Änderungsprotokoll, kein Zugriffsprotokoll, und trägt ohnehin keine
+Nutzeridentität (konsistent mit `AuthenticationEnabled: false` in
+dieser Sandbox). IHE ATNA als reale, standardisierte Antwort auf genau
+diese Lücke benannt (konzeptionell). Reale, aktuelle Rechtsgrundlagen
+recherchiert statt aus dem Gedächtnis zitiert: § 127 StrlSchV (10
+Jahre Röntgenuntersuchungen, 30 Jahre Röntgenbehandlungen, Minderjährige
+bis 28. Lebensjahr) und Art. 17 Abs. 3 DSGVO (Aufbewahrungspflicht als
+Löschungsausnahme). `tools` von `[]` auf `[curl, storescu]` gesetzt,
+`sandbox.required` von `false` auf `true` korrigiert (Dataset
+`ct-thorax-60`), neuer Glossarbegriff `atna`. Siehe ADR 0060.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0
