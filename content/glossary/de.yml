@@ -350,3 +350,10 @@ encrypted-attributes:
   short: DICOMs eigener, standardisierter Mechanismus für Pseudonymisierung — die Originalwerte werden verschlüsselt im de-identifizierten Objekt selbst mitgeführt, statt in einer externen Tabelle.
   see_also: [de-identification]
   lesson: "5.4"
+
+atna:
+  term: ATNA
+  expansion: Audit Trail and Node Authentication (IHE ITI-TF)
+  short: IHE-Profil für echte Zugriffsprotokollierung — Knoten authentifizieren sich gegenseitig und senden strukturierte Audit-Nachrichten an ein zentrales Audit-Repository. Orthanc selbst implementiert das nicht eingebaut.
+  see_also: [conformance-statement]
+  lesson: "5.5"
