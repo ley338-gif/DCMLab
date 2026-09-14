@@ -148,7 +148,12 @@ erzeugten Artefakt machen.
   `ProfileService`/`AchievementService` lesen noch nicht davon — das ist der
   nächste Schritt (siehe ADR 0073 für den Stand und die bewusst
   zurückgestellten Teile).
-- W1–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W1 — `ContentValidator` als Service** (fertig): das Regelwissen aus
+  `ContentValidate` (930+ Zeilen) lebt jetzt in `App\Content\ContentValidator`,
+  ohne Dateisystemzugriff gegen Arrays aufrufbar. Das Artisan-Command ist ein
+  duenner Aufruf; `LessonActivity`/`NodeActivity`/`ExamActivity::validate()`
+  nutzen denselben Service, gefiltert auf ihre eigenen Dateien.
+- W2–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 

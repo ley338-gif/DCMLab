@@ -87,6 +87,17 @@ class NodeActivityTest extends TestCase
         $this->assertSame(['netzwerk'], $result->skills);
     }
 
+    public function test_validate_delegates_to_the_shared_content_validator_scoped_to_this_node(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate();
+
+        foreach ($issues as $issue) {
+            $this->assertStringStartsWith('nodes/test-node/', $issue->file);
+        }
+    }
+
     public function test_serialize_returns_the_node_definition_and_markdown_unchanged(): void
     {
         $activity = $this->makeActivity();
