@@ -1,0 +1,327 @@
+track: betrieb
+title_key: exam.betrieb.title
+pass_percent: 80
+draw: 20
+duration_minutes: 18
+shuffle: true
+
+# Antwortindizes 0-basiert (single/multi), siehe ADR 0066. Wie Track 2/3
+# hatte keine der acht Track-5-Lektionen zum Zeitpunkt dieser Pruefung
+# quiz:-Daten in ihrer meta.yml -- der Pool ist komplett neu geschrieben.
+
+questions:
+  - id: f01
+    type: single
+    answer: 1
+    lesson: "5.1"
+    review: { lesson: "5.1", anchor: "die-vier-transaktionen-die-du-schon-live-gesehen-hast" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f02
+    type: single
+    answer: 2
+    lesson: "5.1"
+    review: { lesson: "5.1", anchor: "was-swf-b-nicht-regelt" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f03
+    type: multi
+    answer: [1, 2, 3]
+    lesson: "5.1"
+    review: { lesson: "5.1", anchor: "ein-name-fuer-etwas-das-du-schon-gemacht-hast" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f04
+    type: truefalse
+    answer: false
+    lesson: "5.1"
+    review: { lesson: "5.1", anchor: "ein-name-fuer-etwas-das-du-schon-gemacht-hast" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f05
+    type: single
+    answer: 2
+    lesson: "5.2"
+    review: { lesson: "5.2", anchor: "die-pflichtabschnitte" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f06
+    type: single
+    answer: 0
+    lesson: "5.2"
+    review: { lesson: "5.2", anchor: "kompatibilitaet-in-drei-schritten-pruefen" }
+    difficulty: 2
+    tags: [integration, netzwerk]
+
+  - id: f07
+    type: multi
+    answer: [1, 2, 3]
+    lesson: "5.2"
+    review: { lesson: "5.2", anchor: "was-ein-conformance-statement-nicht-sagt" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f08
+    type: truefalse
+    answer: false
+    lesson: "5.2"
+    review: { lesson: "5.2", anchor: "was-ein-conformance-statement-nicht-sagt" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f09
+    type: single
+    answer: 0
+    lesson: "5.3"
+    review: { lesson: "5.3", anchor: "die-naive-annahme-migration-veraendert-das-objekt" }
+    difficulty: 1
+    tags: [datenmodell, integration]
+
+  - id: f10
+    type: single
+    answer: 1
+    lesson: "5.3"
+    review: { lesson: "5.3", anchor: "der-reale-fehlerfall-wenn-ein-migrationstool-uids-neu-vergibt" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f11
+    type: multi
+    answer: [0, 1, 2]
+    lesson: "5.3"
+    review: { lesson: "5.3", anchor: "was-ein-einfacher-bildvergleich-nicht-zeigt" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f12
+    type: truefalse
+    answer: false
+    lesson: "5.3"
+    review: { lesson: "5.3", anchor: "was-ein-einfacher-bildvergleich-nicht-zeigt" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f13
+    type: single
+    answer: 2
+    lesson: "5.4"
+    review: { lesson: "5.4", anchor: "ein-regelwerk-kein-bauchgefuehl" }
+    difficulty: 1
+    tags: [datenmodell, security]
+
+  - id: f14
+    type: input
+    answer: "K"
+    lesson: "5.4"
+    review: { lesson: "5.4", anchor: "ein-regelwerk-kein-bauchgefuehl" }
+    difficulty: 1
+    tags: [security]
+
+  - id: f15
+    type: truefalse
+    answer: false
+    lesson: "5.4"
+    review: { lesson: "5.4", anchor: "anonymisierung-vs-pseudonymisierung-rueckfuehrbarkeit" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f16
+    type: input
+    answer: "0400,0550"
+    lesson: "5.4"
+    review: { lesson: "5.4", anchor: "anonymisierung-vs-pseudonymisierung-rueckfuehrbarkeit" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f17
+    type: single
+    answer: 1
+    lesson: "5.5"
+    review: { lesson: "5.5", anchor: "der-entscheidende-unterschied-lesen-hinterlaesst-keine-spur" }
+    difficulty: 1
+    tags: [security]
+
+  - id: f18
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "5.5"
+    review: { lesson: "5.5", anchor: "ihe-atna-die-standardisierte-antwort-auf-genau-diese-luecke" }
+    difficulty: 2
+    tags: [security, integration]
+
+  - id: f19
+    type: truefalse
+    answer: false
+    lesson: "5.5"
+    review: { lesson: "5.5", anchor: "das-spannungsfeld-aufbewahrungspflicht-vs-loeschanspruch" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f20
+    type: input
+    answer: "10"
+    lesson: "5.5"
+    review: { lesson: "5.5", anchor: "aufbewahrungsfristen-eine-reale-konkrete-zahl" }
+    difficulty: 1
+    tags: [security]
+
+  - id: f21
+    type: single
+    answer: 1
+    lesson: "5.6"
+    review: { lesson: "5.6", anchor: "ein-frei-erfundener-name-genuegt" }
+    difficulty: 1
+    tags: [security]
+
+  - id: f22
+    type: multi
+    answer: [1, 2, 3]
+    lesson: "5.6"
+    review: { lesson: "5.6", anchor: "netzsegmentierung-als-standardkompensation" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f23
+    type: truefalse
+    answer: false
+    lesson: "5.6"
+    review: { lesson: "5.6", anchor: "netzsegmentierung-als-standardkompensation" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f24
+    type: input
+    answer: "1780"
+    lesson: "5.6"
+    review: { lesson: "5.6", anchor: "keine-einzelmeinung-real-gemessen-aktuell" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f25
+    type: single
+    answer: 1
+    lesson: "5.7"
+    review: { lesson: "5.7", anchor: "konfiguration-und-version-system" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f26
+    type: single
+    answer: 1
+    lesson: "5.7"
+    review: { lesson: "5.7", anchor: "durchsatz-und-fehlerrate-jobs" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f27
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "5.7"
+    review: { lesson: "5.7", anchor: "drei-reale-endpunkte-drei-unterschiedliche-kennzahlen-kategorien" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f28
+    type: truefalse
+    answer: false
+    lesson: "5.7"
+    review: { lesson: "5.7", anchor: "was-diese-drei-endpunkte-nicht-abdecken" }
+    difficulty: 2
+    tags: [integration, security]
+
+  - id: f29
+    type: single
+    answer: 1
+    lesson: "5.8"
+    review: { lesson: "5.8", anchor: "wann-im-prozess-das-passieren-sollte" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f30
+    type: single
+    answer: 1
+    lesson: "5.8"
+    review: { lesson: "5.8", anchor: "migration-lektion-5-3" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f31
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "5.8"
+    review: { lesson: "5.8", anchor: "sieben-lektionen-eine-checkliste" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f32
+    type: truefalse
+    answer: false
+    lesson: "5.8"
+    review: { lesson: "5.8", anchor: "sieben-lektionen-eine-checkliste" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f33
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "5.4", anchor: "ein-regelwerk-kein-bauchgefuehl" }
+      - { lesson: "5.5", anchor: "der-entscheidende-unterschied-lesen-hinterlaesst-keine-spur" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f34
+    type: multi
+    answer: [0, 2]
+    lesson: "cross"
+    review:
+      - { lesson: "5.2", anchor: "was-ein-conformance-statement-nicht-sagt" }
+      - { lesson: "5.6", anchor: "ein-frei-erfundener-name-genuegt" }
+    difficulty: 3
+    tags: [integration, security]
+
+  - id: f35
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "5.3", anchor: "der-reale-fehlerfall-wenn-ein-migrationstool-uids-neu-vergibt" }
+      - { lesson: "5.4", anchor: "live-z-und-u-tatsaechlich-anwenden" }
+    difficulty: 3
+    tags: [datenmodell, security]
+
+  - id: f36
+    type: input
+    answer: "/statistics"
+    lesson: "cross"
+    review:
+      - { lesson: "5.1", anchor: "die-vier-transaktionen-die-du-schon-live-gesehen-hast" }
+      - { lesson: "5.7", anchor: "drei-reale-endpunkte-drei-unterschiedliche-kennzahlen-kategorien" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f37
+    type: truefalse
+    answer: false
+    lesson: "cross"
+    review:
+      - { lesson: "5.5", anchor: "der-entscheidende-unterschied-lesen-hinterlaesst-keine-spur" }
+      - { lesson: "5.7", anchor: "was-diese-drei-endpunkte-nicht-abdecken" }
+    difficulty: 3
+    tags: [security, integration]
+
+  - id: f38
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "cross"
+    review:
+      - { lesson: "5.6", anchor: "ein-frei-erfundener-name-genuegt" }
+      - { lesson: "5.8", anchor: "sicherheit-lektion-5-6" }
+    difficulty: 3
+    tags: [security, integration]
