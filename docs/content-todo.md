@@ -708,7 +708,7 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 | C-FIND-Matching (Query-Level, Wildcards) | ✅ P10.1 | `c-find-mismatch` (neu) |
 | Größenlimit (C-STORE) | ✅ P10.2 | `oversized-image` (neu) |
 | Transfer-Syntax-Aushandlung | ✅ P10.3 | `syntax-negotiation-fails` (neu) |
-| Multiframe-Generator | offen | — (Track 3) |
+| Multiframe-Generator | ✅ P10.43 (kein neuer Generator nötig, siehe ADR 0052) | — (Track 3, kein Node-Bezug) |
 | Worklist-Query | ✅ P10.11 (ADR 0021, `content-schema.md` 6f) | `worklist-query-empty` (neu) |
 | Patient-Merge / Study-Split | ✅ P10.4 (kein neuer Code nötig, siehe ADR 0014) | `patient-merge-discovery` (neu) |
 
@@ -778,11 +778,14 @@ unbelegte Fakten verlangt, gilt weiterhin Abschnitt 13.
 `zwei-ebenen-tiefer` (✅ P10.14) — keine Roadmap-Nodes, aber durch
 Feature 1 bzw. Feature 3/4/5/7/8/9 unblockierte Stubs.
 
-Verbleibend von den sieben Roadmap-Engine-Features: nur noch der
-Multiframe-Generator (für Track 3). **Keine unblockierten, aber
-ungeschriebenen Node-Stubs mehr bekannt** — die ursprüngliche
-Sieben-Node-Liste (siehe oben, Abschnitt "Track 1 — Engine-Limits")
-ist mit P10.14 vollständig abgearbeitet.
+**Alle sieben Roadmap-Engine-Features sind abgearbeitet.** Der
+zunächst als offen geführte Multiframe-Generator erwies sich beim
+tatsächlichen Schreiben von Lektion 3.4 (P10.43) als unnötig — die
+bereits real vorhandenen, mitgelieferten `pydicom`-Testdaten
+(`SC_rgb_rle_2frame.dcm`) genügten, siehe ADR 0052. **Keine
+unblockierten, aber ungeschriebenen Node-Stubs mehr bekannt** — die
+ursprüngliche Sieben-Node-Liste (siehe oben, Abschnitt "Track 1 —
+Engine-Limits") ist mit P10.14 vollständig abgearbeitet.
 
 **Schema-Lücke aus P10.10, weiterhin offen:** `lessons/<id>/meta.yml`
 erlaubt aktuell nur einen einzelnen `lab.node`-Wert. Lektion 4.3
