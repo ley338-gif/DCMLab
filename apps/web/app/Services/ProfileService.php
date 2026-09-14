@@ -6,18 +6,25 @@ use App\Models\Achievement;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\Profile;
+use App\Models\Track;
+use App\Models\TrackBadge;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 
 /**
- * Punkte, Rang und Skill-Radar (Abschnitt 7). Node-Punkte sind die einzige
- * Quelle -- Lektionen geben keine Punkte (Abschnitt 4.4 kennt dafuer keinen
- * Mechanismus, nur "erledigt/offen").
+ * Punkte, Rang und Skill-Radar (Abschnitt 7). Node-Punkte und bestandene
+ * Track-Pruefungen sind die beiden Punktequellen (seit P10.60 bewusst um
+ * Track-Bestehen erweitert -- vorher galten nur Node-Punkte, siehe ADR
+ * 0009; Lektionen selbst geben weiterhin keine Punkte).
  */
 final class ProfileService
 {
+    // Einmalig je bestandenem Track (TrackBadge ist unique(user_id,
+    // track_id)), passend zur Rang-Schwelle novice -> operator.
+    private const TRACK_PASS_POINTS = 50;
+
     /**
      * Rang-Schwellen (Abschnitt 7 nennt nur die fuenf Namen, keine Punktzahlen
      * -- das ist eine umkehrbare Balance-Entscheidung, siehe ADR 0009).
@@ -54,10 +61,14 @@ final class ProfileService
 
     public function totalPoints(User $user): int
     {
-        return (int) NodeAttempt::query()
+        $nodePoints = (int) NodeAttempt::query()
             ->where('user_id', $user->id)
             ->where('status', 'solved')
             ->sum('points');
+
+        $trackPoints = TrackBadge::query()->where('user_id', $user->id)->count() * self::TRACK_PASS_POINTS;
+
+        return $nodePoints + $trackPoints;
     }
 
     /**
@@ -88,12 +99,52 @@ final class ProfileService
             }
         }
 
-        $profile->rank = $this->rankFor($totalPoints);
-        $profile->points = $totalPoints;
+        $profile->rank = $this->rankFor($this->totalPoints($user));
+        $profile->points = $this->totalPoints($user);
         $profile->skill_vector = $skillVector;
         $profile->save();
 
         $this->maybeAwardFirstBlood($user, $node);
+    }
+
+    /**
+     * Nach Abschluss einer Track-Abschlusspruefung aufgerufen (P10.60):
+     * vergibt bei Bestehen einmalig ein TrackBadge (die zweite
+     * Punktequelle, siehe Klassendoc) und speist richtig beantwortete
+     * Fragen additiv ins Skill-Radar ein -- dieselbe additive Logik wie bei
+     * Node-`skills` in recomputeAfterSolve(), keine Straf-/Abzugsmechanik
+     * fuer falsche Antworten (die gibt es sonst nirgends im Code).
+     *
+     * @param  list<array{correct: bool, tags: list<string>}>  $answeredQuestions
+     */
+    public function recomputeAfterExamAttempt(User $user, Track $track, bool $passed, array $answeredQuestions): void
+    {
+        if ($passed) {
+            TrackBadge::firstOrCreate(
+                ['user_id' => $user->id, 'track_id' => $track->id],
+                ['awarded_at' => now()],
+            );
+        }
+
+        $profile = $this->profileFor($user);
+        $skillVector = $profile->skill_vector;
+
+        foreach ($answeredQuestions as $question) {
+            if (! $question['correct']) {
+                continue;
+            }
+
+            foreach (array_slice($question['tags'], 0, 2) as $tag) {
+                if (array_key_exists($tag, $skillVector)) {
+                    $skillVector[$tag] += 1;
+                }
+            }
+        }
+
+        $profile->skill_vector = $skillVector;
+        $profile->points = $this->totalPoints($user);
+        $profile->rank = $this->rankFor($profile->points);
+        $profile->save();
     }
 
     /**

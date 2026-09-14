@@ -422,6 +422,104 @@ class ContentValidateTest extends TestCase
         $this->assertStringContainsString('answer muss bei type input ein nicht-leerer String sein', $result['output']);
     }
 
+    public function test_valid_exam_passes(): void
+    {
+        $dir = $this->buildContentDir($this->examFiles());
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(0, $result['exitCode'], $result['output']);
+    }
+
+    public function test_exam_question_without_matching_heading_fails(): void
+    {
+        $dir = $this->buildContentDir($this->examFiles([
+            'exams/fundamente/de.md' => str_replace('### f01 —', '### fXX —', $this->validExamMarkdown()),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('Pruefungsfrage "f01" aus exam.yml hat keinen', $result['output']);
+    }
+
+    public function test_exam_question_without_explanation_fails(): void
+    {
+        $dir = $this->buildContentDir($this->examFiles([
+            'exams/fundamente/de.md' => str_replace(
+                '**Erklärung:** Testerklaerung eins.',
+                'Keine Erklaerung hier.',
+                $this->validExamMarkdown(),
+            ),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('braucht genau eine "**Erklärung:**"-Zeile', $result['output']);
+    }
+
+    public function test_exam_unknown_type_fails(): void
+    {
+        $dir = $this->buildContentDir($this->examFiles([
+            'exams/fundamente/exam.yml' => str_replace('type: single', 'type: exotic', $this->validExamYml()),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('unbekannter type "exotic"', $result['output']);
+    }
+
+    public function test_exam_review_with_dead_anchor_fails(): void
+    {
+        $dir = $this->buildContentDir($this->examFiles([
+            'exams/fundamente/exam.yml' => str_replace('anchor: "intro"', 'anchor: "nicht-vorhanden"', $this->validExamYml()),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('ist keine Ueberschrift in Lektion', $result['output']);
+    }
+
+    public function test_exam_needs_at_least_four_questions_per_lesson(): void
+    {
+        $dir = $this->buildContentDir($this->examFiles([
+            'exams/fundamente/exam.yml' => str_replace(
+                <<<'YAML'
+                  - id: f04
+                    type: truefalse
+                    answer: true
+                    lesson: "1.0"
+                    review: { lesson: "1.0", anchor: "intro" }
+                    difficulty: 1
+                    tags: [netzwerk]
+
+                YAML,
+                '',
+                $this->validExamYml(),
+            ),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('weniger als 4 Poolfragen', $result['output']);
+    }
+
+    public function test_exam_tag_not_in_skills_fails(): void
+    {
+        $dir = $this->buildContentDir($this->examFiles([
+            'exams/fundamente/exam.yml' => str_replace('tags: [netzwerk]', 'tags: [nichtvorhanden]', $this->validExamYml()),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('existiert nicht in skills.yml', $result['output']);
+    }
+
     // -----------------------------------------------------------------
     // Fixture-Aufbau
     // -----------------------------------------------------------------
@@ -700,6 +798,175 @@ class ContentValidateTest extends TestCase
         ```
 
         **Was du daran abliest:** Test.
+        MD;
+    }
+
+    /**
+     * Ergaenzt die Basis-Fixture um eine Track-Abschlusspruefung fuer
+     * "fundamente" mit 4 Fragen zu Lektion 1.0 und 4 cross-Fragen -- gerade
+     * genug, um jede Aggregatregel (Poolgroesse je Lektion, cross-Minimum,
+     * Typmischung, difficulty-3-Anteil) am unteren Rand real zu erfuellen.
+     */
+    private function examFiles(array $overrides = []): array
+    {
+        return array_merge([
+            'skills.yml' => $this->validSkills(),
+            'exams/fundamente/exam.yml' => $this->validExamYml(),
+            'exams/fundamente/de.md' => $this->validExamMarkdown(),
+        ], $overrides);
+    }
+
+    private function validSkills(): string
+    {
+        return <<<'YAML'
+        - slug: netzwerk
+          label: Netzwerk
+        - slug: datenmodell
+          label: Datenmodell
+        YAML;
+    }
+
+    private function validExamYml(): string
+    {
+        return <<<'YAML'
+        track: fundamente
+        title_key: exam.fundamente.title
+        pass_percent: 80
+        draw: 6
+        duration_minutes: 10
+        shuffle: true
+
+        questions:
+          - id: f01
+            type: single
+            answer: 0
+            lesson: "1.0"
+            review: { lesson: "1.0", anchor: "intro" }
+            difficulty: 1
+            tags: [netzwerk]
+
+          - id: f02
+            type: single
+            answer: 1
+            lesson: "1.0"
+            review: { lesson: "1.0", anchor: "intro" }
+            difficulty: 2
+            tags: [netzwerk]
+
+          - id: f03
+            type: multi
+            answer: [0, 1]
+            lesson: "1.0"
+            review: { lesson: "1.0", anchor: "intro" }
+            difficulty: 2
+            tags: [datenmodell]
+
+          - id: f04
+            type: truefalse
+            answer: true
+            lesson: "1.0"
+            review: { lesson: "1.0", anchor: "intro" }
+            difficulty: 1
+            tags: [netzwerk]
+
+          - id: f05
+            type: single
+            answer: 0
+            lesson: "cross"
+            review:
+              - { lesson: "1.0", anchor: "intro" }
+            difficulty: 3
+            tags: [netzwerk]
+
+          - id: f06
+            type: multi
+            answer: [0, 1]
+            lesson: "cross"
+            review:
+              - { lesson: "1.0", anchor: "intro" }
+            difficulty: 3
+            tags: [datenmodell]
+
+          - id: f07
+            type: truefalse
+            answer: false
+            lesson: "cross"
+            review:
+              - { lesson: "1.0", anchor: "intro" }
+            difficulty: 2
+            tags: [netzwerk]
+
+          - id: f08
+            type: input
+            answer: "test"
+            lesson: "cross"
+            review:
+              - { lesson: "1.0", anchor: "intro" }
+            difficulty: 2
+            tags: [datenmodell]
+        YAML;
+    }
+
+    private function validExamMarkdown(): string
+    {
+        return <<<'MD'
+        ---
+        title: Testpruefung
+        intro: Test.
+        ---
+
+        ### f01 — Testfrage eins?
+
+        1. Richtig
+        2. Falsch
+
+        **Erklärung:** Testerklaerung eins.
+
+        ### f02 — Testfrage zwei?
+
+        1. Falsch
+        2. Richtig
+
+        **Erklärung:** Testerklaerung zwei.
+
+        ### f03 — Testfrage drei? *(Mehrfachauswahl)*
+
+        1. Richtig eins
+        2. Richtig zwei
+        3. Falsch
+
+        **Erklärung:** Testerklaerung drei.
+
+        ### f04 — Testaussage vier.
+
+        **Richtig / Falsch**
+
+        **Erklärung:** Testerklaerung vier.
+
+        ### f05 — Testfrage fuenf (uebergreifend)?
+
+        1. Richtig
+        2. Falsch
+
+        **Erklärung:** Testerklaerung fuenf.
+
+        ### f06 — Testfrage sechs (uebergreifend)? *(Mehrfachauswahl)*
+
+        1. Richtig eins
+        2. Richtig zwei
+        3. Falsch
+
+        **Erklärung:** Testerklaerung sechs.
+
+        ### f07 — Testaussage sieben (uebergreifend).
+
+        **Richtig / Falsch**
+
+        **Erklärung:** Testerklaerung sieben.
+
+        ### f08 — Testfrage acht (uebergreifend)? *(Freitext)*
+
+        **Erklärung:** Testerklaerung acht.
         MD;
     }
 }

@@ -1,0 +1,340 @@
+track: fundamente
+title_key: exam.fundamente.title
+pass_percent: 80
+draw: 24
+duration_minutes: 25
+shuffle: true
+
+# Antwortindizes sind 0-basiert (bei single/multi) -- empirisch bestaetigt
+# gegen die bestehende Quiz-Engine (QuizContent/ContentValidate), siehe
+# ADR 0066. tags kommen aus content/skills.yml, hoechstens zwei je Frage.
+
+questions:
+  - id: f01
+    type: single
+    answer: 1
+    lesson: "1.0"
+    review: { lesson: "1.0", anchor: "die-eine-regel-die-den-halben-werkzeugkasten-erklaert" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f02
+    type: multi
+    answer: [1, 3]
+    lesson: "1.0"
+    review: { lesson: "1.0", anchor: "kommt-eine-verbindung-ueberhaupt-zustande" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f03
+    type: truefalse
+    answer: false
+    lesson: "1.0"
+    review: { lesson: "1.0", anchor: "kommt-eine-verbindung-ueberhaupt-zustande" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f04
+    type: input
+    answer: "dcmdump +P SeriesDescription datei.dcm"
+    lesson: "1.0"
+    review: { lesson: "1.0", anchor: "was-steht-in-dieser-datei" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f05
+    type: single
+    answer: 2
+    lesson: "1.1"
+    review: { lesson: "1.1", anchor: "haelfte-1-das-format" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f06
+    type: single
+    answer: 0
+    lesson: "1.1"
+    review: { lesson: "1.1", anchor: "haelfte-1-das-format" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f07
+    type: multi
+    answer: [0, 2]
+    lesson: "1.1"
+    review: { lesson: "1.1", anchor: "haelfte-1-das-format" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f08
+    type: truefalse
+    answer: false
+    lesson: "1.1"
+    review: { lesson: "1.1", anchor: "stolperfallen" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f09
+    type: single
+    answer: 2
+    lesson: "1.2"
+    review: { lesson: "1.2", anchor: "vier-ebenen" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f10
+    type: single
+    answer: 2
+    lesson: "1.2"
+    review: { lesson: "1.2", anchor: "stolperfallen" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f11
+    type: multi
+    answer: [0, 1]
+    lesson: "1.2"
+    review: { lesson: "1.2", anchor: "vier-ebenen" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f12
+    type: truefalse
+    answer: false
+    lesson: "1.2"
+    review: { lesson: "1.2", anchor: "stolperfallen" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f13
+    type: single
+    answer: 1
+    lesson: "1.3"
+    review: { lesson: "1.3", anchor: "group-und-element" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f14
+    type: single
+    answer: 2
+    lesson: "1.3"
+    review: { lesson: "1.3", anchor: "vr-was-der-wert-sein-darf" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f15
+    type: multi
+    answer: [1, 2, 3]
+    lesson: "1.3"
+    review: { lesson: "1.3", anchor: "vr-was-der-wert-sein-darf" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f16
+    type: truefalse
+    answer: true
+    lesson: "1.3"
+    review: { lesson: "1.3", anchor: "vr-was-der-wert-sein-darf" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f17
+    type: single
+    answer: 1
+    lesson: "1.4"
+    review: { lesson: "1.4", anchor: "zwei-voellig-verschiedene-sorten" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f18
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "1.4"
+    review: { lesson: "1.4", anchor: "was-eine-uid-ist" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f19
+    type: truefalse
+    answer: false
+    lesson: "1.4"
+    review: { lesson: "1.4", anchor: "stolperfallen" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f20
+    type: input
+    answer: "1.2.840.10008"
+    lesson: "1.4"
+    review: { lesson: "1.4", anchor: "was-eine-uid-ist" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f21
+    type: single
+    answer: 1
+    lesson: "1.5"
+    review: { lesson: "1.5", anchor: "dasselbe-geraet-vier-rollen" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f22
+    type: single
+    answer: 0
+    lesson: "1.5"
+    review: { lesson: "1.5", anchor: "c-echo-der-ping-der-keiner-ist" }
+    difficulty: 3
+    tags: [netzwerk]
+
+  - id: f23
+    type: multi
+    answer: [1, 3]
+    lesson: "1.5"
+    review: { lesson: "1.5", anchor: "der-eine-satz-der-alles-klaert" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f24
+    type: truefalse
+    answer: false
+    lesson: "1.5"
+    review: { lesson: "1.5", anchor: "stolperfallen" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f25
+    type: single
+    answer: 2
+    lesson: "1.6"
+    review: { lesson: "1.6", anchor: "die-konfiguration-ist-immer-symmetrisch" }
+    difficulty: 1
+    tags: [netzwerk, integration]
+
+  - id: f26
+    type: single
+    answer: 3
+    lesson: "1.6"
+    review: { lesson: "1.6", anchor: "schritt-3-erreicht-mich-die-gegenstelle" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f27
+    type: multi
+    answer: [0, 2]
+    lesson: "1.6"
+    review: { lesson: "1.6", anchor: "einen-ae-title-vergeben-der-haelt" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f28
+    type: truefalse
+    answer: false
+    lesson: "1.6"
+    review: { lesson: "1.6", anchor: "stolperfallen" }
+    difficulty: 3
+    tags: [netzwerk]
+
+  - id: f29
+    type: single
+    answer: 1
+    lesson: "1.7"
+    review: { lesson: "1.7", anchor: "die-die-du-kennen-musst" }
+    difficulty: 1
+    tags: [datenmodell, bildgebung]
+
+  - id: f30
+    type: input
+    answer: "1.2.840.10008.1.2.1"
+    lesson: "1.7"
+    review: { lesson: "1.7", anchor: "die-die-du-kennen-musst" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f31
+    type: truefalse
+    answer: true
+    lesson: "1.7"
+    review: { lesson: "1.7", anchor: "wirklich-komprimieren" }
+    difficulty: 3
+    tags: [bildgebung]
+
+  - id: f32
+    type: input
+    answer: "1.2.840.10008.1.2"
+    lesson: "1.7"
+    review: { lesson: "1.7", anchor: "die-die-du-kennen-musst" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f33
+    type: single
+    answer: 1
+    lesson: "1.8"
+    review: { lesson: "1.8", anchor: "der-presentation-context" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f34
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "1.8"
+    review: { lesson: "1.8", anchor: "der-presentation-context" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f35
+    type: truefalse
+    answer: false
+    lesson: "1.8"
+    review: { lesson: "1.8", anchor: "der-presentation-context" }
+    difficulty: 3
+    tags: [netzwerk, integration]
+
+  - id: f36
+    type: input
+    answer: "No presentation context for:"
+    lesson: "1.8"
+    review: { lesson: "1.8", anchor: "und-wenn-es-schiefgeht" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f37
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "1.5", anchor: "c-echo-der-ping-der-keiner-ist" }
+      - { lesson: "1.7", anchor: "was-eine-transfer-syntax-festlegt" }
+      - { lesson: "1.8", anchor: "der-presentation-context" }
+    difficulty: 3
+    tags: [netzwerk, integration]
+
+  - id: f38
+    type: input
+    answer: "StudyInstanceUID"
+    lesson: "cross"
+    review:
+      - { lesson: "1.2", anchor: "vier-ebenen" }
+      - { lesson: "1.4", anchor: "was-eine-uid-ist" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f39
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "1.2", anchor: "vier-ebenen" }
+      - { lesson: "1.7", anchor: "was-eine-transfer-syntax-festlegt" }
+    difficulty: 3
+    tags: [datenmodell, bildgebung]
+
+  - id: f40
+    type: multi
+    answer: [0, 3]
+    lesson: "cross"
+    review:
+      - { lesson: "1.5", anchor: "dasselbe-geraet-vier-rollen" }
+      - { lesson: "1.6", anchor: "die-konfiguration-ist-immer-symmetrisch" }
+    difficulty: 3
+    tags: [netzwerk, integration]

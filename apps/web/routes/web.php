@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExamController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\NodeController;
@@ -41,6 +42,13 @@ Route::prefix('de')->group(function () {
 
         Route::prefix('lessons/{lesson}/quiz')->name('quiz.')->middleware('throttle:60,1')->group(function () {
             Route::post('{questionId}/answer', [QuizController::class, 'answer'])->name('answer');
+        });
+
+        Route::prefix('tracks/{track}/exam')->name('tracks.exam.')->middleware('throttle:60,1')->group(function () {
+            Route::post('start', [ExamController::class, 'start'])->name('start');
+            Route::get('{attempt}', [ExamController::class, 'show'])->name('show');
+            Route::post('{attempt}/answer', [ExamController::class, 'answer'])->name('answer');
+            Route::get('{attempt}/result', [ExamController::class, 'result'])->name('result');
         });
 
         Route::prefix('sandbox/{sandboxId}')->name('sandbox.')->middleware('throttle:30,1')->group(function () {

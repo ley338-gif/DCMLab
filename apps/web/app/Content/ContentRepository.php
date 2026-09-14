@@ -143,6 +143,50 @@ final class ContentRepository
         return $raw !== null ? (Yaml::parse($raw) ?? []) : [];
     }
 
+    /**
+     * @return array<int, array<string, mixed>> das kontrollierte Skill-Vokabular
+     */
+    public function skills(): array
+    {
+        $file = 'skills.yml';
+        $raw = $this->readIfExists($file);
+
+        return $raw !== null ? (Yaml::parse($raw) ?? []) : [];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>> keyed by Track-Slug
+     */
+    public function exams(): array
+    {
+        $exams = [];
+
+        foreach ($this->directories('exams') as $dir) {
+            $trackSlug = basename($dir);
+            $metaFile = "exams/{$trackSlug}/exam.yml";
+            $mdFile = "exams/{$trackSlug}/de.md";
+
+            $metaRaw = $this->readIfExists($metaFile);
+            $mdRaw = $this->readIfExists($mdFile);
+
+            $meta = $metaRaw !== null ? (Yaml::parse($metaRaw) ?? []) : null;
+            $frontMatter = $mdRaw !== null ? FrontMatter::parse($mdRaw) : null;
+
+            $exams[$trackSlug] = [
+                'track' => $trackSlug,
+                'meta' => $meta,
+                'meta_file' => $metaFile,
+                'meta_raw' => $metaRaw,
+                'md_file' => $mdFile,
+                'md_raw' => $mdRaw,
+                'frontmatter' => $frontMatter['attributes'] ?? null,
+                'body' => $frontMatter['body'] ?? null,
+            ];
+        }
+
+        return $exams;
+    }
+
     public function basePath(): string
     {
         return $this->basePath;

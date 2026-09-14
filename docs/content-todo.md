@@ -1039,6 +1039,23 @@ Spaced-Repetition-Wiederholung, eigene Review-Seite) ist Anwendungscode
 Controller.php`), kein Content — siehe ADR 0065 für Details und
 Verifikation.
 
+**Track-Abschlussprüfung Fundamente (P10.60):** neuer Content unter
+`content/exams/fundamente/{exam.yml,de.md}`, 40 Fragen (16 single, 9
+multi, 9 truefalse, 6 input), je 4 aus den Lektionen 1.0–1.8 sowie 4
+`cross`-Fragen. Kein neuer Content-Absatz musste ergänzt werden — jede
+Frage ließ sich aus dem bereits vorhandenen Lektionstext belegen (die 27
+bestehenden Lektions-Quiz-Karten sind darin aufgegangen, teils mit
+anderem Fragetyp als im Original, siehe ADR 0066, weil der Prüfungspool
+eine eigene Typmischungsvorgabe hat — der geprüfte Fakt blieb dabei
+unverändert). Neu ist außerdem `content/skills.yml` (kontrolliertes
+Vokabular für `tags`, deckungsgleich mit `ProfileService::
+SKILL_CATEGORIES`) — reiner Validierungs-Baustein, kein Lektionsinhalt.
+`content:validate` prüft die neue `exam.yml`/`de.md`-Struktur seit
+P10.60 real (`ContentValidate::checkExamStructure()`), siehe ADR 0066
+für alle Regeln und die vier bewussten Architekturentscheidungen
+(neuer Fragetyp `truefalse`, neue Punktequelle "Track bestanden", neue
+Anker-Slug-Klasse `HeadingSlug`, neues `skills.yml`).
+
 ## CI
 
 **Seit P10.55 blockierend.** `content:validate` läuft in der
