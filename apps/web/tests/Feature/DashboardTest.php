@@ -56,7 +56,7 @@ class DashboardTest extends TestCase
 
         $user = User::factory()->create();
 
-        $passedTrack = Track::factory()->create(['slug' => 'passed', 'order' => 1]);
+        $passedTrack = Track::factory()->create(['slug' => 'passed', 'order' => 1, 'title_key' => 'track.passed.title']);
         $lessonDone = Lesson::factory()->create(['track_id' => $passedTrack->id, 'lesson_id' => 'p.1']);
         LessonProgress::create(['user_id' => $user->id, 'lesson_id' => $lessonDone->id, 'status' => 'completed', 'started_at' => now(), 'completed_at' => now()]);
         TrackBadge::create(['user_id' => $user->id, 'track_id' => $passedTrack->id, 'awarded_at' => now()]);
@@ -79,7 +79,9 @@ class DashboardTest extends TestCase
             ->where('tracks.1.exam.passed', false)
             ->where('tracks.1.exam.available', true)
             ->where('tracks.2.exam.passed', false)
-            ->where('tracks.2.exam.available', false),
+            ->where('tracks.2.exam.available', false)
+            ->where('achievements.0.kind', 'track_passed')
+            ->where('achievements.0.track_title_key', 'track.passed.title'),
         );
 
         File::deleteDirectory($contentDir);

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Achievement;
 use App\Models\LessonProgress;
 use App\Models\QuizReview;
 use App\Models\Track;
@@ -65,15 +64,12 @@ class DashboardController extends Controller
                 'completed_at' => $progress->completed_at?->toIso8601String(),
             ]);
 
-        $achievements = Achievement::query()
-            ->where('user_id', $user->id)
-            ->with('node')
-            ->orderByDesc('awarded_at')
-            ->get()
-            ->map(fn (Achievement $achievement) => [
-                'type' => $achievement->type,
-                'node_title' => $achievement->node?->title['de'] ?? null,
-                'awarded_at' => $achievement->awarded_at->toIso8601String(),
+        $achievements = collect($profiles->achievementsFor($user))
+            ->map(fn (array $entry) => [
+                'kind' => $entry['kind'],
+                'node_title' => $entry['node_title'],
+                'track_title_key' => $entry['track_title_key'],
+                'awarded_at' => $entry['awarded_at']->toIso8601String(),
             ]);
 
         $dueReviewsCount = QuizReview::query()

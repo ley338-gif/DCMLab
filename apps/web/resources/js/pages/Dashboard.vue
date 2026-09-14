@@ -40,8 +40,9 @@ type RecentLesson = {
 };
 
 type AchievementEntry = {
-    type: string;
+    kind: string;
     node_title: string | null;
+    track_title_key: string | null;
     awarded_at: string;
 };
 
@@ -67,6 +68,7 @@ const rankLabels: Record<string, string> = {
 
 const achievementLabels: Record<string, string> = {
     first_blood: trans('First Blood'),
+    track_passed: trans('Abschlussprüfung bestanden'),
 };
 
 function formatDate(iso: string): string {
@@ -274,13 +276,19 @@ watchEffect(() => {
                     >
                         <span>
                             {{
-                                achievementLabels[achievement.type] ??
-                                achievement.type
+                                achievementLabels[achievement.kind] ??
+                                achievement.kind
                             }}
                             <span
                                 v-if="achievement.node_title"
                                 class="text-muted-foreground"
                                 >— {{ achievement.node_title }}</span
+                            >
+                            <span
+                                v-if="achievement.track_title_key"
+                                class="text-muted-foreground"
+                                >—
+                                {{ trans(achievement.track_title_key) }}</span
                             >
                         </span>
                         <span class="text-muted-foreground text-xs">{{
