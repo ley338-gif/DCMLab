@@ -358,6 +358,42 @@ class ContentValidateTest extends TestCase
         $this->assertSame(0, $result['exitCode'], $result['output']);
     }
 
+    /**
+     * Achievement-System (Auftrag Abschnitt 7): node.yml darf optional
+     * Achievement-Slugs deklarieren, aber nur solche, die in der zentralen
+     * Registry existieren.
+     */
+    public function test_node_unknown_achievement_slug_fails(): void
+    {
+        $dir = $this->buildContentDir($this->nodeFiles([
+            'nodes/sample/node.yml' => str_replace(
+                'skills: [netzwerk]',
+                "skills: [netzwerk]\nachievements: [does-not-exist]",
+                $this->validNodeDef(),
+            ),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('unbekanntes Achievement "does-not-exist"', $result['output']);
+    }
+
+    public function test_node_known_achievement_slug_passes(): void
+    {
+        $dir = $this->buildContentDir($this->nodeFiles([
+            'nodes/sample/node.yml' => str_replace(
+                'skills: [netzwerk]',
+                "skills: [netzwerk]\nachievements: [echo-heard]",
+                $this->validNodeDef(),
+            ),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(0, $result['exitCode'], $result['output']);
+    }
+
     public function test_valid_quiz_passes(): void
     {
         $dir = $this->buildContentDir([

@@ -2,27 +2,26 @@
 import { Link } from '@inertiajs/vue3';
 import { ArrowLeft, ArrowRight } from '@lucide/vue';
 import { trans } from '@/lib/trans';
-import { show as showLesson } from '@/routes/lessons';
 
-type NeighborLesson = { lesson_id: string; title: string } | null;
+export type NavNeighbor = { href: string; label: string; title: string } | null;
 
-defineProps<{ prev: NeighborLesson; next: NeighborLesson }>();
+defineProps<{ prev: NavNeighbor; next: NavNeighbor }>();
 </script>
 
 <template>
     <nav
         v-if="prev || next"
         class="lesson-nav"
-        :aria-label="trans('Lektionsnavigation')"
+        :aria-label="trans('Navigation')"
     >
         <Link
             v-if="prev"
-            :href="showLesson(prev.lesson_id)"
+            :href="prev.href"
             class="lesson-nav-link lesson-nav-prev"
         >
             <ArrowLeft class="size-4" aria-hidden="true" />
             <span>
-                <small>{{ trans('Vorherige Lektion') }}</small>
+                <small>{{ prev.label }}</small>
                 {{ prev.title }}
             </span>
         </Link>
@@ -30,11 +29,11 @@ defineProps<{ prev: NeighborLesson; next: NeighborLesson }>();
 
         <Link
             v-if="next"
-            :href="showLesson(next.lesson_id)"
+            :href="next.href"
             class="lesson-nav-link lesson-nav-next"
         >
             <span>
-                <small>{{ trans('Nächste Lektion') }}</small>
+                <small>{{ next.label }}</small>
                 {{ next.title }}
             </span>
             <ArrowRight class="size-4" aria-hidden="true" />

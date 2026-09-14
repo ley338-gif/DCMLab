@@ -35,6 +35,11 @@ jobs:
         # geaenderten Komponente aufruft (siehe docs/adr/0004).
         run: npm run build
       - run: ./vendor/bin/pest
+        env:
+          # Explizit, nicht nur ueber phpunit.xml (docs/adr/0069): auf einem
+          # frischen Runner ist das ohnehin schon der Fall, aber die Suite
+          # soll bei jedem Aufrufweg dieselbe erkennbare Absicht zeigen.
+          APP_ENV: testing
 
   content:
     runs-on: ubuntu-latest

@@ -8,7 +8,8 @@
         "dev": "vp dev",
         "check": "vp check",
         "check:fix": "vp check --fix",
-        "types:check": "vue-tsc --noEmit"
+        "types:check": "vue-tsc --noEmit",
+        "test": "vitest run"
     },
     "dependencies": {
         "@inertiajs/vite": "^3.0.0",
@@ -33,10 +34,13 @@
         "@tailwindcss/vite": "^4.1.11",
         "@types/node": "^22.13.5",
         "@vitejs/plugin-vue": "^6.0.0",
+        "@vue/test-utils": "^2.4.6",
         "concurrently": "^10.0.3",
+        "jsdom": "^25.0.1",
         "typescript": "^5.2.2",
         "vite": "^8.0.0",
         "vite-plus": "0.3.0",
+        "vitest": "^4.1.11",
         "vue-tsc": "^2.2.4"
     },
     "optionalDependencies": {

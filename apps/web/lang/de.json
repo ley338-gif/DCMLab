@@ -81,7 +81,13 @@
     "Begonnen": "Begonnen",
     "Achievements": "Achievements",
     "Noch keine Achievements.": "Noch keine Achievements.",
-    "First Blood": "First Blood",
+    "Noch keine Achievements verfügbar.": "Noch keine Achievements verfügbar.",
+    "Pionier": "Pionier",
+    "Achievement: :name": "Achievement: :name",
+    "Achievement :name – noch nicht freigeschaltet": "Achievement :name – noch nicht freigeschaltet",
+    "Achievement freigeschaltet": "Achievement freigeschaltet",
+    "Unlocked": "Freigeschaltet",
+    "Unlocked :date": "Freigeschaltet am :date",
 
     "track.fundamente.title": "Fundamente",
     "track.services.title": "Die Services",
@@ -208,10 +214,11 @@
     "skill.integration": "Integration",
     "skill.security": "Security",
 
-    "First Blood": "First Blood",
     "Member since :date": "Mitglied seit :date",
     "Download as PDF": "Als PDF herunterladen",
     "No first bloods yet.": "Noch keine First Bloods.",
+    ":count unlocked": ":count freigeschaltet",
+    "Noch nicht freigeschaltet.": "Noch nicht freigeschaltet.",
 
     "Bestandene Tracks": "Bestandene Tracks",
     "Bestandene Abschlussprüfungen": "Bestandene Abschlussprüfungen",

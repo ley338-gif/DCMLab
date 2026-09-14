@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import AchievementBadge from '@/components/achievements/AchievementBadge.vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -9,13 +12,19 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { trans } from '@/lib/trans';
 import { home } from '@/routes';
 import { exportMethod as exportProfile } from '@/routes/profiles';
-import { computed } from 'vue';
+import type { Achievement } from '@/types/achievement';
 
-type FirstBlood = {
+type PioneerAchievement = {
     node_title: string;
     awarded_at: string;
 };
@@ -31,8 +40,9 @@ type ProfileData = {
     points: number;
     skill_vector: Record<string, number>;
     member_since: string | null;
-    first_bloods: FirstBlood[];
+    first_bloods: PioneerAchievement[];
     track_badges: TrackBadgeEntry[];
+    achievements: Achievement[];
 };
 
 const props = defineProps<{
@@ -101,6 +111,20 @@ function ringPoints(fraction: number): string {
         const point = pointOnAxis(index, fraction);
         return `${point.x},${point.y}`;
     }).join(' ');
+}
+
+const unlockedAchievementsCount = computed(
+    () =>
+        props.profile.achievements.filter((achievement) => achievement.unlocked)
+            .length,
+);
+
+function formatAchievementDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+    });
 }
 </script>
 
@@ -219,9 +243,9 @@ function ringPoints(fraction: number): string {
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card class="mb-6">
                 <CardHeader>
-                    <CardTitle>{{ trans('First Blood') }}</CardTitle>
+                    <CardTitle>{{ trans('Pionier') }}</CardTitle>
                     <CardDescription v-if="profile.first_bloods.length === 0">
                         {{ trans('No first bloods yet.') }}
                     </CardDescription>
@@ -242,6 +266,74 @@ function ringPoints(fraction: number): string {
                     </div>
                 </CardContent>
             </Card>
+
+            <section>
+                <div class="mb-4 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold tracking-wide uppercase">
+                        {{ trans('Achievements') }}
+                    </h2>
+                    <span class="text-muted-foreground text-sm">
+                        {{
+                            trans(':count unlocked', {
+                                count: unlockedAchievementsCount,
+                            })
+                        }}
+                    </span>
+                </div>
+
+                <p
+                    v-if="profile.achievements.length === 0"
+                    class="text-muted-foreground text-sm"
+                >
+                    {{ trans('Noch keine Achievements verfügbar.') }}
+                </p>
+
+                <div
+                    v-else
+                    class="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4"
+                >
+                    <Dialog
+                        v-for="achievement in profile.achievements"
+                        :key="achievement.slug"
+                    >
+                        <DialogTrigger as-child>
+                            <button
+                                type="button"
+                                class="focus-visible:ring-ring flex flex-col items-center rounded-lg p-1 focus-visible:ring-2 focus-visible:outline-none"
+                            >
+                                <AchievementBadge
+                                    :achievement="achievement"
+                                    size="lg"
+                                    :show-date="achievement.unlocked"
+                                />
+                            </button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogTitle>{{ achievement.name }}</DialogTitle>
+                            <DialogDescription>{{
+                                achievement.description
+                            }}</DialogDescription>
+                            <p
+                                v-if="
+                                    achievement.unlocked &&
+                                    achievement.unlocked_at
+                                "
+                                class="text-sm font-medium text-emerald-600 dark:text-emerald-400"
+                            >
+                                ✓ {{ trans('Unlocked') }}
+                                {{
+                                    formatAchievementDate(
+                                        achievement.unlocked_at,
+                                    )
+                                }}
+                            </p>
+                            <p v-else class="text-muted-foreground text-sm">
+                                {{ trans('Noch nicht freigeschaltet.') }}
+                            </p>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </section>
         </main>
     </div>
 </template>

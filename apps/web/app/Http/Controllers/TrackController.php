@@ -43,6 +43,9 @@ class TrackController extends Controller
                 ->where('user_id', auth()->id())
                 ->where('status', 'completed'),
             ])
+            // Fuer die optionale ✓/●/○-Anzeige (Abschnitt 3) reicht der echte
+            // LessonProgress-Status (started|completed) -- kein Platzhalter.
+            ->with(['progress' => fn ($query) => $query->where('user_id', auth()->id())])
             ->get()
             ->map(fn ($lesson) => [
                 'lesson_id' => $lesson->lesson_id,
@@ -52,6 +55,7 @@ class TrackController extends Controller
                 'level' => $lesson->level,
                 'status' => $lesson->status,
                 'completed' => (bool) $lesson->getAttribute('completed'),
+                'progress_status' => $lesson->progress->first()?->status,
             ]);
 
         $status = $exams->statusForTracks(auth()->user(), [$track])[$track->id];

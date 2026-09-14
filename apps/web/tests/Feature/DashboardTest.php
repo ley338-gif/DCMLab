@@ -8,6 +8,8 @@ use App\Models\LessonProgress;
 use App\Models\Track;
 use App\Models\TrackBadge;
 use App\Models\User;
+use App\Services\AchievementService;
+use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -83,5 +85,23 @@ class DashboardTest extends TestCase
         );
 
         File::deleteDirectory($contentDir);
+    }
+
+    public function test_dashboard_exposes_the_achievement_registry_with_the_users_unlock_state(): void
+    {
+        $this->seed(AchievementSeeder::class);
+        $user = User::factory()->create();
+        (new AchievementService)->unlock($user, 'sandbox-starter');
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('achievements', 6)
+            ->where('achievements', fn ($achievements) => collect($achievements)
+                ->firstWhere('slug', 'sandbox-starter')['unlocked'] === true
+                && collect($achievements)->firstWhere('slug', 'echo-heard')['unlocked'] === false
+            ),
+        );
     }
 }

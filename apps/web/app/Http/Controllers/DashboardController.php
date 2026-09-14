@@ -6,6 +6,7 @@ use App\Models\Achievement;
 use App\Models\LessonProgress;
 use App\Models\QuizReview;
 use App\Models\Track;
+use App\Services\AchievementService;
 use App\Services\ExamAttemptService;
 use App\Services\ProfileService;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +20,7 @@ class DashboardController extends Controller
      * zuletzt abgeschlossene Lektion und Achievements -- alles aus echten
      * Fortschrittsdaten, nichts geschaetzt oder erfunden.
      */
-    public function index(ProfileService $profiles, ExamAttemptService $exams): Response
+    public function index(ProfileService $profiles, ExamAttemptService $exams, AchievementService $achievementService): Response
     {
         $user = Auth::user();
         $profile = $profiles->profileFor($user);
@@ -65,7 +66,11 @@ class DashboardController extends Controller
                 'completed_at' => $progress->completed_at?->toIso8601String(),
             ]);
 
-        $achievements = Achievement::query()
+        // "Pionier" (frueher "First Blood"): globaler Wettlauf um die
+        // Erstloesung einer Node, unveraendertes Altsystem aus ADR 0009 --
+        // bewusst getrennt von den neuen, generischen Achievements unten,
+        // siehe docs/achievements.md.
+        $pioneerAchievements = Achievement::query()
             ->where('user_id', $user->id)
             ->with('node')
             ->orderByDesc('awarded_at')
@@ -89,7 +94,8 @@ class DashboardController extends Controller
             ],
             'tracks' => $tracks,
             'recent_lessons' => $recentLessons,
-            'achievements' => $achievements,
+            'pioneer_achievements' => $pioneerAchievements,
+            'achievements' => $achievementService->listForUser($user)->values(),
             'due_reviews_count' => $dueReviewsCount,
         ]);
     }

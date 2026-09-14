@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Content\ContentRepository;
 use App\Content\MarkdownRenderer;
 use App\Content\NodeSections;
+use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\NodeAttempt;
+use App\Models\User;
+use App\Services\AchievementService;
 use App\Services\EngineClient;
 use App\Services\ProfileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,10 +39,20 @@ class NodeController extends Controller
                 ->all()
             : [];
 
-        $difficultyRank = ['easy' => 0, 'medium' => 1, 'hard' => 2, 'insane' => 3];
+        // "begonnen" (Abschnitt 5): jeder Attempt, der noch nicht geloest ist
+        // -- ein Attempt entsteht bereits beim reinen Aufrufen der Node
+        // (attemptFor()), das Feld ist also ein echter Besuchs-Indikator.
+        $startedNodeIds = Auth::check()
+            ? NodeAttempt::query()
+                ->where('user_id', Auth::id())
+                ->where('status', 'started')
+                ->pluck('node_id')
+                ->all()
+            : [];
 
-        $nodes = Node::query()
-            ->get()
+        $relatedLessonsByNodeId = $this->relatedLessonForNodes(Node::query()->get());
+
+        $nodes = $this->orderedNodes()
             ->map(fn (Node $node) => [
                 'slug' => $node->slug,
                 'title' => $node->title['de'] ?? $node->slug,
@@ -47,15 +61,13 @@ class NodeController extends Controller
                 'category' => $node->category,
                 'estimated_minutes' => $node->estimated_minutes,
                 'solved' => in_array($node->id, $solvedNodeIds, true),
+                'status' => match (true) {
+                    in_array($node->id, $solvedNodeIds, true) => 'abgeschlossen',
+                    in_array($node->id, $startedNodeIds, true) => 'begonnen',
+                    default => 'offen',
+                },
+                'related_lesson' => $relatedLessonsByNodeId[$node->id] ?? null,
             ])
-            // Innerhalb jeder Kategorie (Gruppierung passiert im Frontend,
-            // wie bei Glossary/Index) von leicht nach schwer sortiert.
-            ->sortBy(fn (array $node) => sprintf(
-                '%s-%d-%s',
-                $node['category'],
-                $difficultyRank[$node['difficulty']] ?? 99,
-                $node['slug'],
-            ))
             ->values();
 
         return Inertia::render('Nodes/Index', [
@@ -88,6 +100,11 @@ class NodeController extends Controller
                 : null,
         ])->values();
 
+        $order = $this->orderedNodes()->values();
+        $position = $order->search(fn (Node $candidate) => $candidate->id === $node->id);
+        $previousNode = $position !== false && $position > 0 ? $order->get($position - 1) : null;
+        $nextNode = $position !== false ? $order->get($position + 1) : null;
+
         return Inertia::render('Nodes/Show', [
             'node' => [
                 'slug' => $node->slug,
@@ -95,8 +112,17 @@ class NodeController extends Controller
                 'scenario_title' => $node->scenario_title['de'] ?? '',
                 'difficulty' => $node->difficulty,
                 'points' => $node->points,
+                'category' => $node->category,
                 'estimated_minutes' => $node->estimated_minutes,
             ],
+            'prev' => $previousNode !== null ? [
+                'slug' => $previousNode->slug,
+                'title' => $previousNode->title['de'] ?? $previousNode->slug,
+            ] : null,
+            'next' => $nextNode !== null ? [
+                'slug' => $nextNode->slug,
+                'title' => $nextNode->title['de'] ?? $nextNode->slug,
+            ] : null,
             'briefing_html' => $renderer->render($sections['briefing']),
             'hints' => $hints,
             // Nach dem Loesen wird das Write-up automatisch gezeigt, ganz
@@ -186,8 +212,14 @@ class NodeController extends Controller
         ]);
     }
 
-    public function submitFlag(Request $request, Node $node, EngineClient $engine, ProfileService $profiles): JsonResponse
-    {
+    public function submitFlag(
+        Request $request,
+        Node $node,
+        ContentRepository $content,
+        EngineClient $engine,
+        ProfileService $profiles,
+        AchievementService $achievements,
+    ): JsonResponse {
         $data = $request->validate(['value' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
 
@@ -200,11 +232,108 @@ class NodeController extends Controller
 
         $this->syncAttempt($attempt, $engine, save: true);
 
+        $unlockedAchievements = [];
+
         if ($result['correct']) {
-            $profiles->recomputeAfterSolve($request->user(), $node);
+            $user = $request->user();
+            $profiles->recomputeAfterSolve($user, $node);
+            $unlockedAchievements = $this->unlockNodeAchievements($user, $node, $content, $achievements);
         }
 
-        return response()->json($result);
+        return response()->json([...$result, 'unlocked_achievements' => $unlockedAchievements]);
+    }
+
+    /**
+     * Achievement-System (Auftrag Abschnitt 6/7): "first-blood" ist die
+     * persoenliche erste geloeste Node ueberhaupt, unabhaengig davon, wer
+     * sie zuerst geloest hat (nicht zu verwechseln mit dem aelteren,
+     * global-pro-Node "first_blood"-Achievement aus ProfileService). Die
+     * uebrigen DICOM-Achievements sind an bestimmte Nodes gekoppelt, weil
+     * die simulierte Engine kein separates "C-ECHO erfolgreich"-Ereignis
+     * kennt -- geloest = korrekte Flag, siehe docs/achievements.md.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function unlockNodeAchievements(User $user, Node $node, ContentRepository $content, AchievementService $achievements): array
+    {
+        $solvedCount = NodeAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'solved')
+            ->count();
+
+        $slugs = $solvedCount === 1 ? ['first-blood'] : [];
+
+        $nodeContent = $content->nodes()[$node->slug] ?? null;
+        foreach (data_get($nodeContent, 'def.achievements', []) as $slug) {
+            $slugs[] = (string) $slug;
+        }
+
+        $unlocked = [];
+
+        foreach (array_unique($slugs) as $slug) {
+            $unlockResult = $achievements->unlock($user, $slug, ['node' => $node->slug, 'source' => 'node_completed']);
+
+            if ($unlockResult->isNewlyUnlocked() && $unlockResult->definition !== null) {
+                $unlocked[] = $achievements->toArray($unlockResult->definition, $unlockResult->unlock);
+            }
+        }
+
+        return $unlocked;
+    }
+
+    /**
+     * Katalog-Reihenfolge (Abschnitt 5+6): Kategorie, dann Schwierigkeit,
+     * dann Slug -- dieselbe Sortierung fuer index() und die Prev/Next-
+     * Navigation in show(), damit beide konsistent bleiben.
+     *
+     * @return Collection<int, Node>
+     */
+    private function orderedNodes(): Collection
+    {
+        $difficultyRank = ['easy' => 0, 'medium' => 1, 'hard' => 2, 'insane' => 3];
+
+        return Node::query()
+            ->get()
+            ->sortBy(fn (Node $node) => sprintf(
+                '%s-%d-%s',
+                $node->category,
+                $difficultyRank[$node->difficulty] ?? 99,
+                $node->slug,
+            ))
+            ->values();
+    }
+
+    /**
+     * "Passende Lektion" (Abschnitt 5): nutzt die echte, aus dem Content
+     * befuellte Node->related_lessons-Relation, keine erfundene Verknuepfung.
+     *
+     * @param  Collection<int, Node>  $nodes
+     * @return array<int, array{lesson_id: string, title: string}>
+     */
+    private function relatedLessonForNodes(Collection $nodes): array
+    {
+        $lessonIds = $nodes->pluck('related_lessons')->flatten()->unique()->values()->all();
+
+        $lessonsById = Lesson::query()
+            ->whereIn('lesson_id', $lessonIds)
+            ->get()
+            ->keyBy('lesson_id');
+
+        $result = [];
+
+        foreach ($nodes as $node) {
+            $firstRelatedId = $node->related_lessons[0] ?? null;
+            $lesson = $firstRelatedId !== null ? $lessonsById->get($firstRelatedId) : null;
+
+            if ($lesson !== null) {
+                $result[$node->id] = [
+                    'lesson_id' => $lesson->lesson_id,
+                    'title' => $lesson->title['de'] ?? $lesson->lesson_id,
+                ];
+            }
+        }
+
+        return $result;
     }
 
     private function attemptFor(Node $node, EngineClient $engine): NodeAttempt
