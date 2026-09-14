@@ -42,17 +42,8 @@ class ContentBuild extends Command
                 continue;
             }
 
-            $datasetSlug = data_get($def, 'environment.dataset');
-            $dataset = $datasets[$datasetSlug] ?? null;
-
-            if ($dataset === null) {
-                $this->error("Node {$slug}: Datensatz \"{$datasetSlug}\" nicht in datasets.yml gefunden.");
-
-                return self::FAILURE;
-            }
-
             try {
-                $plaintext = $this->resolveTagValue($sourceTag, $dataset);
+                $plaintext = $this->resolveTagValue($sourceTag, $def, $datasets);
             } catch (\RuntimeException $e) {
                 $this->error("Node {$slug}: {$e->getMessage()}");
 
@@ -75,20 +66,49 @@ class ContentBuild extends Command
     }
 
     /**
-     * Bildet ein DICOM-Tag aus flag.source_tag auf den Datensatz-Wert ab, aus
-     * dem der Flag-Klartext stammt. Neue Tags brauchen einen neuen Fall hier
-     * -- lieber ein klarer Fehler als eine stillschweigend falsche Wahl.
+     * Bildet flag.source_tag auf den Flag-Klartext ab. Neue source_tags
+     * brauchen einen neuen Fall hier -- lieber ein klarer Fehler als eine
+     * stillschweigend falsche Wahl. "scenario" (Abschnitt 6j) braucht
+     * kein Dataset -- der Klartext steckt im Entscheidungsbaum selbst --
+     * deshalb wird das Dataset erst NACH dieser Weiche aufgeloest.
      *
-     * @param  array<string, mixed>  $dataset
+     * @param  array<string, mixed>  $def
+     * @param  array<string, array<string, mixed>>  $datasets
      */
-    private function resolveTagValue(string $sourceTag, array $dataset): string
+    private function resolveTagValue(string $sourceTag, array $def, array $datasets): string
     {
+        if ($sourceTag === 'scenario') {
+            return $this->resolveScenarioReveal($def);
+        }
+
+        $datasetSlug = data_get($def, 'environment.dataset');
+        $dataset = $datasetSlug !== null ? ($datasets[$datasetSlug] ?? null) : null;
+
+        if ($dataset === null) {
+            throw new \RuntimeException("Datensatz \"{$datasetSlug}\" nicht in datasets.yml gefunden.");
+        }
+
         return match ($sourceTag) {
             '0008,103E' => $this->resolveSeriesDescription($dataset), // Series Description
             default => throw new \RuntimeException(
                 "kein Resolver fuer flag.source_tag \"{$sourceTag}\" — content:build muss erweitert werden.",
             ),
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $def
+     */
+    private function resolveScenarioReveal(array $def): string
+    {
+        foreach (data_get($def, 'scenario.steps', []) as $step) {
+            if (($step['terminal'] ?? false) && ($step['outcome'] ?? null) === 'correct') {
+                return (string) ($step['reveal']
+                    ?? throw new \RuntimeException('terminal step mit outcome "correct" hat kein reveal-Feld'));
+            }
+        }
+
+        throw new \RuntimeException('kein terminal step mit outcome "correct" in scenario.steps gefunden');
     }
 
     /**

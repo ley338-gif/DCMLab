@@ -1,0 +1,16 @@
+id: "6.1"
+track: grundlagen
+order: 1
+duration_minutes: 6
+level: einsteiger
+objectives_count: 3
+requires: []
+tools: []
+
+lab:
+  node: anruf-am-empfang
+  optional: true
+
+glossary_terms: []
+status: draft
+updated: "2026-09-21"

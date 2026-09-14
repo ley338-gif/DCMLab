@@ -1,0 +1,75 @@
+slug: anruf-am-empfang
+difficulty: easy
+points: 10
+category: security
+themenfeld: datenschutz
+interaction: scenario
+skills: [security]
+related_lessons: ["6.1"]
+estimated_minutes: 5
+
+scenario:
+  start: anruf
+  steps:
+    anruf:
+      prompt: >
+        Das Telefon an der Anmeldung klingelt. Eine Anruferin sagt: „Hallo,
+        hier ist Frau Berger. Mein Vater, Herr Berger, liegt bei Ihnen auf
+        Station 4. Können Sie mir sagen, was die Befunde von gestern ergeben
+        haben?"
+      options:
+        - id: sofort_auskunft
+          label: Die Befunde direkt am Telefon mitteilen.
+          next: fehler_sofort
+        - id: identitaet_pruefen
+          label: Nach einer Schweigepflichtentbindung fragen.
+          next: rueckfrage
+    rueckfrage:
+      prompt: >
+        Die Anruferin verneint eine hinterlegte Entbindung, klingt aber
+        ungeduldig: „Ich bin doch seine Tochter, das muss doch reichen!"
+      options:
+        - id: trotzdem_auskunft
+          label: Die Angaben trotzdem machen, es klingt ja plausibel.
+          next: fehler_trotzdem
+        - id: verweis_rueckruf
+          label: Auf einen Rückruf verweisen, sobald die Entbindung vorliegt.
+          next: erfolg
+    fehler_sofort:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Verstoß gegen die ärztliche Schweigepflicht (§ 203 StGB, Art. 5
+        DSGVO): am Telefon lässt sich eine Identität nicht überprüfen, egal
+        wie plausibel der Anruf klingt.
+    fehler_trotzdem:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Auch unter Druck gilt: ohne dokumentierte Schweigepflichtentbindung
+        keine Auskunft am Telefon — Ungeduld ist kein Ausweis.
+    erfolg:
+      terminal: true
+      outcome: correct
+      reveal: schweigepflicht-gewahrt
+      prompt: >
+        Richtig: ohne dokumentierte Entbindung gibt es keine Auskunft am
+        Telefon. Ein Rückruf über die offizielle Stationsnummer, nachdem die
+        Entbindung vorliegt, wahrt die Schweigepflicht und hilft der
+        Anruferin trotzdem.
+
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:a97f83cffdeb3ec0c40d5cd893d4ac622e2176b5cc9a12f0a6b0cdaf93828d6f"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+
+stuck_timeout_minutes: 10
+status: draft
+updated: "2026-09-21"

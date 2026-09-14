@@ -117,6 +117,80 @@ class ContentBuildTest extends TestCase
         $this->assertStringContainsString('nicht genau eine Serie', $result['output']);
     }
 
+    public function test_scenario_source_tag_hashes_the_reveal_value_without_a_dataset(): void
+    {
+        $dir = $this->buildContentDir([
+            'nodes/sample/node.yml' => $this->validScenarioNodeDef(),
+        ]);
+        // Kein datasets.yml noetig -- eine Szenario-Node hat kein
+        // environment.dataset, siehe ContentBuild::resolveTagValue().
+        File::delete($dir.'/datasets.yml');
+
+        $result = $this->build($dir);
+
+        $this->assertSame(0, $result['exitCode']);
+
+        $written = File::get($dir.'/nodes/sample/node.yml');
+        $expectedHash = FlagNormalizer::hash('schweigepflicht-gewahrt', caseSensitive: false);
+
+        $this->assertStringContainsString('hash: "sha256:'.$expectedHash.'"', $written);
+    }
+
+    public function test_scenario_without_correct_outcome_fails_loudly(): void
+    {
+        $dir = $this->buildContentDir([
+            'nodes/sample/node.yml' => str_replace('outcome: correct', 'outcome: wrong', $this->validScenarioNodeDef()),
+        ]);
+        File::delete($dir.'/datasets.yml');
+
+        $result = $this->build($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('kein terminal step mit outcome "correct"', $result['output']);
+    }
+
+    private function validScenarioNodeDef(): string
+    {
+        return <<<'YAML'
+        slug: sample
+        difficulty: easy
+        points: 10
+        category: security
+        interaction: scenario
+        skills: [security]
+        related_lessons: ["1.0"]
+        estimated_minutes: 10
+
+        scenario:
+          start: frage
+          steps:
+            frage:
+              prompt: Testfrage.
+              options:
+                - id: richtig
+                  label: Richtige Antwort.
+                  next: erfolg
+            erfolg:
+              terminal: true
+              outcome: correct
+              reveal: schweigepflicht-gewahrt
+
+        flag:
+          type: exact
+          source_tag: scenario
+          hash: "sha256:<platzhalter>"
+          case_sensitive: false
+
+        hints:
+          - id: h1
+            cost: 1
+
+        stuck_timeout_minutes: 10
+        status: draft
+        updated: "2026-09-12"
+        YAML;
+    }
+
     private function build(string $path): array
     {
         $this->app->instance(ContentRepository::class, new ContentRepository($path));

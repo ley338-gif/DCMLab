@@ -16,6 +16,7 @@ type NodeSummary = {
     difficulty: string;
     points: number;
     category: string;
+    themenfeld: string;
     estimated_minutes: number;
     solved: boolean;
     status: 'offen' | 'begonnen' | 'abgeschlossen';
@@ -24,17 +25,31 @@ type NodeSummary = {
 
 const props = defineProps<{ nodes: NodeSummary[] }>();
 
+// Zweistufig gruppiert (Abschnitt 13): Themenfeld zuerst, weil Labs aus
+// unterschiedlichen Themenfeldern fachlich nichts miteinander zu tun haben
+// -- category bleibt die Feingruppierung *innerhalb* eines Themenfelds.
 const groups = computed(() => {
-    const byCategory = new Map<string, NodeSummary[]>();
+    const byThemenfeld = new Map<string, Map<string, NodeSummary[]>>();
 
     for (const node of props.nodes) {
+        if (!byThemenfeld.has(node.themenfeld)) {
+            byThemenfeld.set(node.themenfeld, new Map());
+        }
+
+        const byCategory = byThemenfeld.get(node.themenfeld)!;
+
         if (!byCategory.has(node.category)) {
             byCategory.set(node.category, []);
         }
         byCategory.get(node.category)!.push(node);
     }
 
-    return Array.from(byCategory.entries());
+    return Array.from(byThemenfeld.entries()).map(
+        ([themenfeld, byCategory]) => ({
+            themenfeld,
+            categories: Array.from(byCategory.entries()),
+        }),
+    );
 });
 </script>
 
@@ -51,81 +66,90 @@ const groups = computed(() => {
             }}
         </p>
 
-        <div
-            v-for="[category, categoryNodes] in groups"
-            :key="category"
-            class="mb-10"
-        >
-            <h2
-                class="text-muted-foreground mb-3 text-sm font-semibold tracking-wide uppercase"
-            >
-                {{ categoryLabels[category] ?? category }}
+        <div v-for="group in groups" :key="group.themenfeld" class="mb-12">
+            <h2 class="mb-4 border-b pb-2 text-lg font-semibold">
+                {{ trans(`themenfeld.${group.themenfeld}.title`) }}
             </h2>
 
-            <div class="grid gap-4 sm:grid-cols-2">
-                <Link
-                    v-for="node in categoryNodes"
-                    :key="node.slug"
-                    :href="showNode(node.slug)"
+            <div
+                v-for="[category, categoryNodes] in group.categories"
+                :key="category"
+                class="mb-10"
+            >
+                <h3
+                    class="text-muted-foreground mb-3 text-sm font-semibold tracking-wide uppercase"
                 >
-                    <Card>
-                        <CardHeader>
-                            <div class="flex items-start justify-between gap-2">
-                                <CardTitle>{{ node.title }}</CardTitle>
-                                <CheckCircle2
-                                    v-if="node.status === 'abgeschlossen'"
-                                    class="size-4 shrink-0 text-green-600"
-                                />
-                                <CircleDot
-                                    v-else-if="node.status === 'begonnen'"
-                                    class="text-muted-foreground size-4 shrink-0"
-                                />
-                            </div>
-                        </CardHeader>
-                        <CardContent class="flex flex-col gap-2">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <Badge
-                                    :variant="
-                                        difficultyVariant[node.difficulty] ??
-                                        'outline'
-                                    "
+                    {{ categoryLabels[category] ?? category }}
+                </h3>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <Link
+                        v-for="node in categoryNodes"
+                        :key="node.slug"
+                        :href="showNode(node.slug)"
+                    >
+                        <Card>
+                            <CardHeader>
+                                <div
+                                    class="flex items-start justify-between gap-2"
                                 >
-                                    {{ node.difficulty }}
-                                </Badge>
+                                    <CardTitle>{{ node.title }}</CardTitle>
+                                    <CheckCircle2
+                                        v-if="node.status === 'abgeschlossen'"
+                                        class="size-4 shrink-0 text-green-600"
+                                    />
+                                    <CircleDot
+                                        v-else-if="node.status === 'begonnen'"
+                                        class="text-muted-foreground size-4 shrink-0"
+                                    />
+                                </div>
+                            </CardHeader>
+                            <CardContent class="flex flex-col gap-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <Badge
+                                        :variant="
+                                            difficultyVariant[
+                                                node.difficulty
+                                            ] ?? 'outline'
+                                        "
+                                    >
+                                        {{ node.difficulty }}
+                                    </Badge>
+                                    <span
+                                        class="text-muted-foreground flex items-center gap-1 text-xs"
+                                    >
+                                        <Trophy class="size-3.5" />
+                                        {{
+                                            trans(':points Pkt.', {
+                                                points: node.points,
+                                            })
+                                        }}
+                                    </span>
+                                    <span
+                                        class="text-muted-foreground flex items-center gap-1 text-xs"
+                                    >
+                                        <Clock class="size-3.5" />
+                                        {{
+                                            trans(':minutes Min.', {
+                                                minutes: node.estimated_minutes,
+                                            })
+                                        }}
+                                    </span>
+                                </div>
                                 <span
-                                    class="text-muted-foreground flex items-center gap-1 text-xs"
+                                    v-if="node.related_lesson"
+                                    class="text-muted-foreground text-xs"
                                 >
-                                    <Trophy class="size-3.5" />
                                     {{
-                                        trans(':points Pkt.', {
-                                            points: node.points,
+                                        trans('Passende Lektion: :lesson', {
+                                            lesson: node.related_lesson.title,
                                         })
                                     }}
                                 </span>
-                                <span
-                                    class="text-muted-foreground flex items-center gap-1 text-xs"
-                                >
-                                    <Clock class="size-3.5" />
-                                    {{
-                                        trans(':minutes Min.', {
-                                            minutes: node.estimated_minutes,
-                                        })
-                                    }}
-                                </span>
-                            </div>
-                            <span
-                                v-if="node.related_lesson"
-                                class="text-muted-foreground text-xs"
-                            >
-                                {{
-                                    trans('Passende Lektion: :lesson', {
-                                        lesson: node.related_lesson.title,
-                                    })
-                                }}
-                            </span>
-                        </CardContent>
-                    </Card>
-                </Link>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                </div>
             </div>
         </div>
     </PageContainer>

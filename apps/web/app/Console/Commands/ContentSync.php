@@ -25,7 +25,7 @@ class ContentSync extends Command
         $themenfeldIds = $this->syncThemenfelder($content);
         $trackIds = $this->syncTracks($content, $themenfeldIds);
         $lessonCount = $this->syncLessons($content, $trackIds);
-        $nodeCount = $this->syncNodes($content);
+        $nodeCount = $this->syncNodes($content, $themenfeldIds);
 
         $this->info(sprintf(
             'content:sync — %d Themenfelder, %d Tracks, %d Lektionen, %d Nodes synchronisiert.',
@@ -147,7 +147,10 @@ class ContentSync extends Command
         return $count;
     }
 
-    private function syncNodes(ContentRepository $content): int
+    /**
+     * @param  array<string, int>  $themenfeldIds
+     */
+    private function syncNodes(ContentRepository $content, array $themenfeldIds): int
     {
         $count = 0;
 
@@ -158,12 +161,22 @@ class ContentSync extends Command
                 continue;
             }
 
+            $themenfeldSlug = $node['def']['themenfeld'] ?? 'dicom';
+
+            if (! isset($themenfeldIds[$themenfeldSlug])) {
+                $this->warn("Node {$slug}: unbekanntes Themenfeld \"{$themenfeldSlug}\" — uebersprungen.");
+
+                continue;
+            }
+
             Node::updateOrCreate(
                 ['slug' => $slug],
                 [
                     'difficulty' => $node['def']['difficulty'] ?? 'easy',
                     'points' => $node['def']['points'] ?? 0,
                     'category' => $node['def']['category'] ?? 'netzwerk',
+                    'themenfeld_id' => $themenfeldIds[$themenfeldSlug],
+                    'interaction' => $node['def']['interaction'] ?? 'terminal',
                     'skills' => $node['def']['skills'] ?? [],
                     'related_lessons' => $node['def']['related_lessons'] ?? [],
                     'estimated_minutes' => $node['def']['estimated_minutes'] ?? 0,

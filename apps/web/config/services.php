@@ -46,4 +46,9 @@ return [
         'key' => env('DCMLAB_INTERNAL_KEY'),
     ],
 
+    'scenario_engine' => [
+        'url' => env('SCENARIO_ENGINE_URL', 'http://scenario-engine:8300'),
+        'key' => env('DCMLAB_INTERNAL_KEY'),
+    ],
+
 ];

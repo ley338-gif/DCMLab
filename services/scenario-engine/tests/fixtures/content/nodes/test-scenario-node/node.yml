@@ -1,0 +1,36 @@
+slug: test-scenario-node
+interaction: scenario
+points: 10
+stuck_timeout_minutes: 20
+
+scenario:
+  start: frage
+  steps:
+    frage:
+      prompt: Testfrage.
+      options:
+        - id: falsch
+          label: Falsche Antwort.
+          next: ende_falsch
+        - id: richtig
+          label: Richtige Antwort.
+          next: ende_richtig
+    ende_falsch:
+      terminal: true
+      outcome: wrong
+      prompt: Das war falsch.
+    ende_richtig:
+      terminal: true
+      outcome: correct
+      reveal: test-flag-klartext
+      prompt: Das war richtig.
+
+hints:
+  - id: h1
+    cost: 1
+
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:1d3bef91e071ef318bd777deaa3237cf7a198f09edc3b15e72d56824a54a5fc1"
+  case_sensitive: false

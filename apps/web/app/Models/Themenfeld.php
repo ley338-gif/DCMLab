@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use Database\Factories\ThemenfeldFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Index ueber content/themenfelder.yml (Abschnitt 13) -- kein Speicherort
- * fuer Prosa. Track-uebergreifende Ebene ueber Track; aktuell existiert
- * genau ein Themenfeld (dicom).
+ * fuer Prosa. Track-uebergreifende Ebene ueber Track und (seit dem
+ * "Datenschutz"-PoC) Node.
  *
  * @property int $id
  * @property string $slug
@@ -20,6 +22,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['slug', 'order', 'title_key', 'status'])]
 class Themenfeld extends Model
 {
+    /** @use HasFactory<ThemenfeldFactory> */
+    use HasFactory;
+
     protected $table = 'themenfelder';
 
     public function getRouteKeyName(): string

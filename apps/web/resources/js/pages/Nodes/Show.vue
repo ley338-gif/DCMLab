@@ -7,6 +7,9 @@ import EngineTerminal from '@/components/EngineTerminal.vue';
 import PreviousNextNavigation, {
     type NavNeighbor,
 } from '@/components/PreviousNextNavigation.vue';
+import ScenarioPlayer, {
+    type ScenarioState,
+} from '@/components/ScenarioPlayer.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,7 +50,8 @@ type Host = {
 
 type EngineState = {
     node_slug: string;
-    hosts: Record<string, Host>;
+    hosts?: Record<string, Host>;
+    scenario?: ScenarioState;
     hints_used: string[];
     write_up_seen: boolean;
     solved: boolean;
@@ -72,6 +76,7 @@ const props = defineProps<{
         difficulty: string;
         points: number;
         category: string;
+        interaction: string;
         estimated_minutes: number;
     };
     prev: NodeNeighbor;
@@ -110,7 +115,7 @@ const configDrafts = reactive<Record<string, string>>({});
 function findHost(
     predicate: (host: Host) => boolean,
 ): { name: string; host: Host } | null {
-    const entry = Object.entries(state.value.hosts).find(([, h]) =>
+    const entry = Object.entries(state.value.hosts ?? {}).find(([, h]) =>
         predicate(h),
     );
 
@@ -159,6 +164,22 @@ function insertTemplate(command: string) {
 async function saveConfig(host: string, field: string) {
     const value = configDrafts[field] ?? '';
     await postJson(setConfigRoute.url(props.node.slug), { host, field, value });
+    await fetchState();
+}
+
+async function chooseOption(optionId: string) {
+    const result = await postJson<{ state: EngineState }>(
+        triggerActionRoute.url(props.node.slug),
+        { host: 'player', action: optionId },
+    );
+    state.value = result.state;
+}
+
+async function restartScenario() {
+    await postJson(triggerActionRoute.url(props.node.slug), {
+        host: 'player',
+        action: 'restart',
+    });
     await fetchState();
 }
 
@@ -292,7 +313,14 @@ async function submitFlag() {
                     </h1>
                 </div>
 
-                <Tabs default-value="workstation">
+                <ScenarioPlayer
+                    v-if="node.interaction === 'scenario'"
+                    :scenario="state.scenario!"
+                    @choose="chooseOption"
+                    @restart="restartScenario"
+                />
+
+                <Tabs v-else default-value="workstation">
                     <TabsList>
                         <TabsTrigger v-if="shellHost" value="workstation">{{
                             trans('Workstation')
