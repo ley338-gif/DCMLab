@@ -481,6 +481,25 @@ grundsätzlich gegen die Live-Aktivität von `infra-sandbox-1` prüfen,
 nicht ungeprüft per Namensfilter löschen (dieselbe Vorsicht wie beim
 Docker-Image-Nebenfund aus ADR 0048).
 
+**5.2 ist seit P10.48 vollständig geschrieben — die Zitierfrage aus dem
+Scaffold ist geklärt.** Recherchiert statt angenommen: Orthanc (das
+Archiv dieser gesamten Plattform) veröffentlicht sein DICOM Conformance
+Statement offen im eigenen Quellcode-Repository — echt zitierbar, kein
+anonymisiertes/nachgebautes Beispiel nötig. Die Lektion zitiert daraus
+(Store-SCP-SOP-Klassen, Transfer-Syntaxen, die reale Aussage „Orthanc
+does not support extended negotiation") und prüft die dort behauptete
+Präferenz für `LittleEndianExplicitTransferSyntax` **live gegen das
+tatsächliche Verhandlungsergebnis** von `storescu -d`: Context 41
+(`CTImageStorage`/`LittleEndianExplicit`) wird real akzeptiert, der
+C-STORE läuft real über genau diesen Context. Dabei ein real
+aufgetretener Stolperstein dokumentiert statt stillschweigend
+korrigiert: Der erste `storescu`-Aufruf ohne expliziten Pfad traf das
+`pynetdicom`-Skript gleichen Namens statt des echten DCMTK-Tools
+(derselbe Namenskonflikt wie in ADR 0025). `sandbox.required` von
+`false` auf `true` korrigiert (Dataset `ct-thorax-60`), `tools` von
+`[]` auf `[storescu]` gesetzt, neuer Glossarbegriff
+`conformance-statement`. Siehe ADR 0057.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0

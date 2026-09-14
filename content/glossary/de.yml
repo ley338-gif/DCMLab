@@ -329,3 +329,10 @@ xds-i:
   short: Teilt Bilder zwischen Einrichtungen über Registry/Repository statt direkter Archiv-zu-Archiv-Verbindung — das geteilte Manifest ist technisch ein Key Object Selection Document.
   see_also: [key-object-selection]
   lesson: "5.1"
+
+conformance-statement:
+  term: Conformance Statement
+  expansion: DICOM Conformance Statement (PS3.2)
+  short: Herstellerdokument, das für jede Application Entity angibt, welche SOP-Klassen, Rollen (SCU/SCP) und Transfer-Syntaxen sie unterstützt — sagt nichts über Performance oder Verhalten bei Kantenfällen.
+  see_also: [sop-class, association]
+  lesson: "5.2"
