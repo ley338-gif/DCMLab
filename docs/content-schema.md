@@ -2,6 +2,8 @@
 
 Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Alles liegt im Git-Repo, nicht in der Datenbank. Die Plattform liest diese Dateien ein — solange sich das Schema nicht ändert, ist geschriebener Content nie verloren.
 
+**Track und Themenfeld:** `tracks.yml` beschreibt bewusst nur `Track`, keine übergeordnete Ebene — weil es aktuell nur ein einziges Themenfeld gibt (DICOM), dem alle fünf Tracks angehören. Sollte die Plattform sich einmal auf weitere Themenfelder ausdehnen (siehe `docs/konzept-lernplattform.md` Abschnitt 13, "Mehr als DICOM"), gehört ein `Themenfeld` als eigene, Track-übergreifende Ebene eingeführt — nicht `Track` selbst zu diesem Zweck umgewidmet, da Track schon eine feste, gut verstandene Bedeutung (Kapitel innerhalb eines Themenfelds) hat.
+
 ## Verzeichnisstruktur
 
 ```
