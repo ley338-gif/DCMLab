@@ -1,4 +1,6 @@
-# Track-Definitionen und Reihenfolge
+# Track-Definitionen und Reihenfolge.
+# Alle Tracks hier gehoeren aktuell zum einzigen Themenfeld DICOM
+# (siehe docs/content-schema.md und docs/konzept-lernplattform.md Abschnitt 13).
 
 - slug: fundamente
   order: 1
