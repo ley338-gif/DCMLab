@@ -1,0 +1,63 @@
+# Achievement-Definitionen (siehe docs/content-schema.md Abschnitt 12).
+# AchievementSeeder schreibt diese Liste nach `achievement_definitions`;
+# ContentValidate prueft node.yml-Metadaten gegen die hier vorhandenen slugs.
+
+- slug: first-blood
+  name: First Blood
+  description: Löse deinen ersten Lab- oder Node.
+  image: first-blood.png
+  category: labs
+  rarity: common
+  points: 0
+  is_hidden: false
+  sort_order: 10
+
+- slug: association-accepted
+  name: Association Accepted
+  description: Stelle deine erste erfolgreiche DICOM Association her.
+  image: association-accepted.png
+  category: dicom
+  rarity: common
+  points: 0
+  is_hidden: false
+  sort_order: 20
+
+- slug: echo-heard
+  name: Echo Heard
+  description: Führe dein erstes erfolgreiches C-ECHO durch.
+  image: echo-heard.png
+  category: dicom
+  rarity: common
+  points: 0
+  is_hidden: false
+  sort_order: 30
+
+- slug: store-and-forward
+  name: Store & Forward
+  description: Übertrage dein erstes DICOM-Objekt erfolgreich per C-STORE.
+  image: store-and-forward.png
+  category: dicom
+  rarity: common
+  points: 0
+  is_hidden: false
+  sort_order: 40
+
+- slug: worklist-whisperer
+  name: Worklist Whisperer
+  description: Meistere deine erste Modality-Worklist-Abfrage.
+  image: worklist-whisperer.png
+  category: dicom
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 50
+
+- slug: sandbox-starter
+  name: Sandbox Starter
+  description: Starte deine erste DCMLab-Spielwiese.
+  image: sandbox-starter.png
+  category: platform
+  rarity: common
+  points: 0
+  is_hidden: false
+  sort_order: 60

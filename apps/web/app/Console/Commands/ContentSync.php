@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Content\ContentRepository;
 use App\Models\Lesson;
 use App\Models\Node;
+use App\Models\Themenfeld;
 use App\Models\Track;
 use Illuminate\Console\Command;
 
@@ -21,12 +22,14 @@ class ContentSync extends Command
 
     public function handle(ContentRepository $content): int
     {
-        $trackIds = $this->syncTracks($content);
+        $themenfeldIds = $this->syncThemenfelder($content);
+        $trackIds = $this->syncTracks($content, $themenfeldIds);
         $lessonCount = $this->syncLessons($content, $trackIds);
         $nodeCount = $this->syncNodes($content);
 
         $this->info(sprintf(
-            'content:sync — %d Tracks, %d Lektionen, %d Nodes synchronisiert.',
+            'content:sync — %d Themenfelder, %d Tracks, %d Lektionen, %d Nodes synchronisiert.',
+            count($themenfeldIds),
             count($trackIds),
             $lessonCount,
             $nodeCount,
@@ -36,16 +39,49 @@ class ContentSync extends Command
     }
 
     /**
+     * @return array<string, int> Themenfeld-Slug => DB-ID
+     */
+    private function syncThemenfelder(ContentRepository $content): array
+    {
+        $ids = [];
+
+        foreach ($content->themenfelder() as $themenfeld) {
+            $model = Themenfeld::updateOrCreate(
+                ['slug' => $themenfeld['slug']],
+                [
+                    'order' => $themenfeld['order'],
+                    'title_key' => $themenfeld['title_key'],
+                    'status' => $themenfeld['status'],
+                ],
+            );
+
+            $ids[$themenfeld['slug']] = $model->id;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @param  array<string, int>  $themenfeldIds
      * @return array<string, int> Track-Slug => DB-ID
      */
-    private function syncTracks(ContentRepository $content): array
+    private function syncTracks(ContentRepository $content, array $themenfeldIds): array
     {
         $ids = [];
 
         foreach ($content->tracks() as $track) {
+            $themenfeldSlug = $track['themenfeld'] ?? null;
+
+            if (! isset($themenfeldIds[$themenfeldSlug])) {
+                $this->warn("Track {$track['slug']}: unbekanntes Themenfeld \"{$themenfeldSlug}\" — uebersprungen.");
+
+                continue;
+            }
+
             $model = Track::updateOrCreate(
                 ['slug' => $track['slug']],
                 [
+                    'themenfeld_id' => $themenfeldIds[$themenfeldSlug],
                     'order' => $track['order'],
                     'title_key' => $track['title_key'],
                     'level' => $track['level'],

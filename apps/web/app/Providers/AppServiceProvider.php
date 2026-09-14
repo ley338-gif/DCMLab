@@ -3,6 +3,10 @@
 namespace App\Providers;
 
 use App\Content\ContentRepository;
+use App\Services\EngineClient;
+use App\Services\EngineClientContract;
+use App\Services\SandboxClient;
+use App\Services\SandboxClientContract;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +21,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ContentRepository::class, fn () => new ContentRepository(config('content.path')));
+        $this->app->singleton(EngineClientContract::class, EngineClient::class);
+        $this->app->singleton(SandboxClientContract::class, SandboxClient::class);
     }
 
     /**

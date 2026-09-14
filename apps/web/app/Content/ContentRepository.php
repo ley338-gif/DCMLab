@@ -19,6 +19,27 @@ final class ContentRepository
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function themenfelder(): array
+    {
+        $file = 'themenfelder.yml';
+        $raw = $this->readIfExists($file);
+
+        if ($raw === null) {
+            return [];
+        }
+
+        $parsed = Yaml::parse($raw) ?? [];
+
+        return array_map(
+            fn (array $themenfeld, int|string $index): array => $themenfeld + ['_file' => $file, '_raw' => $raw, '_index' => $index],
+            $parsed,
+            array_keys($parsed),
+        );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function tracks(): array
     {
         $file = 'tracks.yml';
@@ -32,6 +53,27 @@ final class ContentRepository
 
         return array_map(
             fn (array $track, int|string $index): array => $track + ['_file' => $file, '_raw' => $raw, '_index' => $index],
+            $parsed,
+            array_keys($parsed),
+        );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function achievements(): array
+    {
+        $file = 'achievements.yml';
+        $raw = $this->readIfExists($file);
+
+        if ($raw === null) {
+            return [];
+        }
+
+        $parsed = Yaml::parse($raw) ?? [];
+
+        return array_map(
+            fn (array $achievement, int|string $index): array => $achievement + ['_file' => $file, '_raw' => $raw, '_index' => $index],
             $parsed,
             array_keys($parsed),
         );

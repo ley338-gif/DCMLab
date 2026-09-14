@@ -2,14 +2,16 @@
 
 Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Alles liegt im Git-Repo, nicht in der Datenbank. Die Plattform liest diese Dateien ein — solange sich das Schema nicht ändert, ist geschriebener Content nie verloren.
 
-**Track und Themenfeld:** `tracks.yml` beschreibt bewusst nur `Track`, keine übergeordnete Ebene — weil es aktuell nur ein einziges Themenfeld gibt (DICOM), dem alle fünf Tracks angehören. Sollte die Plattform sich einmal auf weitere Themenfelder ausdehnen (siehe `docs/konzept-lernplattform.md` Abschnitt 13, "Mehr als DICOM"), gehört ein `Themenfeld` als eigene, Track-übergreifende Ebene eingeführt — nicht `Track` selbst zu diesem Zweck umgewidmet, da Track schon eine feste, gut verstandene Bedeutung (Kapitel innerhalb eines Themenfelds) hat.
+**Track und Themenfeld:** `Themenfeld` ist die Track-übergreifende Ebene (Abschnitt 13), `Track` bleibt das Kapitel innerhalb eines Themenfelds. Jeder Track referenziert per `themenfeld:`-Feld genau ein Themenfeld aus `themenfelder.yml`. Aktuell gibt es ein einziges Themenfeld (`dicom`), dem alle fünf Tracks angehören — die Ebene existiert bereits im Datenmodell, damit eine spätere Erweiterung auf weitere Themenfelder (siehe `docs/konzept-lernplattform.md` Abschnitt 13, "Mehr als DICOM") kein Schema-Bruch ist, keine neue Migration von Bestandsdaten erfordert.
 
 ## Verzeichnisstruktur
 
 ```
 content/
 ├── SCHEMA.md                     ← diese Datei
-├── tracks.yml                    ← Track-Definitionen und Reihenfolge
+├── themenfelder.yml              ← Themenfeld-Definitionen (Abschnitt 13)
+├── tracks.yml                    ← Track-Definitionen und Reihenfolge, je Track ein Themenfeld
+├── achievements.yml              ← Achievement-Definitionen (Abschnitt 12)
 ├── datasets.yml                  ← Testdatensätze, die in der Spielwiese liegen
 ├── lessons/
 │   └── 1.5/
@@ -618,6 +620,8 @@ Ein `content:validate`-Befehl prüft vor jedem Commit:
 - jeder `{{term:x}}` existiert im Glossar
 - jede `related_lessons`- und `requires`-ID existiert
 - kein Flag-Klartext im Repo (Regex gegen das Flag-Format)
+- jeder Track referenziert ein existierendes Themenfeld aus `themenfelder.yml`
+- jeder Eintrag in `achievements.yml` hat alle Pflichtfelder, jeder Slug ist eindeutig
 
 **Beispielregel**
 
@@ -747,3 +751,36 @@ Distraktoren kommen ausschließlich aus dem Stolperfallen-Block oder einer
 Symptomtabelle der jeweiligen Lektion — erfundene Distraktoren prüfen
 nichts. Jede Frage ist im Lektionstext beantwortet; fehlt ein Beleg, wird
 die Lektion um den fehlenden Absatz ergänzt, statt die Frage zu streichen.
+
+---
+
+## 12. Achievements — `achievements.yml`
+
+Flache Liste, sprachneutral (keine `<locale>.md`-Gegenstelle — Achievement-Texte sind kurz genug, um direkt in der YAML zu stehen). `AchievementSeeder` schreibt diese Liste nach `achievement_definitions`; `node.yml`s `achievements:`-Feld (Abschnitt 6) referenziert Slugs von hier, `content:validate` prüft beide Richtungen.
+
+```yaml
+- slug: echo-heard                 # unveränderlich, Primärschlüssel in achievement_definitions
+  name: Echo Heard
+  description: Führe dein erstes erfolgreiches C-ECHO durch.
+  image: echo-heard.png            # Dateiname, kein Pfad
+  category: dicom                  # freies Vokabular, aktuell: labs | dicom | platform
+  rarity: common                   # freies Vokabular, aktuell: common | uncommon — kein DB-Constraint
+  points: 0
+  is_hidden: false
+  sort_order: 30
+```
+
+Alle neun Felder sind Pflicht (`rarity` darf `null` sein, der Schlüssel muss aber existieren). `category` und `rarity` sind bewusst offene Strings statt eines Enums — bei mehreren Themenfeldern bekommt jedes seine eigenen `category`-Werte, ohne dass diese Datei oder ihr Schema sich ändern muss.
+
+## 13. Themenfeld — `themenfelder.yml`
+
+Die Track-übergreifende Ebene aus `docs/konzept-lernplattform.md` Abschnitt 13. Flache Liste, ein Eintrag pro Themenfeld:
+
+```yaml
+- slug: dicom                      # Primärschlüssel, von tracks.yml referenziert
+  order: 1
+  title_key: themenfeld.dicom.title
+  status: published
+```
+
+Jeder Eintrag in `tracks.yml` bekommt ein `themenfeld:`-Feld mit dem Slug hier. `content:sync` löst das zu `tracks.themenfeld_id` auf; ein unbekannter Slug wird übersprungen und gewarnt (wie bei `lessons.track`). Aktuell existiert genau ein Themenfeld (`dicom`); die Ebene ist bewusst schon angelegt, damit eine spätere Erweiterung keine Migration von Bestandsdaten erfordert (siehe Abschnitt 13 im Konzeptdokument für die Kosten-Abwägung).

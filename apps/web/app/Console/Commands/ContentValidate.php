@@ -33,6 +33,12 @@ class ContentValidate extends Command
         $datasets = $content->datasets();
         $skills = $content->skills();
         $exams = $content->exams();
+        $achievements = $content->achievements();
+        $themenfelder = $content->themenfelder();
+        $tracks = $content->tracks();
+
+        $this->checkAchievements($achievements);
+        $this->checkTrackThemenfelder($tracks, $themenfelder);
 
         foreach ($lessons as $id => $lesson) {
             $this->checkLessonStructure($id, $lesson, $lessons);
@@ -547,6 +553,56 @@ class ContentValidate extends Command
                 LineFinder::firstLineContaining($node['def_raw'] ?? '', 'hash'),
                 'flag.hash beginnt nicht mit "sha256:" — sieht nach Flag-Klartext statt Hash aus',
             );
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $tracks
+     * @param  array<int, array<string, mixed>>  $themenfelder
+     */
+    private function checkTrackThemenfelder(array $tracks, array $themenfelder): void
+    {
+        $knownSlugs = array_column($themenfelder, 'slug');
+
+        foreach ($tracks as $track) {
+            $themenfeldSlug = $track['themenfeld'] ?? null;
+
+            if (! in_array($themenfeldSlug, $knownSlugs, true)) {
+                $this->issue(
+                    $track['_file'],
+                    LineFinder::firstLineContaining($track['_raw'], 'slug: '.$track['slug']),
+                    "Track \"{$track['slug']}\" referenziert unbekanntes Themenfeld \"{$themenfeldSlug}\"",
+                );
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $achievements
+     */
+    private function checkAchievements(array $achievements): void
+    {
+        $seenSlugs = [];
+
+        foreach ($achievements as $achievement) {
+            $file = $achievement['_file'];
+            $raw = $achievement['_raw'];
+            $slug = $achievement['slug'] ?? null;
+            $line = LineFinder::firstLineContaining($raw, 'slug: '.$slug);
+
+            foreach (['slug', 'name', 'description', 'image', 'category', 'points', 'is_hidden', 'sort_order'] as $field) {
+                if (! array_key_exists($field, $achievement)) {
+                    $this->issue($file, $line, "Achievement ohne Pflichtfeld \"{$field}\"");
+                }
+            }
+
+            if ($slug !== null) {
+                if (isset($seenSlugs[$slug])) {
+                    $this->issue($file, $line, "Achievement-Slug \"{$slug}\" ist nicht eindeutig");
+                }
+
+                $seenSlugs[$slug] = true;
+            }
         }
     }
 

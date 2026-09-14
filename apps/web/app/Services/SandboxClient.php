@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Http;
  * Der Orchestrator ist der einzige Dienst mit Docker-Socket-Zugriff --
  * Laravel spricht ihn nur ueber HTTP an.
  */
-final class SandboxClient
+final class SandboxClient implements SandboxClientContract
 {
     /**
      * @return array<string, mixed>
