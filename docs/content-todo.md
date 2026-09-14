@@ -1093,6 +1093,32 @@ neuen Architekturentscheidungen. Reale Verifikation: `content:validate`
 grün, echter Browser-E2E im isolierten Compose-Stack (16/16 Fragen
 richtig, 100 %, bestanden).
 
+**Track-Abschlussprüfung Betrieb und Integration (P10.63):** neuer
+Content unter `content/exams/betrieb/{exam.yml,de.md}`, 38 Fragen (15
+single, 9 multi, 9 truefalse, 5 input), je 4 aus den Lektionen 5.1–5.8
+sowie 6 `cross`-Fragen (u. a. De-Identifikation vs. Zugriffsprotokoll
+als unabhängige Datenschutzmaßnahmen, Conformance Statement vs.
+tatsächliche AE-Title-Sicherheit, und die Verbindung zwischen 5.6s
+realer Sicherheitslücke und 5.8s Beschaffungs-Checkliste). Wie Track 2/3
+hatte keine der acht Track-5-Lektionen `quiz:`-Daten in ihrer
+`meta.yml` — der Pool ist komplett neu geschrieben, bleibt aber an
+echten Fakten, Zahlen und Stolperfallen aus dem jeweiligen Lektionstext
+verankert (u. a. die real zitierte Fraunhofer/FH-Münster-Studie aus 5.6
+und § 127 StrlSchV aus 5.5). Lektion 5.8 ist reine Synthese ohne neuen
+Stoff — ihre vier Pool-Fragen prüfen die Checklisten-Struktur selbst
+(RFI/RFP-Phase, Verweis auf reale Befunde der vorigen sieben Lektionen),
+keine erfundenen Zusatzfakten. Keine neuen Architekturentscheidungen.
+Reale Verifikation: `content:validate` grün, echter Browser-E2E im
+isolierten Compose-Stack (20/20 Fragen richtig, 100 %, bestanden).
+
+Damit haben vier der fünf Tracks eine Abschlussprüfung (Fundamente,
+Die Services, Das Bild selbst, Betrieb und Integration). Offen: Track 4
+(Troubleshooting) — laut Auftrag der Sonderfall, bei dem praktisch alle
+Fragen `cross` sind, weil jede Störung mehrere Lektionen berührt; die
+Mindestquote von 4 Fragen je Lektion muss dafür in `ContentValidate`
+gelockert werden, siehe P10-Prompt Abschnitt „Anschluss: die übrigen
+Tracks".
+
 ## CI
 
 **Seit P10.55 blockierend.** `content:validate` läuft in der
