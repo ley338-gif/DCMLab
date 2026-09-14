@@ -508,6 +508,33 @@ class ContentValidateTest extends TestCase
         $this->assertStringContainsString('weniger als 4 Poolfragen', $result['output']);
     }
 
+    public function test_exam_min_per_lesson_accepts_a_lower_override(): void
+    {
+        // Sonderfall Troubleshooting (P10.64): min_per_lesson senkt die
+        // 4-Fragen-Quote bewusst ab, statt jede Lektion darauf zu zwingen.
+        // Auf 4 gesetzt (dem tatsaechlichen Bestand der Fixture) darf das
+        // keinen neuen Verstoss erzeugen.
+        $dir = $this->buildContentDir($this->examFiles([
+            'exams/fundamente/exam.yml' => str_replace('pass_percent: 80', "pass_percent: 80\nmin_per_lesson: 4", $this->validExamYml()),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(0, $result['exitCode'], $result['output']);
+    }
+
+    public function test_exam_min_per_lesson_must_be_a_non_negative_integer(): void
+    {
+        $dir = $this->buildContentDir($this->examFiles([
+            'exams/fundamente/exam.yml' => str_replace('pass_percent: 80', "pass_percent: 80\nmin_per_lesson: -1", $this->validExamYml()),
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('min_per_lesson muss eine nicht-negative Ganzzahl sein', $result['output']);
+    }
+
     public function test_exam_tag_not_in_skills_fails(): void
     {
         $dir = $this->buildContentDir($this->examFiles([

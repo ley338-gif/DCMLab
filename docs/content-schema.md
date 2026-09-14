@@ -639,7 +639,7 @@ Die Umkehrprüfung ist die wichtigste davon: Sie verhindert die Klasse „Lektio
 - genau eine `**Erklärung:**`-Zeile je Frage
 - `type` ist `single`, `multi`, `truefalse` oder `input`; `answer` passt zum Typ und liegt im gültigen (0-basierten) Indexbereich
 - `review` ist Pflicht; jede `lesson`-ID existiert im Track, jeder `anchor` löst auf eine echte Überschrift der Ziel-`de.md` auf (Slug über `HeadingSlug`, dieselbe Klasse, die `MarkdownRenderer` für die Heading-IDs benutzt)
-- pro Lektion mindestens vier Poolfragen, mindestens vier `cross`-Fragen, `draw` ≤ Poolgröße
+- pro Lektion mindestens `min_per_lesson` Poolfragen (optionales Feld in `exam.yml`, Default 4 — für Tracks, in denen praktisch jede Frage `cross` ist, z. B. Troubleshooting, darf es bewusst niedriger gesetzt werden), mindestens vier `cross`-Fragen, `draw` ≤ Poolgröße
 - Typmischung 35–40 % `single`, 20–25 % `multi`, 20–25 % `truefalse`, 10–15 % `input`; mindestens ein Viertel der Poolfragen mit `difficulty: 3`
 - jeder Slug aus `tags` existiert in `skills.yml`, höchstens zwei je Frage
 - `pass_percent` zwischen 50 und 100

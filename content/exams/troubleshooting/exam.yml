@@ -1,0 +1,238 @@
+track: troubleshooting
+title_key: exam.troubleshooting.title
+pass_percent: 80
+draw: 16
+duration_minutes: 15
+shuffle: true
+min_per_lesson: 1
+
+# Sonderfall (siehe P10-Prompt "Anschluss: die uebrigen Tracks"): dieser
+# Track ist selbst schon eine durchgehende Verkettung von Wissen aus den
+# Tracks 1-3 -- praktisch jede Frage waere hier "cross". min_per_lesson
+# senkt die sonst geltende 4-Fragen-Quote je Lektion bewusst auf 1 ab
+# (siehe ADR 0066/checkExamStructure), damit jede der zehn Lektionen
+# trotzdem mindestens eine eigene, unmittelbar auf ihr Fehlerbild
+# bezogene Frage traegt, waehrend der Grossteil des Pools echte
+# schichtuebergreifende cross-Fragen sind. Keine der zehn Lektionen
+# hatte quiz:-Daten in ihrer meta.yml -- der Pool ist komplett neu
+# geschrieben. Antwortindizes 0-basiert (single/multi), siehe ADR 0066.
+
+questions:
+  - id: f01
+    type: single
+    answer: 1
+    lesson: "4.1"
+    review: { lesson: "4.1", anchor: "stolperfallen" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f02
+    type: single
+    answer: 1
+    lesson: "4.2"
+    review: { lesson: "4.2", anchor: "wenn-die-aushandlung-scheitert" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f03
+    type: single
+    answer: 0
+    lesson: "4.5"
+    review: { lesson: "4.5", anchor: "split-und-dublette-sind-nicht-dasselbe" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f04
+    type: single
+    answer: 0
+    lesson: "4.8"
+    review: { lesson: "4.8", anchor: "die-kette-hinter-dem-transfer" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f05
+    type: multi
+    answer: [0, 1, 2, 3]
+    lesson: "4.4"
+    review: { lesson: "4.4", anchor: "vier-stellen-an-denen-es-haengen-kann" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f06
+    type: multi
+    answer: [0, 1, 2]
+    lesson: "4.10"
+    review: { lesson: "4.10", anchor: "von-aussen-nach-innen-eingrenzen" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f07
+    type: truefalse
+    answer: false
+    lesson: "4.3"
+    review: { lesson: "4.3", anchor: "der-trugschluss-storescu-hat-nichts-gemeldet-also-ist-alles-da" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f08
+    type: truefalse
+    answer: false
+    lesson: "4.7"
+    review: { lesson: "4.7", anchor: "eine-leere-antwort-ist-eine-gueltige-antwort" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f09
+    type: input
+    answer: "0xB000"
+    lesson: "4.6"
+    review: { lesson: "4.6", anchor: "coercion-wenn-nicht-die-modalitaet-schuld-ist" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f10
+    type: input
+    answer: "000b:"
+    lesson: "4.9"
+    review: { lesson: "4.9", anchor: "wenn-niemand-dem-zertifikat-vertraut" }
+    difficulty: 2
+    tags: [security, netzwerk]
+
+  - id: f11
+    type: single
+    answer: 2
+    lesson: "cross"
+    review:
+      - { lesson: "4.1", anchor: "zwei-ganz-verschiedene-arten-von-es-geht-nicht" }
+      - { lesson: "4.2", anchor: "der-scanner-meldet-erfolg-das-archiv-zeigt-nichts" }
+    difficulty: 3
+    tags: [netzwerk]
+
+  - id: f12
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "cross"
+    review:
+      - { lesson: "4.3", anchor: "nachweisen-statt-der-meldung-zu-glauben" }
+      - { lesson: "4.4", anchor: "vier-stellen-an-denen-es-haengen-kann" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f13
+    type: input
+    answer: "StudyInstanceUID"
+    lesson: "cross"
+    review:
+      - { lesson: "4.5", anchor: "ein-split-erzeugt-einen-echten-zweiten-eintrag" }
+      - { lesson: "4.6", anchor: "zwei-registrierungen-eine-person" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f14
+    type: truefalse
+    answer: true
+    lesson: "cross"
+    review:
+      - { lesson: "4.6", anchor: "coercion-wenn-nicht-die-modalitaet-schuld-ist" }
+      - { lesson: "2.2", anchor: "was-der-status-im-detail-bedeutet" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f15
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "4.7", anchor: "wo-die-kette-zum-his-ris-reisst" }
+      - { lesson: "2.5", anchor: "wer-die-worklist-in-der-praxis-beantwortet" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f16
+    type: multi
+    answer: [0, 2]
+    lesson: "cross"
+    review:
+      - { lesson: "4.8", anchor: "die-kette-hinter-dem-transfer" }
+      - { lesson: "2.6", anchor: "was-mpps-nicht-ist" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f17
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "4.9", anchor: "was-tls-an-der-association-aendert" }
+      - { lesson: "1.8", anchor: "eine-association-ist-eine-verhandlung" }
+    difficulty: 2
+    tags: [security, netzwerk]
+
+  - id: f18
+    type: truefalse
+    answer: true
+    lesson: "cross"
+    review:
+      - { lesson: "4.10", anchor: "stolperfallen" }
+      - { lesson: "4.1", anchor: "stolperfallen" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f19
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "4.2", anchor: "wenn-die-aushandlung-scheitert" }
+      - { lesson: "4.3", anchor: "zwei-weitere-ursachen-die-dasselbe-bild-erzeugen" }
+    difficulty: 3
+    tags: [netzwerk, datenmodell]
+
+  - id: f20
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "cross"
+    review:
+      - { lesson: "4.4", anchor: "vier-stellen-an-denen-es-haengen-kann" }
+      - { lesson: "4.9", anchor: "was-tls-an-der-association-aendert" }
+    difficulty: 3
+    tags: [netzwerk, security]
+
+  - id: f21
+    type: truefalse
+    answer: true
+    lesson: "cross"
+    review:
+      - { lesson: "4.5", anchor: "stolperfallen" }
+      - { lesson: "4.6", anchor: "stolperfallen" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f22
+    type: truefalse
+    answer: false
+    lesson: "cross"
+    review:
+      - { lesson: "4.8", anchor: "wenn-die-kette-reisst-eine-echte-ablehnung" }
+      - { lesson: "2.7", anchor: "eine-echte-ablehnung-mit-echtem-grund" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f23
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "4.1", anchor: "stolperfallen" }
+      - { lesson: "1.6", anchor: "die-konfiguration-ist-immer-symmetrisch" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f24
+    type: multi
+    answer: [0, 2]
+    lesson: "cross"
+    review:
+      - { lesson: "4.10", anchor: "von-aussen-nach-innen-eingrenzen" }
+    difficulty: 2
+    tags: [netzwerk]
