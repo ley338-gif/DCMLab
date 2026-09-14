@@ -1056,6 +1056,22 @@ für alle Regeln und die vier bewussten Architekturentscheidungen
 (neuer Fragetyp `truefalse`, neue Punktequelle "Track bestanden", neue
 Anker-Slug-Klasse `HeadingSlug`, neues `skills.yml`).
 
+**Track-Abschlussprüfung Die Services (P10.61):** neuer Content unter
+`content/exams/services/{exam.yml,de.md}`, 38 Fragen (15 single, 9 multi,
+9 truefalse, 5 input), je 4 aus den Lektionen 2.1–2.8 sowie 6
+`cross`-Fragen (u. a. die vom P10-Prompt genannte Kette
+MWL → MPPS → C-STORE → Storage Commitment und DICOMweb als Gegenstück zu
+DIMSE). Anders als Track 1 hatte keine der acht Track-2-Lektionen zum
+Zeitpunkt dieser Prüfung `quiz:`-Daten in ihrer `meta.yml` (das Feld
+fehlt in allen acht Dateien) — der gesamte Pool ist deshalb neu
+geschrieben, nicht aus vorhandenen Lektionskarten übernommen; jede Frage
+bleibt trotzdem an echten Fakten und Stolperfallen aus dem jeweiligen
+Lektionstext verankert. Keine neuen Architekturentscheidungen nötig —
+Schema, Validator, Backend und Frontend aus ADR 0066 sind trackneutral
+und wurden unverändert wiederverwendet. Reale Verifikation: `content:
+validate` grün, echter Browser-E2E im isolierten Compose-Stack (22/22
+Fragen richtig, 100 %, bestanden, Ergebnisseite korrekt).
+
 ## CI
 
 **Seit P10.55 blockierend.** `content:validate` läuft in der
