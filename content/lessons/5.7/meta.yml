@@ -1,19 +1,21 @@
 id: "5.7"
 track: betrieb
 order: 7
-duration_minutes: 10
+duration_minutes: 15
 level: fortgeschritten
 objectives_count: 3
 requires: ["2.6", "5.6"]
-tools: []
+tools: [curl, storescu]
 
 sandbox:
-  required: false
+  required: true
+  dataset: ct-thorax-60
 
 lab:
   node: null
   optional: true
 
 glossary_terms: []
-status: draft
+tools_checked: "2026-09-14"
+status: fertig
 updated: "2026-09-14"

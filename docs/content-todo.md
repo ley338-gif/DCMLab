@@ -602,6 +602,24 @@ Befund) als reale Kompensationen erklärt. `tools` von `[]` auf
 auf `true` korrigiert (Dataset `ct-thorax-60`), neuer Glossarbegriff
 `netzsegmentierung`. Siehe ADR 0061.
 
+**5.7 ist seit P10.53 vollständig geschrieben — alle drei geprüften
+REST-Endpunkte tragen, die Sorge um fehlende Aussagekraft ohne
+Produktionslast hat sich nicht bestätigt.** Live real getestet:
+`/statistics` wächst real von 0 auf 60 Instanzen/50.760 Bytes nach dem
+Senden des Datensatzes; `/system` liefert echte Versions-/
+Bibliotheksdaten (verbindet sich mit Lektion 5.6s Studienfund zu
+Software-Clustern); `/jobs` zeigt real erst eine leere Liste (gültiger
+Ruhezustand, Parallele zu Lektion 2.5), dann nach einem real via `POST
+.../anonymize` ausgelösten Job (Lektion 5.4, 60 Instanzen) echte
+Erfolgs-/Laufzeitkennzahlen (`EffectiveRuntime`, `Progress`, `State`,
+`FailedInstancesCount`). Klare Abgrenzung zu Lektion 5.5 gezogen: alle
+drei Endpunkte sind technisches Monitoring, keiner sagt etwas über
+Zugriffsverhalten. `tools` von `[]` auf `[curl, storescu]` gesetzt,
+`sandbox.required` von `false` auf `true` korrigiert (Dataset
+`ct-thorax-60`). Siehe ADR 0062. **Damit sind sieben der acht
+Track-5-Lektionen geschrieben — nur 5.8 (Beschaffung, geplant als
+reine Synthese) steht noch aus.**
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0
