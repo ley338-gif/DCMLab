@@ -535,6 +535,30 @@ ohnehin `needs_sandbox: true`) — aber die ursprüngliche
 Scaffold-Prämisse „`sandbox.required: false` verhindert den
 Sandbox-Button" (ADR 0055) war unzutreffend. Siehe ADR 0058.
 
+**5.4 ist seit P10.50 vollständig geschrieben — der in ADR 0055 als zu
+prüfen markierte Hands-on-Baustein trägt.** Real per `curl` aus der
+aktuellen DICOM-PS3.15-Annex-E abgerufen (nicht aus dem Gedächtnis
+paraphrasiert): sechs standardisierte Aktionscodes (D/Z/X/K/C/U) mit
+konkreten, zitierten Beispielen (`PatientName`→Z, `PatientBirthDate`→Z,
+`StudyInstanceUID`→U). Der U-Code verbindet sich direkt mit Lektion
+3.1s Fund zur Type-1-Durchsetzung: `StudyInstanceUID` darf nicht
+geleert werden, sondern muss durch eine neue, gültige UID ersetzt
+werden. Live in der echten Spielwiese angewendet: `dcmodify` setzt
+real `PatientName` auf Länge Null und ersetzt `StudyInstanceUID` durch
+eine neue UID, ein anschließender `storescu` bestätigt real, dass
+Orthanc das de-identifizierte Objekt annimmt (`0x0000 Success`) — der
+empirische Beleg für die U-Aktion. DICOMs eigener,
+standardisierter Pseudonymisierungs-Mechanismus (Encrypted Attributes
+Data Set, `0400,0550`) real recherchiert und benannt, aber nicht live
+gebaut (unverhältnismäßiger Kryptografie-Aufwand). Ein geplanter
+dritter Test (privates Tag über `dcmodify` einfügen) scheiterte an
+VR-Mehrdeutigkeit und wurde nicht weiterverfolgt — dafür enthält die
+Lektion auch keine ungeprüfte Behauptung zu privaten Tags. `tools` von
+`[]` auf `[dcmdump, dcmodify, storescu]` gesetzt, `sandbox.required`
+von `false` auf `true` korrigiert (Dataset `ct-thorax-60`), zwei neue
+Glossarbegriffe (`de-identification`, `encrypted-attributes`). Siehe
+ADR 0059.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0

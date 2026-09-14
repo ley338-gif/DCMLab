@@ -336,3 +336,17 @@ conformance-statement:
   short: Herstellerdokument, das für jede Application Entity angibt, welche SOP-Klassen, Rollen (SCU/SCP) und Transfer-Syntaxen sie unterstützt — sagt nichts über Performance oder Verhalten bei Kantenfällen.
   see_also: [sop-class, association]
   lesson: "5.2"
+
+de-identification:
+  term: De-Identification
+  expansion: De-Identification (DICOM PS3.15 Annex E)
+  short: Standardisierte Aktionscodes (D/Z/X/K/C/U) pro Attribut — legen fest, ob ein Wert durch einen Platzhalter ersetzt, geleert, entfernt, unverändert gelassen oder durch eine neue, aber gültige UID ersetzt wird.
+  see_also: [encrypted-attributes]
+  lesson: "5.4"
+
+encrypted-attributes:
+  term: Encrypted Attributes Data Set
+  expansion: Encrypted Attributes Data Set (0400,0550 Modified Attributes Sequence)
+  short: DICOMs eigener, standardisierter Mechanismus für Pseudonymisierung — die Originalwerte werden verschlüsselt im de-identifizierten Objekt selbst mitgeführt, statt in einer externen Tabelle.
+  see_also: [de-identification]
+  lesson: "5.4"
