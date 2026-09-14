@@ -580,6 +580,28 @@ Löschungsausnahme). `tools` von `[]` auf `[curl, storescu]` gesetzt,
 `sandbox.required` von `false` auf `true` korrigiert (Dataset
 `ct-thorax-60`), neuer Glossarbegriff `atna`. Siehe ADR 0060.
 
+**5.6 ist seit P10.52 vollständig geschrieben — der Hands-on-Baustein
+ist keine neue Übung, sondern die explizite Benennung eines bereits
+seit ADR 0008 real dokumentierten Verhaltens.** Live real gezeigt:
+`echoscu -aet PYNETDICOM -aec ANY-SCP` (frei erfundene Titel) wird von
+Orthanc real akzeptiert, ein anschließender `findscu` mit denselben
+Titeln liefert real einen echten (fiktiven) Patientennamen zurück —
+ohne jede Anmeldung. Statt erfundener Vorfälle wurde eine aktuelle,
+reale Studie recherchiert und per `pdftotext` aus dem Original-PDF
+zitiert: „Measuring Healthcare Data Leaks and Security Flaws at
+Internet Scale" (Brüggemann et al., Fraunhofer SIT/FH Münster/ATHENE,
+arXiv 2607.04965v2, Juli 2026) — misst real dieselbe Methode im
+öffentlichen Internet: 1.903 erfolgreiche Associations, 93,54 % davon
+mit ungeschütztem Datenzugriff, macht 1.780 real gefundene verwundbare
+DICOM-Dienste. Die Studie nennt auch die Gegenprobe (3.355 von 3.777
+Verbindungsversuchen scheiterten real an einer AE-Title-Prüfung),
+ehrlich mit übernommen statt unterschlagen. Netzsegmentierung und
+DICOM-TLS (Querverweis auf Lektion 4.9s bereits real verifizierten
+Befund) als reale Kompensationen erklärt. `tools` von `[]` auf
+`[echoscu, findscu, storescu]` gesetzt, `sandbox.required` von `false`
+auf `true` korrigiert (Dataset `ct-thorax-60`), neuer Glossarbegriff
+`netzsegmentierung`. Siehe ADR 0061.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0
