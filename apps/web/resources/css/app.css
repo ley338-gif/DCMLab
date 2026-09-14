@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 @import 'tw-animate-css';
+@import './lesson.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -124,6 +125,12 @@
     --sidebar-border: hsl(0 0% 91%);
     --sidebar-ring: hsl(217.2 91.2% 59.8%);
     --sidebar: hsl(0 0% 98%);
+
+    /* Lesson-Ansicht (Redesign P10.67): kein neuer Markenfarbwert -- der
+       vorhandene Teal-Chart-Ton dient als ruhiger Akzent fuer Fortschritt,
+       aktive Zustaende und Merksatz-Boxen. Loest ueber var(--chart-2) live
+       auf, deshalb genuegt eine Deklaration fuer beide Themes. */
+    --lesson-accent: var(--chart-2);
 }
 
 .dark {

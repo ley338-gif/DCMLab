@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { CircleHelp } from '@lucide/vue';
 import { reactive } from 'vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,15 +84,20 @@ async function checkAnswer(question: QuizQuestion) {
 </script>
 
 <template>
-    <Card v-if="questions.length" class="mb-8">
-        <CardHeader>
-            <CardTitle class="text-sm">{{ trans('Quiz') }}</CardTitle>
-        </CardHeader>
-        <CardContent class="space-y-8">
+    <section
+        v-if="questions.length"
+        class="knowledge-check"
+        aria-label="Wissen prüfen"
+    >
+        <p class="knowledge-check-title">
+            <CircleHelp class="size-4" aria-hidden="true" />
+            {{ trans('Wissen prüfen') }}
+        </p>
+        <div class="knowledge-check-questions">
             <div
                 v-for="question in questions"
                 :key="question.id"
-                class="space-y-3"
+                class="knowledge-check-question"
             >
                 <p
                     class="text-sm font-medium"
@@ -173,6 +178,6 @@ async function checkAnswer(question: QuizQuestion) {
                     </span>
                 </div>
             </div>
-        </CardContent>
-    </Card>
+        </div>
+    </section>
 </template>

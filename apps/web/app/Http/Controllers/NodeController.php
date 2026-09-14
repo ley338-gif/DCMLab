@@ -17,6 +17,52 @@ use Inertia\Response;
 
 class NodeController extends Controller
 {
+    /**
+     * Oeffentlicher Katalog aller Nodes (Abschnitt 6) -- wie Tracks/Index
+     * ohne Login sichtbar, ein Klick auf eine Node fuehrt Gaeste zum Login.
+     * `status` (draft|review|published) ist bei Nodes anders als bei Track
+     * bislang reine Redaktionsmarkierung, kein Zugriffsfilter -- show()
+     * selbst prueft nur, ob Content existiert, nicht den Status. Deshalb
+     * werden hier ebenfalls alle Nodes gelistet, nicht nur "published".
+     */
+    public function index(): Response
+    {
+        $solvedNodeIds = Auth::check()
+            ? NodeAttempt::query()
+                ->where('user_id', Auth::id())
+                ->where('status', 'solved')
+                ->pluck('node_id')
+                ->all()
+            : [];
+
+        $difficultyRank = ['easy' => 0, 'medium' => 1, 'hard' => 2, 'insane' => 3];
+
+        $nodes = Node::query()
+            ->get()
+            ->map(fn (Node $node) => [
+                'slug' => $node->slug,
+                'title' => $node->title['de'] ?? $node->slug,
+                'difficulty' => $node->difficulty,
+                'points' => $node->points,
+                'category' => $node->category,
+                'estimated_minutes' => $node->estimated_minutes,
+                'solved' => in_array($node->id, $solvedNodeIds, true),
+            ])
+            // Innerhalb jeder Kategorie (Gruppierung passiert im Frontend,
+            // wie bei Glossary/Index) von leicht nach schwer sortiert.
+            ->sortBy(fn (array $node) => sprintf(
+                '%s-%d-%s',
+                $node['category'],
+                $difficultyRank[$node['difficulty']] ?? 99,
+                $node['slug'],
+            ))
+            ->values();
+
+        return Inertia::render('Nodes/Index', [
+            'nodes' => $nodes,
+        ]);
+    }
+
     public function show(Node $node, ContentRepository $content, EngineClient $engine): Response
     {
         $nodeContent = $content->nodes()[$node->slug] ?? null;

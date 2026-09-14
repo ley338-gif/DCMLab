@@ -9,6 +9,7 @@ use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Node;
 use App\Models\QuizReview;
+use App\Services\LessonNavigationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +22,7 @@ class LessonController extends Controller
      * Zeigt eine Lektion: gerenderte Werkzeugleiste (Abschnitt 4.4), Prosa
      * mit aufgeloesten Glossar-Begriffen, Fortschritt fuer den Nutzer.
      */
-    public function show(Lesson $lesson, ContentRepository $content): Response
+    public function show(Lesson $lesson, ContentRepository $content, LessonNavigationService $navigation): Response
     {
         $lessonContent = $content->lessons()[$lesson->lesson_id] ?? null;
 
@@ -64,6 +65,11 @@ class LessonController extends Controller
             'last_result' => $reviewsByQuestion[$question['id']]->last_result ?? null,
         ])->values();
 
+        $trackLessons = $lesson->track->lessons()->get();
+        $positionInTrack = $trackLessons->search(fn (Lesson $candidate) => $candidate->id === $lesson->id);
+        $previousLesson = $positionInTrack > 0 ? $trackLessons->get($positionInTrack - 1) : null;
+        $nextLesson = $positionInTrack !== false ? $trackLessons->get($positionInTrack + 1) : null;
+
         return Inertia::render('Lessons/Show', [
             'lesson' => [
                 'lesson_id' => $lesson->lesson_id,
@@ -71,8 +77,23 @@ class LessonController extends Controller
                 'teaser' => $lessonContent['frontmatter']['teaser'] ?? '',
                 'objectives' => $lessonContent['frontmatter']['objectives'] ?? [],
                 'duration_minutes' => $lesson->duration_minutes,
+                'level' => $lesson->level,
                 'body_html' => $bodyHtml,
                 'body_after_quiz_html' => $bodyAfterQuizHtml,
+                'position_in_track' => $positionInTrack !== false ? $positionInTrack + 1 : null,
+                'track_lessons_count' => $trackLessons->count(),
+                'prev' => $previousLesson !== null ? [
+                    'lesson_id' => $previousLesson->lesson_id,
+                    'title' => $previousLesson->title['de'] ?? $previousLesson->lesson_id,
+                ] : null,
+                'next' => $nextLesson !== null ? [
+                    'lesson_id' => $nextLesson->lesson_id,
+                    'title' => $nextLesson->title['de'] ?? $nextLesson->lesson_id,
+                ] : null,
+            ],
+            'track' => [
+                'slug' => $lesson->track->slug,
+                'title_key' => $lesson->track->title_key,
             ],
             'quiz' => $quiz,
             'toolbar' => $this->toolbarData($lesson, $tools, $datasets),
@@ -80,6 +101,7 @@ class LessonController extends Controller
                 'status' => $progress->status,
                 'is_returning_visit' => $isReturningVisit,
             ],
+            'sidebar' => $navigation->sidebarFor(Auth::user(), $lesson),
         ]);
     }
 
