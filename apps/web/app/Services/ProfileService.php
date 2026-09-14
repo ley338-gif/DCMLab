@@ -9,6 +9,7 @@ use App\Models\Profile;
 use App\Models\Track;
 use App\Models\TrackBadge;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
@@ -153,6 +154,50 @@ final class ProfileService
         $profile->save();
 
         return $badgeNewlyAwarded;
+    }
+
+    /**
+     * Fasst first_blood-Achievements (global, pro Node, ADR 0009) und
+     * TrackBadges (pro Nutzer, pro Track, ADR 0066) zu einer nach
+     * `awarded_at` sortierten Liste zusammen -- die eine gemeinsame
+     * Lesestelle fuer "welche Abzeichen hat dieser Nutzer" (das aeltere
+     * "Pionier"-System, siehe docs/achievements.md), die Dashboard und
+     * oeffentliches Profil gleichermassen nutzen (ADR 0070). Die beiden
+     * Herkunfts-Tabellen, ihre Unique-Constraints und ihre getrennte
+     * Vergabe-Logik bleiben unangetastet.
+     *
+     * @return list<array{kind: string, node_title: ?string, track_title_key: ?string, awarded_at: CarbonImmutable}>
+     */
+    public function achievementsFor(User $user): array
+    {
+        $firstBloods = Achievement::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'first_blood')
+            ->with('node')
+            ->get()
+            ->map(fn (Achievement $achievement) => [
+                'kind' => 'first_blood',
+                'node_title' => $achievement->node?->title['de'] ?? $achievement->node?->slug,
+                'track_title_key' => null,
+                'awarded_at' => $achievement->awarded_at,
+            ]);
+
+        $trackBadges = TrackBadge::query()
+            ->where('user_id', $user->id)
+            ->with('track')
+            ->get()
+            ->map(fn (TrackBadge $badge) => [
+                'kind' => 'track_passed',
+                'node_title' => null,
+                'track_title_key' => $badge->track?->title_key,
+                'awarded_at' => $badge->awarded_at,
+            ]);
+
+        $entries = [...$firstBloods->all(), ...$trackBadges->all()];
+
+        usort($entries, fn (array $a, array $b) => $b['awarded_at'] <=> $a['awarded_at']);
+
+        return $entries;
     }
 
     /**

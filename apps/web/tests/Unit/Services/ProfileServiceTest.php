@@ -5,6 +5,8 @@ namespace Tests\Unit\Services;
 use App\Models\Achievement;
 use App\Models\Node;
 use App\Models\NodeAttempt;
+use App\Models\Track;
+use App\Models\TrackBadge;
 use App\Models\User;
 use App\Services\ProfileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -95,6 +97,38 @@ class ProfileServiceTest extends TestCase
             'user_id' => $secondUser->id, 'node_id' => $node->id, 'type' => 'first_blood',
         ]);
         $this->assertSame(1, Achievement::where('node_id', $node->id)->count());
+    }
+
+    /**
+     * ADR 0070: die gemeinsame Lesestelle fuer Dashboard und oeffentliches
+     * Profil -- fasst first_blood-Achievements (pro Node) und TrackBadges
+     * (pro Nutzer) zusammen, absteigend nach awarded_at sortiert.
+     */
+    public function test_achievements_for_merges_first_bloods_and_track_badges_sorted_by_date(): void
+    {
+        $user = User::factory()->create();
+        $node = Node::factory()->create(['skills' => ['netzwerk'], 'points' => 10]);
+        $track = Track::factory()->create(['title_key' => 'track.fundamente.title']);
+
+        Achievement::create([
+            'user_id' => $user->id,
+            'node_id' => $node->id,
+            'type' => 'first_blood',
+            'awarded_at' => now()->subDay(),
+        ]);
+        TrackBadge::create([
+            'user_id' => $user->id,
+            'track_id' => $track->id,
+            'awarded_at' => now(),
+        ]);
+
+        $achievements = (new ProfileService)->achievementsFor($user);
+
+        $this->assertCount(2, $achievements);
+        $this->assertSame('track_passed', $achievements[0]['kind']);
+        $this->assertSame('track.fundamente.title', $achievements[0]['track_title_key']);
+        $this->assertSame('first_blood', $achievements[1]['kind']);
+        $this->assertSame($node->title['de'], $achievements[1]['node_title']);
     }
 
     public function test_leaderboard_only_returns_opted_in_profiles_sorted_by_points(): void

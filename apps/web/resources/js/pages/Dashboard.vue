@@ -42,8 +42,9 @@ type RecentLesson = {
 };
 
 type PioneerAchievementEntry = {
-    type: string;
+    kind: string;
     node_title: string | null;
+    track_title_key: string | null;
     awarded_at: string;
 };
 
@@ -70,9 +71,11 @@ const rankLabels: Record<string, string> = {
 
 // "Pionier": globaler Wettlauf um die Erstloesung einer Node (frueher als
 // "First Blood" beschriftet -- umbenannt, weil der neue, persoenliche
-// first-blood-Achievement-Slug unten dieselbe Bezeichnung braucht.
+// first-blood-Achievement-Slug unten dieselbe Bezeichnung braucht) plus
+// bestandene Track-Pruefungen (ADR 0070).
 const pioneerAchievementLabels: Record<string, string> = {
     first_blood: trans('Pionier'),
+    track_passed: trans('Abschlussprüfung bestanden'),
 };
 
 const unlockedAchievementsCount = computed(
@@ -303,13 +306,21 @@ function formatDate(iso: string): string {
                             <span>
                                 {{
                                     pioneerAchievementLabels[
-                                        achievement.type
-                                    ] ?? achievement.type
+                                        achievement.kind
+                                    ] ?? achievement.kind
                                 }}
                                 <span
                                     v-if="achievement.node_title"
                                     class="text-muted-foreground"
                                     >— {{ achievement.node_title }}</span
+                                >
+                                <span
+                                    v-if="achievement.track_title_key"
+                                    class="text-muted-foreground"
+                                    >—
+                                    {{
+                                        trans(achievement.track_title_key)
+                                    }}</span
                                 >
                             </span>
                             <span class="text-muted-foreground text-xs">{{
