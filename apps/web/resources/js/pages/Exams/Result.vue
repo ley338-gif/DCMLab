@@ -36,6 +36,8 @@ const props = defineProps<{
         score_correct: number;
         score_total: number;
         passed: boolean;
+        badge_awarded: boolean;
+        points_awarded: number | null;
     };
     error_breakdown: ErrorBreakdownRow[];
     wrong_questions: WrongQuestion[];
@@ -85,6 +87,16 @@ function retryUrl(): string {
                     </Badge>
                 </div>
             </CardHeader>
+            <CardContent v-if="attempt.badge_awarded">
+                <p class="text-sm">
+                    {{
+                        trans(
+                            'Du hast das Abschluss-Badge für diesen Track und :points Punkte erhalten.',
+                            { points: attempt.points_awarded },
+                        )
+                    }}
+                </p>
+            </CardContent>
         </Card>
 
         <Card v-if="error_breakdown.length > 0">

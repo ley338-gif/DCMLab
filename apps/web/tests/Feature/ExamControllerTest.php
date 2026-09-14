@@ -7,6 +7,7 @@ use App\Models\ExamAttempt;
 use App\Models\Lesson;
 use App\Models\Profile;
 use App\Models\Track;
+use App\Models\TrackBadge;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -124,9 +125,45 @@ class ExamControllerTest extends TestCase
         $profile = Profile::where('user_id', $user->id)->firstOrFail();
         $this->assertSame(50, $profile->points);
 
+        $this->assertTrue($attempt->badge_awarded);
+
         $this->actingAs($user)
             ->get("/de/tracks/{$track->slug}/exam/{$attempt->id}/result")
-            ->assertOk();
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('attempt.badge_awarded', true)
+                ->where('attempt.points_awarded', 50)
+            );
+    }
+
+    /**
+     * P10.65: ein zweiter, ebenfalls bestandener Versuch auf demselben
+     * Track darf kein zweites Badge, keine weiteren Punkte und keine
+     * Belohnungsanzeige mehr erzeugen -- die Vergabe ist einmalig.
+     */
+    public function test_a_second_passing_attempt_on_an_already_passed_track_awards_nothing_again(): void
+    {
+        [$user, $track] = $this->userAndTrack();
+
+        $this->passAttempt($user, $track);
+        $profileAfterFirst = Profile::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame(50, $profileAfterFirst->points);
+
+        $secondAttempt = $this->passAttempt($user, $track);
+
+        $this->assertSame(1, TrackBadge::where('user_id', $user->id)->where('track_id', $track->id)->count());
+        $this->assertFalse($secondAttempt->badge_awarded);
+
+        $profileAfterSecond = Profile::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame(50, $profileAfterSecond->points);
+
+        $this->actingAs($user)
+            ->get("/de/tracks/{$track->slug}/exam/{$secondAttempt->id}/result")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('attempt.badge_awarded', false)
+                ->where('attempt.points_awarded', null)
+            );
     }
 
     public function test_failing_the_attempt_awards_no_badge(): void
@@ -174,7 +211,26 @@ class ExamControllerTest extends TestCase
     {
         $this->actingAs($user)->post("/de/tracks/{$track->slug}/exam/start");
 
-        return ExamAttempt::where('user_id', $user->id)->where('track_id', $track->id)->firstOrFail();
+        return ExamAttempt::where('user_id', $user->id)
+            ->where('track_id', $track->id)
+            ->where('status', 'in_progress')
+            ->latest('id')
+            ->firstOrFail();
+    }
+
+    private function passAttempt(User $user, Track $track): ExamAttempt
+    {
+        $attempt = $this->startAttempt($user, $track);
+
+        foreach (range(1, 8) as $_) {
+            $currentId = $attempt->fresh()->currentQuestionId();
+            $this->actingAs($user)
+                ->postJson("/de/tracks/{$track->slug}/exam/{$attempt->id}/answer", ['value' => $this->correctAnswers[$currentId]]);
+        }
+
+        $this->actingAs($user)->get("/de/tracks/{$track->slug}/exam/{$attempt->id}");
+
+        return $attempt->fresh();
     }
 
     /**

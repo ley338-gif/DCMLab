@@ -22,8 +22,10 @@ use Illuminate\Support\Str;
 final class ProfileService
 {
     // Einmalig je bestandenem Track (TrackBadge ist unique(user_id,
-    // track_id)), passend zur Rang-Schwelle novice -> operator.
-    private const TRACK_PASS_POINTS = 50;
+    // track_id)), passend zur Rang-Schwelle novice -> operator. Public,
+    // damit die Ergebnisseite (P10.65) denselben Wert anzeigen kann, ohne
+    // ihn zu duplizieren.
+    public const TRACK_PASS_POINTS = 50;
 
     /**
      * Rang-Schwellen (Abschnitt 7 nennt nur die fuenf Namen, keine Punktzahlen
@@ -116,14 +118,18 @@ final class ProfileService
      * fuer falsche Antworten (die gibt es sonst nirgends im Code).
      *
      * @param  list<array{correct: bool, tags: list<string>}>  $answeredQuestions
+     * @return bool ob dieser Aufruf das TrackBadge neu vergeben hat (nicht nur bestanden, sondern zum ersten Mal)
      */
-    public function recomputeAfterExamAttempt(User $user, Track $track, bool $passed, array $answeredQuestions): void
+    public function recomputeAfterExamAttempt(User $user, Track $track, bool $passed, array $answeredQuestions): bool
     {
+        $badgeNewlyAwarded = false;
+
         if ($passed) {
-            TrackBadge::firstOrCreate(
+            $badge = TrackBadge::firstOrCreate(
                 ['user_id' => $user->id, 'track_id' => $track->id],
                 ['awarded_at' => now()],
             );
+            $badgeNewlyAwarded = $badge->wasRecentlyCreated;
         }
 
         $profile = $this->profileFor($user);
@@ -145,6 +151,8 @@ final class ProfileService
         $profile->points = $this->totalPoints($user);
         $profile->rank = $this->rankFor($profile->points);
         $profile->save();
+
+        return $badgeNewlyAwarded;
     }
 
     /**

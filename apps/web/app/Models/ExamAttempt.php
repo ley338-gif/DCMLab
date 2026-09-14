@@ -18,12 +18,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $score_correct
  * @property int|null $score_total
  * @property bool|null $passed
+ * @property bool $badge_awarded
  * @property CarbonImmutable $started_at
  * @property CarbonImmutable|null $completed_at
  */
 #[Fillable([
     'user_id', 'track_id', 'status', 'question_ids', 'current_index', 'answers',
-    'score_correct', 'score_total', 'passed', 'started_at', 'completed_at',
+    'score_correct', 'score_total', 'passed', 'badge_awarded', 'started_at', 'completed_at',
 ])]
 class ExamAttempt extends Model
 {
@@ -33,6 +34,7 @@ class ExamAttempt extends Model
             'question_ids' => 'array',
             'answers' => 'array',
             'passed' => 'boolean',
+            'badge_awarded' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
