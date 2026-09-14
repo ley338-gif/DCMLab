@@ -76,7 +76,8 @@ const pioneerAchievementLabels: Record<string, string> = {
 };
 
 const unlockedAchievementsCount = computed(
-    () => props.achievements.filter((achievement) => achievement.unlocked).length,
+    () =>
+        props.achievements.filter((achievement) => achievement.unlocked).length,
 );
 
 // Zeigt die zuletzt relevanten Achievements zuerst: freigeschaltete nach
@@ -84,8 +85,12 @@ const unlockedAchievementsCount = computed(
 const dashboardAchievements = computed(() => {
     const unlocked = props.achievements
         .filter((achievement) => achievement.unlocked)
-        .sort((a, b) => (b.unlocked_at ?? '').localeCompare(a.unlocked_at ?? ''));
-    const locked = props.achievements.filter((achievement) => !achievement.unlocked);
+        .sort((a, b) =>
+            (b.unlocked_at ?? '').localeCompare(a.unlocked_at ?? ''),
+        );
+    const locked = props.achievements.filter(
+        (achievement) => !achievement.unlocked,
+    );
 
     return [...unlocked, ...locked].slice(0, 6);
 });
@@ -289,14 +294,17 @@ function formatDate(iso: string): string {
                             {{ trans('Noch keine Achievements.') }}
                         </p>
                         <div
-                            v-for="(achievement, index) in props.pioneer_achievements"
+                            v-for="(
+                                achievement, index
+                            ) in props.pioneer_achievements"
                             :key="index"
                             class="flex items-center justify-between rounded-lg border p-3 text-sm"
                         >
                             <span>
                                 {{
-                                    pioneerAchievementLabels[achievement.type] ??
-                                    achievement.type
+                                    pioneerAchievementLabels[
+                                        achievement.type
+                                    ] ?? achievement.type
                                 }}
                                 <span
                                     v-if="achievement.node_title"
@@ -316,7 +324,8 @@ function formatDate(iso: string): string {
                 <CardHeader class="flex flex-row items-center justify-between">
                     <CardTitle>{{ trans('Achievements') }}</CardTitle>
                     <span class="text-muted-foreground text-sm">
-                        {{ unlockedAchievementsCount }} / {{ props.achievements.length }}
+                        {{ unlockedAchievementsCount }} /
+                        {{ props.achievements.length }}
                     </span>
                 </CardHeader>
                 <CardContent>

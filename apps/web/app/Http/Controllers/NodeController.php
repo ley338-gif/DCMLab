@@ -307,7 +307,7 @@ class NodeController extends Controller
      * "Passende Lektion" (Abschnitt 5): nutzt die echte, aus dem Content
      * befuellte Node->related_lessons-Relation, keine erfundene Verknuepfung.
      *
-     * @param  \Illuminate\Support\Collection<int, Node>  $nodes
+     * @param  Collection<int, Node>  $nodes
      * @return array<int, array{lesson_id: string, title: string}>
      */
     private function relatedLessonForNodes(Collection $nodes): array

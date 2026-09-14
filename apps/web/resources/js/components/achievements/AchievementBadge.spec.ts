@@ -56,8 +56,12 @@ describe('AchievementBadge', () => {
         expect(unlockedWrapper.get('img').attributes('src')).toBe(
             '/images/achievements/first-blood.png',
         );
-        expect(unlockedWrapper.get('img').attributes('alt')).toContain('First Blood');
-        expect(lockedWrapper.get('img').attributes('alt')).toContain('Sandbox Starter');
+        expect(unlockedWrapper.get('img').attributes('alt')).toContain(
+            'First Blood',
+        );
+        expect(lockedWrapper.get('img').attributes('alt')).toContain(
+            'Sandbox Starter',
+        );
     });
 
     it('respects the locked prop override regardless of achievement.unlocked', () => {
@@ -65,7 +69,9 @@ describe('AchievementBadge', () => {
             props: { achievement: unlockedAchievement, locked: true },
         });
 
-        expect(wrapper.get('img').classes()).toContain('achievement-badge-locked');
+        expect(wrapper.get('img').classes()).toContain(
+            'achievement-badge-locked',
+        );
     });
 
     it.each([

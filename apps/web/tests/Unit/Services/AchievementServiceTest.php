@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Achievements\AchievementUnlockStatus;
+use App\Models\AchievementDefinition;
 use App\Models\AchievementUnlock;
 use App\Models\User;
 use App\Services\AchievementService;
@@ -72,7 +73,7 @@ class AchievementServiceTest extends TestCase
         // Nebenlaeufigkeit moeglich ist -- stattdessen wird ein Datensatz
         // zwischen Check und Insert direkt eingefuegt, genau wie
         // ProfileServiceTest es fuer first_blood tut.
-        $definitionId = \App\Models\AchievementDefinition::query()->where('slug', 'first-blood')->value('id');
+        $definitionId = AchievementDefinition::query()->where('slug', 'first-blood')->value('id');
         AchievementUnlock::create([
             'user_id' => $user->id,
             'achievement_definition_id' => $definitionId,

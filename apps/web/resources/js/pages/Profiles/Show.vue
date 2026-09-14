@@ -114,7 +114,9 @@ function ringPoints(fraction: number): string {
 }
 
 const unlockedAchievementsCount = computed(
-    () => props.profile.achievements.filter((achievement) => achievement.unlocked).length,
+    () =>
+        props.profile.achievements.filter((achievement) => achievement.unlocked)
+            .length,
 );
 
 function formatAchievementDate(iso: string): string {
@@ -286,8 +288,14 @@ function formatAchievementDate(iso: string): string {
                     {{ trans('Noch keine Achievements verfügbar.') }}
                 </p>
 
-                <div v-else class="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
-                    <Dialog v-for="achievement in profile.achievements" :key="achievement.slug">
+                <div
+                    v-else
+                    class="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4"
+                >
+                    <Dialog
+                        v-for="achievement in profile.achievements"
+                        :key="achievement.slug"
+                    >
                         <DialogTrigger as-child>
                             <button
                                 type="button"
@@ -306,11 +314,18 @@ function formatAchievementDate(iso: string): string {
                                 achievement.description
                             }}</DialogDescription>
                             <p
-                                v-if="achievement.unlocked && achievement.unlocked_at"
+                                v-if="
+                                    achievement.unlocked &&
+                                    achievement.unlocked_at
+                                "
                                 class="text-sm font-medium text-emerald-600 dark:text-emerald-400"
                             >
                                 ✓ {{ trans('Unlocked') }}
-                                {{ formatAchievementDate(achievement.unlocked_at) }}
+                                {{
+                                    formatAchievementDate(
+                                        achievement.unlocked_at,
+                                    )
+                                }}
                             </p>
                             <p v-else class="text-muted-foreground text-sm">
                                 {{ trans('Noch nicht freigeschaltet.') }}

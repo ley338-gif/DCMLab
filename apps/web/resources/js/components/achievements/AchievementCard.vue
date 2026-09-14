@@ -19,7 +19,9 @@ function formatDate(iso: string): string {
 
 const unlockedLabel = computed(() =>
     props.achievement.unlocked_at
-        ? trans('Unlocked :date', { date: formatDate(props.achievement.unlocked_at) })
+        ? trans('Unlocked :date', {
+              date: formatDate(props.achievement.unlocked_at),
+          })
         : trans('Unlocked'),
 );
 </script>
@@ -27,7 +29,11 @@ const unlockedLabel = computed(() =>
 <template>
     <Card class="flex flex-col items-center gap-3 p-4 text-center">
         <CardContent class="flex flex-col items-center gap-3 p-0">
-            <AchievementBadge :achievement="achievement" size="lg" :show-name="false" />
+            <AchievementBadge
+                :achievement="achievement"
+                size="lg"
+                :show-name="false"
+            />
             <div class="flex flex-col gap-1">
                 <span class="font-medium">{{ achievement.name }}</span>
                 <span class="text-muted-foreground text-sm">{{

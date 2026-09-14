@@ -57,9 +57,17 @@ describe('Dashboard achievements section', () => {
 
     it('renders a badge per achievement and the unlocked/total count', () => {
         const achievements = [
-            achievement({ slug: 'first-blood', unlocked: true, unlocked_at: '2026-09-14T00:00:00Z' }),
+            achievement({
+                slug: 'first-blood',
+                unlocked: true,
+                unlocked_at: '2026-09-14T00:00:00Z',
+            }),
             achievement({ slug: 'sandbox-starter', unlocked: false }),
-            achievement({ slug: 'echo-heard', unlocked: true, unlocked_at: '2026-09-10T00:00:00Z' }),
+            achievement({
+                slug: 'echo-heard',
+                unlocked: true,
+                unlocked_at: '2026-09-10T00:00:00Z',
+            }),
         ];
 
         const wrapper = mountDashboard(achievements);

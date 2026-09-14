@@ -34,7 +34,9 @@ const dimension = computed(() => `${sizePx[props.size]}px`);
 
 const altText = computed(() =>
     isLocked.value
-        ? trans('Achievement :name – noch nicht freigeschaltet', { name: props.achievement.name })
+        ? trans('Achievement :name – noch nicht freigeschaltet', {
+              name: props.achievement.name,
+          })
         : trans('Achievement: :name', { name: props.achievement.name }),
 );
 
@@ -50,7 +52,7 @@ function formatDate(iso: string): string {
 <template>
     <div class="flex flex-col items-center gap-1.5 text-center">
         <div
-            class="relative overflow-hidden rounded-lg border bg-card"
+            class="bg-card relative overflow-hidden rounded-lg border"
             :style="{ width: dimension, height: dimension }"
         >
             <img
