@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExamController;
+use App\Http\Controllers\GlossaryController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\NodeController;
@@ -22,6 +23,8 @@ Route::prefix('de')->group(function () {
 
     // Oeffentlich, kein Login noetig (Abschnitt 7: Profil per Slug erreichbar).
     Route::get('leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');
+    Route::get('glossar', [GlossaryController::class, 'index'])->name('glossary.index');
+    Route::get('nodes', [NodeController::class, 'index'])->name('nodes.index');
     Route::get('profiles/{slug}', [PublicProfileController::class, 'show'])->name('profiles.show');
     Route::get('profiles/{slug}/export', [PublicProfileController::class, 'exportPdf'])->name('profiles.export');
 

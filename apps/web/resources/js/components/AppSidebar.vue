@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { GraduationCap, LayoutGrid } from '@lucide/vue';
+import {
+    BookOpenText,
+    FlaskConical,
+    GraduationCap,
+    LayoutGrid,
+} from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -15,6 +20,8 @@ import {
 } from '@/components/ui/sidebar';
 import { trans } from '@/lib/trans';
 import { dashboard, home } from '@/routes';
+import { index as glossaryIndex } from '@/routes/glossary';
+import { index as nodesIndex } from '@/routes/nodes';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -27,6 +34,16 @@ const mainNavItems: NavItem[] = [
         title: trans('Dashboard'),
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: trans('Labs'),
+        href: nodesIndex(),
+        icon: FlaskConical,
+    },
+    {
+        title: trans('Glossar'),
+        href: glossaryIndex(),
+        icon: BookOpenText,
     },
 ];
 </script>

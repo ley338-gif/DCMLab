@@ -64,4 +64,60 @@ class MarkdownRendererTest extends TestCase
         $this->assertStringContainsString('<details>', $html);
         $this->assertStringContainsString('<summary>Frage?</summary>', $html);
     }
+
+    public function test_it_renders_a_dollar_prefixed_block_as_a_console_with_a_command_only_copy_button(): void
+    {
+        $renderer = new MarkdownRenderer;
+
+        $html = $renderer->render("```\n\$ echoscu -v -aec ORTHANC 127.0.0.1 4242\nI: Received Echo Response (Success)\n```");
+
+        $this->assertStringContainsString('class="lesson-console"', $html);
+        $this->assertStringContainsString('lesson-line-prompt', $html);
+        $this->assertStringContainsString('lesson-line-output', $html);
+        // Der Copy-Button kopiert den lauffaehigen Befehl ohne Prompt-Zeichen,
+        // damit er direkt in eine Shell eingefuegt werden kann.
+        $this->assertStringContainsString('data-copy="echoscu -v -aec ORTHANC 127.0.0.1 4242"', $html);
+    }
+
+    public function test_it_renders_a_powershell_prompt_as_a_console_block_too(): void
+    {
+        $renderer = new MarkdownRenderer;
+
+        $html = $renderer->render("```\nPS> Get-ChildItem *.dcm\n```");
+
+        $this->assertStringContainsString('class="lesson-console"', $html);
+        $this->assertStringContainsString('data-copy="Get-ChildItem *.dcm"', $html);
+    }
+
+    public function test_it_renders_a_plain_output_block_as_terminal_without_a_copy_button(): void
+    {
+        $renderer = new MarkdownRenderer;
+
+        $html = $renderer->render("```\nI: Association Accepted\nI: Received Echo Response (Success)\n```");
+
+        $this->assertStringContainsString('class="lesson-terminal"', $html);
+        $this->assertStringNotContainsString('lesson-copy-btn', $html);
+    }
+
+    public function test_it_renders_a_language_tagged_block_as_code_with_a_copy_button(): void
+    {
+        $renderer = new MarkdownRenderer;
+
+        $html = $renderer->render("```python\nprint('hi')\n```");
+
+        $this->assertStringContainsString('class="lesson-code" data-lang="python"', $html);
+        $this->assertStringContainsString('lesson-copy-btn', $html);
+        $this->assertStringContainsString('language-python', $html);
+    }
+
+    public function test_it_renders_a_kein_beispiel_block_as_a_diagram_without_a_copy_button(): void
+    {
+        $renderer = new MarkdownRenderer;
+
+        $html = $renderer->render("<!-- kein-beispiel -->\n```\n\$ scu ---> scp\n```");
+
+        $this->assertStringContainsString('class="lesson-diagram"', $html);
+        $this->assertStringNotContainsString('lesson-copy-btn', $html);
+        $this->assertStringNotContainsString('kein-beispiel', $html);
+    }
 }

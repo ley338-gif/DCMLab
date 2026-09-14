@@ -378,9 +378,7 @@ async function submitFlag() {
                         </Card>
                     </TabsContent>
                 </Tabs>
-            </div>
 
-            <aside class="space-y-4">
                 <Card>
                     <CardHeader>
                         <CardTitle class="text-sm">{{
@@ -392,7 +390,9 @@ async function submitFlag() {
                         v-html="briefing_html"
                     />
                 </Card>
+            </div>
 
+            <aside class="space-y-4">
                 <Card v-if="hints.length">
                     <CardHeader>
                         <CardTitle class="text-sm">{{
@@ -495,5 +495,18 @@ async function submitFlag() {
     background: var(--muted);
     padding: 0.75rem;
     font-size: 0.8125rem;
+}
+.node-prose table {
+    width: 100%;
+    margin-bottom: 0.75rem;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+.node-prose th,
+.node-prose td {
+    border: 1px solid var(--border);
+    padding: 0.375rem 0.625rem;
+    text-align: left;
+    vertical-align: top;
 }
 </style>
