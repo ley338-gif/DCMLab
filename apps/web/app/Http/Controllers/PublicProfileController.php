@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Achievement;
 use App\Models\Profile;
+use App\Models\TrackBadge;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Inertia\Inertia;
@@ -47,6 +48,12 @@ class PublicProfileController extends Controller
             ->orderByDesc('awarded_at')
             ->get();
 
+        $trackBadges = TrackBadge::query()
+            ->where('user_id', $profile->user_id)
+            ->with('track')
+            ->orderByDesc('awarded_at')
+            ->get();
+
         return [
             'name' => $profile->user->name,
             'rank' => $profile->rank,
@@ -56,6 +63,10 @@ class PublicProfileController extends Controller
             'first_bloods' => $achievements->map(fn (Achievement $achievement) => [
                 'node_title' => $achievement->node?->title['de'] ?? $achievement->node?->slug,
                 'awarded_at' => $achievement->awarded_at->toDateString(),
+            ])->values(),
+            'track_badges' => $trackBadges->map(fn (TrackBadge $badge) => [
+                'track_title_key' => $badge->track?->title_key,
+                'awarded_at' => $badge->awarded_at->toDateString(),
             ])->values(),
         ];
     }

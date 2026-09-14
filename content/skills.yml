@@ -1,0 +1,16 @@
+# Kontrolliertes Vokabular fuer Node-`skills:` und Exam-`tags:` (P10.60).
+# Deckungsgleich mit ProfileService::SKILL_CATEGORIES (apps/web) -- die
+# fuenf Werte duerfen nie auseinanderlaufen, deshalb steht hier ein
+# Kommentar statt einer zweiten, unabhaengigen Quelle der Wahrheit.
+# ContentValidate prueft exam.yml-`tags` gegen genau diese Liste.
+
+- slug: netzwerk
+  label: Netzwerk
+- slug: datenmodell
+  label: Datenmodell
+- slug: bildgebung
+  label: Bildgebung
+- slug: integration
+  label: Integration
+- slug: security
+  label: Security

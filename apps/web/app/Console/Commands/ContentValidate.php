@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Content\ContentIssue;
 use App\Content\ContentRepository;
+use App\Content\ExamContent;
+use App\Content\HeadingSlug;
 use App\Content\LineFinder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -28,6 +30,8 @@ class ContentValidate extends Command
         $tools = $content->tools();
         $glossary = $content->glossary();
         $datasets = $content->datasets();
+        $skills = $content->skills();
+        $exams = $content->exams();
 
         foreach ($lessons as $id => $lesson) {
             $this->checkLessonStructure($id, $lesson, $lessons);
@@ -65,13 +69,18 @@ class ContentValidate extends Command
 
         $this->checkToolPurposes($content->toolsRaw(), $tools);
 
+        foreach ($exams as $trackSlug => $exam) {
+            $this->checkExamStructure($trackSlug, $exam, $lessons, $skills);
+        }
+
         if ($this->issues === []) {
             $this->info(sprintf(
-                'content:validate — keine Verstoesse (%d Lektionen, %d Nodes, %d Werkzeuge, %d Glossarbegriffe geprueft).',
+                'content:validate — keine Verstoesse (%d Lektionen, %d Nodes, %d Werkzeuge, %d Glossarbegriffe, %d Pruefungen geprueft).',
                 count($lessons),
                 count($nodes),
                 count($tools),
                 count($glossary),
+                count($exams),
             ));
 
             return self::SUCCESS;
@@ -256,6 +265,206 @@ class ContentValidate extends Command
         }
 
         return $count;
+    }
+
+    // ---------------------------------------------------------------
+    // Track-Abschlusspruefung (P10.60)
+    // ---------------------------------------------------------------
+
+    /**
+     * @param  array<string, mixed>  $exam
+     * @param  array<string, array<string, mixed>>  $allLessons
+     * @param  array<int, array<string, mixed>>  $skills
+     */
+    private function checkExamStructure(string $trackSlug, array $exam, array $allLessons, array $skills): void
+    {
+        if ($exam['meta'] !== null && $exam['md_raw'] === null) {
+            $this->issue($exam['meta_file'], null, "Pruefung {$trackSlug}: exam.yml ohne de.md");
+        }
+
+        if ($exam['md_raw'] !== null && $exam['meta'] === null) {
+            $this->issue($exam['md_file'], null, "Pruefung {$trackSlug}: de.md ohne exam.yml");
+        }
+
+        if ($exam['meta'] === null) {
+            return;
+        }
+
+        $meta = $exam['meta'];
+        $metaFile = $exam['meta_file'];
+        $metaRaw = $exam['meta_raw'] ?? '';
+        $mdRaw = $exam['md_raw'] ?? '';
+        $blocks = ExamContent::blocksFor($mdRaw);
+        /** @var array<int, array<string, mixed>> $questions */
+        $questions = $meta['questions'] ?? [];
+        $skillSlugs = array_map(fn (array $skill): string => (string) $skill['slug'], $skills);
+        $trackLessonIds = array_keys(array_filter(
+            $allLessons,
+            fn (array $lesson) => ($lesson['meta']['track'] ?? null) === $trackSlug,
+        ));
+
+        $passPercent = $meta['pass_percent'] ?? null;
+        if (! is_int($passPercent) || $passPercent < 50 || $passPercent > 100) {
+            $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, 'pass_percent'), 'pass_percent muss zwischen 50 und 100 liegen');
+        }
+
+        $seenIds = [];
+        $typeCounts = ['single' => 0, 'multi' => 0, 'truefalse' => 0, 'input' => 0];
+        $difficulty3Count = 0;
+        $countsByLesson = [];
+
+        foreach ($questions as $entry) {
+            $id = (string) ($entry['id'] ?? '');
+
+            if (isset($seenIds[$id])) {
+                $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\" ist mehrfach vergeben");
+            }
+            $seenIds[$id] = true;
+
+            $lesson = (string) ($entry['lesson'] ?? '');
+            $countsByLesson[$lesson] = ($countsByLesson[$lesson] ?? 0) + 1;
+
+            if ($lesson !== 'cross' && ! in_array($lesson, $trackLessonIds, true)) {
+                $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": lesson \"{$lesson}\" gehoert nicht zu Track \"{$trackSlug}\"");
+            }
+
+            $difficulty = $entry['difficulty'] ?? null;
+            if (! in_array($difficulty, [1, 2, 3], true)) {
+                $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": difficulty muss 1, 2 oder 3 sein");
+            } elseif ($difficulty === 3) {
+                $difficulty3Count++;
+            }
+
+            $tags = $entry['tags'] ?? [];
+            if (! is_array($tags) || count($tags) > 2) {
+                $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": tags hoechstens zwei");
+            }
+            foreach ((array) $tags as $tag) {
+                if (! in_array((string) $tag, $skillSlugs, true)) {
+                    $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": tag \"{$tag}\" existiert nicht in skills.yml");
+                }
+            }
+
+            $this->checkExamReview($metaFile, $metaRaw, $id, $entry, $allLessons, $trackLessonIds);
+
+            $block = $blocks[$id] ?? null;
+            if ($block === null) {
+                $this->issue($exam['md_file'], null, "Pruefungsfrage \"{$id}\" aus exam.yml hat keinen \"### {$id} — ...\"-Abschnitt in de.md");
+
+                continue;
+            }
+
+            $explanationCount = preg_match_all('/^\*\*Erklärung:\*\*/mu', $block['body']);
+            if ($explanationCount !== 1) {
+                $this->issue($exam['md_file'], null, "Pruefungsfrage \"{$id}\": braucht genau eine \"**Erklärung:**\"-Zeile ({$explanationCount} gefunden)");
+            }
+
+            $type = (string) ($entry['type'] ?? '');
+            $optionCount = count(ExamContent::extractOptions($block['body']));
+
+            if (array_key_exists($type, $typeCounts)) {
+                $typeCounts[$type]++;
+            }
+
+            match ($type) {
+                'single' => $this->checkQuizIndexAnswer($metaFile, $metaRaw, $id, $entry['answer'] ?? null, $optionCount),
+                'multi' => $this->checkQuizMultiAnswer($metaFile, $metaRaw, $id, $entry['answer'] ?? null, $optionCount),
+                'truefalse' => $this->checkExamTrueFalseAnswer($metaFile, $metaRaw, $id, $entry['answer'] ?? null),
+                'input' => $this->checkQuizInputAnswer($metaFile, $metaRaw, $id, $entry['answer'] ?? null),
+                default => $this->issue(
+                    $metaFile,
+                    LineFinder::firstLineContaining($metaRaw, $id),
+                    "Pruefungsfrage \"{$id}\": unbekannter type \"{$type}\" (erlaubt: single, multi, truefalse, input)",
+                ),
+            };
+        }
+
+        $poolSize = count($questions);
+        $draw = $meta['draw'] ?? null;
+
+        if (! is_int($draw) || $draw > $poolSize) {
+            $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, 'draw'), "draw ({$draw}) darf die Poolgroesse ({$poolSize}) nicht ueberschreiten");
+        }
+
+        foreach ($trackLessonIds as $lessonId) {
+            if (($countsByLesson[$lessonId] ?? 0) < 4) {
+                $this->issue($metaFile, null, "Pruefung {$trackSlug}: Lektion \"{$lessonId}\" hat weniger als 4 Poolfragen");
+            }
+        }
+
+        if (($countsByLesson['cross'] ?? 0) < 4) {
+            $this->issue($metaFile, null, "Pruefung {$trackSlug}: weniger als 4 cross-Fragen im Pool");
+        }
+
+        if ($poolSize > 0 && ($difficulty3Count / $poolSize) < 0.25) {
+            $this->issue($metaFile, null, "Pruefung {$trackSlug}: weniger als 25% der Poolfragen haben difficulty 3");
+        }
+
+        if ($poolSize > 0) {
+            $this->checkExamTypeShare($metaFile, $trackSlug, 'single', $typeCounts['single'], $poolSize, 35, 40);
+            $this->checkExamTypeShare($metaFile, $trackSlug, 'multi', $typeCounts['multi'], $poolSize, 20, 25);
+            $this->checkExamTypeShare($metaFile, $trackSlug, 'truefalse', $typeCounts['truefalse'], $poolSize, 20, 25);
+            $this->checkExamTypeShare($metaFile, $trackSlug, 'input', $typeCounts['input'], $poolSize, 10, 15);
+        }
+    }
+
+    private function checkExamTypeShare(string $metaFile, string $trackSlug, string $type, int $count, int $poolSize, float $minPercent, float $maxPercent): void
+    {
+        $percent = ($count / $poolSize) * 100;
+
+        if ($percent < $minPercent - 0.01 || $percent > $maxPercent + 0.01) {
+            $this->issue(
+                $metaFile,
+                null,
+                sprintf('Pruefung %s: Anteil type "%s" ist %.1f%%, erwartet %d-%d%%', $trackSlug, $type, $percent, $minPercent, $maxPercent),
+            );
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @param  array<string, array<string, mixed>>  $allLessons
+     * @param  array<int, string>  $trackLessonIds
+     */
+    private function checkExamReview(string $metaFile, string $metaRaw, string $id, array $entry, array $allLessons, array $trackLessonIds): void
+    {
+        $review = $entry['review'] ?? null;
+
+        if ($review === null || $review === []) {
+            $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": review fehlt");
+
+            return;
+        }
+
+        $targets = ExamContent::reviewTargets($entry);
+
+        foreach ($targets as $target) {
+            $targetLesson = $allLessons[$target['lesson']] ?? null;
+
+            if ($targetLesson === null) {
+                $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": review verweist auf unbekannte Lektion \"{$target['lesson']}\"");
+
+                continue;
+            }
+
+            $headings = HeadingSlug::headingsIn((string) ($targetLesson['md_raw'] ?? ''));
+            $validSlugs = HeadingSlug::uniqueSlugs($headings);
+
+            if (! in_array($target['anchor'], $validSlugs, true)) {
+                $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": anchor \"{$target['anchor']}\" ist keine Ueberschrift in Lektion \"{$target['lesson']}\"");
+            }
+        }
+    }
+
+    private function checkExamTrueFalseAnswer(string $metaFile, string $metaRaw, string $id, mixed $answer): void
+    {
+        if (! is_bool($answer)) {
+            $this->issue(
+                $metaFile,
+                LineFinder::firstLineContaining($metaRaw, $id),
+                "Pruefungsfrage \"{$id}\": answer muss bei type truefalse ein Boolean sein",
+            );
+        }
     }
 
     /**

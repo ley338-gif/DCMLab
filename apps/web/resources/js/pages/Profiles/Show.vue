@@ -20,6 +20,11 @@ type FirstBlood = {
     awarded_at: string;
 };
 
+type TrackBadgeEntry = {
+    track_title_key: string;
+    awarded_at: string;
+};
+
 type ProfileData = {
     name: string;
     rank: string;
@@ -27,6 +32,7 @@ type ProfileData = {
     skill_vector: Record<string, number>;
     member_since: string | null;
     first_bloods: FirstBlood[];
+    track_badges: TrackBadgeEntry[];
 };
 
 const props = defineProps<{
@@ -192,6 +198,24 @@ function ringPoints(fraction: number): string {
                             {{ trans(`skill.${label.key}`) }}
                         </text>
                     </svg>
+                </CardContent>
+            </Card>
+
+            <Card v-if="profile.track_badges.length > 0" class="mb-6">
+                <CardHeader>
+                    <CardTitle>{{ trans('Bestandene Tracks') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-2">
+                    <div
+                        v-for="badge in profile.track_badges"
+                        :key="badge.track_title_key + badge.awarded_at"
+                        class="flex items-center justify-between text-sm"
+                    >
+                        <span>{{ trans(badge.track_title_key) }}</span>
+                        <span class="text-muted-foreground">{{
+                            badge.awarded_at
+                        }}</span>
+                    </div>
                 </CardContent>
             </Card>
 

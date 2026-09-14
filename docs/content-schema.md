@@ -633,6 +633,17 @@ Ein `content:validate`-Befehl prüft vor jedem Commit:
 
 Die Umkehrprüfung ist die wichtigste davon: Sie verhindert die Klasse „Lektion benutzt ein Werkzeug, das sie nie vorgestellt hat" — und sie ist der Grund, warum man sich beim Schreiben auf die Werkzeugleiste verlassen kann, statt sie nachzupflegen.
 
+**Track-Prüfung** (Abschnitt 11)
+
+- zu jeder `id` aus `exam.yml` gibt es einen `### f<nn>`-Abschnitt in `de.md` und umgekehrt, keine doppelten IDs
+- genau eine `**Erklärung:**`-Zeile je Frage
+- `type` ist `single`, `multi`, `truefalse` oder `input`; `answer` passt zum Typ und liegt im gültigen (0-basierten) Indexbereich
+- `review` ist Pflicht; jede `lesson`-ID existiert im Track, jeder `anchor` löst auf eine echte Überschrift der Ziel-`de.md` auf (Slug über `HeadingSlug`, dieselbe Klasse, die `MarkdownRenderer` für die Heading-IDs benutzt)
+- pro Lektion mindestens vier Poolfragen, mindestens vier `cross`-Fragen, `draw` ≤ Poolgröße
+- Typmischung 35–40 % `single`, 20–25 % `multi`, 20–25 % `truefalse`, 10–15 % `input`; mindestens ein Viertel der Poolfragen mit `difficulty: 3`
+- jeder Slug aus `tags` existiert in `skills.yml`, höchstens zwei je Frage
+- `pass_percent` zwischen 50 und 100
+
 ---
 
 ## 10. Nachzuziehen
@@ -645,3 +656,92 @@ Die Beispielregel und die Werkzeugleiste sind nach Lektion 1.1 und 1.5 entstande
 | `lektion-1.5-scu-und-scp.md` | Werkzeugleiste (`echoscu`, `storescp`). C-ECHO in beide Richtungen als zwei laufende Beispiele statt als Beschreibung. |
 
 Bis das nachgezogen ist, stehen beide auf `status: draft`.
+
+## 11. Track-Prüfung — `exams/<track>/{exam.yml,de.md}`
+
+Jeder Track bekommt am Ende eine gewertete Abschlussprüfung. Die drei
+Wissenskarten je Lektion (`quiz:` in Abschnitt 2) bleiben davon unberührt
+— sie sind die Sofortrückmeldung beim Lesen, die Prüfung ist der
+zusätzliche, gewertete Pool über den ganzen Track.
+
+### Ablage
+
+```
+content/
+├── skills.yml                     # kontrolliertes Vokabular fuer tags
+└── exams/
+    └── fundamente/
+        ├── exam.yml                # Typen, Antworten, Rückverweise, Ziehung
+        └── de.md                   # Fragetexte, Optionen, Erklärungen
+```
+
+Trennprinzip wie überall: Technik in YAML, Prosa in Markdown.
+
+### `exam.yml`
+
+```yaml
+track: fundamente            # Slug aus tracks.yml
+title_key: exam.fundamente.title
+pass_percent: 80
+draw: 24                     # so viele Fragen werden aus dem Pool gezogen
+duration_minutes: 25         # Richtwert für die Anzeige, keine Uhr
+shuffle: true
+
+questions:
+  - id: f01
+    type: single              # single | multi | truefalse | input
+    answer: 1                 # 0-basiert bei single/multi, Boolean bei truefalse
+    lesson: "1.5"              # Lektions-ID des Tracks, oder "cross"
+    review:                   # Pflicht, ein Objekt oder eine Liste davon
+      lesson: "1.5"
+      anchor: "rollen-nicht-geraete"
+    difficulty: 1              # 1 = Wiedergabe, 2 = Anwendung, 3 = Übertragung
+    tags: [netzwerk]           # max. zwei, aus skills.yml
+```
+
+`id`s sind unveränderlich — daran hängt der Wiederholungsfortschritt in
+`quiz_reviews` (dieselbe Tabelle wie bei den Lektionskarten, kein zweiter
+Kartenstapel). Eine geänderte Frage bekommt eine neue ID, die alte entfällt.
+
+### `de.md`
+
+```markdown
+### f01 — Ein CT schickt Bilder an das Archiv. Welche Rolle hat das CT?
+
+1. Storage SCP
+2. Storage SCU
+3. Das hängt vom Archiv ab
+4. Beides gleichzeitig
+
+**Erklärung:** Wer den Dienst anfragt, ist SCU — hier also das CT.
+
+### f14 — `Association Accepted` im Log beweist, dass die Bilder übertragen wurden.
+
+**Richtig / Falsch**
+
+**Erklärung:** Falsch. Angenommen wurde die Verhandlung, nicht die Übertragung.
+```
+
+Überschriftenformat exakt `### f<nn> — <Fragetext>` — eine echte
+Markdown-Überschrift der Ebene 3, bewusst anders als die
+`**qN —**`-Inline-Karten der Lektions-Quiz (Abschnitt 2), weil eine
+Prüfungsfrage eine echte, per Anker verlinkbare Überschrift braucht. Bei
+`multi` steht `*(Mehrfachauswahl)*` hinter der Frage, bei `input`
+`*(Freitext)*`, bei `truefalse` die Zeile `**Richtig / Falsch**` statt
+einer Optionsliste. Jede Frage endet mit einer Zeile, die exakt mit
+`**Erklärung:**` beginnt — sie sagt, warum richtig richtig ist und warum
+die naheliegendste falsche Option falsch ist. Der Rückverweis steht nie in
+der `de.md`, er wird aus `review` gerendert und verlinkt auf die
+Ziel-Lektion samt Anker (`HeadingSlug` erzeugt denselben Slug, den
+`MarkdownRenderer` als `id` auf die Überschrift setzt).
+
+### Pool und Ziehung
+
+Der Pool ist deutlich größer als die Prüfung (Ziel: mindestens 40 Fragen,
+davon `draw` gezogen) — sonst bekäme man bei einer Wiederholung dieselben
+Fragen. Die Ziehung ist abdeckungsbalanciert: mindestens zwei Fragen je
+Lektion, vier bis sechs `cross`-Fragen, danach zufällige Auffüllung.
+Distraktoren kommen ausschließlich aus dem Stolperfallen-Block oder einer
+Symptomtabelle der jeweiligen Lektion — erfundene Distraktoren prüfen
+nichts. Jede Frage ist im Lektionstext beantwortet; fehlt ein Beleg, wird
+die Lektion um den fehlenden Absatz ergänzt, statt die Frage zu streichen.

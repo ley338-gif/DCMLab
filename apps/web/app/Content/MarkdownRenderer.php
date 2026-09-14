@@ -40,10 +40,41 @@ final class MarkdownRenderer
     public function render(string $markdown): string
     {
         $html = (string) $this->converter->convert($markdown);
+        $html = $this->addHeadingAnchors($markdown, $html);
         $html = $this->resolveTerms($html);
         $html = $this->markMermaidBlocks($html);
 
         return $html;
+    }
+
+    /**
+     * Setzt id="<slug>" auf jedes gerenderte ##/###-Heading, damit
+     * Rueckverweise ("Nachlesen: 1.7 — ...") wirklich irgendwo landen. Die
+     * Slugs kommen aus HeadingSlug, derselben Klasse, die ContentValidate
+     * zum Pruefen von exam.yml's review.anchor benutzt -- beide muessen fuer
+     * dieselbe Ueberschrift denselben Slug ausrechnen.
+     */
+    private function addHeadingAnchors(string $markdown, string $html): string
+    {
+        $headings = HeadingSlug::headingsIn($markdown);
+
+        if ($headings === []) {
+            return $html;
+        }
+
+        $slugs = HeadingSlug::uniqueSlugs($headings);
+        $index = 0;
+
+        return preg_replace_callback(
+            '/<h([23])>/',
+            function (array $match) use (&$index, $slugs): string {
+                $slug = $slugs[$index] ?? null;
+                $index++;
+
+                return $slug !== null ? sprintf('<h%s id="%s">', $match[1], $slug) : $match[0];
+            },
+            $html,
+        ) ?? $html;
     }
 
     private function resolveTerms(string $html): string
