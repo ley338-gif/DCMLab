@@ -174,7 +174,9 @@ watchEffect(() => {
                             count: props.due_reviews_count,
                         })
                     }}</span>
-                    <Badge variant="outline">{{ trans('Jetzt wiederholen') }}</Badge>
+                    <Badge variant="outline">{{
+                        trans('Jetzt wiederholen')
+                    }}</Badge>
                 </Link>
             </CardContent>
         </Card>

@@ -40,11 +40,22 @@ type AnswerState = {
 };
 
 function freshState(): AnswerState {
-    return { single: '', multi: new Set<number>(), input: '', feedback: null, checking: false };
+    return {
+        single: '',
+        multi: new Set<number>(),
+        input: '',
+        feedback: null,
+        checking: false,
+    };
 }
 
 const state = reactive<Record<string, AnswerState>>(
-    Object.fromEntries(props.cards.map((c) => [c.lesson_id + ':' + c.question.id, freshState()])),
+    Object.fromEntries(
+        props.cards.map((c) => [
+            c.lesson_id + ':' + c.question.id,
+            freshState(),
+        ]),
+    ),
 );
 
 function key(card: ReviewCard): string {
@@ -75,7 +86,10 @@ async function checkAnswer(card: ReviewCard) {
     s.checking = true;
     try {
         const result = await postJson<{ correct: boolean }>(
-            answerRoute.url({ lesson: card.lesson_id, questionId: card.question.id }),
+            answerRoute.url({
+                lesson: card.lesson_id,
+                questionId: card.question.id,
+            }),
             { value },
         );
         s.feedback = result.correct ? 'correct' : 'wrong';
@@ -93,7 +107,9 @@ function next(card: ReviewCard) {
     <Head :title="trans('Wiederholung')" />
 
     <div class="mx-auto max-w-2xl space-y-6 p-4">
-        <h1 class="text-2xl font-semibold">{{ trans('Fällige Wiederholungen') }}</h1>
+        <h1 class="text-2xl font-semibold">
+            {{ trans('Fällige Wiederholungen') }}
+        </h1>
 
         <p v-if="remaining.length === 0" class="text-muted-foreground text-sm">
             {{ trans('Für heute fertig — keine fälligen Karten mehr.') }}
@@ -101,10 +117,15 @@ function next(card: ReviewCard) {
 
         <Card v-for="card in remaining" :key="key(card)">
             <CardHeader>
-                <CardTitle class="text-sm text-muted-foreground">{{ card.lesson_title }}</CardTitle>
+                <CardTitle class="text-muted-foreground text-sm">{{
+                    card.lesson_title
+                }}</CardTitle>
             </CardHeader>
             <CardContent class="space-y-4">
-                <p class="text-sm font-medium" v-html="card.question.question_html" />
+                <p
+                    class="text-sm font-medium"
+                    v-html="card.question.question_html"
+                />
 
                 <RadioGroup
                     v-if="card.question.type === 'single'"
@@ -116,12 +137,22 @@ function next(card: ReviewCard) {
                         :key="index"
                         class="flex items-center gap-2"
                     >
-                        <RadioGroupItem :id="`${key(card)}-${index}`" :value="String(index)" />
-                        <Label :for="`${key(card)}-${index}`" class="text-sm font-normal" v-html="option" />
+                        <RadioGroupItem
+                            :id="`${key(card)}-${index}`"
+                            :value="String(index)"
+                        />
+                        <Label
+                            :for="`${key(card)}-${index}`"
+                            class="text-sm font-normal"
+                            v-html="option"
+                        />
                     </div>
                 </RadioGroup>
 
-                <div v-else-if="card.question.type === 'multi'" class="space-y-2">
+                <div
+                    v-else-if="card.question.type === 'multi'"
+                    class="space-y-2"
+                >
                     <div
                         v-for="(option, index) in card.question.options_html"
                         :key="index"
@@ -132,7 +163,11 @@ function next(card: ReviewCard) {
                             :model-value="state[key(card)].multi.has(index)"
                             @update:model-value="() => toggleMulti(card, index)"
                         />
-                        <Label :for="`${key(card)}-${index}`" class="text-sm font-normal" v-html="option" />
+                        <Label
+                            :for="`${key(card)}-${index}`"
+                            class="text-sm font-normal"
+                            v-html="option"
+                        />
                     </div>
                 </div>
 
@@ -153,7 +188,13 @@ function next(card: ReviewCard) {
                     >
                         {{ trans('Prüfen') }}
                     </Button>
-                    <Button v-else type="button" size="sm" variant="outline" @click="next(card)">
+                    <Button
+                        v-else
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        @click="next(card)"
+                    >
                         {{ trans('Weiter') }}
                     </Button>
                     <span
@@ -172,7 +213,10 @@ function next(card: ReviewCard) {
             </CardContent>
         </Card>
 
-        <Link :href="dashboard()" class="text-muted-foreground text-sm underline-offset-2 hover:underline">
+        <Link
+            :href="dashboard()"
+            class="text-muted-foreground text-sm underline-offset-2 hover:underline"
+        >
             {{ trans('Zurück zum Dashboard') }}
         </Link>
     </div>

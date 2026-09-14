@@ -3,7 +3,9 @@ import { Form, Head, Link } from '@inertiajs/vue3';
 import { CircleCheck } from '@lucide/vue';
 import { ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
-import QuizSection, { type QuizQuestion } from '@/components/quiz/QuizSection.vue';
+import QuizSection, {
+    type QuizQuestion,
+} from '@/components/quiz/QuizSection.vue';
 import SandboxPanel from '@/components/SandboxPanel.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

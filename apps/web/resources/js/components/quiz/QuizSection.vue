@@ -70,7 +70,10 @@ async function checkAnswer(question: QuizQuestion) {
     s.checking = true;
     try {
         const result = await postJson<{ correct: boolean }>(
-            answerRoute.url({ lesson: props.lessonId, questionId: question.id }),
+            answerRoute.url({
+                lesson: props.lessonId,
+                questionId: question.id,
+            }),
             { value },
         );
         s.feedback = result.correct ? 'correct' : 'wrong';
@@ -86,8 +89,15 @@ async function checkAnswer(question: QuizQuestion) {
             <CardTitle class="text-sm">{{ trans('Quiz') }}</CardTitle>
         </CardHeader>
         <CardContent class="space-y-8">
-            <div v-for="question in questions" :key="question.id" class="space-y-3">
-                <p class="text-sm font-medium" v-html="question.question_html" />
+            <div
+                v-for="question in questions"
+                :key="question.id"
+                class="space-y-3"
+            >
+                <p
+                    class="text-sm font-medium"
+                    v-html="question.question_html"
+                />
 
                 <RadioGroup
                     v-if="question.type === 'single'"
@@ -103,7 +113,11 @@ async function checkAnswer(question: QuizQuestion) {
                             :id="`${question.id}-${index}`"
                             :value="String(index)"
                         />
-                        <Label :for="`${question.id}-${index}`" class="text-sm font-normal" v-html="option" />
+                        <Label
+                            :for="`${question.id}-${index}`"
+                            class="text-sm font-normal"
+                            v-html="option"
+                        />
                     </div>
                 </RadioGroup>
 
@@ -116,9 +130,15 @@ async function checkAnswer(question: QuizQuestion) {
                         <Checkbox
                             :id="`${question.id}-${index}`"
                             :model-value="state[question.id].multi.has(index)"
-                            @update:model-value="() => toggleMulti(question.id, index)"
+                            @update:model-value="
+                                () => toggleMulti(question.id, index)
+                            "
                         />
-                        <Label :for="`${question.id}-${index}`" class="text-sm font-normal" v-html="option" />
+                        <Label
+                            :for="`${question.id}-${index}`"
+                            class="text-sm font-normal"
+                            v-html="option"
+                        />
                     </div>
                 </div>
 
