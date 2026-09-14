@@ -358,6 +358,70 @@ class ContentValidateTest extends TestCase
         $this->assertSame(0, $result['exitCode'], $result['output']);
     }
 
+    public function test_valid_quiz_passes(): void
+    {
+        $dir = $this->buildContentDir([
+            'lessons/1.0/meta.yml' => $this->validLessonMeta().PHP_EOL.$this->validQuizMeta(),
+            'lessons/1.0/de.md' => $this->validLessonMarkdown().PHP_EOL.PHP_EOL.$this->validQuizMarkdown(),
+        ]);
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(0, $result['exitCode'], $result['output']);
+    }
+
+    public function test_quiz_question_without_matching_heading_fails(): void
+    {
+        $dir = $this->buildContentDir([
+            'lessons/1.0/meta.yml' => $this->validLessonMeta().PHP_EOL.$this->validQuizMeta(),
+            'lessons/1.0/de.md' => $this->validLessonMarkdown(),
+        ]);
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('Quiz-Frage "q1" aus meta.yml hat keinen', $result['output']);
+    }
+
+    public function test_quiz_single_answer_index_out_of_range_fails(): void
+    {
+        $dir = $this->buildContentDir([
+            'lessons/1.0/meta.yml' => $this->validLessonMeta().PHP_EOL.str_replace('answer: 1', 'answer: 9', $this->validQuizMeta()),
+            'lessons/1.0/de.md' => $this->validLessonMarkdown().PHP_EOL.PHP_EOL.$this->validQuizMarkdown(),
+        ]);
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('Quiz-Frage "q1": answer-Index liegt ausserhalb', $result['output']);
+    }
+
+    public function test_quiz_multi_answer_must_be_a_non_empty_list(): void
+    {
+        $dir = $this->buildContentDir([
+            'lessons/1.0/meta.yml' => $this->validLessonMeta().PHP_EOL.str_replace('answer: [0, 2]', 'answer: []', $this->validQuizMeta()),
+            'lessons/1.0/de.md' => $this->validLessonMarkdown().PHP_EOL.PHP_EOL.$this->validQuizMarkdown(),
+        ]);
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('answer muss bei type multi eine nicht-leere Liste sein', $result['output']);
+    }
+
+    public function test_quiz_input_answer_must_not_be_empty(): void
+    {
+        $dir = $this->buildContentDir([
+            'lessons/1.0/meta.yml' => $this->validLessonMeta().PHP_EOL.str_replace('answer: "dcmdump datei.dcm"', 'answer: ""', $this->validQuizMeta()),
+            'lessons/1.0/de.md' => $this->validLessonMarkdown().PHP_EOL.PHP_EOL.$this->validQuizMarkdown(),
+        ]);
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('answer muss bei type input ein nicht-leerer String sein', $result['output']);
+    }
+
     // -----------------------------------------------------------------
     // Fixture-Aufbau
     // -----------------------------------------------------------------
@@ -503,6 +567,45 @@ class ContentValidateTest extends TestCase
         status: draft
         updated: "{$today}"
         YAML;
+    }
+
+    private function validQuizMeta(): string
+    {
+        return <<<'YAML'
+        quiz:
+          - id: q1
+            type: single
+            answer: 1
+          - id: q2
+            type: multi
+            answer: [0, 2]
+          - id: q3
+            type: input
+            answer: "dcmdump datei.dcm"
+        YAML;
+    }
+
+    private function validQuizMarkdown(): string
+    {
+        return <<<'MD'
+        ## Quiz
+
+        **q1 — Frage eins?**
+        1. Falsch
+        2. Richtig
+        3. Auch falsch
+
+        **q2 — Frage zwei?** *(Mehrfachauswahl)*
+        1. Richtig eins
+        2. Falsch
+        3. Richtig zwei
+
+        **q3 — Frage drei?** *(Freitext)*
+
+        ---
+
+        **Als Nächstes:** Weiter geht's.
+        MD;
     }
 
     private function validLessonMarkdown(): string

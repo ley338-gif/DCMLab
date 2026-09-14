@@ -3,6 +3,9 @@ import { Form, Head, Link } from '@inertiajs/vue3';
 import { CircleCheck } from '@lucide/vue';
 import { ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
+import QuizSection, {
+    type QuizQuestion,
+} from '@/components/quiz/QuizSection.vue';
 import SandboxPanel from '@/components/SandboxPanel.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,7 +43,9 @@ const props = defineProps<{
         objectives: string[];
         duration_minutes: number;
         body_html: string;
+        body_after_quiz_html: string | null;
     };
+    quiz: QuizQuestion[];
     toolbar: ToolbarData;
     progress: { status: string; is_returning_visit: boolean };
 }>();
@@ -190,6 +195,14 @@ const toolbarOpen = ref(!props.progress.is_returning_visit);
             </Card>
 
             <div class="lesson-prose" v-html="lesson.body_html" />
+
+            <QuizSection :lesson-id="lesson.lesson_id" :questions="quiz" />
+
+            <div
+                v-if="lesson.body_after_quiz_html"
+                class="lesson-prose"
+                v-html="lesson.body_after_quiz_html"
+            />
 
             <div class="mt-10 flex items-center gap-3 border-t pt-6">
                 <Form
