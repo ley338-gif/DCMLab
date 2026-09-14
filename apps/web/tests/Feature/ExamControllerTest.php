@@ -7,7 +7,6 @@ use App\Models\ExamAttempt;
 use App\Models\Lesson;
 use App\Models\Profile;
 use App\Models\Track;
-use App\Models\TrackBadge;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
