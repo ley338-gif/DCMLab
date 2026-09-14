@@ -356,6 +356,40 @@ Phase 0 bleibt der wichtigste Schritt. Wenn fünf Kollegen die Node "Silent CT" 
 5. **Betriebsmodell** — Dieselbe Tatsache, die den Bedarf erzeugt — Häuser geben kein Geld für Schulung aus —, macht Häuser auch zu schlechten Kunden. Der zahlende Teil ist eher die Einzelperson, die sich damit bewerben oder intern argumentieren will. Team-Accounts (Phase 4) bleiben möglich, taugen aber nicht als Startannahme. Zusammen mit Punkt 3 ist das die entscheidende Rechnung: laufende Kosten pro Nutzer gegen Zahlungsbereitschaft einer Einzelperson.
 6. **Lab-Form für nicht-technische Personas** — Befehlsvorlagen (umgesetzt) oder zusätzlich ein klickbarer Werkzeugmodus? Entscheidung anhand der Testrunde.
 7. **Content-Tempo** — 41 Lektionen sind viel Schreibarbeit. Realistisch 2-3 Lektionen pro Woche nebenberuflich; damit dauert Phase 2 ein knappes Jahr.
+8. **Mehr als DICOM** — siehe Abschnitt 13. Nicht vor Phase 2 entscheiden, aber im Datenmodell nicht verbauen.
+
+---
+
+## 13. Ausblick: mehr als DICOM
+
+Eine Idee, die über den bisherigen Rahmen hinausgeht: DCM Lab nicht als abgeschlossenes Ein-Themen-Projekt zu betreiben, sondern als Kern einer breiteren Healthcare-IT-Lernplattform — mit weiteren Themenfeldern (HL7/FHIR, IHE-Integrationen, Medizinprodukte-Software, Datenschutz im Klinikbetrieb, ...) und mit externen Dozenten, die eigene Kurse im selben spielerischen Format anbieten.
+
+Das ist kein Feature, sondern eine zweite Achse im Produkt. Festgehalten hier, damit sie im Datenmodell nicht versehentlich verbaut wird — nicht, weil sie für Phase 1 oder 2 ansteht.
+
+### Warum das nicht "einfach draufsatteln" ist
+
+Das bestehende Konzept ist an genau einer Stelle eng an DICOM gebunden, und das ist eine bewusste Entscheidung gewesen, keine Nachlässigkeit: **Content lebt im Git-Repo** (`content/`), nicht in der Datenbank. Lektionen sind Markdown mit Frontmatter, Nodes sind YAML, Korrekturen laufen über Pull Requests (Abschnitt 8). Das ist billig, versioniert und passt zu einem Autor, der Git kann.
+
+Ein externer Dozent — die Zielgruppe für "eigene Kurse anbieten" — wird nicht per Pull Request Content schreiben. Er braucht:
+
+- einen **Autoren-Modus im Browser** (Lektionstext, Lab-Definition, Flags/Challenges anlegen, ohne Git)
+- ein **Rollenmodell**, das über Lernende hinausgeht: Dozent (eigene Kurse verwalten), evtl. Kurs-Reviewer/Moderator
+- eine **Engine, die nicht DICOM-fest ist**: `services/engine` wertet heute DICOM-Befehle gegen YAML aus. Ein FHIR-Kurs oder ein Datenschutz-Kurs braucht andere Auswertungslogik — die Engine muss zum Plugin werden (pro Themenfeld ein Auswertungsmodul), nicht zur Kernannahme
+- eine **Trennung Plattform vs. Kurs** im Datenmodell: `tracks`/`nodes` gehören heute implizit "der Plattform"; für Mehrdozentenbetrieb brauchen sie einen Besitzer (`course.owner_id` o.ä.) und eigene Sichtbarkeits-/Freigabe-Regeln
+
+Keiner dieser Punkte ist in Phase 1/2 nötig. Aber jeder ist teuer nachzurüsten, wenn das Datenmodell erst mal "ein Autor, ein Thema, Content-in-Git" fest annimmt — ähnlich wie die Mehrsprachigkeit in Abschnitt 9, nur eine Nummer größer.
+
+### Was das für jetzige Entscheidungen bedeutet
+
+Nicht: jetzt schon Multi-Tenancy bauen. Sondern: an den paar Stellen, wo es fast nichts kostet, die Tür offenhalten.
+
+- **Track/Node-Schema** (`content-schema.md`) so benennen, dass "Themenfeld" und "Track" begrifflich getrennt bleiben — DICOM ist ein Themenfeld mit fünf Tracks, nicht die Plattform selbst
+- **`services/engine`** als eigenständigen Dienst mit klarer Schnittstelle behandeln (ist er heute schon, siehe Abschnitt 8) statt Auswertungslogik ins Laravel-Backend zu ziehen — das hält den Weg zu "pro Themenfeld ein Engine-Modul" offen
+- Keine UI-Strings oder Modelle so benennen, dass "DICOM" oder "Node" fest im Kern verdrahtet ist, wo "Kurs" oder "Challenge" der eigentlich gemeinte Begriff ist
+
+### Betriebsmodell-Frage, die mitläuft
+
+Wenn Dozenten eigene Kurse anbieten, kommt zwangsläufig die Frage nach Erlösbeteiligung, Qualitätssicherung (wer prüft, ob ein Kurs taugt?) und Marke (bleibt "DCM Lab" der Name, oder wird die Plattform umbenannt und DCM Lab einer von mehreren Kursen?) dazu. Das sind Entscheidungen für den Zeitpunkt, an dem Phase 2 abgeschlossen ist und sich zeigt, ob das Einzelthema DICOM überhaupt genug Zugkraft hat — vorher lohnt die Detailplanung nicht.
 
 ---
 
