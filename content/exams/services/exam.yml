@@ -1,0 +1,328 @@
+track: services
+title_key: exam.services.title
+pass_percent: 80
+draw: 22
+duration_minutes: 20
+shuffle: true
+
+# Antwortindizes 0-basiert (single/multi), siehe ADR 0066. Track 2 hatte
+# zum Zeitpunkt dieser Pruefung noch keine Lektions-Quiz-Karten (quiz:
+# fehlt in allen acht meta.yml) -- der gesamte Pool ist deshalb neu
+# geschrieben, nicht aus vorhandenen Karten uebernommen.
+
+questions:
+  - id: f01
+    type: single
+    answer: 0
+    lesson: "2.1"
+    review: { lesson: "2.1", anchor: "eine-eigene-association-nicht-bloss-ein-signal" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f02
+    type: single
+    answer: 1
+    lesson: "2.1"
+    review: { lesson: "2.1", anchor: "auf-der-leitung-genau-eine-presentation-context" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f03
+    type: multi
+    answer: [1, 2]
+    lesson: "2.1"
+    review: { lesson: "2.1", anchor: "was-ein-gruenes-c-echo-nicht-beweist" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f04
+    type: truefalse
+    answer: false
+    lesson: "2.1"
+    review: { lesson: "2.1", anchor: "wenn-die-gegenstelle-gar-nicht-antwortet" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f05
+    type: single
+    answer: 0
+    lesson: "2.2"
+    review: { lesson: "2.2", anchor: "eine-association-mehrere-objekte" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f06
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "2.2"
+    review: { lesson: "2.2", anchor: "ein-objekt-eine-bestaetigung" }
+    difficulty: 2
+    tags: [datenmodell, netzwerk]
+
+  - id: f07
+    type: truefalse
+    answer: false
+    lesson: "2.2"
+    review: { lesson: "2.2", anchor: "was-der-status-im-detail-bedeutet" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f08
+    type: input
+    answer: "0x0000"
+    lesson: "2.2"
+    review: { lesson: "2.2", anchor: "ein-objekt-eine-bestaetigung" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f09
+    type: single
+    answer: 1
+    lesson: "2.3"
+    review: { lesson: "2.3", anchor: "eine-ebene-pro-abfrage" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f10
+    type: single
+    answer: 1
+    lesson: "2.3"
+    review: { lesson: "2.3", anchor: "eine-ebene-pro-abfrage" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f11
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "2.3"
+    review: { lesson: "2.3", anchor: "auf-der-leitung-anfrage-und-antwort-als-eigene-pakete" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f12
+    type: truefalse
+    answer: false
+    lesson: "2.3"
+    review: { lesson: "2.3", anchor: "eine-leere-antwort-ist-eine-gueltige-antwort" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f13
+    type: single
+    answer: 1
+    lesson: "2.4"
+    review: { lesson: "2.4", anchor: "drei-beteiligte-nicht-zwei" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f14
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "2.4"
+    review: { lesson: "2.4", anchor: "c-get-dieselbe-anfrage-keine-dritte-association" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f15
+    type: truefalse
+    answer: false
+    lesson: "2.4"
+    review: { lesson: "2.4", anchor: "wenn-das-ziel-nicht-erreichbar-ist" }
+    difficulty: 3
+    tags: [netzwerk]
+
+  - id: f16
+    type: input
+    answer: "-aem"
+    lesson: "2.4"
+    review: { lesson: "2.4", anchor: "drei-beteiligte-nicht-zwei" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f17
+    type: single
+    answer: 1
+    lesson: "2.5"
+    review: { lesson: "2.5", anchor: "ein-eigenes-informationsmodell-keine-study-suche" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f18
+    type: single
+    answer: 1
+    lesson: "2.5"
+    review: { lesson: "2.5", anchor: "das-flache-feld-set-einer-worklist-antwort" }
+    difficulty: 2
+    tags: [datenmodell]
+
+  - id: f19
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "2.5"
+    review: { lesson: "2.5", anchor: "eine-eigene-saubere-presentation-context" }
+    difficulty: 3
+    tags: [datenmodell, integration]
+
+  - id: f20
+    type: truefalse
+    answer: false
+    lesson: "2.5"
+    review: { lesson: "2.5", anchor: "wer-die-worklist-in-der-praxis-beantwortet" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f21
+    type: single
+    answer: 1
+    lesson: "2.6"
+    review: { lesson: "2.6", anchor: "zwei-nachrichten-eine-assoziation" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f22
+    type: single
+    answer: 1
+    lesson: "2.6"
+    review: { lesson: "2.6", anchor: "drei-moegliche-endzustaende-nicht-nur-zwei" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f23
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "2.6"
+    review: { lesson: "2.6", anchor: "drei-moegliche-endzustaende-nicht-nur-zwei" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f24
+    type: truefalse
+    answer: false
+    lesson: "2.6"
+    review: { lesson: "2.6", anchor: "was-mpps-nicht-ist" }
+    difficulty: 3
+    tags: [netzwerk, datenmodell]
+
+  - id: f25
+    type: single
+    answer: 1
+    lesson: "2.7"
+    review: { lesson: "2.7", anchor: "zwei-nachrichten-zwei-getrennte-verbindungen" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f26
+    type: input
+    answer: "AllowStorageCommitment"
+    lesson: "2.7"
+    review: { lesson: "2.7", anchor: "eine-lokale-kopie-die-niemand-loeschen-will" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f27
+    type: truefalse
+    answer: false
+    lesson: "2.7"
+    review: { lesson: "2.7", anchor: "was-storage-commitment-nicht-ist" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f28
+    type: input
+    answer: "274"
+    lesson: "2.7"
+    review: { lesson: "2.7", anchor: "eine-echte-ablehnung-mit-echtem-grund" }
+    difficulty: 3
+    tags: [netzwerk]
+
+  - id: f29
+    type: single
+    answer: 1
+    lesson: "2.8"
+    review: { lesson: "2.8", anchor: "qido-rs-dieselbe-suche-per-http" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f30
+    type: single
+    answer: 1
+    lesson: "2.8"
+    review: { lesson: "2.8", anchor: "stow-rs-bilder-per-http-hochladen-und-eine-echte-stolperfalle" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f31
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "2.8"
+    review: { lesson: "2.8", anchor: "dieselbe-ablage-zwei-zugangswege" }
+    difficulty: 2
+    tags: [integration, datenmodell]
+
+  - id: f32
+    type: truefalse
+    answer: false
+    lesson: "2.8"
+    review: { lesson: "2.8", anchor: "dieselbe-ablage-zwei-zugangswege" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f33
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "2.5", anchor: "eine-modalitaet-die-nichts-abtippen-will" }
+      - { lesson: "2.6", anchor: "was-mpps-nicht-ist" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f34
+    type: multi
+    answer: [0, 2]
+    lesson: "cross"
+    review:
+      - { lesson: "2.2", anchor: "was-der-status-im-detail-bedeutet" }
+      - { lesson: "2.7", anchor: "was-storage-commitment-nicht-ist" }
+    difficulty: 3
+    tags: [netzwerk, integration]
+
+  - id: f35
+    type: single
+    answer: 0
+    lesson: "cross"
+    review:
+      - { lesson: "2.4", anchor: "c-get-dieselbe-anfrage-keine-dritte-association" }
+      - { lesson: "2.8", anchor: "wado-rs-bilder-per-http-abrufen" }
+    difficulty: 3
+    tags: [netzwerk, integration]
+
+  - id: f36
+    type: input
+    answer: "QueryRetrieveLevel"
+    lesson: "cross"
+    review:
+      - { lesson: "2.3", anchor: "eine-ebene-pro-abfrage" }
+      - { lesson: "2.5", anchor: "ein-eigenes-informationsmodell-keine-study-suche" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f37
+    type: truefalse
+    answer: false
+    lesson: "cross"
+    review:
+      - { lesson: "2.1", anchor: "was-ein-gruenes-c-echo-nicht-beweist" }
+      - { lesson: "2.2", anchor: "ein-objekt-eine-bestaetigung" }
+    difficulty: 3
+    tags: [netzwerk]
+
+  - id: f38
+    type: multi
+    answer: [0, 2]
+    lesson: "cross"
+    review:
+      - { lesson: "2.4", anchor: "drei-beteiligte-nicht-zwei" }
+      - { lesson: "2.7", anchor: "zwei-nachrichten-zwei-getrennte-verbindungen" }
+    difficulty: 3
+    tags: [netzwerk, integration]
