@@ -6,6 +6,7 @@ use Database\Factories\NodeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -18,6 +19,8 @@ use Illuminate\Support\Carbon;
  * @property string $difficulty
  * @property int $points
  * @property string $category
+ * @property int|null $themenfeld_id
+ * @property string $interaction
  * @property array<int, string> $skills
  * @property array<int, string> $related_lessons
  * @property int $estimated_minutes
@@ -26,10 +29,12 @@ use Illuminate\Support\Carbon;
  * @property array<string, string> $title
  * @property array<string, string> $scenario_title
  * @property string $source_hash
+ * @property-read Themenfeld|null $themenfeld
  */
 #[Fillable([
-    'slug', 'difficulty', 'points', 'category', 'skills', 'related_lessons',
-    'estimated_minutes', 'status', 'content_updated_at', 'title', 'scenario_title', 'source_hash',
+    'slug', 'difficulty', 'points', 'category', 'themenfeld_id', 'interaction', 'skills',
+    'related_lessons', 'estimated_minutes', 'status', 'content_updated_at', 'title',
+    'scenario_title', 'source_hash',
 ])]
 class Node extends Model
 {
@@ -50,6 +55,14 @@ class Node extends Model
             'scenario_title' => 'array',
             'content_updated_at' => 'date',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Themenfeld, $this>
+     */
+    public function themenfeld(): BelongsTo
+    {
+        return $this->belongsTo(Themenfeld::class);
     }
 
     /**

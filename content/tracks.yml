@@ -1,6 +1,6 @@
 # Track-Definitionen und Reihenfolge.
 # Jeder Track gehoert zu einem Themenfeld aus themenfelder.yml
-# (siehe docs/content-schema.md Abschnitt 13). Aktuell existiert nur dicom.
+# (siehe docs/content-schema.md Abschnitt 13).
 
 - slug: fundamente
   themenfeld: dicom
@@ -40,4 +40,12 @@
   title_key: track.betrieb.title
   level: fortgeschritten
   hours: 8
+  status: published
+
+- slug: grundlagen
+  themenfeld: datenschutz
+  order: 1
+  title_key: track.grundlagen.title
+  level: einsteiger
+  hours: 1
   status: published

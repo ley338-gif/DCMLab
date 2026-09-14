@@ -23,6 +23,7 @@ logs:
 test:
 	cd apps/web && APP_ENV=testing ./vendor/bin/pest
 	cd services/engine && python -m pytest
+	cd services/scenario-engine && python -m pytest
 	cd services/sandbox && python -m pytest
 
 # Einmalig fuer die optionale Postgres-Paritaetssuite (README "Tests sicher
@@ -37,6 +38,7 @@ lint:
 	cd apps/web && ./vendor/bin/pint --test
 	cd apps/web && npm run check
 	cd services/engine && ruff check . && mypy app
+	cd services/scenario-engine && ruff check . && mypy app
 	cd services/sandbox && ruff check . && mypy app
 
 seed:

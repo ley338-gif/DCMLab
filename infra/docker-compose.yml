@@ -36,6 +36,7 @@ services:
     environment:
       DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
       ENGINE_URL: http://engine:8100
+      SCENARIO_ENGINE_URL: http://scenario-engine:8300
       DB_USERNAME: ${POSTGRES_USER:-dcmlab}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
       DB_DATABASE: ${POSTGRES_DB:-dcmlab}
@@ -56,6 +57,8 @@ services:
       valkey:
         condition: service_healthy
       engine:
+        condition: service_started
+      scenario-engine:
         condition: service_started
 
   caddy:
@@ -78,6 +81,21 @@ services:
     volumes:
       # Nodes sind Content (Abschnitt 1.4) -- die Engine liest node.yml nur,
       # genau wie apps/web (siehe dortiger Kommentar).
+      - ../content:/app/content:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  scenario-engine:
+    build:
+      context: ../services/scenario-engine
+    environment:
+      DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
+      SCENARIO_ENGINE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dcmlab}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-dcmlab}
+      CONTENT_PATH: /app/content
+    volumes:
+      # Nodes sind Content (Abschnitt 1.4) -- dieser Dienst liest node.yml
+      # nur, genau wie engine und apps/web (siehe dortiger Kommentar).
       - ../content:/app/content:ro
     depends_on:
       postgres:

@@ -72,6 +72,11 @@ class ContentValidate extends Command
                 $this->checkPlaceholders($node);
                 $this->checkFlagFormat($node);
                 $this->checkNodeAchievements($node);
+                $this->checkNodeThemenfeld($node, $themenfelder);
+
+                if (data_get($node['def'], 'interaction') === 'scenario') {
+                    $this->checkScenarioStructure($node);
+                }
             }
         }
 
@@ -537,6 +542,75 @@ class ContentValidate extends Command
     }
 
     /**
+     * `interaction: scenario` (Abschnitt 6j): prueft den Entscheidungsbaum
+     * strukturell -- Referenzen aufloesbar, jeder Terminalschritt hat ein
+     * gueltiges outcome, mindestens ein Erfolgspfad hat ein reveal.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function checkScenarioStructure(array $node): void
+    {
+        $defFile = $node['def_file'];
+        $defRaw = $node['def_raw'] ?? '';
+        $steps = data_get($node['def'], 'scenario.steps', []);
+        $start = data_get($node['def'], 'scenario.start');
+
+        if ($start === null || ! array_key_exists((string) $start, $steps)) {
+            $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'scenario'), 'scenario.start fehlt oder verweist auf keinen Schritt in scenario.steps');
+
+            return;
+        }
+
+        $hasCorrectOutcome = false;
+
+        foreach ($steps as $stepId => $step) {
+            if ($step['terminal'] ?? false) {
+                $outcome = $step['outcome'] ?? null;
+
+                if (! in_array($outcome, ['correct', 'wrong'], true)) {
+                    $this->issue($defFile, LineFinder::firstLineContaining($defRaw, (string) $stepId), "scenario.steps.{$stepId}: terminal ohne gueltiges outcome (correct|wrong)");
+                }
+
+                if ($outcome === 'correct') {
+                    if (empty($step['reveal'])) {
+                        $this->issue($defFile, LineFinder::firstLineContaining($defRaw, (string) $stepId), "scenario.steps.{$stepId}: outcome correct ohne reveal");
+                    } else {
+                        $hasCorrectOutcome = true;
+                    }
+                }
+
+                continue;
+            }
+
+            $options = $step['options'] ?? [];
+
+            if ($options === []) {
+                $this->issue($defFile, LineFinder::firstLineContaining($defRaw, (string) $stepId), "scenario.steps.{$stepId}: weder terminal noch options");
+
+                continue;
+            }
+
+            foreach ($options as $option) {
+                foreach (['id', 'label', 'next'] as $field) {
+                    if (! isset($option[$field])) {
+                        $this->issue($defFile, LineFinder::firstLineContaining($defRaw, (string) $stepId), "scenario.steps.{$stepId}: Option ohne Feld \"{$field}\"");
+                    }
+                }
+
+                $next = $option['next'] ?? null;
+
+                if ($next !== null && ! array_key_exists((string) $next, $steps)) {
+                    $this->issue($defFile, LineFinder::firstLineContaining($defRaw, (string) $stepId), "scenario.steps.{$stepId}: option.next \"{$next}\" verweist auf keinen Schritt");
+                }
+            }
+        }
+
+        if (! $hasCorrectOutcome) {
+            $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'scenario'), 'scenario.steps hat keinen Terminalschritt mit outcome correct und reveal');
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $node
      */
     private function checkFlagFormat(array $node): void
@@ -574,6 +648,24 @@ class ContentValidate extends Command
                     "Track \"{$track['slug']}\" referenziert unbekanntes Themenfeld \"{$themenfeldSlug}\"",
                 );
             }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array<int, array<string, mixed>>  $themenfelder
+     */
+    private function checkNodeThemenfeld(array $node, array $themenfelder): void
+    {
+        $knownSlugs = array_column($themenfelder, 'slug');
+        $themenfeldSlug = $node['def']['themenfeld'] ?? 'dicom';
+
+        if (! in_array($themenfeldSlug, $knownSlugs, true)) {
+            $this->issue(
+                $node['def_file'],
+                LineFinder::firstLineContaining($node['def_raw'] ?? '', 'themenfeld'),
+                "Node referenziert unbekanntes Themenfeld \"{$themenfeldSlug}\"",
+            );
         }
     }
 

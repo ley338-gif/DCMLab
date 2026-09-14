@@ -6,3 +6,8 @@
   order: 1
   title_key: themenfeld.dicom.title
   status: published
+
+- slug: datenschutz
+  order: 2
+  title_key: themenfeld.datenschutz.title
+  status: published

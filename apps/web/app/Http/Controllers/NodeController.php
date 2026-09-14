@@ -11,6 +11,7 @@ use App\Models\NodeAttempt;
 use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\EngineClientContract;
+use App\Services\EngineClientResolver;
 use App\Services\ProfileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,6 +60,7 @@ class NodeController extends Controller
                 'difficulty' => $node->difficulty,
                 'points' => $node->points,
                 'category' => $node->category,
+                'themenfeld' => $this->themenfeldSlug($node),
                 'estimated_minutes' => $node->estimated_minutes,
                 'solved' => in_array($node->id, $solvedNodeIds, true),
                 'status' => match (true) {
@@ -75,8 +77,9 @@ class NodeController extends Controller
         ]);
     }
 
-    public function show(Node $node, ContentRepository $content, EngineClientContract $engine): Response
+    public function show(Node $node, ContentRepository $content, EngineClientResolver $engineResolver): Response
     {
+        $engine = $engineResolver->for($node);
         $nodeContent = $content->nodes()[$node->slug] ?? null;
         abort_unless($nodeContent !== null && $nodeContent['def'] !== null, 404);
 
@@ -113,6 +116,7 @@ class NodeController extends Controller
                 'difficulty' => $node->difficulty,
                 'points' => $node->points,
                 'category' => $node->category,
+                'interaction' => $node->interaction,
                 'estimated_minutes' => $node->estimated_minutes,
             ],
             'prev' => $previousNode !== null ? [
@@ -139,23 +143,26 @@ class NodeController extends Controller
         ]);
     }
 
-    public function state(Node $node, EngineClientContract $engine): JsonResponse
+    public function state(Node $node, EngineClientResolver $engineResolver): JsonResponse
     {
+        $engine = $engineResolver->for($node);
         $attempt = $this->attemptFor($node, $engine);
 
         return response()->json($engine->state($attempt->engine_session_id));
     }
 
-    public function exec(Request $request, Node $node, EngineClientContract $engine): JsonResponse
+    public function exec(Request $request, Node $node, EngineClientResolver $engineResolver): JsonResponse
     {
+        $engine = $engineResolver->for($node);
         $data = $request->validate(['host' => 'required|string', 'command' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
 
         return response()->json($engine->exec($attempt->engine_session_id, $data['host'], $data['command']));
     }
 
-    public function setConfig(Request $request, Node $node, EngineClientContract $engine): JsonResponse
+    public function setConfig(Request $request, Node $node, EngineClientResolver $engineResolver): JsonResponse
     {
+        $engine = $engineResolver->for($node);
         $data = $request->validate([
             'host' => 'required|string',
             'field' => 'required|string',
@@ -168,8 +175,9 @@ class NodeController extends Controller
         );
     }
 
-    public function triggerAction(Request $request, Node $node, EngineClientContract $engine): JsonResponse
+    public function triggerAction(Request $request, Node $node, EngineClientResolver $engineResolver): JsonResponse
     {
+        $engine = $engineResolver->for($node);
         $data = $request->validate(['host' => 'required|string', 'action' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
 
@@ -178,8 +186,9 @@ class NodeController extends Controller
         );
     }
 
-    public function useHint(Request $request, Node $node, ContentRepository $content, EngineClientContract $engine): JsonResponse
+    public function useHint(Request $request, Node $node, ContentRepository $content, EngineClientResolver $engineResolver): JsonResponse
     {
+        $engine = $engineResolver->for($node);
         $data = $request->validate(['hint_id' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
 
@@ -196,8 +205,9 @@ class NodeController extends Controller
         ]);
     }
 
-    public function viewWriteUp(Node $node, ContentRepository $content, EngineClientContract $engine): JsonResponse
+    public function viewWriteUp(Node $node, ContentRepository $content, EngineClientResolver $engineResolver): JsonResponse
     {
+        $engine = $engineResolver->for($node);
         $attempt = $this->attemptFor($node, $engine);
         $result = $engine->viewWriteUp($attempt->engine_session_id);
         $this->syncAttempt($attempt, $engine);
@@ -216,10 +226,11 @@ class NodeController extends Controller
         Request $request,
         Node $node,
         ContentRepository $content,
-        EngineClientContract $engine,
+        EngineClientResolver $engineResolver,
         ProfileService $profiles,
         AchievementService $achievements,
     ): JsonResponse {
+        $engine = $engineResolver->for($node);
         $data = $request->validate(['value' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
 
@@ -282,9 +293,11 @@ class NodeController extends Controller
     }
 
     /**
-     * Katalog-Reihenfolge (Abschnitt 5+6): Kategorie, dann Schwierigkeit,
-     * dann Slug -- dieselbe Sortierung fuer index() und die Prev/Next-
-     * Navigation in show(), damit beide konsistent bleiben.
+     * Katalog-Reihenfolge (Abschnitt 5+6+13): Themenfeld-Reihenfolge (aus
+     * themenfelder.yml, nicht alphabetisch nach Slug -- sonst stuende
+     * "datenschutz" vor "dicom"), dann Kategorie, dann Schwierigkeit, dann
+     * Slug -- dieselbe Sortierung fuer index() und die Prev/Next-Navigation
+     * in show(), damit beide konsistent bleiben.
      *
      * @return Collection<int, Node>
      */
@@ -293,14 +306,38 @@ class NodeController extends Controller
         $difficultyRank = ['easy' => 0, 'medium' => 1, 'hard' => 2, 'insane' => 3];
 
         return Node::query()
+            ->with('themenfeld')
             ->get()
             ->sortBy(fn (Node $node) => sprintf(
-                '%s-%d-%s',
+                '%02d-%s-%s-%d-%s',
+                $this->themenfeldOrder($node),
+                $this->themenfeldSlug($node),
                 $node->category,
                 $difficultyRank[$node->difficulty] ?? 99,
                 $node->slug,
             ))
             ->values();
+    }
+
+    /**
+     * Themenfeld-Slug einer Node, mit "dicom" als Fallback (Abschnitt 13):
+     * `themenfeld_id` ist nullable (siehe Migration), praktisch aber immer
+     * gesetzt, sobald content:sync gelaufen ist -- der Fallback greift nur
+     * in der Luecke zwischen migrate und content:sync sowie bei ueber
+     * Node::factory() erzeugten Test-Nodes ohne themenfeld_id.
+     */
+    private function themenfeldSlug(Node $node): string
+    {
+        return $node->themenfeld_id === null ? 'dicom' : $node->themenfeld->slug;
+    }
+
+    /**
+     * @see self::themenfeldSlug() -- 1 ist dicoms tatsaechlicher Wert in
+     * themenfelder.yml, deshalb derselbe Fallback wie dort.
+     */
+    private function themenfeldOrder(Node $node): int
+    {
+        return $node->themenfeld_id === null ? 1 : $node->themenfeld->order;
     }
 
     /**

@@ -6,9 +6,11 @@ use App\Content\ContentRepository;
 use App\Models\AchievementUnlock;
 use App\Models\Node;
 use App\Models\NodeAttempt;
+use App\Models\Themenfeld;
 use App\Models\User;
 use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -49,6 +51,22 @@ class NodeControllerTest extends TestCase
         Node::factory()->create(['slug' => 'test-node']);
 
         $this->get('/de/nodes/test-node')->assertRedirect('/de/login');
+    }
+
+    public function test_index_groups_nodes_by_themenfeld(): void
+    {
+        $datenschutz = Themenfeld::factory()->create(['slug' => 'datenschutz']);
+        Node::factory()->create(['slug' => 'dicom-node']);
+        Node::factory()->create(['slug' => 'datenschutz-node', 'themenfeld_id' => $datenschutz->id]);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/de/nodes');
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Nodes/Index')
+            ->where('nodes', fn (Collection $nodes) => $nodes->firstWhere('slug', 'dicom-node')['themenfeld'] === 'dicom'
+                && $nodes->firstWhere('slug', 'datenschutz-node')['themenfeld'] === 'datenschutz'),
+        );
     }
 
     public function test_first_visit_creates_an_engine_session_and_renders_state(): void

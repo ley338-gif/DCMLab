@@ -21,6 +21,11 @@ services:
       - ../services/engine/app:/app/app
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8100", "--reload"]
 
+  scenario-engine:
+    volumes:
+      - ../services/scenario-engine/app:/app/app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8300", "--reload"]
+
   sandbox:
     volumes:
       - ../services/sandbox/app:/app/app

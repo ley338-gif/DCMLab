@@ -95,6 +95,10 @@
     "track.bild.title": "Das Bild selbst",
     "track.troubleshooting.title": "Troubleshooting",
     "track.betrieb.title": "Betrieb und Integration",
+    "track.grundlagen.title": "Grundlagen",
+
+    "themenfeld.dicom.title": "DICOM und PACS",
+    "themenfeld.datenschutz.title": "Datenschutz im Klinikbetrieb",
 
     "exam.fundamente.title": "Abschlussprüfung — Fundamente",
     "exam.services.title": "Abschlussprüfung — Die Services",
