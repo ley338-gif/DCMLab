@@ -386,9 +386,21 @@ class ContentValidate extends Command
             $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, 'draw'), "draw ({$draw}) darf die Poolgroesse ({$poolSize}) nicht ueberschreiten");
         }
 
+        // Sonderfall Troubleshooting (P10.64, siehe P10-Prompt "Anschluss"):
+        // dort ist praktisch jede Frage cross, weil jede Stoerung mehrere
+        // Lektionen beruehrt -- die feste 4-Fragen-Quote je Lektion waere
+        // dort nicht erfuellbar. exam.yml darf die Quote deshalb ueber
+        // min_per_lesson bewusst absenken; ohne das Feld gilt weiterhin 4.
+        $minPerLesson = $meta['min_per_lesson'] ?? 4;
+
+        if (! is_int($minPerLesson) || $minPerLesson < 0) {
+            $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, 'min_per_lesson'), 'min_per_lesson muss eine nicht-negative Ganzzahl sein');
+            $minPerLesson = 4;
+        }
+
         foreach ($trackLessonIds as $lessonId) {
-            if (($countsByLesson[$lessonId] ?? 0) < 4) {
-                $this->issue($metaFile, null, "Pruefung {$trackSlug}: Lektion \"{$lessonId}\" hat weniger als 4 Poolfragen");
+            if (($countsByLesson[$lessonId] ?? 0) < $minPerLesson) {
+                $this->issue($metaFile, null, "Pruefung {$trackSlug}: Lektion \"{$lessonId}\" hat weniger als {$minPerLesson} Poolfragen");
             }
         }
 

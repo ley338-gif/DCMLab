@@ -1111,13 +1111,35 @@ keine erfundenen Zusatzfakten. Keine neuen Architekturentscheidungen.
 Reale Verifikation: `content:validate` grün, echter Browser-E2E im
 isolierten Compose-Stack (20/20 Fragen richtig, 100 %, bestanden).
 
-Damit haben vier der fünf Tracks eine Abschlussprüfung (Fundamente,
-Die Services, Das Bild selbst, Betrieb und Integration). Offen: Track 4
-(Troubleshooting) — laut Auftrag der Sonderfall, bei dem praktisch alle
-Fragen `cross` sind, weil jede Störung mehrere Lektionen berührt; die
-Mindestquote von 4 Fragen je Lektion muss dafür in `ContentValidate`
-gelockert werden, siehe P10-Prompt Abschnitt „Anschluss: die übrigen
-Tracks".
+**Track-Abschlussprüfung Troubleshooting (P10.64) — der im P10-Prompt
+angekündigte Sonderfall:** neuer Content unter
+`content/exams/troubleshooting/{exam.yml,de.md}`, 24 Fragen (9 single,
+6 multi, 6 truefalse, 3 input), davon nur 10 lektionsgebunden (je genau
+eine der zehn Lektionen 4.1–4.10) und 14 echte `cross`-Fragen (58 % des
+Pools) — genau die vom Prompt vorhergesagte Verschiebung, weil dieser
+Track selbst schon eine durchgehende Verkettung von Wissen aus den
+Tracks 1–3 ist. Dafür war eine echte, kleine Validator-Erweiterung
+nötig statt nur neuem Content: `ContentValidate::checkExamStructure()`
+liest jetzt ein optionales `min_per_lesson`-Feld aus `exam.yml`
+(Default weiterhin 4, unverändert für alle vier bisherigen Tracks) und
+erlaubt Track-Autoren, die Quote je Lektion bewusst abzusenken — hier
+auf 1. Neue Tests dafür in `ContentValidateTest`
+(`test_exam_min_per_lesson_accepts_a_lower_override`,
+`test_exam_min_per_lesson_must_be_a_non_negative_integer`). Keine der
+zehn Lektionen hatte `quiz:`-Daten, der Pool ist komplett neu
+geschrieben, an echten Fehlerbildern und Stolperfallen der jeweiligen
+Lektion verankert; mehrere `review`-Ziele der `cross`-Fragen zeigen
+bewusst auf Lektionen anderer Tracks (z. B. 1.6, 1.8, 2.2, 2.5, 2.6,
+2.7), weil `ContentValidate` `review`-Anker global auflöst, nicht nur
+innerhalb des eigenen Tracks — das Fehlerbild in Track 4 baut ja gerade
+auf Wissen aus den Tracks 1–3 auf. Reale Verifikation: `content:validate`
+grün, PHPStan/Pint weiterhin sauber, volle Testsuite unverändert bei den
+zwölf vorbestehenden Vite-Manifest-Fehlschlägen (siehe ADR 0065/0066),
+echter Browser-E2E im isolierten Compose-Stack (16/16 Fragen richtig,
+100 %, bestanden).
+
+Damit haben alle fünf Tracks eine Abschlussprüfung (Fundamente, Die
+Services, Das Bild selbst, Troubleshooting, Betrieb und Integration).
 
 ## CI
 
