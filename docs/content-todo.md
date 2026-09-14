@@ -500,6 +500,41 @@ korrigiert: Der erste `storescu`-Aufruf ohne expliziten Pfad traf das
 `[]` auf `[storescu]` gesetzt, neuer Glossarbegriff
 `conformance-statement`. Siehe ADR 0057.
 
+**5.3 ist seit P10.49 vollständig geschrieben — der in ADR 0055
+vorgeschlagene Hands-on-Baustein wurde real getestet und trägt.**
+Zwei isolierte, `:test`-getaggte Orthanc-Instanzen auf einem eigenen
+Docker-Netz (außerhalb der Standard-Sandbox, die pro Sitzung nur ein
+Archiv bereitstellt) zeigten real: Eine Migration per
+DICOM-Netzwerktransfer (`storescu`, REST-Export, `storescu` erneut)
+lässt `StudyInstanceUID`/`SeriesInstanceUID`/`SOPInstanceUID` und
+Pixeldaten byte-identisch — sogar Orthancs eigene, deterministisch
+abgeleitete interne Instanz-ID stimmt auf beiden Archiven überein.
+Einzige real gemessene Änderung: die File-Meta-Implementierungssignatur
+(`ImplementationClassUID`/`-VersionName`, `PYDICOM 3.0.2` →
+`OFFIS_DCMTK_370`). Eine zweite, real durchgeführte „kaputte Migration"
+(UID-Neuvergabe beim Import) erzeugte am Ziel-Archiv real zwei
+getrennte, unverbundene Studien für denselben Patienten — ohne
+Fehlercode. Ein dritter geplanter Test (Private-Tag-Überleben)
+scheiterte an `dcmodify`-Syntaxproblemen und wurde nicht
+weiterverfolgt; die entsprechende Aussage bleibt in der Lektion
+ausdrücklich als unbelegt markiert, nicht stillschweigend als getestet
+dargestellt. `tools` von `[]` auf `[storescu, dcmdump]` gesetzt,
+`sandbox.required` bleibt `false` (die *vollständige* Zwei-Archiv-
+Demonstration ist in der Standard-Sandbox nicht nachstellbar).
+
+**Wichtiger Nebenfund aus P10.49 (betrifft die gesamte Track-5-
+Designprämisse aus ADR 0055):** `sandbox.required` in `meta.yml` wird
+im gesamten `apps/web/app`-Code an keiner Stelle gelesen — es ist ein
+rein dokumentierendes Feld ohne Validierungs- oder UI-Wirkung. Der
+„Spielwiese starten"-Button erscheint stattdessen ausschließlich dann,
+wenn irgendein in `tools` deklariertes Werkzeug in
+`content/tools/de.yml` `needs_sandbox: true` trägt
+(`LessonController::toolbarData()`). Für 5.1/5.2 änderte dieser Fund im
+Ergebnis nichts (ihre Werkzeuge `findscu`/`storescu`/`pynetdicom` tragen
+ohnehin `needs_sandbox: true`) — aber die ursprüngliche
+Scaffold-Prämisse „`sandbox.required: false` verhindert den
+Sandbox-Button" (ADR 0055) war unzutreffend. Siehe ADR 0058.
+
 ## P9 — Node-Definitionen: eine neue spielbare Node, sieben Gerüste
 
 Track 1 lag mit einem echten Defekt vor: sechs der acht Lektionen nach 1.0
