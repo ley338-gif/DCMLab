@@ -2,7 +2,9 @@
 
 namespace App\Activities;
 
+use App\Content\ContentIssue;
 use App\Content\ContentRepository;
+use App\Content\ContentValidator;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\User;
@@ -75,10 +77,27 @@ final readonly class LessonActivity implements ActivityContract
 
     public function validate(): array
     {
-        // Bewusst leer: das Regelwissen aus ContentValidate wandert in W1 in
-        // einen Service, den diese Methode dann aufruft. Vorher keine
-        // zweite, schwaechere Pruefung (ADR 0071).
-        return [];
+        // Derselbe Regelsatz wie `content:validate` (ADR 0071/0073, W1),
+        // eingegrenzt auf Befunde, die zu dieser Lektion gehoeren -- keine
+        // zweite, eigene Pruefung.
+        $prefix = "lessons/{$this->lesson->lesson_id}/";
+
+        return array_values(array_filter(
+            (new ContentValidator)->validate(
+                themenfelder: $this->content->themenfelder(),
+                tracks: $this->content->tracks(),
+                achievements: $this->content->achievements(),
+                lessons: $this->content->lessons(),
+                nodes: $this->content->nodes(),
+                exams: $this->content->exams(),
+                tools: $this->content->tools(),
+                toolsRaw: $this->content->toolsRaw(),
+                glossary: $this->content->glossary(),
+                datasets: $this->content->datasets(),
+                skills: $this->content->skills(),
+            ),
+            fn (ContentIssue $issue): bool => str_starts_with($issue->file, $prefix),
+        ));
     }
 
     public function serialize(): array

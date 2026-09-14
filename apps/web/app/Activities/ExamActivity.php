@@ -2,7 +2,9 @@
 
 namespace App\Activities;
 
+use App\Content\ContentIssue;
 use App\Content\ContentRepository;
+use App\Content\ContentValidator;
 use App\Models\ExamAttempt;
 use App\Models\Track;
 use App\Models\User;
@@ -68,8 +70,24 @@ final readonly class ExamActivity implements ActivityContract
 
     public function validate(): array
     {
-        // Bewusst leer, siehe LessonActivity::validate().
-        return [];
+        $prefix = "exams/{$this->track->slug}/";
+
+        return array_values(array_filter(
+            (new ContentValidator)->validate(
+                themenfelder: $this->content->themenfelder(),
+                tracks: $this->content->tracks(),
+                achievements: $this->content->achievements(),
+                lessons: $this->content->lessons(),
+                nodes: $this->content->nodes(),
+                exams: $this->content->exams(),
+                tools: $this->content->tools(),
+                toolsRaw: $this->content->toolsRaw(),
+                glossary: $this->content->glossary(),
+                datasets: $this->content->datasets(),
+                skills: $this->content->skills(),
+            ),
+            fn (ContentIssue $issue): bool => str_starts_with($issue->file, $prefix),
+        ));
     }
 
     public function serialize(): array

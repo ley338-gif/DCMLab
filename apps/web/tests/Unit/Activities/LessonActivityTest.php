@@ -80,6 +80,17 @@ class LessonActivityTest extends TestCase
         $this->assertSame('lessons/1.0/de.md', $files[1]['path']);
     }
 
+    public function test_validate_delegates_to_the_shared_content_validator_scoped_to_this_lesson(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate();
+
+        foreach ($issues as $issue) {
+            $this->assertStringStartsWith('lessons/1.0/', $issue->file);
+        }
+    }
+
     public function test_deserialize_normalizes_the_current_fields(): void
     {
         $activity = $this->makeActivity();
