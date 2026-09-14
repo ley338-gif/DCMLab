@@ -6,12 +6,14 @@ use Database\Factories\TrackFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Index ueber content/tracks.yml (Abschnitt 7) -- kein Speicherort fuer Prosa.
  *
  * @property int $id
+ * @property int|null $themenfeld_id
  * @property string $slug
  * @property int $order
  * @property string $title_key
@@ -20,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $status
  * @property-read int $completed_lessons_count Nur gesetzt nach withCount('lessons as completed_lessons_count' => ...)
  */
-#[Fillable(['slug', 'order', 'title_key', 'level', 'hours', 'status'])]
+#[Fillable(['themenfeld_id', 'slug', 'order', 'title_key', 'level', 'hours', 'status'])]
 class Track extends Model
 {
     /** @use HasFactory<TrackFactory> */
@@ -29,6 +31,14 @@ class Track extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /**
+     * @return BelongsTo<Themenfeld, $this>
+     */
+    public function themenfeld(): BelongsTo
+    {
+        return $this->belongsTo(Themenfeld::class);
     }
 
     /**

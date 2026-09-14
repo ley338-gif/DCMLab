@@ -10,7 +10,7 @@ use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\User;
 use App\Services\AchievementService;
-use App\Services\EngineClient;
+use App\Services\EngineClientContract;
 use App\Services\ProfileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -75,7 +75,7 @@ class NodeController extends Controller
         ]);
     }
 
-    public function show(Node $node, ContentRepository $content, EngineClient $engine): Response
+    public function show(Node $node, ContentRepository $content, EngineClientContract $engine): Response
     {
         $nodeContent = $content->nodes()[$node->slug] ?? null;
         abort_unless($nodeContent !== null && $nodeContent['def'] !== null, 404);
@@ -139,14 +139,14 @@ class NodeController extends Controller
         ]);
     }
 
-    public function state(Node $node, EngineClient $engine): JsonResponse
+    public function state(Node $node, EngineClientContract $engine): JsonResponse
     {
         $attempt = $this->attemptFor($node, $engine);
 
         return response()->json($engine->state($attempt->engine_session_id));
     }
 
-    public function exec(Request $request, Node $node, EngineClient $engine): JsonResponse
+    public function exec(Request $request, Node $node, EngineClientContract $engine): JsonResponse
     {
         $data = $request->validate(['host' => 'required|string', 'command' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
@@ -154,7 +154,7 @@ class NodeController extends Controller
         return response()->json($engine->exec($attempt->engine_session_id, $data['host'], $data['command']));
     }
 
-    public function setConfig(Request $request, Node $node, EngineClient $engine): JsonResponse
+    public function setConfig(Request $request, Node $node, EngineClientContract $engine): JsonResponse
     {
         $data = $request->validate([
             'host' => 'required|string',
@@ -168,7 +168,7 @@ class NodeController extends Controller
         );
     }
 
-    public function triggerAction(Request $request, Node $node, EngineClient $engine): JsonResponse
+    public function triggerAction(Request $request, Node $node, EngineClientContract $engine): JsonResponse
     {
         $data = $request->validate(['host' => 'required|string', 'action' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
@@ -178,7 +178,7 @@ class NodeController extends Controller
         );
     }
 
-    public function useHint(Request $request, Node $node, ContentRepository $content, EngineClient $engine): JsonResponse
+    public function useHint(Request $request, Node $node, ContentRepository $content, EngineClientContract $engine): JsonResponse
     {
         $data = $request->validate(['hint_id' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
@@ -196,7 +196,7 @@ class NodeController extends Controller
         ]);
     }
 
-    public function viewWriteUp(Node $node, ContentRepository $content, EngineClient $engine): JsonResponse
+    public function viewWriteUp(Node $node, ContentRepository $content, EngineClientContract $engine): JsonResponse
     {
         $attempt = $this->attemptFor($node, $engine);
         $result = $engine->viewWriteUp($attempt->engine_session_id);
@@ -216,7 +216,7 @@ class NodeController extends Controller
         Request $request,
         Node $node,
         ContentRepository $content,
-        EngineClient $engine,
+        EngineClientContract $engine,
         ProfileService $profiles,
         AchievementService $achievements,
     ): JsonResponse {
@@ -336,7 +336,7 @@ class NodeController extends Controller
         return $result;
     }
 
-    private function attemptFor(Node $node, EngineClient $engine): NodeAttempt
+    private function attemptFor(Node $node, EngineClientContract $engine): NodeAttempt
     {
         $attempt = NodeAttempt::firstOrNew(['user_id' => Auth::id(), 'node_id' => $node->id]);
 
@@ -351,7 +351,7 @@ class NodeController extends Controller
         return $attempt;
     }
 
-    private function syncAttempt(NodeAttempt $attempt, EngineClient $engine, bool $save = true): void
+    private function syncAttempt(NodeAttempt $attempt, EngineClientContract $engine, bool $save = true): void
     {
         $state = $engine->state($attempt->engine_session_id);
         $attempt->hints_used = $state['hints_used'];

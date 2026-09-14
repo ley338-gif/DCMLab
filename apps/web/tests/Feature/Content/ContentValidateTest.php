@@ -612,6 +612,7 @@ class ContentValidateTest extends TestCase
 
         $files = [
             'tracks.yml' => $this->validTracks(),
+            'themenfelder.yml' => $this->validThemenfelder(),
             'tools/de.yml' => $this->validTools(),
             'glossary/de.yml' => $this->validGlossary(),
             'datasets.yml' => $this->validDatasets(),
@@ -656,10 +657,21 @@ class ContentValidateTest extends TestCase
     {
         return <<<'YAML'
         - slug: fundamente
+          themenfeld: dicom
           order: 1
           title_key: track.fundamente.title
           level: einsteiger
           hours: 1
+          status: published
+        YAML;
+    }
+
+    private function validThemenfelder(): string
+    {
+        return <<<'YAML'
+        - slug: dicom
+          order: 1
+          title_key: themenfeld.dicom.title
           status: published
         YAML;
     }

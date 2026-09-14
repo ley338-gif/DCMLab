@@ -1,0 +1,6 @@
+# Themenfeld-Definitionen
+
+- slug: dicom
+  order: 1
+  title_key: themenfeld.dicom.title
+  status: published

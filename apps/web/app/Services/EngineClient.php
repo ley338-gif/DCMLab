@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Http;
  * DICOM-Semantik, reicht nur Anfragen durch -- die Engine kennt keine
  * Nutzer, deshalb traegt jeder Aufruf nur eine opake session_id.
  */
-final class EngineClient
+final class EngineClient implements EngineClientContract
 {
     /**
      * @return array<string, mixed>

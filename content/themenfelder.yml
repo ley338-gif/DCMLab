@@ -1,0 +1,8 @@
+# Themenfeld-Definitionen (siehe docs/content-schema.md Abschnitt 13).
+# Track-uebergreifende Ebene -- aktuell existiert genau ein Themenfeld,
+# dem alle Tracks in tracks.yml angehoeren.
+
+- slug: dicom
+  order: 1
+  title_key: themenfeld.dicom.title
+  status: published

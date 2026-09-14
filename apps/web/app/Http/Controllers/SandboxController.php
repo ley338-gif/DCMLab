@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lesson;
 use App\Services\AchievementService;
-use App\Services\SandboxClient;
+use App\Services\SandboxClientContract;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
  */
 class SandboxController extends Controller
 {
-    public function create(Lesson $lesson, SandboxClient $sandbox, AchievementService $achievements): JsonResponse
+    public function create(Lesson $lesson, SandboxClientContract $sandbox, AchievementService $achievements): JsonResponse
     {
         $datasetSlug = $lesson->sandbox['dataset'] ?? null;
 
@@ -47,19 +47,19 @@ class SandboxController extends Controller
         return response()->json([...$result, 'unlocked_achievements' => $unlockedAchievements], 201);
     }
 
-    public function state(string $sandboxId, SandboxClient $sandbox): JsonResponse
+    public function state(string $sandboxId, SandboxClientContract $sandbox): JsonResponse
     {
         return response()->json($sandbox->state($sandboxId));
     }
 
-    public function exec(Request $request, string $sandboxId, SandboxClient $sandbox): JsonResponse
+    public function exec(Request $request, string $sandboxId, SandboxClientContract $sandbox): JsonResponse
     {
         $data = $request->validate(['command' => 'required|string']);
 
         return response()->json($sandbox->exec($sandboxId, $data['command']));
     }
 
-    public function destroy(string $sandboxId, SandboxClient $sandbox): JsonResponse
+    public function destroy(string $sandboxId, SandboxClientContract $sandbox): JsonResponse
     {
         $sandbox->delete($sandboxId);
 

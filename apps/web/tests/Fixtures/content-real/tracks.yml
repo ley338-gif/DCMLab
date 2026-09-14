@@ -1,6 +1,7 @@
 # Track-Definitionen und Reihenfolge
 
 - slug: fundamente
+  themenfeld: dicom
   order: 1
   title_key: track.fundamente.title
   level: einsteiger
@@ -8,6 +9,7 @@
   status: published
 
 - slug: services
+  themenfeld: dicom
   order: 2
   title_key: track.services.title
   level: aufbau
@@ -15,6 +17,7 @@
   status: planned
 
 - slug: bild
+  themenfeld: dicom
   order: 3
   title_key: track.bild.title
   level: aufbau
@@ -22,6 +25,7 @@
   status: planned
 
 - slug: troubleshooting
+  themenfeld: dicom
   order: 4
   title_key: track.troubleshooting.title
   level: aufbau
@@ -29,6 +33,7 @@
   status: planned
 
 - slug: betrieb
+  themenfeld: dicom
   order: 5
   title_key: track.betrieb.title
   level: fortgeschritten
