@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Activities\ActivityProgressRecorder;
 use App\Content\ContentRepository;
 use App\Content\MarkdownRenderer;
 use App\Content\NodeSections;
@@ -229,6 +230,7 @@ class NodeController extends Controller
         EngineClientResolver $engineResolver,
         ProfileService $profiles,
         AchievementService $achievements,
+        ActivityProgressRecorder $progressRecorder,
     ): JsonResponse {
         $engine = $engineResolver->for($node);
         $data = $request->validate(['value' => 'required|string']);
@@ -249,6 +251,7 @@ class NodeController extends Controller
             $user = $request->user();
             $profiles->recomputeAfterSolve($user, $node);
             $unlockedAchievements = $this->unlockNodeAchievements($user, $node, $content, $achievements);
+            $progressRecorder->record('node', $node->slug, $user);
         }
 
         return response()->json([...$result, 'unlocked_achievements' => $unlockedAchievements]);
