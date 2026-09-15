@@ -18,6 +18,9 @@ import { show as showTrack } from '@/routes/tracks';
 type TrackSummary = {
     slug: string;
     title_key: string;
+    // Nur gesetzt bei einem in Studio angelegten Track (ADR 0100) -- ein
+    // per content:sync verwalteter Track hat weiterhin nur title_key.
+    title: { de: string } | null;
     level: string;
     hours: number;
     status: string;
@@ -28,6 +31,10 @@ type TrackSummary = {
 const props = defineProps<{
     tracks: TrackSummary[];
 }>();
+
+function trackTitle(track: TrackSummary): string {
+    return track.title?.de ?? trans(track.title_key);
+}
 
 const levelLabels: Record<string, string> = {
     einsteiger: trans('Einsteiger'),
@@ -91,9 +98,7 @@ const groups = computed(() => {
                     >
                         <CardHeader>
                             <div class="flex items-start justify-between gap-2">
-                                <CardTitle>{{
-                                    trans(track.title_key)
-                                }}</CardTitle>
+                                <CardTitle>{{ trackTitle(track) }}</CardTitle>
                                 <Lock
                                     v-if="track.status !== 'published'"
                                     class="text-muted-foreground size-4 shrink-0"

@@ -40,16 +40,23 @@ type ExamAvailability = {
 };
 
 const props = defineProps<{
-    track: { slug: string; title_key: string; themenfeld: string };
+    track: {
+        slug: string;
+        title_key: string;
+        // Nur gesetzt bei einem in Studio angelegten Track (ADR 0100).
+        title: { de: string } | null;
+        themenfeld: string;
+    };
     lessons: LessonSummary[];
     exam: ExamAvailability;
 }>();
 
 const page = usePage();
+const trackTitle = props.track.title?.de ?? trans(props.track.title_key);
 </script>
 
 <template>
-    <Head :title="trans(track.title_key)" />
+    <Head :title="trackTitle" />
 
     <PageContainer>
         <Breadcrumbs
@@ -60,12 +67,12 @@ const page = usePage();
                     title: trans(`themenfeld.${track.themenfeld}.title`),
                     href: home(),
                 },
-                { title: trans(track.title_key), href: showTrack(track.slug) },
+                { title: trackTitle, href: showTrack(track.slug) },
             ]"
         />
 
         <h1 class="mb-8 text-2xl font-semibold">
-            {{ trans(track.title_key) }}
+            {{ trackTitle }}
         </h1>
 
         <ul class="flex flex-col gap-3">

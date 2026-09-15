@@ -73,6 +73,43 @@ class TrackControllerTest extends TestCase
             );
     }
 
+    /**
+     * ADR 0100 (CMS-4a): ein in Studio angelegter Track hat einen echten
+     * `title`-Wert statt eines `title_key`-Verweises in lang/de.json.
+     */
+    public function test_a_track_with_a_real_title_uses_it_instead_of_title_key(): void
+    {
+        $track = Track::factory()->create([
+            'slug' => 'fundamente',
+            'status' => 'published',
+            'title' => ['de' => 'Fundamente der DICOM-Kommunikation'],
+        ]);
+
+        $this->get('/de')
+            ->assertInertia(fn ($page) => $page->where('tracks.0.title.de', 'Fundamente der DICOM-Kommunikation'));
+
+        $this->get("/de/tracks/{$track->slug}")
+            ->assertInertia(fn ($page) => $page
+                ->where('track.title.de', 'Fundamente der DICOM-Kommunikation'));
+    }
+
+    /**
+     * ADR 0100 (CMS-4b): archiviert heisst fuer Lernende nicht mehr
+     * sichtbar, anders als "draft" (bleibt als "Bald verfügbar" gelistet).
+     */
+    public function test_an_archived_track_is_hidden_from_the_index_and_returns_404_on_show(): void
+    {
+        Track::factory()->create(['slug' => 'archiviert', 'status' => 'archived']);
+        Track::factory()->create(['slug' => 'fundamente', 'status' => 'published']);
+
+        $this->get('/de')
+            ->assertInertia(fn ($page) => $page
+                ->has('tracks', 1)
+                ->where('tracks.0.slug', 'fundamente'));
+
+        $this->get('/de/tracks/archiviert')->assertNotFound();
+    }
+
     public function test_it_lists_lessons_ordered_and_marks_completion_per_user(): void
     {
         $track = Track::factory()->create(['slug' => 'fundamente']);

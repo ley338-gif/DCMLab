@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SandboxTemplate;
+use App\Models\Track;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -26,6 +27,8 @@ class StudioController extends Controller
             'role' => $request->user()->role->value,
             'can_manage_sandbox_templates' => Gate::allows('manage', SandboxTemplate::class),
             'sandbox_template_count' => SandboxTemplate::query()->count(),
+            'can_manage_tracks' => Gate::allows('manage', Track::class),
+            'track_count' => Track::query()->count(),
         ]);
     }
 }

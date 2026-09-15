@@ -10,10 +10,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Index ueber content/tracks.yml (Abschnitt 7) -- kein Speicherort fuer Prosa.
+ * Index ueber content/tracks.yml (Abschnitt 7). `title`/`teaser` sind seit
+ * ADR 0100 (CMS-4a) der Speicherort fuer in Studio angelegte Tracks -- ein
+ * per `content:sync` verwalteter Track hat sie weiterhin nicht gesetzt und
+ * verlaesst sich auf `title_key` (Schluessel in `lang/de.json`), siehe
+ * TrackController.
  *
  * @property int $id
  * @property int|null $themenfeld_id
+ * @property array<string, string>|null $title
+ * @property array<string, string>|null $teaser
  * @property string $slug
  * @property int $order
  * @property string $title_key
@@ -23,11 +29,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read int $completed_lessons_count Nur gesetzt nach withCount('lessons as completed_lessons_count' => ...)
  * @property-read Themenfeld|null $themenfeld
  */
-#[Fillable(['themenfeld_id', 'slug', 'order', 'title_key', 'level', 'hours', 'status'])]
+#[Fillable(['themenfeld_id', 'slug', 'order', 'title_key', 'title', 'teaser', 'level', 'hours', 'status'])]
 class Track extends Model
 {
     /** @use HasFactory<TrackFactory> */
     use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'title' => 'array',
+            'teaser' => 'array',
+        ];
+    }
 
     public function getRouteKeyName(): string
     {

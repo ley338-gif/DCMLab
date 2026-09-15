@@ -18,6 +18,9 @@ class TrackController extends Controller
     public function index(): Response
     {
         $tracks = Track::query()
+            // Archiviert (ADR 0100, CMS-4b) heisst fuer Lernende nicht mehr
+            // sichtbar -- anders als "draft" (zeigt "Bald verfügbar").
+            ->where('status', '!=', 'archived')
             ->withCount('lessons')
             ->with('themenfeld')
             ->get()
@@ -32,6 +35,10 @@ class TrackController extends Controller
             ->map(fn (Track $track) => [
                 'slug' => $track->slug,
                 'title_key' => $track->title_key,
+                // Nur gesetzt bei einem in Studio angelegten Track (ADR
+                // 0100, CMS-4a); ein per content:sync verwalteter Track hat
+                // weiterhin nur title_key.
+                'title' => $track->title,
                 'level' => $track->level,
                 'hours' => $track->hours,
                 'status' => $track->status,
@@ -49,6 +56,11 @@ class TrackController extends Controller
      */
     public function show(Track $track, ExamAttemptService $exams, LessonPrerequisiteService $prerequisites): Response
     {
+        // Archiviert (ADR 0100, CMS-4b) ist kein "noch nicht verfuegbar"
+        // (das bleibt draft, weiterhin per Direktlink erreichbar), sondern
+        // "nicht mehr relevant" -- 404 statt einer leeren/kaputten Ansicht.
+        abort_if($track->status === 'archived', 404);
+
         $trackLessons = $track->lessons()
             ->withCount(['progress as completed' => fn ($query) => $query
                 ->where('user_id', auth()->id())
@@ -83,6 +95,7 @@ class TrackController extends Controller
             'track' => [
                 'slug' => $track->slug,
                 'title_key' => $track->title_key,
+                'title' => $track->title,
                 'themenfeld' => $this->themenfeldSlug($track),
             ],
             'lessons' => $lessons,
