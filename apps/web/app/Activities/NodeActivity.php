@@ -40,6 +40,15 @@ final readonly class NodeActivity implements ActivityContract
             needsContainer: true,
             authorable: true,
             freelyPlaceable: true,
+            runtimeType: 'container',
+            // versionable bleibt false: serialize() ignoriert $draft
+            // vollstaendig (siehe oben) -- es gibt heute keinen Node-Editor,
+            // der einen Entwurf anlegt (docs/studio-architecture-plan.md
+            // Abschnitt 1.2).
+            // reusable: eine Node kann ueber `related_lessons` aus mehreren
+            // Lektionen heraus verlinkt werden, ist selbst keiner Lektion
+            // oder keinem Track exklusiv zugeordnet.
+            reusable: true,
         );
     }
 

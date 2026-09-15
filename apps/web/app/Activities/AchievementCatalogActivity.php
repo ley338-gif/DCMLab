@@ -50,6 +50,13 @@ final readonly class AchievementCatalogActivity implements ActivityContract
             needsContainer: false,
             authorable: true,
             freelyPlaceable: false,
+            // versionable: serialize($draft) wertet den Entwurf tatsaechlich
+            // aus (siehe oben).
+            versionable: true,
+            // reusable: ein Achievement-Eintrag wird ueber `unlock_when`
+            // typischerweise auf beliebige andere Aktivitaeten (Lektion,
+            // Node, Pruefung, ...) angewendet -- keine exklusive 1:1-Bindung.
+            reusable: true,
         );
     }
 

@@ -45,6 +45,10 @@ final readonly class LessonActivity implements ActivityContract
             needsContainer: false,
             authorable: true,
             freelyPlaceable: false,
+            // versionable: serialize($draft) wertet den Entwurf tatsaechlich
+            // aus (siehe oben) -- echte Draft-Teilnahme, nicht nur der
+            // Vertrag.
+            versionable: true,
         );
     }
 

@@ -27,6 +27,9 @@ class QuizActivityTest extends TestCase
 
         $this->assertTrue($supports->isGraded);
         $this->assertFalse($supports->tracksCompletion);
+        // Kein eigenes Dateiziel -- ein Quiz-Entwurf haengt am
+        // content_versions-Datensatz der Lektion, siehe QuizActivity::supports().
+        $this->assertFalse($supports->versionable);
     }
 
     public function test_learner_view_counts_the_parsed_questions_and_due_cards(): void

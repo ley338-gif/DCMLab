@@ -52,6 +52,7 @@ class ExamActivityTest extends TestCase
         $this->assertTrue($supports->isGraded);
         $this->assertFalse($supports->needsContainer);
         $this->assertFalse($supports->freelyPlaceable);
+        $this->assertTrue($supports->versionable);
     }
 
     public function test_result_is_null_before_any_completed_attempt(): void
