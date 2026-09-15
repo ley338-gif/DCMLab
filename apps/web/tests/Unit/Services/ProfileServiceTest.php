@@ -2,19 +2,21 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\Achievement;
+use App\Models\ExamAttempt;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\Track;
-use App\Models\TrackBadge;
 use App\Models\User;
 use App\Services\ProfileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Rang, Skill-Radar und First Blood (Abschnitt 7, P8). Die konkreten
+ * Rang, Skill-Radar und Punktequellen (Abschnitt 7, P8). Die konkreten
  * Punktschwellen sind eine umkehrbare Balance-Entscheidung, siehe ADR 0009.
+ * Die Vergabe der "Trailblazer"- und Track-Badge-Achievements selbst ist
+ * seit ADR 0090b keine ProfileService-Zustaendigkeit mehr, siehe
+ * AchievementUnlockEvaluatorTest.
  */
 class ProfileServiceTest extends TestCase
 {
@@ -77,58 +79,27 @@ class ProfileServiceTest extends TestCase
         $this->assertSame(0, array_sum($profile->skill_vector));
     }
 
-    public function test_first_blood_is_awarded_once_per_node(): void
-    {
-        $firstUser = User::factory()->create();
-        $secondUser = User::factory()->create();
-        $node = Node::factory()->create(['skills' => ['netzwerk'], 'points' => 10]);
-
-        $this->solve($firstUser, $node, 10);
-        $this->solve($secondUser, $node, 10);
-
-        $service = new ProfileService;
-        $service->recomputeAfterSolve($firstUser, $node);
-        $service->recomputeAfterSolve($secondUser, $node);
-
-        $this->assertDatabaseHas('achievements', [
-            'user_id' => $firstUser->id, 'node_id' => $node->id, 'type' => 'first_blood',
-        ]);
-        $this->assertDatabaseMissing('achievements', [
-            'user_id' => $secondUser->id, 'node_id' => $node->id, 'type' => 'first_blood',
-        ]);
-        $this->assertSame(1, Achievement::where('node_id', $node->id)->count());
-    }
-
-    /**
-     * ADR 0070: die gemeinsame Lesestelle fuer Dashboard und oeffentliches
-     * Profil -- fasst first_blood-Achievements (pro Node) und TrackBadges
-     * (pro Nutzer) zusammen, absteigend nach awarded_at sortiert.
-     */
-    public function test_achievements_for_merges_first_bloods_and_track_badges_sorted_by_date(): void
+    public function test_total_points_counts_each_passed_track_once_regardless_of_repeat_attempts(): void
     {
         $user = User::factory()->create();
-        $node = Node::factory()->create(['skills' => ['netzwerk'], 'points' => 10]);
-        $track = Track::factory()->create(['title_key' => 'track.fundamente.title']);
+        $track = Track::factory()->create();
 
-        Achievement::create([
-            'user_id' => $user->id,
-            'node_id' => $node->id,
-            'type' => 'first_blood',
-            'awarded_at' => now()->subDay(),
-        ]);
-        TrackBadge::create([
-            'user_id' => $user->id,
-            'track_id' => $track->id,
-            'awarded_at' => now(),
-        ]);
+        $this->passExam($user, $track, passed: false);
+        $this->passExam($user, $track, passed: true);
+        $this->passExam($user, $track, passed: true);
 
-        $achievements = (new ProfileService)->achievementsFor($user);
+        $this->assertSame(ProfileService::TRACK_PASS_POINTS, (new ProfileService)->totalPoints($user));
+    }
 
-        $this->assertCount(2, $achievements);
-        $this->assertSame('track_passed', $achievements[0]['kind']);
-        $this->assertSame('track.fundamente.title', $achievements[0]['track_title_key']);
-        $this->assertSame('first_blood', $achievements[1]['kind']);
-        $this->assertSame($node->title['de'], $achievements[1]['node_title']);
+    public function test_total_points_adds_node_points_and_track_points(): void
+    {
+        $user = User::factory()->create();
+        $node = Node::factory()->create(['skills' => ['netzwerk'], 'points' => 30]);
+        $track = Track::factory()->create();
+        $this->solve($user, $node, 30);
+        $this->passExam($user, $track, passed: true);
+
+        $this->assertSame(30 + ProfileService::TRACK_PASS_POINTS, (new ProfileService)->totalPoints($user));
     }
 
     public function test_leaderboard_only_returns_opted_in_profiles_sorted_by_points(): void
@@ -161,6 +132,23 @@ class ProfileServiceTest extends TestCase
             'points' => $points,
             'started_at' => now(),
             'flag_submitted_at' => now(),
+        ]);
+    }
+
+    private function passExam(User $user, Track $track, bool $passed): void
+    {
+        ExamAttempt::create([
+            'user_id' => $user->id,
+            'track_id' => $track->id,
+            'status' => 'completed',
+            'question_ids' => ['f01'],
+            'current_index' => 1,
+            'answers' => ['f01' => ['submitted' => 0, 'correct' => $passed]],
+            'score_correct' => $passed ? 1 : 0,
+            'score_total' => 1,
+            'passed' => $passed,
+            'started_at' => now()->subMinutes(10),
+            'completed_at' => now(),
         ]);
     }
 }

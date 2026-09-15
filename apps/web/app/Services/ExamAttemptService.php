@@ -10,8 +10,8 @@ use App\Content\MarkdownRenderer;
 use App\Models\ExamAttempt;
 use App\Models\Lesson;
 use App\Models\Track;
-use App\Models\TrackBadge;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -151,17 +151,25 @@ final class ExamAttemptService
             ];
         }
 
-        $badgeNewlyAwarded = $this->profiles->recomputeAfterExamAttempt($attempt->user, $attempt->track, $passed, $answeredQuestions);
-
         $attempt->status = 'completed';
         $attempt->score_correct = $correctCount;
         $attempt->score_total = $total;
         $attempt->passed = $passed;
-        $attempt->badge_awarded = $badgeNewlyAwarded;
         $attempt->completed_at = now();
         $attempt->save();
 
-        $this->progressRecorder->record('exam', $attempt->track->slug, $attempt->user);
+        // recomputeAfterExamAttempt() (Skill-Radar, Punkte) und die
+        // Track-Badge-Vergabe (deklaratives Achievement "track-<slug>",
+        // ADR 0090b) muessen NACH dem Save laufen: ProfileService::
+        // totalPoints() zaehlt bestandene Tracks direkt aus ExamAttempt,
+        // und AchievementUnlockEvaluator liest ueber ExamActivity::result()
+        // ebenfalls den frisch gespeicherten Status -- beides braeuchte
+        // sonst den noch nicht persistierten $attempt->passed.
+        $this->profiles->recomputeAfterExamAttempt($attempt->user, $attempt->track, $passed, $answeredQuestions);
+
+        $unlocked = $this->progressRecorder->record('exam', $attempt->track->slug, $attempt->user);
+        $attempt->badge_awarded = collect($unlocked)->contains('slug', "track-{$attempt->track->slug}");
+        $attempt->save();
 
         return $attempt;
     }
@@ -202,9 +210,15 @@ final class ExamAttemptService
             ->where('status', 'in_progress')
             ->pluck('id', 'track_id');
 
-        $badges = $user === null ? collect() : TrackBadge::query()
+        // Erstmaliges Bestehen je Track (fruehere Quelle: TrackBadge,
+        // ADR 0090b): das fruehste completed_at eines bestandenen Versuchs
+        // ist dasselbe Datum, das TrackBadge.awarded_at trug.
+        $firstPassedAt = $user === null ? collect() : ExamAttempt::query()
             ->where('user_id', $user->id)
             ->whereIn('track_id', $trackIds)
+            ->where('passed', true)
+            ->select('track_id', DB::raw('MIN(completed_at) as first_passed_at'))
+            ->groupBy('track_id')
             ->get()
             ->keyBy('track_id');
 
@@ -213,14 +227,14 @@ final class ExamAttemptService
         foreach ($tracks as $track) {
             $total = (int) ($lessonTotals[$track->id] ?? 0);
             $completed = (int) ($completedTotals[$track->id] ?? 0);
-            $badge = $badges->get($track->id);
+            $passedEntry = $firstPassedAt->get($track->id);
 
             $status[$track->id] = [
                 'exam_defined' => in_array($track->slug, $examSlugs, true),
                 'all_lessons_completed' => $total > 0 && $completed === $total,
                 'in_progress_attempt_id' => $inProgressAttempts[$track->id] ?? null,
-                'passed' => $badge !== null,
-                'passed_at' => $badge?->awarded_at->toDateString(),
+                'passed' => $passedEntry !== null,
+                'passed_at' => $passedEntry !== null ? CarbonImmutable::parse($passedEntry->first_passed_at)->toDateString() : null,
             ];
         }
 

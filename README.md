@@ -189,8 +189,8 @@ erzeugten Artefakt machen.
   `NodeController::unlockNodeAchievements()` ist komplett entfernt; die
   vier node-gebundenen Achievements stehen jetzt in `achievements.yml`
   statt in `node.yml`. Das aeltere "Pionier"-System (first_blood/
-  track_badges, ADR 0070) bleibt bewusst unverändert, siehe
-  `docs/offene-fragen.md`.
+  track_badges, ADR 0070) ist seit ADR 0091 ebenfalls vollständig auf
+  dieses System migriert.
 - **W5 (Teil 1) — Voraussetzungen weich durchsetzen** (fertig, siehe ADR
   0078): `LessonPrerequisiteService` zeigt offene `requires` auf der
   Lektionsseite und in der Trackübersicht sichtbar an (Schloss-Hinweis),

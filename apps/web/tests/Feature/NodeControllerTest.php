@@ -247,12 +247,6 @@ class NodeControllerTest extends TestCase
         $this->assertNotNull($profile);
         $this->assertSame(9, $profile->points);
         $this->assertSame(['netzwerk' => 9, 'datenmodell' => 0, 'bildgebung' => 0, 'integration' => 0, 'security' => 0], $profile->skill_vector);
-
-        $this->assertDatabaseHas('achievements', [
-            'user_id' => $user->id,
-            'node_id' => $node->id,
-            'type' => 'first_blood',
-        ]);
     }
 
     public function test_correct_flag_unlocks_the_personal_first_blood_achievement_once(): void
@@ -270,7 +264,14 @@ class NodeControllerTest extends TestCase
         $response = $this->actingAs($user)->postJson('/de/nodes/test-node/flag', ['value' => 'Testflag']);
 
         $response->assertOk();
-        $this->assertSame(['first-blood'], array_column($response->json('unlocked_achievements'), 'slug'));
+        // "trailblazer" (globaler Wettlauf, ADR 0090b) und "first-blood"
+        // (persoenlich, ADR 0077) sind beide activity_completed-Kriterien
+        // ohne key -- die erste je geloeste Node schaltet zwangslaeufig
+        // beide gleichzeitig frei.
+        $this->assertEqualsCanonicalizing(
+            ['first-blood', 'trailblazer'],
+            array_column($response->json('unlocked_achievements'), 'slug'),
+        );
         $this->assertSame(
             1,
             AchievementUnlock::query()
@@ -278,10 +279,18 @@ class NodeControllerTest extends TestCase
                 ->whereRelation('definition', 'slug', 'first-blood')
                 ->count(),
         );
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()
+                ->where('user_id', $user->id)
+                ->whereRelation('definition', 'slug', 'trailblazer')
+                ->count(),
+        );
 
         // Ein zweiter geloester Node darf first-blood nicht erneut vergeben,
         // aber sein eigenes, deklarativ an ihn gebundenes Achievement schon
-        // (ADR 0077: unlock_when statt node.yml-Feld).
+        // (ADR 0077: unlock_when statt node.yml-Feld) -- und "trailblazer"
+        // wieder, weil es global-scoped ist (je Node ein eigener Gewinner).
         AchievementDefinition::create([
             'slug' => 'second-node-badge', 'name' => 'Zweiter Node', 'description' => 'Test',
             'image' => 'second-node-badge.png', 'category' => 'test', 'points' => 0,
@@ -308,8 +317,8 @@ class NodeControllerTest extends TestCase
         $secondResponse = $this->actingAs($user)->postJson('/de/nodes/test-node-2/flag', ['value' => 'Testflag2']);
 
         $secondResponse->assertOk();
-        $this->assertSame(
-            ['second-node-badge'],
+        $this->assertEqualsCanonicalizing(
+            ['second-node-badge', 'trailblazer'],
             array_column($secondResponse->json('unlocked_achievements'), 'slug'),
         );
         $this->assertSame(
@@ -317,6 +326,13 @@ class NodeControllerTest extends TestCase
             AchievementUnlock::query()
                 ->where('user_id', $user->id)
                 ->whereRelation('definition', 'slug', 'first-blood')
+                ->count(),
+        );
+        $this->assertSame(
+            2,
+            AchievementUnlock::query()
+                ->where('user_id', $user->id)
+                ->whereRelation('definition', 'slug', 'trailblazer')
                 ->count(),
         );
     }

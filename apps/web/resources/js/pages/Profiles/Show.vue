@@ -5,13 +5,7 @@ import AchievementBadge from '@/components/achievements/AchievementBadge.vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -24,24 +18,12 @@ import { home } from '@/routes';
 import { exportMethod as exportProfile } from '@/routes/profiles';
 import type { Achievement } from '@/types/achievement';
 
-type PioneerAchievement = {
-    node_title: string;
-    awarded_at: string;
-};
-
-type TrackBadgeEntry = {
-    track_title_key: string;
-    awarded_at: string;
-};
-
 type ProfileData = {
     name: string;
     rank: string;
     points: number;
     skill_vector: Record<string, number>;
     member_since: string | null;
-    first_bloods: PioneerAchievement[];
-    track_badges: TrackBadgeEntry[];
     achievements: Achievement[];
 };
 
@@ -222,48 +204,6 @@ function formatAchievementDate(iso: string): string {
                             {{ trans(`skill.${label.key}`) }}
                         </text>
                     </svg>
-                </CardContent>
-            </Card>
-
-            <Card v-if="profile.track_badges.length > 0" class="mb-6">
-                <CardHeader>
-                    <CardTitle>{{ trans('Bestandene Tracks') }}</CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-2">
-                    <div
-                        v-for="badge in profile.track_badges"
-                        :key="badge.track_title_key + badge.awarded_at"
-                        class="flex items-center justify-between text-sm"
-                    >
-                        <span>{{ trans(badge.track_title_key) }}</span>
-                        <span class="text-muted-foreground">{{
-                            badge.awarded_at
-                        }}</span>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card class="mb-6">
-                <CardHeader>
-                    <CardTitle>{{ trans('Pionier') }}</CardTitle>
-                    <CardDescription v-if="profile.first_bloods.length === 0">
-                        {{ trans('No first bloods yet.') }}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent
-                    v-if="profile.first_bloods.length > 0"
-                    class="space-y-2"
-                >
-                    <div
-                        v-for="entry in profile.first_bloods"
-                        :key="entry.node_title + entry.awarded_at"
-                        class="flex items-center justify-between text-sm"
-                    >
-                        <span>{{ entry.node_title }}</span>
-                        <span class="text-muted-foreground">{{
-                            entry.awarded_at
-                        }}</span>
-                    </div>
                 </CardContent>
             </Card>
 

@@ -2,16 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\Achievement;
+use App\Models\ExamAttempt;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\Profile;
 use App\Models\Track;
-use App\Models\TrackBadge;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 
 /**
@@ -22,8 +19,9 @@ use Illuminate\Support\Str;
  */
 final class ProfileService
 {
-    // Einmalig je bestandenem Track (TrackBadge ist unique(user_id,
-    // track_id)), passend zur Rang-Schwelle novice -> operator. Public,
+    // Einmalig je bestandenem Track (gezaehlt ueber den fruehesten
+    // bestandenen ExamAttempt je Track, nicht mehrfach bei erneutem
+    // Bestehen), passend zur Rang-Schwelle novice -> operator. Public,
     // damit die Ergebnisseite (P10.65) denselben Wert anzeigen kann, ohne
     // ihn zu duplizieren.
     public const TRACK_PASS_POINTS = 50;
@@ -69,14 +67,22 @@ final class ProfileService
             ->where('status', 'solved')
             ->sum('points');
 
-        $trackPoints = TrackBadge::query()->where('user_id', $user->id)->count() * self::TRACK_PASS_POINTS;
+        $passedTracks = ExamAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('passed', true)
+            ->distinct('track_id')
+            ->count('track_id');
 
-        return $nodePoints + $trackPoints;
+        return $nodePoints + $passedTracks * self::TRACK_PASS_POINTS;
     }
 
     /**
      * Nach jedem geloesten Flag aufgerufen (Abschnitt 10, P8-DoD): Rang und
-     * Skill-Radar neu berechnen, First Blood pruefen.
+     * Skill-Radar neu berechnen. Die "Trailblazer"-Vergabe (globaler
+     * Wettlauf um die Erstloesung einer Node, frueher first_blood/ADR 0009)
+     * laeuft seit ADR 0090b deklarativ ueber AchievementUnlockEvaluator,
+     * ausgeloest vom Aufrufer via ActivityProgressRecorder::record(), nicht
+     * mehr hier.
      */
     public function recomputeAfterSolve(User $user, Node $node): void
     {
@@ -106,33 +112,24 @@ final class ProfileService
         $profile->points = $this->totalPoints($user);
         $profile->skill_vector = $skillVector;
         $profile->save();
-
-        $this->maybeAwardFirstBlood($user, $node);
     }
 
     /**
      * Nach Abschluss einer Track-Abschlusspruefung aufgerufen (P10.60):
-     * vergibt bei Bestehen einmalig ein TrackBadge (die zweite
-     * Punktequelle, siehe Klassendoc) und speist richtig beantwortete
-     * Fragen additiv ins Skill-Radar ein -- dieselbe additive Logik wie bei
-     * Node-`skills` in recomputeAfterSolve(), keine Straf-/Abzugsmechanik
-     * fuer falsche Antworten (die gibt es sonst nirgends im Code).
+     * speist richtig beantwortete Fragen additiv ins Skill-Radar ein --
+     * dieselbe additive Logik wie bei Node-`skills` in
+     * recomputeAfterSolve(), keine Straf-/Abzugsmechanik fuer falsche
+     * Antworten (die gibt es sonst nirgends im Code). Die Track-Badge-
+     * Vergabe (deklaratives Achievement "track-<slug>") laeuft seit ADR
+     * 0090b ueber AchievementUnlockEvaluator, ausgeloest vom Aufrufer via
+     * ActivityProgressRecorder::record() -- totalPoints() zaehlt bestandene
+     * Tracks direkt aus ExamAttempt, ist also unabhaengig davon bereits
+     * korrekt, sobald $passed hier verarbeitet wurde.
      *
      * @param  list<array{correct: bool, tags: list<string>}>  $answeredQuestions
-     * @return bool ob dieser Aufruf das TrackBadge neu vergeben hat (nicht nur bestanden, sondern zum ersten Mal)
      */
-    public function recomputeAfterExamAttempt(User $user, Track $track, bool $passed, array $answeredQuestions): bool
+    public function recomputeAfterExamAttempt(User $user, Track $track, bool $passed, array $answeredQuestions): void
     {
-        $badgeNewlyAwarded = false;
-
-        if ($passed) {
-            $badge = TrackBadge::firstOrCreate(
-                ['user_id' => $user->id, 'track_id' => $track->id],
-                ['awarded_at' => now()],
-            );
-            $badgeNewlyAwarded = $badge->wasRecentlyCreated;
-        }
-
         $profile = $this->profileFor($user);
         $skillVector = $profile->skill_vector;
 
@@ -152,52 +149,6 @@ final class ProfileService
         $profile->points = $this->totalPoints($user);
         $profile->rank = $this->rankFor($profile->points);
         $profile->save();
-
-        return $badgeNewlyAwarded;
-    }
-
-    /**
-     * Fasst first_blood-Achievements (global, pro Node, ADR 0009) und
-     * TrackBadges (pro Nutzer, pro Track, ADR 0066) zu einer nach
-     * `awarded_at` sortierten Liste zusammen -- die eine gemeinsame
-     * Lesestelle fuer "welche Abzeichen hat dieser Nutzer" (das aeltere
-     * "Pionier"-System, siehe docs/achievements.md), die Dashboard und
-     * oeffentliches Profil gleichermassen nutzen (ADR 0070). Die beiden
-     * Herkunfts-Tabellen, ihre Unique-Constraints und ihre getrennte
-     * Vergabe-Logik bleiben unangetastet.
-     *
-     * @return list<array{kind: string, node_title: ?string, track_title_key: ?string, awarded_at: CarbonImmutable}>
-     */
-    public function achievementsFor(User $user): array
-    {
-        $firstBloods = Achievement::query()
-            ->where('user_id', $user->id)
-            ->where('type', 'first_blood')
-            ->with('node')
-            ->get()
-            ->map(fn (Achievement $achievement) => [
-                'kind' => 'first_blood',
-                'node_title' => $achievement->node?->title['de'] ?? $achievement->node?->slug,
-                'track_title_key' => null,
-                'awarded_at' => $achievement->awarded_at,
-            ]);
-
-        $trackBadges = TrackBadge::query()
-            ->where('user_id', $user->id)
-            ->with('track')
-            ->get()
-            ->map(fn (TrackBadge $badge) => [
-                'kind' => 'track_passed',
-                'node_title' => null,
-                'track_title_key' => $badge->track?->title_key,
-                'awarded_at' => $badge->awarded_at,
-            ]);
-
-        $entries = [...$firstBloods->all(), ...$trackBadges->all()];
-
-        usort($entries, fn (array $a, array $b) => $b['awarded_at'] <=> $a['awarded_at']);
-
-        return $entries;
     }
 
     /**
@@ -226,32 +177,6 @@ final class ProfileService
         }
 
         return $rank;
-    }
-
-    private function maybeAwardFirstBlood(User $user, Node $node): void
-    {
-        $alreadyAwarded = Achievement::query()
-            ->where('node_id', $node->id)
-            ->where('type', 'first_blood')
-            ->exists();
-
-        if ($alreadyAwarded) {
-            return;
-        }
-
-        // Race-sicher: der Unique-Index (node_id, type) laesst bei
-        // gleichzeitigen Loesungen nur den ersten Insert durch.
-        try {
-            Achievement::create([
-                'user_id' => $user->id,
-                'node_id' => $node->id,
-                'type' => 'first_blood',
-                'awarded_at' => now(),
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            // Ein anderer Nutzer war zwischen der exists()-Pruefung und
-            // diesem Insert schneller -- kein Fehler, nur kein First Blood.
-        }
     }
 
     private function generateUniqueSlug(): string

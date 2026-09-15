@@ -23,7 +23,6 @@ const baseProps = {
     profile: { points: 0, rank: 'novice', skill_vector: {} },
     tracks: [],
     recent_lessons: [],
-    pioneer_achievements: [],
     due_reviews_count: 0,
 };
 

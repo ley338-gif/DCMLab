@@ -41,13 +41,6 @@ type RecentLesson = {
     completed_at: string | null;
 };
 
-type PioneerAchievementEntry = {
-    kind: string;
-    node_title: string | null;
-    track_title_key: string | null;
-    awarded_at: string;
-};
-
 const props = defineProps<{
     profile: {
         points: number;
@@ -56,7 +49,6 @@ const props = defineProps<{
     };
     tracks: TrackProgress[];
     recent_lessons: RecentLesson[];
-    pioneer_achievements: PioneerAchievementEntry[];
     achievements: Achievement[];
     due_reviews_count: number;
 }>();
@@ -67,15 +59,6 @@ const rankLabels: Record<string, string> = {
     administrator: trans('Administrator'),
     architect: trans('Architekt'),
     standard_bearer: trans('Standard Bearer'),
-};
-
-// "Pionier": globaler Wettlauf um die Erstloesung einer Node (frueher als
-// "First Blood" beschriftet -- umbenannt, weil der neue, persoenliche
-// first-blood-Achievement-Slug unten dieselbe Bezeichnung braucht) plus
-// bestandene Track-Pruefungen (ADR 0070).
-const pioneerAchievementLabels: Record<string, string> = {
-    first_blood: trans('Pionier'),
-    track_passed: trans('Abschlussprüfung bestanden'),
 };
 
 const unlockedAchievementsCount = computed(
@@ -246,90 +229,40 @@ function formatDate(iso: string): string {
                 </CardContent>
             </Card>
 
-            <div class="grid gap-4 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{{ trans('Zuletzt bearbeitet') }}</CardTitle>
-                    </CardHeader>
-                    <CardContent class="flex flex-col gap-2">
-                        <p
-                            v-if="props.recent_lessons.length === 0"
-                            class="text-muted-foreground text-sm"
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ trans('Zuletzt bearbeitet') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="flex flex-col gap-2">
+                    <p
+                        v-if="props.recent_lessons.length === 0"
+                        class="text-muted-foreground text-sm"
+                    >
+                        {{ trans('Noch keine Lektion begonnen.') }}
+                    </p>
+                    <Link
+                        v-for="lesson in props.recent_lessons"
+                        :key="lesson.lesson_id"
+                        :href="showLesson(lesson.lesson_id)"
+                        class="hover:bg-accent/50 flex items-center justify-between rounded-lg border p-3 text-sm transition-colors"
+                    >
+                        <span>{{ lesson.lesson_id }} — {{ lesson.title }}</span>
+                        <Badge
+                            :variant="
+                                lesson.status === 'completed'
+                                    ? 'default'
+                                    : 'secondary'
+                            "
                         >
-                            {{ trans('Noch keine Lektion begonnen.') }}
-                        </p>
-                        <Link
-                            v-for="lesson in props.recent_lessons"
-                            :key="lesson.lesson_id"
-                            :href="showLesson(lesson.lesson_id)"
-                            class="hover:bg-accent/50 flex items-center justify-between rounded-lg border p-3 text-sm transition-colors"
-                        >
-                            <span
-                                >{{ lesson.lesson_id }} —
-                                {{ lesson.title }}</span
-                            >
-                            <Badge
-                                :variant="
-                                    lesson.status === 'completed'
-                                        ? 'default'
-                                        : 'secondary'
-                                "
-                            >
-                                {{
-                                    lesson.status === 'completed'
-                                        ? trans('Erledigt')
-                                        : trans('Begonnen')
-                                }}
-                            </Badge>
-                        </Link>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{{ trans('Pionier') }}</CardTitle>
-                    </CardHeader>
-                    <CardContent class="flex flex-col gap-2">
-                        <p
-                            v-if="props.pioneer_achievements.length === 0"
-                            class="text-muted-foreground text-sm"
-                        >
-                            {{ trans('Noch keine Achievements.') }}
-                        </p>
-                        <div
-                            v-for="(
-                                achievement, index
-                            ) in props.pioneer_achievements"
-                            :key="index"
-                            class="flex items-center justify-between rounded-lg border p-3 text-sm"
-                        >
-                            <span>
-                                {{
-                                    pioneerAchievementLabels[
-                                        achievement.kind
-                                    ] ?? achievement.kind
-                                }}
-                                <span
-                                    v-if="achievement.node_title"
-                                    class="text-muted-foreground"
-                                    >— {{ achievement.node_title }}</span
-                                >
-                                <span
-                                    v-if="achievement.track_title_key"
-                                    class="text-muted-foreground"
-                                    >—
-                                    {{
-                                        trans(achievement.track_title_key)
-                                    }}</span
-                                >
-                            </span>
-                            <span class="text-muted-foreground text-xs">{{
-                                formatDate(achievement.awarded_at)
-                            }}</span>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                            {{
+                                lesson.status === 'completed'
+                                    ? trans('Erledigt')
+                                    : trans('Begonnen')
+                            }}
+                        </Badge>
+                    </Link>
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">

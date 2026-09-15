@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Models\ExamAttempt;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Track;
-use App\Models\TrackBadge;
 use App\Models\User;
 use App\Services\AchievementService;
 use Database\Seeders\AchievementSeeder;
@@ -61,7 +61,19 @@ class DashboardTest extends TestCase
         $passedTrack = Track::factory()->create(['slug' => 'passed', 'order' => 1, 'title_key' => 'track.passed.title']);
         $lessonDone = Lesson::factory()->create(['track_id' => $passedTrack->id, 'lesson_id' => 'p.1']);
         LessonProgress::create(['user_id' => $user->id, 'lesson_id' => $lessonDone->id, 'status' => 'completed', 'started_at' => now(), 'completed_at' => now()]);
-        TrackBadge::create(['user_id' => $user->id, 'track_id' => $passedTrack->id, 'awarded_at' => now()]);
+        ExamAttempt::create([
+            'user_id' => $user->id,
+            'track_id' => $passedTrack->id,
+            'status' => 'completed',
+            'question_ids' => ['f01'],
+            'current_index' => 1,
+            'answers' => ['f01' => ['submitted' => 0, 'correct' => true]],
+            'score_correct' => 1,
+            'score_total' => 1,
+            'passed' => true,
+            'started_at' => now()->subMinutes(10),
+            'completed_at' => now(),
+        ]);
 
         $availableTrack = Track::factory()->create(['slug' => 'available', 'order' => 2]);
         $availableLesson = Lesson::factory()->create(['track_id' => $availableTrack->id, 'lesson_id' => 'a.1']);
@@ -81,9 +93,7 @@ class DashboardTest extends TestCase
             ->where('tracks.1.exam.passed', false)
             ->where('tracks.1.exam.available', true)
             ->where('tracks.2.exam.passed', false)
-            ->where('tracks.2.exam.available', false)
-            ->where('pioneer_achievements.0.kind', 'track_passed')
-            ->where('pioneer_achievements.0.track_title_key', 'track.passed.title'),
+            ->where('tracks.2.exam.available', false),
         );
 
         File::deleteDirectory($contentDir);
@@ -99,7 +109,7 @@ class DashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->has('achievements', 6)
+            ->has('achievements', 13)
             ->where('achievements', fn ($achievements) => collect($achievements)
                 ->firstWhere('slug', 'sandbox-starter')['unlocked'] === true
                 && collect($achievements)->firstWhere('slug', 'echo-heard')['unlocked'] === false

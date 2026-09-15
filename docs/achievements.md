@@ -7,31 +7,31 @@ Service-Schicht mit einer einzigen `unlock()`-Methode statt verstreuter
 (das Projekt hat an keiner Stelle Laravel-Events/-Listener, siehe
 `AchievementService`-Klassendoc).
 
-## Verhältnis zum älteren "First Blood"-Achievement
+## Verhältnis zum älteren "Pionier"-System (first_blood/track_badges)
 
-Bevor dieses System existierte, gab es bereits ein schmales
-Achievement-Feature: `App\Models\Achievement` + `achievements`-Tabelle +
-`ProfileService::maybeAwardFirstBlood()`, dokumentiert in
-[ADR 0009](adr/0009-p8-punkte-raenge-profil-entscheidungen.md). Es vergibt
-`type=first_blood` **einmal pro Node, global** — an den ersten Nutzer, der
-eine neu veröffentlichte Node löst (`unique(node_id, type)`), nicht an jeden
-Nutzer für seine eigene erste Lösung.
+Vor diesem System gab es ein schmales, separates Achievement-Feature:
+`App\Models\Achievement` (`type=first_blood`, global pro Node, ADR 0009)
+und `App\Models\TrackBadge` (ein Abzeichen pro Nutzer und bestandenem
+Track, ADR 0066), zusammengefasst unter dem Anzeige-Label "Pionier". ADR
+0091 (15.09.2026) hat beide Mechaniken vollständig migriert, sobald die
+dafür nötigen Bild-Assets vorlagen:
 
-Das neue Achievement-System hat einen eigenen `first-blood`-Slug mit einer
-anderen, persönlichen Bedeutung ("dein erstes gelöstes Lab/Node" — jeder
-Nutzer kann ihn bekommen). Um die Namenskollision aufzulösen, ohne die
-bestehenden Daten anzufassen:
-
-- Die alte Tabelle, das alte Model und `ProfileService::maybeAwardFirstBlood()`
-  bleiben **unverändert** bestehen — keine Migration, keine verlorene
-  Historie, ADR 0009 bleibt gültig.
-- Nur das Anzeige-Label wurde von "First Blood" zu **"Pionier"** geändert
-  (`Dashboard.vue`s `pioneerAchievementLabels`, `Profiles/Show.vue`s
-  Card-Titel). Backend-seitig heißen die zugehörigen Props bewusst
-  `pioneer_achievements`, um Verwechslungen mit `achievements` (das neue
-  System) zu vermeiden.
-- Der neue, persönliche `first-blood`-Slug lebt vollständig in den unten
-  beschriebenen neuen Tabellen.
+- `first_blood` lebt jetzt als `trailblazer`-Achievement (`scope: global`,
+  `unlock_when: {type: activity_completed, activity_type: node}`, kein
+  `key` — ein eigener Gewinner je Node).
+- `track_badges` leben jetzt als sechs `track-<slug>`-Achievements
+  (`unlock_when: {type: track_passed, track: <slug>}`).
+- Beide nutzen ausschließlich die unten beschriebene, bereits für ADR 0077
+  gebaute Infrastruktur — keine neue Vergabe-Logik, nur die Content-Einträge.
+- Ein Artisan-Befehl (`php artisan achievements:migrate-pionier`)
+  überträgt historische `achievements`/`track_badges`-Zeilen einmalig,
+  unverändert (`user_id`, `awarded_at`) nach `achievement_unlocks`.
+- `achievements`/`track_badges` als Tabellen bleiben vorerst bestehen
+  (nicht mehr beschrieben), bis der Backfill überall bestätigt gelaufen
+  ist — siehe `docs/offene-fragen.md` für den offenen Folgeschritt, sie zu
+  droppen. Es gibt keinen `pioneer_achievements`-Prop mehr; Dashboard und
+  öffentliches Profil zeigen nur noch die eine, generische
+  Achievement-Liste unten.
 
 ## Architektur
 
@@ -56,12 +56,16 @@ Frontend (Achievement-DTOs, siehe resources/js/types/achievement.ts)
 - **`achievement_definitions`**: eine Zeile je Achievement, befüllt über
   `Database\Seeders\AchievementSeeder` (`updateOrCreate(['slug' => ...], ...)`,
   idempotent, kein `insert()`).
-- **`achievement_unlocks`**: eine Zeile je (Nutzer, Achievement), sobald
-  freigeschaltet. `unique(user_id, achievement_definition_id)` verhindert
-  Duplikate, auch bei gleichzeitigen Requests (derselbe
-  Race-sicher-Ansatz wie `ProfileService::maybeAwardFirstBlood()`: erst
-  `exists()`-Check, dann `create()` in einem `try/catch
-  (UniqueConstraintViolationException)`).
+- **`achievement_unlocks`**: eine Zeile je (Nutzer, Achievement) bei
+  persönlichen (`scope: personal`, Default), eine Zeile je (Achievement,
+  Aktivität) bei globalen Achievements (`scope: global`, `activity_id`
+  gesetzt — ADR 0077/0091). Zwei sich ergänzende Constraints verhindern
+  Duplikate race-sicher: ein partieller Unique-Index `(user_id,
+  achievement_definition_id) WHERE activity_id IS NULL` für persönliche,
+  `unique(achievement_definition_id, activity_id)` für globale
+  Achievements (erst `exists()`-Check, dann `create()` in einem
+  `try/catch (UniqueConstraintViolationException)`, siehe
+  `AchievementService::unlock()`).
 - **`App\Services\AchievementService`**: die einzige öffentliche API.
   - `unlock(User $user, string $slug, array $metadata = []): AchievementUnlockResult`
     — idempotent, sicher mehrfach aufrufbar. `AchievementUnlockResult::status`
@@ -156,8 +160,8 @@ unlock_when:
   enthält. `GlobalLayout.vue` und `LessonLayout.vue` mounten dafür `<Toaster />`.
 - Dashboard (`Dashboard.vue`) und öffentliches Profil (`Profiles/Show.vue`)
   zeigen je eine Sektion mit dem vollständigen Achievement-Grid
-  (`AchievementService::listForUser()`), unabhängig von der bestehenden
-  "Pionier"-Liste.
+  (`AchievementService::listForUser()`) — die einzige Achievement-Anzeige
+  seit der Pionier-Migration (ADR 0091).
 
 ## Tests
 

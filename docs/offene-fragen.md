@@ -22,26 +22,39 @@ eine Lektionsfrage dupliziert (identischer Text, identische Antwort) --
 das laesst sich am ehesten beim naechsten redaktionellen Durchgang durch
 `content/exams/` erkennen, nicht automatisiert.
 
-## Pionier-System (first_blood/track_badges) in Achievements migrieren (nach W4)
+## ~~Pionier-System (first_blood/track_badges) in Achievements migrieren (nach W4)~~ Erledigt
 
-**Frage:** Sollen `achievements` (global first_blood) und `track_badges` zu
-echten `achievement_definitions`/`achievement_unlocks`-Einträgen werden,
-statt als eigenes, bild-freies "Pionier"-Lesemodell bestehen zu bleiben?
+**Erledigt (ADR 0091, 15.09.2026):** Der Betreiber hat die sieben dafuer
+noetigen Bild-Assets geliefert (1254×1254 PNG, Stil der sechs
+bestehenden Badges: ein globales "Trailblazer"-Abzeichen plus eins je
+Track). `first_blood` und `track_badges` sind jetzt echte
+`achievement_definitions`-Eintraege (`trailblazer`, `track-<slug>`) in
+`content/achievements.yml`, ueber die bereits vorhandene, aber bis dahin
+nie mit echtem Content ausgeuebte `scope`/`unlock_when`-Infrastruktur aus
+ADR 0077. Dabei einen echten, seit der urspruenglichen
+achievement_unlocks-Migration bestehenden Bug gefunden und behoben: eine
+zu weit gefasste Unique-Constraint verhinderte, dass derselbe Nutzer ein
+global-scoped Achievement auf einer zweiten Aktivitaet gewinnen konnte
+(siehe ADR 0091 fuer Details).
 
-**Kontext:** ADR 0070 hat eine Schema-Vereinheitlichung geprüft und
-verworfen, u. a. weil Pionier bewusst ohne Badge-Bildsprache lebt. W4 (ADR
-0077) hat das deklarative Vergabesystem (`scope`, `unlock_when`) gebaut,
-aber die Pionier-Daten selbst nicht migriert — jede migrierte Zeile bräuchte
-ein Bild-Asset unter `public/images/achievements/`, das es fuer "wer hat
-diese Node zuerst gelöst" oder "Track X bestanden" nie gab.
+## Alt-Tabellen `achievements`/`track_badges` droppen (nach ADR 0091)
 
-**Empfehlung:** Nur migrieren, wenn jemand tatsächlich Kartenoptik für diese
-beiden Mechaniken will (Bild, Rarity, Kategorie) — dann sind sechs
-(fuer bestehende Tracks) plus eine globale Definition zu gestalten, danach
-ist die Datenmigration selbst mechanisch (siehe `ContentVersioningService`-
-und `ContentValidator`-Extraktionen dieser Session fuer das Muster: Service
-zuerst, dann Daten). Ohne neuen Bildbedarf: Pionier bleibt, wie es ist,
-kein technischer Nachteil dadurch.
+**Frage:** Wann koennen die beiden Alt-Tabellen des migrierten
+Pionier-Systems (siehe ADR 0091) physisch entfernt werden?
+
+**Kontext:** ADR 0091 migriert die LESE-/SCHREIB-Pfade vollstaendig auf
+`achievement_unlocks`, laesst die beiden Alt-Tabellen aber bewusst
+bestehen: `php artisan achievements:migrate-pionier` (der Backfill-Befehl)
+muss in jeder echten Umgebung mit Bestandsdaten manuell ausgefuehrt und
+bestaetigt werden, bevor ihre Quelldaten geloescht werden duerfen -- ein
+automatisches `migrate --force` beim Deploy darf diesem Schritt nicht
+zuvorkommen.
+
+**Empfehlung:** Sobald der Backfill in jeder relevanten Umgebung (Dev,
+jede weitere reale Instanz) bestaetigt gelaufen ist, eine kleine
+Folge-Migration ergaenzen, die `achievements` und `track_badges`
+droppt, und `App\Models\Achievement`/`App\Models\TrackBadge` entfernen
+(im Anwendungscode bereits seit ADR 0091 ungenutzt).
 
 ## ~~`status: fertig` im Bestand normalisieren (vor jeder Sichtbarkeits-Gate, W3+)~~ -- erledigt
 
