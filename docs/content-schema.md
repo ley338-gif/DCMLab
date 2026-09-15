@@ -699,16 +699,16 @@ Die Umkehrprüfung ist die wichtigste davon: Sie verhindert die Klasse „Lektio
 
 ---
 
-## 10. Nachzuziehen
+## 10. Nachzuziehen (erledigt)
 
-Die Beispielregel und die Werkzeugleiste sind nach Lektion 1.1 und 1.5 entstanden. Beide sind inhaltlich gut, erfüllen die Abschnitte 0 und 1 aber noch nicht:
-
-| Datei | Was fehlt |
-|---|---|
-| `lektion-1.1-was-dicom-ist.md` | Werkzeugleiste (`dcmftest`, `dcmdump`). Der Nachweis, dass eine Datei DICOM ist, als echter Befehl mit Ausgabe — `dcmftest` ist genau das Werkzeug, das dafür bisher fehlte. |
-| `lektion-1.5-scu-und-scp.md` | Werkzeugleiste (`echoscu`, `storescp`). C-ECHO in beide Richtungen als zwei laufende Beispiele statt als Beschreibung. |
-
-Bis das nachgezogen ist, stehen beide auf `status: draft`.
+Die Beispielregel und die Werkzeugleiste sind nach Lektion 1.1 und 1.5
+entstanden und erfüllten die Abschnitte 0 und 1 anfangs noch nicht
+(Werkzeugleiste fehlte in beiden). Beides ist inzwischen nachgezogen:
+1.1 nennt `dcmftest`/`dcmdump` als echte Befehle mit Ausgabe (Nachweis,
+dass eine Datei DICOM ist), 1.5 führt C-ECHO mit `echoscu`/`storescp`
+in beide Richtungen als zwei laufende Beispiele vor. Beide stehen seit
+der `status`-Normalisierung (ADR 0086) wie alle Lektionen auf
+`status: published`.
 
 ## 11. Track-Prüfung — `exams/<track>/{exam.yml,de.md}`
 

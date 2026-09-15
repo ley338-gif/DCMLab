@@ -121,13 +121,15 @@ oder im Dev-Container).
 
 ## Was funktioniert
 
-- **Track 1 „Fundamente"** (1.0–1.8, veröffentlicht): vollständiger
-  Fließtext, Werkzeugleiste, Glossar, Fortschritt.
-- **Track 4 „Troubleshooting"** (4.1–4.10, Gerüste): Metadaten und
-  Gliederung stehen, Fließtext fehlt noch — `docs/content-todo.md`.
-- **10 Node-Definitionen**, davon drei spielbar (`silent-ct`, `wrong-door`,
-  `neue-node`) und sieben als dokumentierte Gerüste, die auf ein konkretes
-  fehlendes Engine-Feature verweisen (`docs/content-todo.md`).
+- **Sechs Tracks, alle vollständig veröffentlicht** (`status: published`):
+  „Fundamente" (1.0–1.8), „Die Services" (2.1–2.8), „Das Bild selbst"
+  (3.1–3.6), „Troubleshooting" (4.1–4.10), „Betrieb und Integration"
+  (5.1–5.8) sowie „Grundlagen" (6.1, Themenfeld Datenschutz) — jeweils
+  vollständiger Fließtext, Werkzeugleiste, Glossar, Fortschritt. Der
+  Bauverlauf je Track steht in `docs/content-todo.md`.
+- **17 Node-Definitionen**, alle spielbar — von einfachen Association-
+  Rätseln bis zu Szenario-Nodes (`interaction: scenario`, z. B.
+  `anruf-am-empfang`); Details je Node: `docs/content-todo.md`.
 - **Node-Engine** (simuliert, `services/engine`): Association-Prüfung
   (Host/Port/Called-AE/Calling-AE), Hints mit Punktabzug, Write-up-Strafe
   nur vorab, Flag-Hashing.
@@ -253,11 +255,6 @@ erzeugten Artefakt machen.
 
 ## Bekannte Lücken
 
-- Track 2, 3, 5 sind im Konzept geplant, aber nicht angelegt.
-- Sieben Node-Gerüste (siehe oben) warten auf konkrete Engine-Features
-  (lokale `.dcm`-Datei lesen, Mehrfach-Bestand pro Archiv,
-  Presentation-Context-/Transfer-Syntax-Aushandlung) — Details und
-  Blockaden je Node: `docs/content-todo.md`.
 - Redaktionelle Content-Lücken (Beispielregel-Grenzfälle, zwei
   Node-Assetdateien ohne Text): `docs/content-todo.md`. Deshalb läuft
   `content:validate` in CI weiterhin mit `continue-on-error: true`.
