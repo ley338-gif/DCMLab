@@ -117,7 +117,11 @@ final readonly class NodeActivity implements ActivityContract
 
     public function deserialize(): array
     {
-        $entry = $this->contentEntry();
+        // ADR 0107 (CMS-6d): body bevorzugt aus der DB (von content:sync
+        // befuellt) -- ContentRepository bleibt nur noch Fallback fuer eine
+        // Node, deren naechster Sync-Lauf noch aussteht (derselbe
+        // Fallback-Mechanismus wie bei Lesson, ADR 0101).
+        $body = $this->node->body ?? $this->contentEntry()['body'] ?? null;
 
         return [
             'slug' => $this->node->slug,
@@ -128,7 +132,7 @@ final readonly class NodeActivity implements ActivityContract
             'interaction' => $this->node->interaction,
             'skills' => $this->node->skills,
             'related_lessons' => $this->node->related_lessons,
-            'body' => $entry['body'] ?? null,
+            'body' => $body,
         ];
     }
 

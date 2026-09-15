@@ -11,8 +11,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
- * Index ueber content/nodes/<slug>/ (Abschnitt 7). Umgebung, Flag-Hash und
- * Hint-Texte bleiben im Dateisystem bzw. bei der Engine.
+ * Index ueber content/nodes/<slug>/ (Abschnitt 7). Seit ADR 0107 (CMS-6d)
+ * traegt `body` denselben Fliesstext, den `NodeSections::parse()` in
+ * Briefing/Hints/Write-up zerlegt (`hints` nur die id/cost-Metadaten dazu)
+ * -- Runtime-/Sicherheitsparameter (Engine-Konfiguration, Flag-Validierung,
+ * Sandbox-Template) bleiben bewusst ausserhalb dieses Modells.
  *
  * @property int $id
  * @property string $slug
@@ -28,13 +31,15 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $content_updated_at
  * @property array<string, string> $title
  * @property array<string, string> $scenario_title
+ * @property string|null $body Seit ADR 0107 (CMS-6d) von content:sync aus de.md befuellt
+ * @property list<array{id: string, cost: int}>|null $hints Seit ADR 0107 (CMS-6d) von content:sync aus node.yml befuellt
  * @property string $source_hash
  * @property-read Themenfeld|null $themenfeld
  */
 #[Fillable([
     'slug', 'difficulty', 'points', 'category', 'themenfeld_id', 'interaction', 'skills',
     'related_lessons', 'estimated_minutes', 'status', 'content_updated_at', 'title',
-    'scenario_title', 'source_hash',
+    'scenario_title', 'body', 'hints', 'source_hash',
 ])]
 class Node extends Model
 {
@@ -53,6 +58,7 @@ class Node extends Model
             'related_lessons' => 'array',
             'title' => 'array',
             'scenario_title' => 'array',
+            'hints' => 'array',
             'content_updated_at' => 'date',
         ];
     }

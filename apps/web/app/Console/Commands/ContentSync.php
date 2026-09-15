@@ -335,6 +335,12 @@ class ContentSync extends Command
                     'content_updated_at' => $node['def']['updated'] ?? null,
                     'title' => $title,
                     'scenario_title' => ['de' => $node['frontmatter']['scenario_title'] ?? ''],
+                    // ADR 0107 (CMS-6d): dieselbe Datei wie title/
+                    // scenario_title, nur der vollstaendige Markdown-Body
+                    // (Briefing/Hints/Write-up) bzw. der hints:-Block aus
+                    // node.yml.
+                    'body' => $node['body'] ?? null,
+                    'hints' => $node['def']['hints'] ?? [],
                     'source_hash' => $sourceHash,
                 ],
             );
