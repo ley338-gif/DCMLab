@@ -90,9 +90,9 @@ Route::prefix('de')->group(function () {
             Route::post('{track}/archive', [StudioTrackController::class, 'archive'])->name('archive');
             Route::post('{track}/restore', [StudioTrackController::class, 'restore'])->name('restore');
         });
-        // Sichtbarkeit der Elementsequenz (ADR 0105, CMS-6b) -- noch ohne
-        // Drag & Drop, das ist CMS-6c.
+        // Elementsequenz (ADR 0105/0106, CMS-6b/CMS-6c).
         Route::get('studio/lessons/{lesson}', [StudioLessonController::class, 'show'])->name('studio.lessons.show');
+        Route::patch('studio/lessons/{lesson}/reorder', [StudioLessonController::class, 'reorder'])->name('studio.lessons.reorder');
 
         // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte
         // Berechtigung liegt in den Controller-Methoden, nicht in der
