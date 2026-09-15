@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { CheckCircle2, Circle, CircleDot } from '@lucide/vue';
+import { CheckCircle2, Circle, CircleDot, Lock } from '@lucide/vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,8 @@ import { show as showLesson } from '@/routes/lessons';
 import { show as showExam, start as startExam } from '@/routes/tracks/exam';
 import { show as showTrack } from '@/routes/tracks';
 
+type UnmetRequirement = { lesson_id: string; title: string };
+
 type LessonSummary = {
     lesson_id: string;
     title: string;
@@ -27,6 +29,7 @@ type LessonSummary = {
     status: string;
     completed: boolean;
     progress_status: 'started' | 'completed' | null;
+    unmet_requires: UnmetRequirement[];
 };
 
 type ExamAvailability = {
@@ -117,6 +120,18 @@ const page = usePage();
                             <CardDescription>{{
                                 lesson.teaser
                             }}</CardDescription>
+                            <p
+                                v-if="lesson.unmet_requires.length"
+                                class="text-muted-foreground flex items-center gap-1.5 text-xs"
+                            >
+                                <Lock class="size-3.5 shrink-0" />
+                                {{ trans('Setzt voraus') }}:
+                                {{
+                                    lesson.unmet_requires
+                                        .map((r) => r.title)
+                                        .join(', ')
+                                }}
+                            </p>
                         </CardHeader>
                     </Card>
                 </component>

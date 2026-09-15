@@ -317,6 +317,30 @@
     text-decoration-color: var(--foreground);
 }
 
+.lesson-hero-locked-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--lesson-accent);
+    background: var(--muted);
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+    color: var(--muted-foreground);
+}
+
+.lesson-hero-locked-notice a {
+    color: var(--foreground);
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 2px;
+}
+
+.lesson-hero-locked-notice a:hover {
+    text-decoration-color: var(--foreground);
+}
+
 /* -------------------- Lernziele / Zusammenfassung -------------------- */
 
 .lesson-objectives,

@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ChevronRight, Clock, ListChecks, SignalMedium } from '@lucide/vue';
+import {
+    ChevronRight,
+    Clock,
+    ListChecks,
+    Lock,
+    SignalMedium,
+} from '@lucide/vue';
+import { computed } from 'vue';
 import { trans } from '@/lib/trans';
 import { home } from '@/routes';
 import { show as showLesson } from '@/routes/lessons';
 import { show as showTrack } from '@/routes/tracks';
 
-defineProps<{
+const props = defineProps<{
     track: { slug: string; title_key: string };
     title: string;
     teaser: string;
@@ -15,8 +22,12 @@ defineProps<{
     objectivesCount: number;
     positionInTrack: number | null;
     trackLessonsCount: number;
-    requires: { lesson_id: string; title: string }[];
+    requires: { lesson_id: string; title: string; completed: boolean }[];
 }>();
+
+const unmetRequires = computed(() =>
+    props.requires.filter((required) => !required.completed),
+);
 
 const levelLabels: Record<string, string> = {
     einsteiger: trans('Grundlagen'),
@@ -65,7 +76,28 @@ const levelLabels: Record<string, string> = {
             </li>
         </ul>
 
-        <p v-if="requires.length" class="lesson-hero-requires">
+        <p
+            v-if="unmetRequires.length"
+            class="lesson-hero-locked-notice"
+            role="status"
+        >
+            <Lock class="size-4 shrink-0" aria-hidden="true" />
+            <span>
+                {{ trans('Setzt voraus, dass du zuerst liest') }}:
+                <template
+                    v-for="(required, index) in unmetRequires"
+                    :key="required.lesson_id"
+                >
+                    <span v-if="index > 0">, </span>
+                    <Link :href="showLesson(required.lesson_id)">{{
+                        required.title
+                    }}</Link>
+                </template>
+                — {{ trans('du kannst trotzdem hier weiterlesen') }}.
+            </span>
+        </p>
+
+        <p v-else-if="requires.length" class="lesson-hero-requires">
             {{ trans('Vorher') }}:
             <template
                 v-for="(required, index) in requires"
