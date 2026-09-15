@@ -16,14 +16,17 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Zweiter Autoren-Editor (ADR 0071/0081, W6.2): Metadaten und Lektionstext.
- * Bearbeitet nur die Prosa vor einem bestehenden `## Quiz`-Abschnitt --
- * dieser bleibt Sache des Quiz-Editors (ADR 0080) und wird beim
- * Serialisieren automatisch unangetastet erhalten
+ * Zweiter Autoren-Editor (ADR 0071/0081/0089, W6.2): Metadaten und
+ * Lektionstext. Bearbeitet nur die Prosa vor einem bestehenden
+ * `## Quiz`-Abschnitt -- dieser bleibt Sache des Quiz-Editors (ADR 0080)
+ * und wird beim Serialisieren automatisch unangetastet erhalten
  * (`LessonActivity::serialize()`). `sandbox`/`lab` (verschachtelte
  * YAML-Bloecke) und `objectives` (mehrzeilige Liste in der Frontmatter)
- * sind bewusst noch nicht Teil dieses Editors, siehe
- * docs/offene-fragen.md.
+ * sind seit ADR 0089 ebenfalls Teil dieses Editors --
+ * `objectives_count` in `meta.yml` wird dabei nie direkt entgegengenommen,
+ * sondern von `LessonActivity::serialize()` aus der Listenlaenge von
+ * `objectives` abgeleitet (muss laut `ContentValidator::
+ * checkLessonStructure()` immer uebereinstimmen).
  */
 class LessonEditorController extends Controller
 {
@@ -46,6 +49,8 @@ class LessonEditorController extends Controller
             'catalog' => [
                 'tools' => array_keys($content->tools()),
                 'glossary_terms' => array_keys($content->glossary()),
+                'datasets' => array_keys($content->datasets()),
+                'nodes' => array_keys($content->nodes()),
             ],
             'pending_version' => $pendingVersion === null ? null : [
                 'id' => $pendingVersion->id,
@@ -98,6 +103,15 @@ class LessonEditorController extends Controller
             'requires.*' => 'string',
             'glossary_terms' => 'array',
             'glossary_terms.*' => 'string',
+            'objectives' => 'required|array|min:1',
+            'objectives.*' => 'required|string',
+            'sandbox' => 'required|array',
+            'sandbox.required' => 'required|boolean',
+            'sandbox.dataset' => 'nullable|string',
+            'sandbox.note' => 'nullable|string',
+            'lab' => 'required|array',
+            'lab.node' => 'nullable|string',
+            'lab.optional' => 'required|boolean',
             'body' => 'required|string',
         ]);
     }
@@ -119,7 +133,10 @@ class LessonEditorController extends Controller
         if ($entry === null) {
             return [
                 'title' => '', 'teaser' => '', 'level' => 'einsteiger', 'duration_minutes' => 1,
-                'tools' => [], 'requires' => [], 'glossary_terms' => [], 'body' => '',
+                'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => [],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'lab' => ['node' => null, 'optional' => true],
+                'body' => '',
             ];
         }
 
@@ -134,6 +151,16 @@ class LessonEditorController extends Controller
             'tools' => $meta['tools'] ?? [],
             'requires' => $meta['requires'] ?? [],
             'glossary_terms' => $meta['glossary_terms'] ?? [],
+            'objectives' => $frontmatter['objectives'] ?? [],
+            'sandbox' => [
+                'required' => $meta['sandbox']['required'] ?? false,
+                'dataset' => $meta['sandbox']['dataset'] ?? null,
+                'note' => $meta['sandbox']['note'] ?? null,
+            ],
+            'lab' => [
+                'node' => $meta['lab']['node'] ?? null,
+                'optional' => $meta['lab']['optional'] ?? true,
+            ],
             'body' => QuizContent::splitBody((string) ($entry['body'] ?? ''))['before'],
         ];
     }

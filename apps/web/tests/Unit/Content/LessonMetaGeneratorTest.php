@@ -108,4 +108,96 @@ class LessonMetaGeneratorTest extends TestCase
         $this->assertSame($meta['glossary_terms'], $reparsed['glossary_terms']);
         $this->assertSame($meta['quiz'], $reparsed['quiz']);
     }
+
+    public function test_regenerate_sandbox_writes_dataset_only_when_required(): void
+    {
+        $metaRaw = "id: \"1.0\"\nsandbox:\n  required: true\n  dataset: old-set\nlab:\n  node: null\n  optional: true\n";
+
+        $regenerated = LessonMetaGenerator::regenerateSandbox($metaRaw, ['required' => false]);
+        $parsed = Yaml::parse($regenerated);
+
+        $this->assertFalse($parsed['sandbox']['required']);
+        $this->assertArrayNotHasKey('dataset', $parsed['sandbox']);
+        $this->assertSame(['node' => null, 'optional' => true], $parsed['lab'], 'lab darf unangetastet bleiben.');
+    }
+
+    public function test_regenerate_sandbox_includes_dataset_and_note_when_present(): void
+    {
+        $metaRaw = "id: \"1.0\"\nsandbox:\n  required: false\n";
+
+        $regenerated = LessonMetaGenerator::regenerateSandbox($metaRaw, [
+            'required' => true,
+            'dataset' => 'ct-thorax-60',
+            'note' => 'Zwei Serien',
+        ]);
+        $parsed = Yaml::parse($regenerated);
+
+        $this->assertTrue($parsed['sandbox']['required']);
+        $this->assertSame('ct-thorax-60', $parsed['sandbox']['dataset']);
+        $this->assertSame('Zwei Serien', $parsed['sandbox']['note']);
+    }
+
+    public function test_regenerate_lab_writes_node_as_literal_null_when_absent(): void
+    {
+        $metaRaw = "id: \"1.0\"\nlab:\n  node: first-contact\n  optional: false\n";
+
+        $regenerated = LessonMetaGenerator::regenerateLab($metaRaw, ['node' => null, 'optional' => true]);
+        $parsed = Yaml::parse($regenerated);
+
+        $this->assertNull($parsed['lab']['node']);
+        $this->assertTrue($parsed['lab']['optional']);
+    }
+
+    public function test_regenerate_lab_writes_a_new_node_slug(): void
+    {
+        $metaRaw = "id: \"1.0\"\nlab:\n  node: null\n  optional: true\n";
+
+        $regenerated = LessonMetaGenerator::regenerateLab($metaRaw, ['node' => 'neue-node', 'optional' => false]);
+        $parsed = Yaml::parse($regenerated);
+
+        $this->assertSame('neue-node', $parsed['lab']['node']);
+        $this->assertFalse($parsed['lab']['optional']);
+    }
+
+    public function test_regenerate_front_matter_replaces_the_objectives_list(): void
+    {
+        $mdRaw = "---\ntitle: X\nobjectives:\n  - Alt eins\n  - Alt zwei\n---\n\n## Intro\n\nText.\n";
+
+        $regenerated = LessonMetaGenerator::regenerateFrontMatter($mdRaw, [
+            'objectives' => ['Neu eins', 'Neu zwei', 'Neu drei'],
+        ]);
+        $frontMatter = FrontMatter::parse($regenerated);
+
+        $this->assertSame(['Neu eins', 'Neu zwei', 'Neu drei'], $frontMatter['attributes']['objectives']);
+        $this->assertStringContainsString('## Intro', $regenerated);
+        $this->assertStringContainsString('Text.', $regenerated);
+    }
+
+    public function test_matches_the_real_lesson_1_0_sandbox_lab_objectives_shape_on_a_no_op_round_trip(): void
+    {
+        $metaRaw = file_get_contents(base_path('../../content/lessons/1.0/meta.yml'));
+        $mdRaw = file_get_contents(base_path('../../content/lessons/1.0/de.md'));
+
+        if ($metaRaw === false || $mdRaw === false) {
+            $this->markTestSkipped('content/lessons/1.0 nicht gefunden.');
+        }
+
+        $meta = Yaml::parse($metaRaw);
+        $frontMatter = FrontMatter::parse($mdRaw);
+
+        $regeneratedMeta = LessonMetaGenerator::regenerateLab(
+            LessonMetaGenerator::regenerateSandbox($metaRaw, $meta['sandbox']),
+            $meta['lab'],
+        );
+        $regeneratedMd = LessonMetaGenerator::regenerateFrontMatter($mdRaw, [
+            'objectives' => $frontMatter['attributes']['objectives'],
+        ]);
+
+        $reparsedMeta = Yaml::parse($regeneratedMeta);
+        $reparsedFrontMatter = FrontMatter::parse($regeneratedMd);
+
+        $this->assertSame($meta['sandbox'], $reparsedMeta['sandbox']);
+        $this->assertSame($meta['lab'], $reparsedMeta['lab']);
+        $this->assertSame($frontMatter['attributes']['objectives'], $reparsedFrontMatter['attributes']['objectives']);
+    }
 }

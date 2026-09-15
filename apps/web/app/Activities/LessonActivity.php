@@ -133,11 +133,29 @@ final readonly class LessonActivity implements ActivityContract
         }
 
         // Skalar-/Listenfelder in meta.yml und Titel/Teaser in der
-        // Frontmatter (ADR 0080/0081, W6.1/W6.2) -- sandbox/lab (verschachtelte
-        // Bloecke) und objectives (mehrzeilige Liste) sind bewusst noch nicht
-        // Teil dieses Editors, siehe docs/offene-fragen.md.
+        // Frontmatter (ADR 0080/0081, W6.1/W6.2); sandbox/lab (verschachtelte
+        // Bloecke) und objectives (mehrzeilige Liste, ADR 0089) folgen
+        // demselben chirurgischen Muster, je ihrem eigenen Block-Ersatz.
         $metaRaw = LessonMetaGenerator::regenerateMeta($metaRaw, $draft);
         $mdRaw = LessonMetaGenerator::regenerateFrontMatter($mdRaw, $draft);
+
+        if (isset($draft['sandbox'])) {
+            $metaRaw = LessonMetaGenerator::regenerateSandbox($metaRaw, $draft['sandbox']);
+        }
+
+        if (isset($draft['lab'])) {
+            $metaRaw = LessonMetaGenerator::regenerateLab($metaRaw, $draft['lab']);
+        }
+
+        if (isset($draft['objectives'])) {
+            // objectives_count (meta.yml) muss immer zur tatsaechlichen
+            // Listenlaenge passen (ContentValidator::checkLessonStructure())
+            // -- nie eigenstaendig aus dem Entwurf uebernehmen, sondern hier
+            // ableiten, damit beide nie auseinanderlaufen koennen.
+            $metaRaw = LessonMetaGenerator::regenerateMeta($metaRaw, [
+                'objectives_count' => count($draft['objectives']),
+            ]);
+        }
 
         if (isset($draft['quiz'])) {
             $metaRaw = LessonQuizGenerator::regenerateMeta($metaRaw, $draft['quiz']);

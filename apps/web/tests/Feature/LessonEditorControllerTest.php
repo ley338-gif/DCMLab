@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Content\FrontMatter;
 use App\Models\Activity;
 use App\Models\ContentVersion;
 use App\Models\Lesson;
@@ -11,6 +12,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Symfony\Component\Yaml\Yaml;
 use Tests\TestCase;
 
 /**
@@ -33,16 +35,20 @@ class LessonEditorControllerTest extends TestCase
         File::ensureDirectoryExists($this->contentDir.'/lessons/1.0');
         File::put(
             $this->contentDir.'/lessons/1.0/meta.yml',
-            "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: [dcmdump]\nglossary_terms: [dicom]\ntools_checked: \"".now()->toDateString()."\"\nstatus: draft\n",
+            "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: [dcmdump]\nglossary_terms: [dicom]\nobjectives_count: 1\nsandbox:\n  required: false\nlab:\n  node: null\n  optional: true\ntools_checked: \"".now()->toDateString()."\"\nstatus: draft\n",
         );
         File::put(
             $this->contentDir.'/lessons/1.0/de.md',
-            "---\ntitle: Alter Titel\nteaser: Alter Teaser\nobjectives: []\n---\n\n## Intro\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Test.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.\n",
+            "---\ntitle: Alter Titel\nteaser: Alter Teaser\nobjectives:\n  - Altes Lernziel\n---\n\n## Intro\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Test.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.\n",
         );
         File::ensureDirectoryExists($this->contentDir.'/tools');
         File::ensureDirectoryExists($this->contentDir.'/glossary');
         File::put($this->contentDir.'/tools/de.yml', "dcmdump:\n  name: dcmdump\n  purpose: Test\n");
         File::put($this->contentDir.'/glossary/de.yml', "dicom:\n  term: DICOM\n  definition: Test\n");
+        File::put(
+            $this->contentDir.'/datasets.yml',
+            "ct-thorax-60:\n  patient: \"TEST^PATIENT\"\n  patient_id: \"0000\"\n  study: Test\n  series: [Test]\n  file_count: 1\n",
+        );
         $this->app->instance(ContentRepository::class, new ContentRepository($this->contentDir));
     }
 
@@ -72,7 +78,11 @@ class LessonEditorControllerTest extends TestCase
                 ->component('Author/LessonEditor')
                 ->where('fields.title', 'Alter Titel')
                 ->where('fields.level', 'einsteiger')
+                ->where('fields.objectives', ['Altes Lernziel'])
+                ->where('fields.sandbox.required', false)
+                ->where('fields.lab.optional', true)
                 ->where('catalog.tools', ['dcmdump'])
+                ->where('catalog.datasets', ['ct-thorax-60'])
             );
     }
 
@@ -101,6 +111,9 @@ class LessonEditorControllerTest extends TestCase
             'tools' => ['dcmdump'],
             'requires' => [],
             'glossary_terms' => ['dicom'],
+            'objectives' => ['Neues Lernziel eins', 'Neues Lernziel zwei'],
+            'sandbox' => ['required' => true, 'dataset' => 'ct-thorax-60', 'note' => null],
+            'lab' => ['node' => 'silent-ct', 'optional' => false],
             'body' => "## Neue Einleitung\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Neu.",
         ];
 
@@ -128,6 +141,16 @@ class LessonEditorControllerTest extends TestCase
         $this->assertStringContainsString('Neue Einleitung', $writtenBody);
         $this->assertStringContainsString('q1 — Frage?', $writtenBody, 'Der Quiz-Abschnitt muss erhalten bleiben.');
         $this->assertStringContainsString('Als Nächstes', $writtenBody);
+
+        $parsedMeta = Yaml::parse($writtenMeta);
+        $this->assertTrue($parsedMeta['sandbox']['required']);
+        $this->assertSame('ct-thorax-60', $parsedMeta['sandbox']['dataset']);
+        $this->assertSame('silent-ct', $parsedMeta['lab']['node']);
+        $this->assertFalse($parsedMeta['lab']['optional']);
+        $this->assertSame(2, $parsedMeta['objectives_count'], 'objectives_count muss zur Listenlaenge passen.');
+
+        $frontMatter = FrontMatter::parse($writtenBody);
+        $this->assertSame(['Neues Lernziel eins', 'Neues Lernziel zwei'], $frontMatter['attributes']['objectives']);
     }
 
     /**
