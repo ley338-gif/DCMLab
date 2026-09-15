@@ -43,7 +43,10 @@ type NodeFields = {
     body: string;
 };
 
-type PendingVersion = { id: number; status: 'draft' | 'review' | 'published' } | null;
+type PendingVersion = {
+    id: number;
+    status: 'draft' | 'review' | 'published';
+} | null;
 
 type VersionRow = {
     id: number;
@@ -115,7 +118,10 @@ const draggedHintIndex = ref<number | null>(null);
 
 function addHint() {
     const nextNumber = fields.value.hints.length + 1;
-    fields.value.hints = [...fields.value.hints, { id: `h${nextNumber}`, cost: 1 }];
+    fields.value.hints = [
+        ...fields.value.hints,
+        { id: `h${nextNumber}`, cost: 1 },
+    ];
 }
 
 function removeHint(index: number) {
@@ -207,11 +213,19 @@ function duplicate() {
 }
 
 function archive() {
-    router.post(archiveNode.url({ node: props.node.slug }), {}, { preserveScroll: true });
+    router.post(
+        archiveNode.url({ node: props.node.slug }),
+        {},
+        { preserveScroll: true },
+    );
 }
 
 function restore() {
-    router.post(restoreNode.url({ node: props.node.slug }), {}, { preserveScroll: true });
+    router.post(
+        restoreNode.url({ node: props.node.slug }),
+        {},
+        { preserveScroll: true },
+    );
 }
 </script>
 
@@ -230,8 +244,18 @@ function restore() {
         <div class="mb-6 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-semibold">{{ node.title }}</h1>
-                <Badge :variant="node.status === 'published' ? 'default' : 'outline'">
-                    {{ node.status === 'published' ? trans('Veröffentlicht') : node.status === 'archived' ? trans('Archiviert') : trans('Entwurf') }}
+                <Badge
+                    :variant="
+                        node.status === 'published' ? 'default' : 'outline'
+                    "
+                >
+                    {{
+                        node.status === 'published'
+                            ? trans('Veröffentlicht')
+                            : node.status === 'archived'
+                              ? trans('Archiviert')
+                              : trans('Entwurf')
+                    }}
                 </Badge>
                 <Badge v-if="pending_version" variant="secondary">
                     {{ statusLabels[pending_version.status] }}
@@ -239,12 +263,17 @@ function restore() {
             </div>
             <div class="flex items-center gap-2">
                 <a :href="preview_url" target="_blank" rel="noopener">
-                    <Button type="button" variant="outline">{{ trans('Vorschau') }}</Button>
+                    <Button type="button" variant="outline">{{
+                        trans('Vorschau')
+                    }}</Button>
                 </a>
             </div>
         </div>
 
-        <p v-if="!node.has_runtime_config" class="text-muted-foreground mb-6 text-sm">
+        <p
+            v-if="!node.has_runtime_config"
+            class="text-muted-foreground mb-6 text-sm"
+        >
             {{
                 trans(
                     'Diese Node hat noch keine Runtime-Konfiguration (Sandbox/Engine) — die Vorschau zeigt Titel und Text, aber noch keine funktionierende Aufgabe. Das legt ein Administrator zusätzlich in content/nodes/ an.',
@@ -256,7 +285,9 @@ function restore() {
             <AlertTitle>{{ trans('Befunde') }}</AlertTitle>
             <AlertDescription>
                 <ul class="list-inside list-disc">
-                    <li v-for="(issue, index) in issues" :key="index">{{ issue }}</li>
+                    <li v-for="(issue, index) in issues" :key="index">
+                        {{ issue }}
+                    </li>
                 </ul>
             </AlertDescription>
         </Alert>
@@ -265,7 +296,9 @@ function restore() {
             <div class="space-y-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle class="text-base">{{ trans('Grunddaten') }}</CardTitle>
+                        <CardTitle class="text-base">{{
+                            trans('Grunddaten')
+                        }}</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div class="grid gap-4 sm:grid-cols-2">
@@ -274,53 +307,97 @@ function restore() {
                                 <Input id="title" v-model="fields.title" />
                             </div>
                             <div class="space-y-1.5">
-                                <Label for="scenario_title">{{ trans('Szenario-Titel') }}</Label>
-                                <Input id="scenario_title" v-model="fields.scenario_title" />
+                                <Label for="scenario_title">{{
+                                    trans('Szenario-Titel')
+                                }}</Label>
+                                <Input
+                                    id="scenario_title"
+                                    v-model="fields.scenario_title"
+                                />
                             </div>
                             <div class="space-y-1.5">
                                 <Label>{{ trans('Slug') }}</Label>
                                 <Input :model-value="node.slug" disabled />
                                 <p class="text-muted-foreground text-xs">
-                                    {{ trans('Fachlicher Schlüssel und URL — nicht änderbar.') }}
+                                    {{
+                                        trans(
+                                            'Fachlicher Schlüssel und URL — nicht änderbar.',
+                                        )
+                                    }}
                                 </p>
                             </div>
                             <div class="space-y-1.5">
-                                <Label for="category">{{ trans('Kategorie') }}</Label>
-                                <Input id="category" v-model="fields.category" />
+                                <Label for="category">{{
+                                    trans('Kategorie')
+                                }}</Label>
+                                <Input
+                                    id="category"
+                                    v-model="fields.category"
+                                />
                             </div>
                             <div class="space-y-1.5">
-                                <Label for="difficulty">{{ trans('Schwierigkeit') }}</Label>
+                                <Label for="difficulty">{{
+                                    trans('Schwierigkeit')
+                                }}</Label>
                                 <select
                                     id="difficulty"
                                     v-model="fields.difficulty"
                                     class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
                                 >
-                                    <option v-for="(label, difficulty) in difficultyLabels" :key="difficulty" :value="difficulty">
+                                    <option
+                                        v-for="(
+                                            label, difficulty
+                                        ) in difficultyLabels"
+                                        :key="difficulty"
+                                        :value="difficulty"
+                                    >
                                         {{ label }}
                                     </option>
                                 </select>
                             </div>
                             <div class="space-y-1.5">
-                                <Label for="points">{{ trans('Punkte') }}</Label>
-                                <Input id="points" v-model.number="fields.points" type="number" min="0" />
+                                <Label for="points">{{
+                                    trans('Punkte')
+                                }}</Label>
+                                <Input
+                                    id="points"
+                                    v-model.number="fields.points"
+                                    type="number"
+                                    min="0"
+                                />
                             </div>
                             <div class="space-y-1.5">
-                                <Label for="estimated_minutes">{{ trans('Dauer (Minuten)') }}</Label>
-                                <Input id="estimated_minutes" v-model.number="fields.estimated_minutes" type="number" min="0" />
+                                <Label for="estimated_minutes">{{
+                                    trans('Dauer (Minuten)')
+                                }}</Label>
+                                <Input
+                                    id="estimated_minutes"
+                                    v-model.number="fields.estimated_minutes"
+                                    type="number"
+                                    min="0"
+                                />
                             </div>
                             <div class="space-y-1.5">
-                                <Label for="interaction">{{ trans('Interaktionstyp') }}</Label>
+                                <Label for="interaction">{{
+                                    trans('Interaktionstyp')
+                                }}</Label>
                                 <select
                                     id="interaction"
                                     v-model="fields.interaction"
                                     class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
                                 >
-                                    <option value="terminal">{{ trans('Terminal') }}</option>
-                                    <option value="scenario">{{ trans('Szenario') }}</option>
+                                    <option value="terminal">
+                                        {{ trans('Terminal') }}
+                                    </option>
+                                    <option value="scenario">
+                                        {{ trans('Szenario') }}
+                                    </option>
                                 </select>
                             </div>
                             <div class="space-y-1.5 sm:col-span-2">
-                                <Label for="themenfeld">{{ trans('Themenfeld') }}</Label>
+                                <Label for="themenfeld">{{
+                                    trans('Themenfeld')
+                                }}</Label>
                                 <div class="flex gap-2">
                                     <select
                                         id="themenfeld"
@@ -328,16 +405,29 @@ function restore() {
                                         :disabled="!can_manage"
                                         class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
                                     >
-                                        <option v-for="themenfeld in themenfelder" :key="themenfeld.id" :value="themenfeld.id">
+                                        <option
+                                            v-for="themenfeld in themenfelder"
+                                            :key="themenfeld.id"
+                                            :value="themenfeld.id"
+                                        >
                                             {{ themenfeld.slug }}
                                         </option>
                                     </select>
-                                    <Button v-if="can_manage" type="button" variant="outline" @click="saveThemenfeld">
+                                    <Button
+                                        v-if="can_manage"
+                                        type="button"
+                                        variant="outline"
+                                        @click="saveThemenfeld"
+                                    >
                                         {{ trans('Übernehmen') }}
                                     </Button>
                                 </div>
                                 <p class="text-muted-foreground text-xs">
-                                    {{ trans('Wirkt sofort, ist kein Teil des Entwurfs unten.') }}
+                                    {{
+                                        trans(
+                                            'Wirkt sofort, ist kein Teil des Entwurfs unten.',
+                                        )
+                                    }}
                                 </p>
                             </div>
                         </div>
@@ -346,7 +436,9 @@ function restore() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle class="text-base">{{ trans('Lernkontext') }}</CardTitle>
+                        <CardTitle class="text-base">{{
+                            trans('Lernkontext')
+                        }}</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div class="space-y-1.5">
@@ -369,11 +461,18 @@ function restore() {
                             </div>
                         </div>
                         <div class="space-y-1.5">
-                            <Label for="related_lessons">{{ trans('Verwandte Lektionen (IDs, kommagetrennt)') }}</Label>
+                            <Label for="related_lessons">{{
+                                trans(
+                                    'Verwandte Lektionen (IDs, kommagetrennt)',
+                                )
+                            }}</Label>
                             <Input
                                 id="related_lessons"
                                 :model-value="relatedLessonsText.get()"
-                                @update:model-value="(value) => relatedLessonsText.set(String(value))"
+                                @update:model-value="
+                                    (value) =>
+                                        relatedLessonsText.set(String(value))
+                                "
                             />
                         </div>
                     </CardContent>
@@ -381,7 +480,9 @@ function restore() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle class="text-base">{{ trans('Challenge') }}</CardTitle>
+                        <CardTitle class="text-base">{{
+                            trans('Challenge')
+                        }}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <textarea
@@ -401,7 +502,9 @@ function restore() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle class="text-base">{{ trans('Hints') }}</CardTitle>
+                        <CardTitle class="text-base">{{
+                            trans('Hints')
+                        }}</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-2">
                         <div
@@ -413,38 +516,79 @@ function restore() {
                             @dragover.prevent
                             @drop="onHintDrop(index)"
                         >
-                            <GripVertical class="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+                            <GripVertical
+                                class="text-muted-foreground size-4 shrink-0"
+                                aria-hidden="true"
+                            />
                             <Badge variant="outline">{{ index + 1 }}</Badge>
                             <div class="flex-1 space-y-1">
-                                <Label :for="`hint-id-${index}`" class="text-xs">{{ trans('ID (### h1 im Body)') }}</Label>
-                                <Input :id="`hint-id-${index}`" v-model="hint.id" />
+                                <Label
+                                    :for="`hint-id-${index}`"
+                                    class="text-xs"
+                                    >{{ trans('ID (### h1 im Body)') }}</Label
+                                >
+                                <Input
+                                    :id="`hint-id-${index}`"
+                                    v-model="hint.id"
+                                />
                             </div>
                             <div class="w-28 space-y-1">
-                                <Label :for="`hint-cost-${index}`" class="text-xs">{{ trans('Kosten') }}</Label>
-                                <Input :id="`hint-cost-${index}`" v-model.number="hint.cost" type="number" min="0" />
+                                <Label
+                                    :for="`hint-cost-${index}`"
+                                    class="text-xs"
+                                    >{{ trans('Kosten') }}</Label
+                                >
+                                <Input
+                                    :id="`hint-cost-${index}`"
+                                    v-model.number="hint.cost"
+                                    type="number"
+                                    min="0"
+                                />
                             </div>
-                            <Button type="button" variant="ghost" size="sm" @click="removeHint(index)">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                @click="removeHint(index)"
+                            >
                                 {{ trans('Löschen') }}
                             </Button>
                         </div>
-                        <Button type="button" variant="outline" size="sm" @click="addHint">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="addHint"
+                        >
                             {{ trans('+ Hint hinzufügen') }}
                         </Button>
                         <p class="text-muted-foreground text-xs">
-                            {{ trans('Der Hint-Text selbst steht im Body oben, im passenden ### h<id>-Abschnitt unter ## Hints.') }}
+                            {{
+                                trans(
+                                    'Der Hint-Text selbst steht im Body oben, im passenden ### h-ID-Abschnitt unter ## Hints.',
+                                )
+                            }}
                         </p>
                     </CardContent>
                 </Card>
 
                 <div class="flex flex-wrap items-center gap-3 border-t pt-6">
-                    <Button type="button" variant="outline" :disabled="validating" @click="runValidation">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        :disabled="validating"
+                        @click="runValidation"
+                    >
                         {{ trans('Prüfen') }}
                     </Button>
                     <Button type="button" :disabled="saving" @click="saveDraft">
                         {{ trans('Entwurf speichern') }}
                     </Button>
                     <Button
-                        v-if="pending_version && pending_version.status === 'draft'"
+                        v-if="
+                            pending_version &&
+                            pending_version.status === 'draft'
+                        "
                         type="button"
                         variant="secondary"
                         :disabled="acting"
@@ -453,7 +597,11 @@ function restore() {
                         {{ trans('Zur Prüfung einreichen') }}
                     </Button>
                     <Button
-                        v-if="pending_version && pending_version.status === 'review' && can_publish"
+                        v-if="
+                            pending_version &&
+                            pending_version.status === 'review' &&
+                            can_publish
+                        "
                         type="button"
                         :disabled="acting"
                         @click="publishVersion"
@@ -466,7 +614,9 @@ function restore() {
             <div class="space-y-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle class="text-base">{{ trans('Runtime') }}</CardTitle>
+                        <CardTitle class="text-base">{{
+                            trans('Runtime')
+                        }}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p class="text-muted-foreground text-sm">
@@ -481,10 +631,15 @@ function restore() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle class="text-base">{{ trans('Versionen') }}</CardTitle>
+                        <CardTitle class="text-base">{{
+                            trans('Versionen')
+                        }}</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-2">
-                        <p v-if="versions.length === 0" class="text-muted-foreground text-sm">
+                        <p
+                            v-if="versions.length === 0"
+                            class="text-muted-foreground text-sm"
+                        >
                             {{ trans('Noch keine Versionshistorie.') }}
                         </p>
                         <div
@@ -492,18 +647,35 @@ function restore() {
                             :key="version.id"
                             class="flex items-center justify-between text-sm"
                         >
-                            <span>{{ trans('v:id', { id: version.id }) }} {{ statusLabels[version.status] ?? version.status }}</span>
-                            <Badge v-if="version.is_current" variant="default">{{ trans('aktiv') }}</Badge>
+                            <span
+                                >{{ trans('v:id', { id: version.id }) }}
+                                {{
+                                    statusLabels[version.status] ??
+                                    version.status
+                                }}</span
+                            >
+                            <Badge
+                                v-if="version.is_current"
+                                variant="default"
+                                >{{ trans('aktiv') }}</Badge
+                            >
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card v-if="can_manage" class="border-destructive/50">
                     <CardHeader>
-                        <CardTitle class="text-destructive text-base">{{ trans('Danger Zone') }}</CardTitle>
+                        <CardTitle class="text-destructive text-base">{{
+                            trans('Danger Zone')
+                        }}</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-2">
-                        <Button type="button" variant="outline" class="w-full" @click="duplicate">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="w-full"
+                            @click="duplicate"
+                        >
                             {{ trans('Duplizieren') }}
                         </Button>
                         <Button
@@ -515,7 +687,13 @@ function restore() {
                         >
                             {{ trans('Archivieren') }}
                         </Button>
-                        <Button v-else type="button" variant="outline" class="w-full" @click="restore">
+                        <Button
+                            v-else
+                            type="button"
+                            variant="outline"
+                            class="w-full"
+                            @click="restore"
+                        >
                             {{ trans('Wiederherstellen') }}
                         </Button>
                     </CardContent>

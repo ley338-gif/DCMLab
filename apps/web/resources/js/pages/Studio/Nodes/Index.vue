@@ -69,17 +69,25 @@ const filteredNodes = computed(() =>
     props.nodes.filter((node) => {
         if (
             search.value.trim() !== '' &&
-            !node.title.toLowerCase().includes(search.value.trim().toLowerCase()) &&
+            !node.title
+                .toLowerCase()
+                .includes(search.value.trim().toLowerCase()) &&
             !node.slug.toLowerCase().includes(search.value.trim().toLowerCase())
         ) {
             return false;
         }
 
-        if (difficultyFilter.value !== '' && node.difficulty !== difficultyFilter.value) {
+        if (
+            difficultyFilter.value !== '' &&
+            node.difficulty !== difficultyFilter.value
+        ) {
             return false;
         }
 
-        if (categoryFilter.value !== '' && node.category !== categoryFilter.value) {
+        if (
+            categoryFilter.value !== '' &&
+            node.category !== categoryFilter.value
+        ) {
             return false;
         }
 
@@ -87,7 +95,10 @@ const filteredNodes = computed(() =>
             return false;
         }
 
-        if (themenfeldFilter.value !== '' && node.themenfeld_id !== themenfeldFilter.value) {
+        if (
+            themenfeldFilter.value !== '' &&
+            node.themenfeld_id !== themenfeldFilter.value
+        ) {
             return false;
         }
 
@@ -116,7 +127,11 @@ function createNode() {
 function transition(node: NodeRow, action: 'archive' | 'restore') {
     const routes = { archive: archiveNode, restore: restoreNode };
 
-    router.post(routes[action].url({ node: node.slug }), {}, { preserveScroll: true });
+    router.post(
+        routes[action].url({ node: node.slug }),
+        {},
+        { preserveScroll: true },
+    );
 }
 
 function duplicate(node: NodeRow) {
@@ -147,7 +162,10 @@ function duplicate(node: NodeRow) {
                     }}
                 </p>
             </div>
-            <Button v-if="props.can_manage" @click="showCreateForm = !showCreateForm">
+            <Button
+                v-if="props.can_manage"
+                @click="showCreateForm = !showCreateForm"
+            >
                 {{ showCreateForm ? trans('Schließen') : trans('+ Neue Node') }}
             </Button>
         </div>
@@ -177,7 +195,10 @@ function duplicate(node: NodeRow) {
                 </div>
                 <div class="space-y-1.5">
                     <Label>{{ trans('Kategorie') }}</Label>
-                    <Input v-model="newNode.category" :placeholder="trans('z. B. netzwerk')" />
+                    <Input
+                        v-model="newNode.category"
+                        :placeholder="trans('z. B. netzwerk')"
+                    />
                 </div>
                 <div class="space-y-1.5">
                     <Label>{{ trans('Themenfeld') }}</Label>
@@ -215,8 +236,12 @@ function duplicate(node: NodeRow) {
                         v-model="newNode.interaction"
                         class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
                     >
-                        <option value="terminal">{{ trans('Terminal') }}</option>
-                        <option value="scenario">{{ trans('Szenario') }}</option>
+                        <option value="terminal">
+                            {{ trans('Terminal') }}
+                        </option>
+                        <option value="scenario">
+                            {{ trans('Szenario') }}
+                        </option>
                     </select>
                 </div>
                 <div class="sm:col-span-2 lg:col-span-3">
@@ -226,13 +251,20 @@ function duplicate(node: NodeRow) {
         </Card>
 
         <div class="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Input v-model="search" :placeholder="trans('Suche nach Titel oder Slug…')" />
+            <Input
+                v-model="search"
+                :placeholder="trans('Suche nach Titel oder Slug…')"
+            />
             <select
                 v-model="difficultyFilter"
                 class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
             >
                 <option value="">{{ trans('Alle Schwierigkeiten') }}</option>
-                <option v-for="(label, difficulty) in difficultyLabels" :key="difficulty" :value="difficulty">
+                <option
+                    v-for="(label, difficulty) in difficultyLabels"
+                    :key="difficulty"
+                    :value="difficulty"
+                >
                     {{ label }}
                 </option>
             </select>
@@ -241,7 +273,11 @@ function duplicate(node: NodeRow) {
                 class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
             >
                 <option value="">{{ trans('Alle Kategorien') }}</option>
-                <option v-for="category in categories" :key="category" :value="category">
+                <option
+                    v-for="category in categories"
+                    :key="category"
+                    :value="category"
+                >
                     {{ category }}
                 </option>
             </select>
@@ -250,7 +286,11 @@ function duplicate(node: NodeRow) {
                 class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
             >
                 <option value="">{{ trans('Alle Status') }}</option>
-                <option v-for="(label, status) in statusLabels" :key="status" :value="status">
+                <option
+                    v-for="(label, status) in statusLabels"
+                    :key="status"
+                    :value="status"
+                >
                     {{ label }}
                 </option>
             </select>
@@ -259,7 +299,11 @@ function duplicate(node: NodeRow) {
                 class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
             >
                 <option value="">{{ trans('Alle Themenfelder') }}</option>
-                <option v-for="themenfeld in props.themenfelder" :key="themenfeld.id" :value="themenfeld.id">
+                <option
+                    v-for="themenfeld in props.themenfelder"
+                    :key="themenfeld.id"
+                    :value="themenfeld.id"
+                >
                     {{ themenfeld.slug }}
                 </option>
             </select>
@@ -269,11 +313,16 @@ function duplicate(node: NodeRow) {
             <Card v-for="node in filteredNodes" :key="node.slug">
                 <CardHeader class="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle class="text-base">{{ node.title }}</CardTitle>
+                        <CardTitle class="text-base">{{
+                            node.title
+                        }}</CardTitle>
                         <p class="text-muted-foreground text-sm">
-                            {{ node.slug }} · {{ difficultyLabels[node.difficulty] }} ·
+                            {{ node.slug }} ·
+                            {{ difficultyLabels[node.difficulty] }} ·
                             {{ node.category }} ·
-                            {{ trans(':points Punkte', { points: node.points }) }}
+                            {{
+                                trans(':points Punkte', { points: node.points })
+                            }}
                         </p>
                     </div>
                     <div class="flex items-center gap-2">
@@ -289,13 +338,25 @@ function duplicate(node: NodeRow) {
                             {{ statusLabels[node.status] }}
                         </Badge>
                         <Link :href="editNode.url({ node: node.slug })">
-                            <Button variant="outline" size="sm">{{ trans('Bearbeiten') }}</Button>
+                            <Button variant="outline" size="sm">{{
+                                trans('Bearbeiten')
+                            }}</Button>
                         </Link>
-                        <a :href="showNode.url({ node: node.slug })" target="_blank" rel="noopener">
-                            <Button variant="ghost" size="sm">{{ trans('Vorschau') }}</Button>
+                        <a
+                            :href="showNode.url({ node: node.slug })"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            <Button variant="ghost" size="sm">{{
+                                trans('Vorschau')
+                            }}</Button>
                         </a>
                         <template v-if="props.can_manage">
-                            <Button variant="ghost" size="sm" @click="duplicate(node)">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                @click="duplicate(node)"
+                            >
                                 {{ trans('Duplizieren') }}
                             </Button>
                             <Button
@@ -319,7 +380,10 @@ function duplicate(node: NodeRow) {
                 </CardHeader>
             </Card>
 
-            <p v-if="filteredNodes.length === 0" class="text-muted-foreground text-sm">
+            <p
+                v-if="filteredNodes.length === 0"
+                class="text-muted-foreground text-sm"
+            >
                 {{ trans('Keine Nodes gefunden.') }}
             </p>
         </div>

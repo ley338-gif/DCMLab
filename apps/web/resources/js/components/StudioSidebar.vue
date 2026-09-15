@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Container, GraduationCap, LayoutGrid, ShieldCheck, Terminal } from '@lucide/vue';
+import {
+    Container,
+    GraduationCap,
+    LayoutGrid,
+    ShieldCheck,
+    Terminal,
+} from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
