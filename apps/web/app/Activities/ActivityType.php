@@ -16,4 +16,5 @@ enum ActivityType: string
     case Exam = 'exam';
     case Node = 'node';
     case Sandbox = 'sandbox';
+    case Achievement = 'achievement';
 }

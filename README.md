@@ -221,7 +221,18 @@ erzeugten Artefakt machen.
   (`ContentValidator::checkExamStructure()`) sind Eigenschaften des
   gesamten Pools, nicht einer einzelnen Frage, siehe
   `docs/offene-fragen.md`.
-- W6.4–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W6.4 — Achievement-Editor** (fertig, siehe ADR 0083): ein einzelnes
+  Achievement anlegen oder bearbeiten unter
+  `/de/author/achievements/{slug}/edit`, inklusive Auslösekriterium-
+  Auswahl (`activity_completed`/`first_solve`/`track_passed`, ADR 0077).
+  Achievement wird dafür ein sechster, bewusst untypischer
+  Aktivitätstyp: `AchievementCatalogActivity` repräsentiert die gesamte
+  `achievements.yml` als eine Instanz, welcher Eintrag bearbeitet wird
+  steht im Entwurf. `AchievementCatalogGenerator` ersetzt/ergänzt
+  chirurgisch genau einen Eintrag in der flachen Top-Level-Liste. Ein
+  echter Bild-Upload ist bewusst nicht Teil dieses Editors -- `image`
+  bleibt ein Freitextfeld, siehe `docs/offene-fragen.md`.
+- W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 

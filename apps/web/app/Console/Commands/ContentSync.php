@@ -31,6 +31,7 @@ class ContentSync extends Command
         $lessonCount = $this->syncLessons($content, $trackIds);
         $nodeCount = $this->syncNodes($content, $themenfeldIds);
         $examCount = $this->syncExamActivities($content, $trackIds);
+        $this->syncAchievementCatalogActivity($content);
 
         $this->info(sprintf(
             'content:sync — %d Themenfelder, %d Tracks, %d Lektionen, %d Nodes, %d Pruefungen synchronisiert.',
@@ -276,5 +277,26 @@ class ContentSync extends Command
         }
 
         return $count;
+    }
+
+    /**
+     * Der Achievement-Katalog (ADR 0072/0083, W6.4) kennt nur eine
+     * Instanz -- anders als Lektion/Node/Pruefung ist ein Achievement kein
+     * abschliessbares Fachobjekt, sondern deklaratives Metadatum in einer
+     * gemeinsamen Datei. `key === 'catalog'` traegt keinen `track_id`.
+     */
+    private function syncAchievementCatalogActivity(ContentRepository $content): void
+    {
+        $achievements = $content->achievements();
+        $raw = $achievements[0]['_raw'] ?? '';
+
+        Activity::updateOrCreate(
+            ['type' => 'achievement', 'key' => 'catalog'],
+            [
+                'status' => 'published',
+                'title' => ['de' => 'Achievements'],
+                'source_hash' => hash('sha256', $raw),
+            ],
+        );
     }
 }
