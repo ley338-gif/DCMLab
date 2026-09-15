@@ -4,6 +4,8 @@ namespace Tests\Unit\Activities;
 
 use App\Activities\LessonActivity;
 use App\Content\ContentRepository;
+use App\Content\FrontMatter;
+use App\Content\QuizContent;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Track;
@@ -140,6 +142,43 @@ class LessonActivityTest extends TestCase
         $withoutArgument = $activity->validate();
 
         $this->assertEquals($withoutArgument, $withDraft);
+    }
+
+    public function test_serialize_with_a_meta_draft_regenerates_only_the_named_fields(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize([
+            'level' => 'aufbau',
+            'duration_minutes' => 20,
+            'tools' => ['dcmftest'],
+            'requires' => [],
+            'glossary_terms' => ['dicom'],
+            'title' => 'Neuer Titel',
+            'teaser' => 'Neuer Teaser',
+        ]);
+
+        $this->assertStringContainsString('level: aufbau', $files[0]['contents']);
+        $this->assertStringContainsString('duration_minutes: 20', $files[0]['contents']);
+
+        $frontMatter = FrontMatter::parse($files[1]['contents']);
+        $this->assertSame('Neuer Titel', $frontMatter['attributes']['title']);
+        $this->assertSame('Neuer Teaser', $frontMatter['attributes']['teaser']);
+    }
+
+    public function test_serialize_with_a_body_draft_preserves_the_existing_quiz_section(): void
+    {
+        $lesson = $this->makeLesson();
+        $content = $this->fixtureContent();
+        $activity = new LessonActivity($lesson, $content);
+        $originalBody = $content->lessons()['1.0']['body'];
+        $originalQuizRaw = QuizContent::splitBody($originalBody)['quiz_raw'];
+
+        $files = $activity->serialize(['body' => '## Neue Einleitung'.PHP_EOL.PHP_EOL.'Neuer Text.']);
+
+        $this->assertStringContainsString('Neue Einleitung', $files[1]['contents']);
+        $this->assertStringContainsString('Neuer Text.', $files[1]['contents']);
+        $this->assertStringContainsString(trim($originalQuizRaw), $files[1]['contents']);
     }
 
     public function test_deserialize_normalizes_the_current_fields(): void

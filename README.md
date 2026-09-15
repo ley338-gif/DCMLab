@@ -201,7 +201,16 @@ erzeugten Artefakt machen.
   erzeugen bzw. prüfen; Freigabe schreibt über `ContentWriter` tatsächlich
   nach `content/`. W6.2–W6.4 (Lektion, Prüfung, Achievement) folgen im
   selben Muster.
-- W6.2–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W6.2 — Lektions-Editor** (fertig, siehe ADR 0081): Titel, Teaser,
+  Niveau, Dauer, Werkzeuge, Voraussetzungen, Glossarbegriffe und der
+  Fließtext (ohne den Quiz-Abschnitt) sind unter
+  `/de/author/lessons/{lesson}/edit` pflegbar. `LessonMetaGenerator`
+  erweitert das chirurgische Patch-Muster von ADR 0080 auf einzelne
+  YAML-/Frontmatter-Felder statt eines ganzen Blocks;
+  `ContentVersionController` verallgemeinert Submit/Publish aus dem
+  Quiz-Editor für alle künftigen Editoren. `sandbox`/`lab`/`objectives`
+  bleiben bewusst außerhalb (siehe `docs/offene-fragen.md`).
+- W6.3–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 

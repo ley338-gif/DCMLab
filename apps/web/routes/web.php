@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\ContentVersionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExamController;
 use App\Http\Controllers\GlossaryController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
+use App\Http\Controllers\LessonEditorController;
 use App\Http\Controllers\NodeController;
 use App\Http\Controllers\PublicProfileController;
 use App\Http\Controllers\QuizController;
@@ -48,7 +50,7 @@ Route::prefix('de')->group(function () {
             Route::post('{questionId}/answer', [QuizController::class, 'answer'])->name('answer');
         });
 
-        // Autoren-Editor (ADR 0071/0080, W6) -- Policy-gepruefte
+        // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte
         // Berechtigung liegt in den Controller-Methoden, nicht in der
         // Route, weil sie gegen die Aktivitaet der Lektion prueft, nicht
         // gegen die Lektion selbst.
@@ -57,9 +59,17 @@ Route::prefix('de')->group(function () {
             Route::post('validate', [QuizEditorController::class, 'validateDraft'])->name('validate');
             Route::post('/', [QuizEditorController::class, 'storeDraft'])->name('store');
         });
+        Route::prefix('author/lessons/{lesson}/edit')->name('author.lessons.edit.')->group(function () {
+            Route::get('/', [LessonEditorController::class, 'edit'])->name('edit');
+            Route::post('validate', [LessonEditorController::class, 'validateDraft'])->name('validate');
+            Route::post('/', [LessonEditorController::class, 'storeDraft'])->name('store');
+        });
+        // Generischer Freigabe-Kreislauf fuer jeden Editor -- Name aus
+        // historischen Gruenden noch "quiz-versions" (ADR 0081), verarbeitet
+        // aber jede Aktivitaet.
         Route::prefix('author/quiz-versions/{version}')->name('author.quiz-versions.')->group(function () {
-            Route::post('submit', [QuizEditorController::class, 'submitForReview'])->name('submit');
-            Route::post('publish', [QuizEditorController::class, 'publish'])->name('publish');
+            Route::post('submit', [ContentVersionController::class, 'submit'])->name('submit');
+            Route::post('publish', [ContentVersionController::class, 'publish'])->name('publish');
         });
 
         Route::prefix('tracks/{track}/exam')->name('tracks.exam.')->middleware('throttle:60,1')->group(function () {
