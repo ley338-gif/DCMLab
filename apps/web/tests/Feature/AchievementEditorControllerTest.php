@@ -7,21 +7,27 @@ use App\Models\Activity;
 use App\Models\ContentVersion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Der Achievement-Editor (ADR 0071/0083, W6.4): ein einzelnes Achievement
- * ohne Kommandozeile anlegen oder bearbeiten, denselben Kreislauf wie die
- * vorherigen Editoren (ADR 0080/0081/0082) wiederverwendend. `image` bleibt
- * bewusst ein Freitextfeld, siehe Klassendoc von AchievementEditorController.
+ * Der Achievement-Editor (ADR 0071/0083/0088, W6.4): ein einzelnes
+ * Achievement ohne Kommandozeile anlegen oder bearbeiten, denselben
+ * Kreislauf wie die vorherigen Editoren (ADR 0080/0081/0082)
+ * wiederverwendend. Der Bild-Upload (ADR 0088) schreibt direkt nach
+ * `public/images/achievements/`, siehe Klassendoc von
+ * AchievementEditorController.
  */
 class AchievementEditorControllerTest extends TestCase
 {
     use RefreshDatabase;
 
     private string $contentDir;
+
+    /** @var list<string> */
+    private array $uploadedTestImages = [];
 
     protected function setUp(): void
     {
@@ -40,6 +46,10 @@ class AchievementEditorControllerTest extends TestCase
     protected function tearDown(): void
     {
         File::deleteDirectory($this->contentDir);
+
+        foreach ($this->uploadedTestImages as $filename) {
+            File::delete(public_path('images/achievements/'.$filename));
+        }
 
         parent::tearDown();
     }
@@ -121,6 +131,64 @@ class AchievementEditorControllerTest extends TestCase
         $this->assertStringContainsString('Neuer Name', $written);
         $this->assertStringContainsString('echo-heard', $written, 'Das andere Achievement muss erhalten bleiben.');
         $this->assertStringContainsString('Echo Heard', $written, 'Das andere Achievement muss erhalten bleiben.');
+    }
+
+    public function test_a_learner_cannot_upload_an_image(): void
+    {
+        $this->makeActivity();
+        $learner = User::factory()->create();
+        $file = UploadedFile::fake()->image('badge.png', 10, 10);
+
+        $this->actingAs($learner)
+            ->post('/de/author/achievements/first-blood/edit/image', ['image' => $file])
+            ->assertForbidden();
+    }
+
+    public function test_an_assigned_author_can_upload_a_valid_image(): void
+    {
+        [, $author] = $this->makeActivity();
+        $slug = 'test-upload-'.Str::lower(Str::random(8));
+        $this->uploadedTestImages[] = "{$slug}.png";
+        $file = UploadedFile::fake()->image('badge.png', 10, 10);
+
+        $response = $this->actingAs($author)
+            ->post("/de/author/achievements/{$slug}/edit/image", ['image' => $file])
+            ->assertOk();
+
+        $response->assertJson(['filename' => "{$slug}.png"]);
+        $this->assertFileExists(public_path("images/achievements/{$slug}.png"));
+    }
+
+    public function test_uploading_a_non_image_file_is_rejected(): void
+    {
+        [, $author] = $this->makeActivity();
+        $file = UploadedFile::fake()->create('not-an-image.pdf', 10);
+
+        $this->actingAs($author)
+            ->post('/de/author/achievements/first-blood/edit/image', ['image' => $file])
+            ->assertSessionHasErrors('image');
+    }
+
+    public function test_uploading_an_oversized_image_is_rejected(): void
+    {
+        [, $author] = $this->makeActivity();
+        $file = UploadedFile::fake()->create('too-big.png', 600, 'image/png');
+
+        $this->actingAs($author)
+            ->post('/de/author/achievements/first-blood/edit/image', ['image' => $file])
+            ->assertSessionHasErrors('image');
+    }
+
+    public function test_the_uploaded_filename_ignores_the_client_supplied_name_and_uses_the_slug(): void
+    {
+        [, $author] = $this->makeActivity();
+        $slug = 'test-upload-'.Str::lower(Str::random(8));
+        $this->uploadedTestImages[] = "{$slug}.png";
+        $file = UploadedFile::fake()->image('../../evil.png', 10, 10);
+
+        $this->actingAs($author)
+            ->post("/de/author/achievements/{$slug}/edit/image", ['image' => $file])
+            ->assertJson(['filename' => "{$slug}.png"]);
     }
 
     /**

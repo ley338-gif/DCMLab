@@ -10,10 +10,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { postJson } from '@/lib/api';
+import { postFormData, postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
 import { home } from '@/routes';
-import { edit, store, validate } from '@/routes/author/achievements/edit';
+import {
+    edit,
+    image,
+    store,
+    validate,
+} from '@/routes/author/achievements/edit';
 import { publish, submit } from '@/routes/author/quiz-versions';
 
 type UnlockWhen = {
@@ -63,6 +68,38 @@ const issues = ref<string[]>([]);
 const validating = ref(false);
 const saving = ref(false);
 const acting = ref(false);
+const uploading = ref(false);
+const uploadError = ref<string | null>(null);
+
+async function uploadImage(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    uploading.value = true;
+    uploadError.value = null;
+
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+        const result = await postFormData<{ filename: string }>(
+            image.url({ slug: props.slug }),
+            formData,
+        );
+        fields.value.image = result.filename;
+    } catch (error) {
+        uploadError.value =
+            error instanceof Error
+                ? error.message
+                : trans('Upload fehlgeschlagen.');
+    } finally {
+        uploading.value = false;
+        input.value = '';
+    }
+}
 
 function payload() {
     return {
@@ -198,10 +235,28 @@ const showsPendingForThisSlug = computed(
                             v-model="fields.image"
                             placeholder="mein-achievement.png"
                         />
+                        <div class="flex items-center gap-2">
+                            <input
+                                id="image_upload"
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                :disabled="uploading"
+                                class="text-muted-foreground text-xs"
+                                @change="uploadImage"
+                            />
+                            <span
+                                v-if="uploading"
+                                class="text-muted-foreground text-xs"
+                                >{{ trans('Lädt hoch …') }}</span
+                            >
+                        </div>
+                        <p v-if="uploadError" class="text-destructive text-xs">
+                            {{ uploadError }}
+                        </p>
                         <p class="text-muted-foreground text-xs">
                             {{
                                 trans(
-                                    'Muss bereits unter public/images/achievements/ liegen -- kein Upload in diesem Editor.',
+                                    'PNG, JPEG oder WebP, max. 512 KB. Der Dateiname wird automatisch aus dem Slug erzeugt.',
                                 )
                             }}
                         </p>

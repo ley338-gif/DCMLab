@@ -10,22 +10,24 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Vierter Autoren-Editor (ADR 0071/0083, W6.4): ein einzelnes Achievement
- * in `content/achievements.yml` anlegen oder bearbeiten. Anders als bei
- * Lektion/Prüfung gibt es keine feste Menge editierbarer Instanzen -- der
- * Slug in der Route kann ein bestehendes Achievement sein (wird geladen)
- * oder ein neuer (Formular startet mit Standardwerten), siehe
- * `AchievementCatalogActivity`-Klassendoc fuer die Aktivitaets-Modellierung.
+ * Vierter Autoren-Editor (ADR 0071/0083/0088, W6.4): ein einzelnes
+ * Achievement in `content/achievements.yml` anlegen oder bearbeiten.
+ * Anders als bei Lektion/Prüfung gibt es keine feste Menge editierbarer
+ * Instanzen -- der Slug in der Route kann ein bestehendes Achievement
+ * sein (wird geladen) oder ein neuer (Formular startet mit
+ * Standardwerten), siehe `AchievementCatalogActivity`-Klassendoc fuer die
+ * Aktivitaets-Modellierung.
  *
- * Bewusst nicht Teil dieses Editors: ein echter Bild-Upload. `image` bleibt
- * ein Freitextfeld (Dateiname unter `public/images/achievements/`) -- ein
- * Datei-Upload braucht einen eigenen, sicherheitsgeprueften Endpunkt
- * ausserhalb der `content_versions`-Transaktion (Bilder sind keine
- * versionierte Prosa), siehe docs/offene-fragen.md.
+ * `uploadImage()` (ADR 0088) schreibt bewusst SOFORT und direkt nach
+ * `public/images/achievements/`, ausserhalb der `content_versions`-
+ * Transaktion -- Bilder waren nie Teil des versionierten Review/Freigabe-
+ * Kreislaufs (kein Rollback fuer Bilder, siehe ADR 0083), ein Upload
+ * aendert daran nichts. Nur der Dateiname landet im Entwurf (`image`).
  */
 class AchievementEditorController extends Controller
 {
@@ -77,6 +79,30 @@ class AchievementEditorController extends Controller
         $versions->createDraft($activity, $this->validatedFields($request, $slug), $request->user());
 
         return back()->with('status', 'Entwurf gespeichert.');
+    }
+
+    /**
+     * Echter Bild-Upload (ADR 0088, loest den entsprechenden Punkt in
+     * docs/offene-fragen.md). Der Dateiname wird immer aus dem Slug
+     * erzeugt (nie aus dem vom Client gesendeten Originalnamen) --
+     * verhindert jede Form von Pfad-Traversal unabhaengig davon, was der
+     * Upload sonst mitschickt. `image`-Validierung prueft echten
+     * Bildinhalt (nicht nur die Dateiendung).
+     */
+    public function uploadImage(Request $request, string $slug): JsonResponse
+    {
+        $activity = $this->activity();
+        Gate::authorize('update', $activity);
+
+        $request->validate([
+            'image' => 'required|image|mimes:png,jpg,jpeg,webp|max:512',
+        ]);
+
+        $file = $request->file('image');
+        $filename = Str::slug($slug).'.'.$file->extension();
+        $file->move(public_path('images/achievements'), $filename);
+
+        return response()->json(['filename' => $filename]);
     }
 
     private function activity(): Activity
