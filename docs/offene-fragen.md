@@ -4,6 +4,24 @@ Entscheidungen aus dem Ausbau zum Lightweight LMS (`dcm-lab-lms-agent-prompt.md`
 die der Betreiber trifft, nicht der Code-Agent. Format: Frage, Kontext,
 Empfehlung. Erledigte Punkte werden hier durchgestrichen, nicht geloescht.
 
+## Bestehende Pruefungsfragen auf `ref` umstellen (nach W5)
+
+**Frage:** Sollen einzelne der 40 bestehenden Pruefungsfragen, die
+inhaltlich mit einer Lektionsfrage uebereinstimmen, auf `ref` umgestellt
+werden, um Doppelpflege zu vermeiden?
+
+**Kontext:** ADR 0079 (W5) baut die technische Moeglichkeit
+(`ref: {lesson, question}` in `exam.yml`), stellt aber keine reale
+Pruefungsfrage automatisch um -- ob eine Pruefungsfrage wirklich wortgleich
+mit einer Lektionsfrage ist (und nicht nur thematisch verwandt, mit
+bewusst anderer Formulierung oder Schwierigkeit), ist eine inhaltliche
+Einschaetzung.
+
+**Empfehlung:** Nur umstellen, wo eine Pruefungsfrage tatsaechlich 1:1
+eine Lektionsfrage dupliziert (identischer Text, identische Antwort) --
+das laesst sich am ehesten beim naechsten redaktionellen Durchgang durch
+`content/exams/` erkennen, nicht automatisiert.
+
 ## Pionier-System (first_blood/track_badges) in Achievements migrieren (nach W4)
 
 **Frage:** Sollen `achievements` (global first_blood) und `track_badges` zu

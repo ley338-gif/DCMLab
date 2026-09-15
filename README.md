@@ -188,7 +188,12 @@ erzeugten Artefakt machen.
   blockiert aber nie den Zugriff -- `requires` war nie ein
   Zugriffsschutz, siehe `docs/content-schema.md` Abschnitt 2. Die
   Fragenbank (Teil 2) folgt als eigener Schritt.
-- W5 (Teil 2) – W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W5 (Teil 2) — Fragenbank** (fertig, siehe ADR 0079): ein
+  Prüfungspool-Eintrag kann `ref: {lesson, question}` statt eigener
+  `type`/`answer` tragen und damit eine Lektions-Quizfrage wiederverwenden
+  -- eine Pflegestelle statt zwei. Kein realer Bestand wurde umgestellt
+  (redaktionelle Entscheidung, siehe `docs/offene-fragen.md`).
+- W6–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 

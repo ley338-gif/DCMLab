@@ -53,7 +53,7 @@ class ExamController extends Controller
 
         $renderer = new MarkdownRenderer($content->glossary());
         $questionId = $attempt->currentQuestionId();
-        $questions = ExamContent::parseQuestions((string) $exam['md_raw'], $exam['meta']['questions'], $renderer);
+        $questions = ExamContent::parseQuestions((string) $exam['md_raw'], $exam['meta']['questions'], $renderer, $content->lessons());
         $current = collect($questions)->firstWhere('id', $questionId);
 
         abort_if($current === null, 404);
@@ -113,7 +113,7 @@ class ExamController extends Controller
 
             $wrongQuestions[] = [
                 'id' => $questionId,
-                'question_html' => collect(ExamContent::parseQuestions((string) $exam['md_raw'], $pool, $renderer))
+                'question_html' => collect(ExamContent::parseQuestions((string) $exam['md_raw'], $pool, $renderer, $lessons))
                     ->firstWhere('id', $questionId)['question_html'] ?? '',
                 'explanation_html' => ExamContent::explanationFor((string) $exam['md_raw'], $questionId, $renderer),
                 'review' => ExamContent::reviewTargets($entry),

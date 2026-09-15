@@ -756,6 +756,29 @@ questions:
 `quiz_reviews` (dieselbe Tabelle wie bei den Lektionskarten, kein zweiter
 Kartenstapel). Eine geänderte Frage bekommt eine neue ID, die alte entfällt.
 
+**Fragenbank (ADR 0071/0079) — eine Frage wiederverwenden, statt sie
+zweimal zu pflegen:** ein Pool-Eintrag kann `ref` statt `type`/`answer`
+tragen und damit eine Frage referenzieren, die schon im `quiz:`-Block einer
+Lektion (Abschnitt 2) gepflegt wird:
+
+```yaml
+  - id: f09
+    ref: { lesson: "1.2", question: "q1" }   # statt type/answer
+    lesson: "1.2"
+    review: { lesson: "1.2", anchor: "vier-ebenen" }
+    difficulty: 1
+    tags: [datenmodell]
+```
+
+`type`, `answer`, Fragetext und Optionen kommen dann ausschließlich aus dem
+`quiz:`-Eintrag und dem `**q1 — ...**`-Block der referenzierten Lektion —
+`content:validate` prüft, dass `ref.lesson` und `ref.question` existieren.
+Ein `ref`-Eintrag braucht **keinen** eigenen `### id — ...`-Abschnitt in
+`de.md`; legt man trotzdem einen an (z. B. für eine prüfungsspezifische
+Erklärung), gilt dafür weiterhin die `**Erklärung:**`-Pflichtzeile.
+`review`, `difficulty` und `tags` bleiben wie bei jedem anderen Eintrag
+Sache des Pools, nicht der referenzierten Lektion.
+
 ### `de.md`
 
 ```markdown
