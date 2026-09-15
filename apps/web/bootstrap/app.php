@@ -1,7 +1,9 @@
 <?php
 
+use App\Console\Commands\ReviewSendReminders;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        // W7 (ADR 0084): der eigentliche "genau eine Mail pro Intervall"-Schutz
+        // liegt im Befehl selbst (review_reminder_sent_at), nicht hier --
+        // taeglich reicht, um jeden konfigurierten Intervall (Standard 3 Tage)
+        // zuverlaessig zu treffen. Ausgefuehrt vom scheduler-Container
+        // (`php artisan schedule:work`), siehe infra/docker-compose.yml.
+        $schedule->command(ReviewSendReminders::class)->daily();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
