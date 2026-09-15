@@ -122,6 +122,59 @@ class LessonControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('toolbar.lab_node', null));
     }
 
+    /**
+     * ADR 0101 (CMS-5a): body/title/teaser/objectives kommen bevorzugt aus
+     * der DB, ContentRepository ist nur noch Fallback.
+     */
+    public function test_it_prefers_the_db_body_title_teaser_and_objectives_over_the_file(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.1',
+            'track_id' => $track->id,
+            'order' => 0,
+            'title' => ['de' => 'DB-Titel'],
+            'teaser' => ['de' => 'DB-Teaser'],
+            'objectives' => ['DB-Lernziel'],
+            'body' => "## Aus der DB\n\nDieser Text kommt aus der Datenbank, nicht aus der Datei.",
+        ]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.1')
+            ->assertInertia(fn ($page) => $page
+                ->where('lesson.title', 'DB-Titel')
+                ->where('lesson.teaser', 'DB-Teaser')
+                ->where('lesson.objectives', ['DB-Lernziel'])
+                ->where('lesson.body_html', fn (string $html) => str_contains($html, 'kommt aus der Datenbank')),
+            );
+    }
+
+    public function test_it_falls_back_to_the_file_when_the_db_body_and_objectives_are_null(): void
+    {
+        // title/teaser sind in der DB seit ADR 0071 NOT NULL (immer via
+        // content:sync gesetzt) -- nur body/objectives sind nullable und
+        // haben deshalb einen echten Datei-Fallback zu testen.
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.1',
+            'track_id' => $track->id,
+            'order' => 0,
+            'objectives' => null,
+            'body' => null,
+        ]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.1')
+            ->assertInertia(fn ($page) => $page
+                ->where('lesson.objectives', ['Testen'])
+                ->where('lesson.body_html', fn (string $html) => str_contains($html, 'ist wichtig')),
+            );
+    }
+
     public function test_visiting_creates_progress_and_second_visit_is_detected(): void
     {
         $track = Track::factory()->create();

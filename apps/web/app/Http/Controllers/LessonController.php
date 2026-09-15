@@ -33,7 +33,13 @@ class LessonController extends Controller
     ): Response {
         $lessonContent = $content->lessons()[$lesson->lesson_id] ?? null;
 
-        abort_unless($lessonContent !== null && $lessonContent['body'] !== null, 404);
+        // ADR 0101 (CMS-5a): body/objectives/title/teaser bevorzugt aus der
+        // DB (von content:sync gefuellt) -- ContentRepository bleibt nur
+        // noch Fallback fuer eine Lektion, deren naechster Sync-Lauf noch
+        // aussteht, sowie fuer das weiterhin datei-gefuehrte Quiz-Meta.
+        $body = $lesson->body ?? $lessonContent['body'] ?? null;
+
+        abort_unless($body !== null, 404);
 
         $tools = $content->tools();
         $datasets = $content->datasets();
@@ -44,7 +50,7 @@ class LessonController extends Controller
         // waere die alte, nicht-interaktive Darstellung) -- er wird
         // herausgetrennt und stattdessen strukturiert an eine eigene
         // Vue-Komponente uebergeben (Abschnitt 4.7).
-        $split = QuizContent::splitBody($lessonContent['body']);
+        $split = QuizContent::splitBody($body);
         $bodyHtml = $renderer->render($split['before']);
         $bodyAfterQuizHtml = trim($split['after']) !== '' ? $renderer->render($split['after']) : null;
 
@@ -80,9 +86,9 @@ class LessonController extends Controller
         return Inertia::render('Lessons/Show', [
             'lesson' => [
                 'lesson_id' => $lesson->lesson_id,
-                'title' => $lessonContent['frontmatter']['title'] ?? $lesson->lesson_id,
-                'teaser' => $lessonContent['frontmatter']['teaser'] ?? '',
-                'objectives' => $lessonContent['frontmatter']['objectives'] ?? [],
+                'title' => $lesson->title['de'] ?? $lessonContent['frontmatter']['title'] ?? $lesson->lesson_id,
+                'teaser' => $lesson->teaser['de'] ?? $lessonContent['frontmatter']['teaser'] ?? '',
+                'objectives' => $lesson->objectives ?? $lessonContent['frontmatter']['objectives'] ?? [],
                 'duration_minutes' => $lesson->duration_minutes,
                 'level' => $lesson->level,
                 'body_html' => $bodyHtml,

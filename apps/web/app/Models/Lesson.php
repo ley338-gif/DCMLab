@@ -33,12 +33,14 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $content_updated_at
  * @property array<string, string> $title
  * @property array<string, string> $teaser
+ * @property string|null $body Seit ADR 0101 (CMS-5a) von content:sync aus de.md befuellt
+ * @property array<int, string>|null $objectives Seit ADR 0101 (CMS-5a) von content:sync aus der Frontmatter befuellt
  * @property string $source_hash
  */
 #[Fillable([
     'lesson_id', 'track_id', 'order', 'level', 'duration_minutes', 'objectives_count',
     'requires', 'tools', 'sandbox', 'lab', 'glossary_terms', 'tools_checked', 'status',
-    'legacy_authors', 'content_updated_at', 'title', 'teaser', 'source_hash',
+    'legacy_authors', 'content_updated_at', 'title', 'teaser', 'body', 'objectives', 'source_hash',
 ])]
 class Lesson extends Model
 {
@@ -61,6 +63,7 @@ class Lesson extends Model
             'legacy_authors' => 'array',
             'title' => 'array',
             'teaser' => 'array',
+            'objectives' => 'array',
             'tools_checked' => 'date',
             'content_updated_at' => 'date',
         ];

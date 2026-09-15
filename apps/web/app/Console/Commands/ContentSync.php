@@ -154,6 +154,11 @@ class ContentSync extends Command
                     'content_updated_at' => $lesson['meta']['updated'] ?? null,
                     'title' => $title,
                     'teaser' => $teaser,
+                    // ADR 0101 (CMS-5a): dieselbe Datei, die frontmatter fuer
+                    // title/teaser liefert, hat auch body/objectives -- kein
+                    // zusaetzlicher Lesevorgang, nur zwei weitere Spalten.
+                    'body' => $lesson['body'] ?? null,
+                    'objectives' => $lesson['frontmatter']['objectives'] ?? [],
                     'source_hash' => $sourceHash,
                 ],
             );
