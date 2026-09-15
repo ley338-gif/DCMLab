@@ -51,10 +51,15 @@ class LessonEditorController extends Controller
                 'tools' => array_keys($content->tools()),
                 'glossary_terms' => array_keys($content->glossary()),
                 'datasets' => array_keys($content->datasets()),
-                // Seit CMS-6d Teil 3 (ADR 0109) auch Nodes, die nur in der DB
-                // existieren (per Studio angelegt, kein content/nodes/**) --
-                // vorher sah der Composer nur den Datei-Bestand.
-                'nodes' => Node::query()->pluck('slug')->merge(array_keys($content->nodes()))->unique()->sort()->values()->all(),
+                // Seit CMS-6d Teil 3 (ADR 0109) aus der DB statt aus
+                // ContentRepository -- damit sieht der Composer auch eine
+                // rein per Studio angelegte Node (kein content/nodes/**).
+                // Seit ADR 0110 (CMS-6d Haertung) nur "published": ein
+                // Lab-Verweis auf einen noch nicht freigegebenen Entwurf
+                // waere fuer Lernende ein gesperrter Link. Jede real
+                // existierende Datei-Node traegt diesen Status ohnehin schon
+                // in der DB, sobald ihr naechster content:sync gelaufen ist.
+                'nodes' => Node::query()->where('status', 'published')->pluck('slug')->sort()->values()->all(),
             ],
             'pending_version' => $pendingVersion === null ? null : [
                 'id' => $pendingVersion->id,

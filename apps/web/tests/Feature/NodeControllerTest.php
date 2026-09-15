@@ -55,6 +55,63 @@ class NodeControllerTest extends TestCase
         $this->get('/de/nodes/test-node')->assertRedirect('/de/login');
     }
 
+    /**
+     * Seit ADR 0110 (CMS-6d Haertung): eine per Studio angelegte, noch nicht
+     * freigegebene Node ist fuer eine normale Lernende gesperrt -- vorher
+     * war show() ausschliesslich gegen "archived" geprueft, ein Entwurf war
+     * also sofort fuer jeden angemeldeten Nutzer spielbar.
+     */
+    public function test_a_learner_cannot_open_a_node_that_is_not_yet_published(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get('/de/nodes/test-node')->assertNotFound();
+    }
+
+    /**
+     * "Vorschau" (ADR 0109) ist keine zweite Route -- ein Autor/Reviewer,
+     * der die zugehoerige Activity bearbeiten darf, sieht denselben
+     * Lerner-Renderer trotzdem, auch bevor die Node freigegeben ist.
+     */
+    public function test_an_assigned_author_can_preview_a_node_that_is_not_yet_published(): void
+    {
+        $node = Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        $activity = Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $author = User::factory()->author()->create();
+        $activity->authorUsers()->attach($author);
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'sess-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/sess-1/state' => Http::response($this->baseState()),
+        ]);
+
+        $this->actingAs($author)->get('/de/nodes/test-node')->assertOk();
+    }
+
+    public function test_an_unassigned_author_cannot_preview_a_node_that_is_not_yet_published(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $author = User::factory()->author()->create();
+
+        $this->actingAs($author)->get('/de/nodes/test-node')->assertNotFound();
+    }
+
+    public function test_a_reviewer_can_preview_a_node_that_is_not_yet_published(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'review']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $reviewer = User::factory()->reviewer()->create();
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'sess-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/sess-1/state' => Http::response($this->baseState()),
+        ]);
+
+        $this->actingAs($reviewer)->get('/de/nodes/test-node')->assertOk();
+    }
+
     public function test_index_groups_nodes_by_themenfeld(): void
     {
         $datenschutz = Themenfeld::factory()->create(['slug' => 'datenschutz']);
