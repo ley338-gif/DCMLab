@@ -18,6 +18,8 @@ use App\Http\Controllers\QuizEditorController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ReviewQueueController;
 use App\Http\Controllers\SandboxController;
+use App\Http\Controllers\StudioController;
+use App\Http\Controllers\StudioSandboxTemplateController;
 use App\Http\Controllers\TrackController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +68,16 @@ Route::prefix('de')->group(function () {
             Route::patch('{user}', [AuthorUserController::class, 'updateRole'])->name('update');
             Route::post('{user}/activities', [AuthorUserController::class, 'assignActivity'])->name('activities.store');
             Route::delete('{user}/activities/{activity}', [AuthorUserController::class, 'removeActivity'])->name('activities.destroy');
+        });
+
+        // DCMLab Studio (ADR 0094 Abschnitt 12/0099, CMS-3b): additiv neben
+        // dem Autoren-Panel oben, nicht dessen Ersatz -- siehe
+        // StudioController Klassendoc.
+        Route::get('studio', [StudioController::class, 'index'])->name('studio.index');
+        Route::prefix('studio/sandbox-templates')->name('studio.sandbox-templates.')->group(function () {
+            Route::get('/', [StudioSandboxTemplateController::class, 'index'])->name('index');
+            Route::post('/', [StudioSandboxTemplateController::class, 'store'])->name('store');
+            Route::patch('{sandboxTemplate}', [StudioSandboxTemplateController::class, 'update'])->name('update');
         });
 
         // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte
