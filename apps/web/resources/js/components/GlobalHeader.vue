@@ -8,6 +8,7 @@ import {
     ListChecks,
     Menu,
     Moon,
+    ShieldCheck,
     Sun,
 } from '@lucide/vue';
 import { computed } from 'vue';
@@ -29,6 +30,7 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { trans } from '@/lib/trans';
 import { dashboard, home, login, register } from '@/routes';
+import { index as authorPanelIndex } from '@/routes/author';
 import { index as glossaryIndex } from '@/routes/glossary';
 import { index as nodesIndex } from '@/routes/nodes';
 import { index as reviewIndex } from '@/routes/review';
@@ -121,6 +123,19 @@ function isActive(prefix: string): boolean {
                                     <span>{{ trans('Wissen testen') }}</span>
                                 </Link>
                                 <Link
+                                    v-if="user && user.role !== 'learner'"
+                                    :href="authorPanelIndex()"
+                                    :class="{
+                                        'is-active': isActive('/de/author'),
+                                    }"
+                                >
+                                    <ShieldCheck
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    <span>{{ trans('Autoren-Panel') }}</span>
+                                </Link>
+                                <Link
                                     :href="glossaryIndex()"
                                     :class="{
                                         'is-active': isActive('/de/glossar'),
@@ -175,6 +190,14 @@ function isActive(prefix: string): boolean {
                 >
                     <ListChecks class="size-4" aria-hidden="true" />
                     {{ trans('Wissen testen') }}
+                </Link>
+                <Link
+                    v-if="user && user.role !== 'learner'"
+                    :href="authorPanelIndex()"
+                    :class="{ 'is-active': isActive('/de/author') }"
+                >
+                    <ShieldCheck class="size-4" aria-hidden="true" />
+                    {{ trans('Autoren-Panel') }}
                 </Link>
                 <Link
                     :href="glossaryIndex()"
