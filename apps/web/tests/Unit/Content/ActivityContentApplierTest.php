@@ -6,6 +6,7 @@ use App\Content\ActivityContentApplier;
 use App\Content\ContentRepository;
 use App\Models\Activity;
 use App\Models\Lesson;
+use App\Models\Node;
 use App\Models\Track;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -36,6 +37,10 @@ class ActivityContentApplierTest extends TestCase
         File::ensureDirectoryExists($this->contentDir.'/lessons/1.0');
         File::put($this->contentDir.'/lessons/1.0/meta.yml', "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: []\nglossary_terms: []\nobjectives_count: 1\nsandbox:\n  required: false\nlab:\n  node: null\n  optional: true\nstatus: draft\n");
         File::put($this->contentDir.'/lessons/1.0/de.md', "---\ntitle: Alt\nteaser: Alt\nobjectives:\n  - Altes Ziel\n---\n\nAlte Prosa.\n\n```\n\$ dcmdump datei.dcm\n```\n\n**Was du daran abliest:** Test.\n");
+        File::put($this->contentDir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: themenfeld.dicom.title\n  status: published\n");
+        File::ensureDirectoryExists($this->contentDir.'/nodes/test-node');
+        File::put($this->contentDir.'/nodes/test-node/node.yml', "slug: test-node\ndifficulty: easy\npoints: 10\ncategory: netzwerk\nskills: [netzwerk]\nrelated_lessons: []\nestimated_minutes: 15\nstatus: draft\n");
+        File::put($this->contentDir.'/nodes/test-node/de.md', "---\ntitle: Alt\nscenario_title: Alt\n---\n\n## Briefing\n\nAlter Text.\n\n```\n\$ echoscu foo\n```\n\n**Was du daran abliest:** Test.\n");
         $this->app->instance(ContentRepository::class, new ContentRepository($this->contentDir));
     }
 
@@ -107,5 +112,24 @@ class ActivityContentApplierTest extends TestCase
 
         $this->assertNotEmpty($issues);
         $this->assertSame('Unveraendert', $lesson->fresh()->title['de']);
+    }
+
+    public function test_a_node_draft_is_applied_directly_to_the_db_without_touching_content_files(): void
+    {
+        $node = Node::factory()->create(['slug' => 'test-node', 'title' => ['de' => 'Alt']]);
+        $activity = Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+
+        $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
+            'title' => 'Neu', 'scenario_title' => 'Neues Szenario', 'difficulty' => 'medium',
+            'points' => 20, 'category' => 'netzwerk', 'interaction' => 'terminal', 'estimated_minutes' => 15,
+            'skills' => ['netzwerk'], 'related_lessons' => [], 'hints' => [],
+            'body' => "## Briefing\n\nNeuer Text.\n\n```\n\$ echoscu foo\n```\n\n**Was du daran abliest:** Test.",
+        ]);
+
+        $this->assertSame([], $issues);
+        $this->assertSame('Neu', $node->fresh()->title['de']);
+        // content/ bleibt exakt wie in setUp() angelegt -- der Kernpunkt
+        // dieses Pfads.
+        $this->assertStringNotContainsString('Neuer Text.', File::get($this->contentDir.'/nodes/test-node/de.md'));
     }
 }

@@ -46,14 +46,14 @@ Wiederherstellen"-Feature in Studio tatsaechlich ansteht (CMS-10,
 Revision History) -- nicht vorab, ohne dass irgendeine Oberflaeche es
 nutzt.
 
-## `content/` ist in `infra/docker-compose.yml` fuer `app` read-only gemountet -- Freigeben schlaegt im Standard-Dev-Setup fehl (nur noch Pruefung/Achievement/Node)
+## `content/` ist in `infra/docker-compose.yml` fuer `app` read-only gemountet -- Freigeben schlaegt im Standard-Dev-Setup fehl (nur noch Pruefung/Achievement)
 
-**Seit ADR 0102/0104 (CMS-5b/CMS-6a) eingeschraenkt:** Weder eine
-Lektionsfeld- noch eine Quiz-Freigabe schreiben noch nach `content/`
-(siehe oben) -- beide sind von diesem Mount deshalb nicht mehr
-betroffen. Pruefungs-, Achievement- und Node-Freigaben schreiben
-weiterhin nach `content/` und scheitern deshalb weiterhin lokal wie
-unten beschrieben.
+**Seit ADR 0102/0104/0108 (CMS-5b/CMS-6a/CMS-6d Teil 2) eingeschraenkt:**
+Weder eine Lektionsfeld- noch eine Quiz- noch eine Node-Freigabe
+schreiben noch nach `content/` (siehe oben) -- alle drei sind von diesem
+Mount deshalb nicht mehr betroffen. Pruefungs- und Achievement-Freigaben
+schreiben weiterhin nach `content/` und scheitern deshalb weiterhin
+lokal wie unten beschrieben.
 
 **Frage:** Wie soll ein Reviewer eine Einreichung lokal tatsaechlich
 freigeben koennen (`ContentWriter` schreibt nach `content/`), wenn
