@@ -130,6 +130,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # APP_KEY (ADR 0087) ist ein Pflichtwert fuer docker-compose.yml, damit
+      # app/scheduler nie mit leerem oder je Container unterschiedlichem
+      # Schluessel starten koennen -- `build` braucht keinen echten Wert (die
+      # Umgebung wird nie ausgefuehrt), aber Compose interpoliert die gesamte
+      # Datei auch fuer `build`, ein Platzhalter reicht hier also aus.
+      - run: echo "APP_KEY=base64:$(openssl rand -base64 32)" >> "$GITHUB_ENV"
       - run: docker compose -f infra/docker-compose.yml build
       # orthanc/toolbox sind keine Compose-Services (Abschnitt 6: der
       # Orchestrator startet sie dynamisch per Docker-Socket), muessen
