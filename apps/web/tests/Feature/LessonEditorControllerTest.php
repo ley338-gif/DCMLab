@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
-use App\Content\FrontMatter;
 use App\Models\Activity;
 use App\Models\ContentVersion;
 use App\Models\Lesson;
@@ -12,7 +11,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use Symfony\Component\Yaml\Yaml;
 use Tests\TestCase;
 
 /**
@@ -98,10 +96,19 @@ class LessonEditorControllerTest extends TestCase
             );
     }
 
-    public function test_the_full_lifecycle_preserves_the_quiz_section_on_publish(): void
+    /**
+     * ADR 0102 (CMS-5b): ein Lektionsfeld-Publish schreibt jetzt direkt in
+     * die DB (LessonContentPublisher) -- content/ wird dabei nicht mehr
+     * angefasst. Die Datei bleibt exakt so, wie sie in setUp() angelegt
+     * wurde (bewusster Alt-Titel/Alt-Teaser als Nachweis).
+     */
+    public function test_the_full_lifecycle_writes_to_the_db_and_preserves_the_quiz_section_without_touching_content_files(): void
     {
         [$lesson, $activity, $author] = $this->lessonAndActivity();
         $reviewer = User::factory()->reviewer()->create();
+
+        $originalMeta = File::get($this->contentDir.'/lessons/1.0/meta.yml');
+        $originalBody = File::get($this->contentDir.'/lessons/1.0/de.md');
 
         $payload = [
             'title' => 'Neuer Titel',
@@ -133,24 +140,31 @@ class LessonEditorControllerTest extends TestCase
 
         $this->assertSame('published', $version->refresh()->status);
 
-        $writtenMeta = File::get($this->contentDir.'/lessons/1.0/meta.yml');
-        $writtenBody = File::get($this->contentDir.'/lessons/1.0/de.md');
+        // content/ bleibt vollstaendig unangetastet -- der zentrale Punkt
+        // dieser ADR.
+        $this->assertSame($originalMeta, File::get($this->contentDir.'/lessons/1.0/meta.yml'));
+        $this->assertSame($originalBody, File::get($this->contentDir.'/lessons/1.0/de.md'));
 
-        $this->assertStringContainsString('level: aufbau', $writtenMeta);
-        $this->assertStringContainsString('duration_minutes: 15', $writtenMeta);
-        $this->assertStringContainsString('Neue Einleitung', $writtenBody);
-        $this->assertStringContainsString('q1 — Frage?', $writtenBody, 'Der Quiz-Abschnitt muss erhalten bleiben.');
-        $this->assertStringContainsString('Als Nächstes', $writtenBody);
+        $lesson->refresh();
+        $this->assertSame('Neuer Titel', $lesson->title['de']);
+        $this->assertSame('Neuer Teaser', $lesson->teaser['de']);
+        $this->assertSame('aufbau', $lesson->level);
+        $this->assertSame(15, $lesson->duration_minutes);
+        $this->assertSame(['dcmdump'], $lesson->tools);
+        $this->assertSame(['dicom'], $lesson->glossary_terms);
+        $this->assertSame(['Neues Lernziel eins', 'Neues Lernziel zwei'], $lesson->objectives);
+        $this->assertSame(2, $lesson->objectives_count, 'objectives_count muss zur Listenlaenge passen.');
+        $this->assertTrue($lesson->sandbox['required']);
+        $this->assertSame('ct-thorax-60', $lesson->sandbox['dataset']);
+        $this->assertSame('silent-ct', $lesson->lab['node']);
+        $this->assertFalse($lesson->lab['optional']);
+        $this->assertStringContainsString('Neue Einleitung', $lesson->body);
+        $this->assertStringContainsString('q1 — Frage?', $lesson->body, 'Der Quiz-Abschnitt muss erhalten bleiben.');
+        $this->assertStringContainsString('Als Nächstes', $lesson->body);
 
-        $parsedMeta = Yaml::parse($writtenMeta);
-        $this->assertTrue($parsedMeta['sandbox']['required']);
-        $this->assertSame('ct-thorax-60', $parsedMeta['sandbox']['dataset']);
-        $this->assertSame('silent-ct', $parsedMeta['lab']['node']);
-        $this->assertFalse($parsedMeta['lab']['optional']);
-        $this->assertSame(2, $parsedMeta['objectives_count'], 'objectives_count muss zur Listenlaenge passen.');
-
-        $frontMatter = FrontMatter::parse($writtenBody);
-        $this->assertSame(['Neues Lernziel eins', 'Neues Lernziel zwei'], $frontMatter['attributes']['objectives']);
+        $activity->refresh();
+        $this->assertSame('Neuer Titel', $activity->title['de']);
+        $this->assertSame('Neuer Teaser', $activity->teaser['de']);
     }
 
     /**
@@ -159,7 +173,18 @@ class LessonEditorControllerTest extends TestCase
     private function lessonAndActivity(): array
     {
         $track = Track::factory()->create(['slug' => 'fundamente']);
-        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id]);
+        // Body/Titel/Teaser/Lernziele wie sie ein bereits gelaufener
+        // content:sync (ADR 0101) aus derselben Datei in die DB uebernommen
+        // haette -- die Ist-Zustands-Quelle fuer einen Lektionsfeld-Publish
+        // ist seit ADR 0102 die DB, nicht mehr die Datei.
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.0',
+            'track_id' => $track->id,
+            'title' => ['de' => 'Alter Titel'],
+            'teaser' => ['de' => 'Alter Teaser'],
+            'objectives' => ['Altes Lernziel'],
+            'body' => "## Intro\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Test.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.",
+        ]);
         $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
         $author = User::factory()->author()->create();
         $activity->authorUsers()->attach($author);

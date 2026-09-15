@@ -88,22 +88,38 @@ class ContentVersioningServiceTest extends TestCase
         $this->assertSame(2, $activity->contentVersions()->where('status', 'published')->count());
     }
 
-    public function test_rollback_restores_the_previous_published_version(): void
+    /**
+     * ADR 0102 (CMS-5b): ein Rollback erzeugt eine NEUE Version mit
+     * demselben payload, statt eine bestehende, bereits veroeffentlichte
+     * Version erneut zu mutieren -- veroeffentlichte Versionen bleiben
+     * unveraendert (siehe Klassendoc).
+     */
+    public function test_rollback_creates_a_new_version_with_the_previous_payload(): void
     {
         $service = new ContentVersioningService;
         $activity = Activity::factory()->create();
         $author = User::factory()->author()->create();
         $reviewer = User::factory()->reviewer()->create();
+        $secondReviewer = User::factory()->reviewer()->create();
 
         $first = $service->publish($service->submitForReview($service->createDraft($activity, ['v' => 1], $author)), $reviewer);
         $second = $service->publish($service->submitForReview($service->createDraft($activity, ['v' => 2], $author)), $reviewer);
 
-        $restored = $service->rollback($activity);
+        $restored = $service->rollback($activity, $secondReviewer);
 
-        $this->assertSame($first->id, $restored->id);
+        $this->assertNotSame($first->id, $restored->id);
         $this->assertTrue($restored->is_current);
-        $this->assertFalse($second->refresh()->is_current);
+        $this->assertSame('published', $restored->status);
         $this->assertSame(['v' => 1], $restored->payload);
+        $this->assertSame($author->id, $restored->created_by, 'Urheberschaft der wiederhergestellten Fassung bleibt erhalten.');
+        $this->assertSame($secondReviewer->id, $restored->reviewed_by);
+
+        // Beide vorherigen Versionen bleiben unveraendert -- nur is_current
+        // bewegt sich.
+        $this->assertFalse($second->refresh()->is_current);
+        $this->assertSame(['v' => 1], $first->refresh()->payload);
+        $this->assertSame(['v' => 2], $second->payload);
+        $this->assertSame(3, $activity->contentVersions()->where('status', 'published')->count());
     }
 
     public function test_rollback_without_a_previous_published_version_fails(): void
@@ -116,14 +132,15 @@ class ContentVersioningServiceTest extends TestCase
         $service->publish($service->submitForReview($service->createDraft($activity, [], $author)), $reviewer);
 
         $this->expectException(RuntimeException::class);
-        $service->rollback($activity);
+        $service->rollback($activity, $reviewer);
     }
 
     public function test_rollback_without_any_version_history_fails(): void
     {
         $activity = Activity::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
 
         $this->expectException(RuntimeException::class);
-        (new ContentVersioningService)->rollback($activity);
+        (new ContentVersioningService)->rollback($activity, $reviewer);
     }
 }
