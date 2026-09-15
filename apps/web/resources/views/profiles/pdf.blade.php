@@ -30,32 +30,18 @@
         </tbody>
     </table>
 
-    <h2>{{ __('Bestandene Abschlussprüfungen') }}</h2>
-    @if (count($profile['track_badges']) === 0)
-        <p>{{ __('Noch keine Abschlussprüfung bestanden.') }}</p>
+    <h2>{{ __('Achievements') }}</h2>
+    @php $unlocked = collect($profile['achievements'])->filter(fn ($a) => $a['unlocked'])->values(); @endphp
+    @if (count($unlocked) === 0)
+        <p>{{ __('Noch keine Achievements verfügbar.') }}</p>
     @else
         <table>
             <tbody>
-                @foreach ($profile['track_badges'] as $badge)
+                @foreach ($unlocked as $achievement)
                     <tr>
-                        <td>{{ __($badge['track_title_key']) }}</td>
-                        <td>{{ $badge['awarded_at'] }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    @endif
-
-    <h2>{{ __('First Blood') }}</h2>
-    @if (count($profile['first_bloods']) === 0)
-        <p>{{ __('No first bloods yet.') }}</p>
-    @else
-        <table>
-            <tbody>
-                @foreach ($profile['first_bloods'] as $entry)
-                    <tr>
-                        <td>{{ $entry['node_title'] }}</td>
-                        <td>{{ $entry['awarded_at'] }}</td>
+                        <td>{{ $achievement['name'] }}</td>
+                        <td>{{ $achievement['description'] }}</td>
+                        <td>{{ \Illuminate\Support\Carbon::parse($achievement['unlocked_at'])->toDateString() }}</td>
                     </tr>
                 @endforeach
             </tbody>

@@ -65,19 +65,6 @@ class DashboardController extends Controller
                 'completed_at' => $progress->completed_at?->toIso8601String(),
             ]);
 
-        // "Pionier" (frueher "First Blood"): globaler Wettlauf um die
-        // Erstloesung einer Node plus bestandene Track-Pruefungen,
-        // zusammengefasst ueber ProfileService::achievementsFor() (ADR
-        // 0070) -- unveraendertes Altsystem, bewusst getrennt von den
-        // neuen, generischen Achievements unten, siehe docs/achievements.md.
-        $pioneerAchievements = collect($profiles->achievementsFor($user))
-            ->map(fn (array $entry) => [
-                'kind' => $entry['kind'],
-                'node_title' => $entry['node_title'],
-                'track_title_key' => $entry['track_title_key'],
-                'awarded_at' => $entry['awarded_at']->toIso8601String(),
-            ]);
-
         $dueReviewsCount = QuizReview::query()
             ->where('user_id', $user->id)
             ->where('due_at', '<=', now())
@@ -91,7 +78,6 @@ class DashboardController extends Controller
             ],
             'tracks' => $tracks,
             'recent_lessons' => $recentLessons,
-            'pioneer_achievements' => $pioneerAchievements,
             'achievements' => $achievementService->listForUser($user)->values(),
             'due_reviews_count' => $dueReviewsCount,
         ]);

@@ -88,3 +88,100 @@
   points: 0
   is_hidden: false
   sort_order: 60
+
+# Migriertes "Pionier"-System (ADR 0090b): global first_blood (wer eine
+# Node zuerst von allen Nutzern loest) und track_badges (Abschlusspruefung
+# bestanden) sind jetzt echte, deklarative Achievements statt eines
+# eigenen Lesemodells (siehe docs/offene-fragen.md).
+
+- slug: trailblazer
+  name: Trailblazer
+  description: Löse eine Node als Erste oder Erster von allen Nutzern.
+  image: trailblazer.png
+  category: labs
+  rarity: rare
+  scope: global
+  points: 0
+  is_hidden: false
+  sort_order: 70
+  unlock_when:
+    type: activity_completed
+    activity_type: node
+
+- slug: track-fundamente
+  name: Fundamente abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „Fundamente".
+  image: track-fundamente.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 80
+  unlock_when:
+    type: track_passed
+    track: fundamente
+
+- slug: track-services
+  name: Die Services abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „Die Services".
+  image: track-services.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 90
+  unlock_when:
+    type: track_passed
+    track: services
+
+- slug: track-bild
+  name: Das Bild selbst abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „Das Bild selbst".
+  image: track-bild.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 100
+  unlock_when:
+    type: track_passed
+    track: bild
+
+- slug: track-troubleshooting
+  name: Troubleshooting abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „Troubleshooting".
+  image: track-troubleshooting.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 110
+  unlock_when:
+    type: track_passed
+    track: troubleshooting
+
+- slug: track-betrieb
+  name: Betrieb und Integration abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „Betrieb und Integration".
+  image: track-betrieb.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 120
+  unlock_when:
+    type: track_passed
+    track: betrieb
+
+- slug: track-grundlagen
+  name: Grundlagen abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „Grundlagen".
+  image: track-grundlagen.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 130
+  unlock_when:
+    type: track_passed
+    track: grundlagen

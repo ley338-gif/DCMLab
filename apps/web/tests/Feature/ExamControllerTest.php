@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Models\AchievementUnlock;
+use App\Models\Activity;
 use App\Models\ExamAttempt;
 use App\Models\Lesson;
 use App\Models\Profile;
 use App\Models\Track;
-use App\Models\TrackBadge;
 use App\Models\User;
+use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -42,6 +44,7 @@ class ExamControllerTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
+        $this->seed(AchievementSeeder::class);
         $this->contentDir = storage_path('framework/testing/exam-content-'.Str::random(12));
         $this->buildContentFixture();
         $this->app->instance(ContentRepository::class, new ContentRepository($this->contentDir));
@@ -120,7 +123,7 @@ class ExamControllerTest extends TestCase
         $this->assertTrue($attempt->passed);
         $this->assertSame(8, $attempt->score_correct);
 
-        $this->assertDatabaseHas('track_badges', ['user_id' => $user->id, 'track_id' => $track->id]);
+        $this->assertTrue($this->hasTrackBadge($user, $track));
 
         $profile = Profile::where('user_id', $user->id)->firstOrFail();
         $this->assertSame(50, $profile->points);
@@ -151,7 +154,10 @@ class ExamControllerTest extends TestCase
 
         $secondAttempt = $this->passAttempt($user, $track);
 
-        $this->assertSame(1, TrackBadge::where('user_id', $user->id)->where('track_id', $track->id)->count());
+        $this->assertSame(1, AchievementUnlock::query()
+            ->where('user_id', $user->id)
+            ->whereHas('definition', fn ($query) => $query->where('slug', "track-{$track->slug}"))
+            ->count());
         $this->assertFalse($secondAttempt->badge_awarded);
 
         $profileAfterSecond = Profile::where('user_id', $user->id)->firstOrFail();
@@ -193,7 +199,7 @@ class ExamControllerTest extends TestCase
         $attempt = $attempt->fresh();
         $this->assertSame('completed', $attempt->status);
         $this->assertFalse($attempt->passed);
-        $this->assertDatabaseMissing('track_badges', ['user_id' => $user->id, 'track_id' => $track->id]);
+        $this->assertFalse($this->hasTrackBadge($user, $track));
     }
 
     public function test_another_users_attempt_cannot_be_accessed(): void
@@ -205,6 +211,14 @@ class ExamControllerTest extends TestCase
         $this->actingAs($stranger)
             ->get("/de/tracks/{$track->slug}/exam/{$attempt->id}")
             ->assertForbidden();
+    }
+
+    private function hasTrackBadge(User $user, Track $track): bool
+    {
+        return AchievementUnlock::query()
+            ->where('user_id', $user->id)
+            ->whereHas('definition', fn ($query) => $query->where('slug', "track-{$track->slug}"))
+            ->exists();
     }
 
     private function startAttempt(User $user, Track $track): ExamAttempt
@@ -240,6 +254,7 @@ class ExamControllerTest extends TestCase
     {
         $track = Track::factory()->create(['slug' => 'fundamente']);
         Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id]);
+        Activity::factory()->create(['type' => 'exam', 'key' => 'fundamente']);
         $user = User::factory()->create();
 
         return [$user, $track];

@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\Track;
-use App\Models\TrackBadge;
 use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\ProfileService;
@@ -66,22 +65,27 @@ class PublicProfileControllerTest extends TestCase
     }
 
     /**
-     * P10.65: das oeffentliche Profil zeigt bestandene Tracks bereits seit
-     * P10.60 an -- hier folgt der PDF-Export nach, der denselben
-     * `profileData()`-Prop (`track_badges`) bisher nicht rendert hat.
+     * P10.65/ADR 0090b: bestandene Tracks sind seit der Migration des
+     * "Pionier"-Systems ein deklaratives Achievement ("track-<slug>") wie
+     * jedes andere, keine eigene `track_badges`-Prop mehr.
      */
-    public function test_profile_page_lists_a_passed_track(): void
+    public function test_profile_page_lists_a_passed_track_as_an_unlocked_achievement(): void
     {
+        $this->seed(AchievementSeeder::class);
         $user = User::factory()->create();
-        $track = Track::factory()->create(['slug' => 'fundamente', 'title_key' => 'track.fundamente.title']);
+        Track::factory()->create(['slug' => 'fundamente']);
         $profile = (new ProfileService)->profileFor($user);
-        TrackBadge::create(['user_id' => $user->id, 'track_id' => $track->id, 'awarded_at' => now()]);
+        (new AchievementService)->unlock($user, 'track-fundamente');
 
         $response = $this->get("/de/profiles/{$profile->public_slug}");
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->where('profile.track_badges.0.track_title_key', 'track.fundamente.title'),
+            ->where('profile.achievements', function ($achievements) {
+                $trackBadge = collect($achievements)->firstWhere('slug', 'track-fundamente');
+
+                return $trackBadge !== null && $trackBadge['unlocked'] === true;
+            }),
         );
     }
 
@@ -90,7 +94,7 @@ class PublicProfileControllerTest extends TestCase
      * Binaerformat -- darin laesst sich Text nicht zuverlaessig suchen), analog
      * dazu, dass der bestehende Export-Test auch nur den Content-Type prueft.
      */
-    public function test_pdf_template_renders_the_passed_track_title(): void
+    public function test_pdf_template_renders_unlocked_achievements(): void
     {
         $html = View::make('profiles.pdf', [
             'profile' => [
@@ -99,22 +103,27 @@ class PublicProfileControllerTest extends TestCase
                 'points' => 50,
                 'skill_vector' => ['netzwerk' => 0, 'datenmodell' => 0, 'bildgebung' => 0, 'integration' => 0, 'security' => 0],
                 'member_since' => '01.01.2026',
-                'first_bloods' => [],
-                'track_badges' => [
-                    ['track_title_key' => 'track.fundamente.title', 'awarded_at' => '2026-09-14'],
+                'achievements' => [
+                    [
+                        'slug' => 'track-fundamente', 'name' => 'Fundamente abgeschlossen',
+                        'description' => 'Bestehe die Abschlussprüfung des Tracks „Fundamente".',
+                        'unlocked' => true, 'unlocked_at' => '2026-09-14T00:00:00+00:00',
+                    ],
+                    ['slug' => 'echo-heard', 'name' => 'Echo Heard', 'description' => '...', 'unlocked' => false, 'unlocked_at' => null],
                 ],
             ],
         ])->render();
 
-        $this->assertStringContainsString('Fundamente', $html);
+        $this->assertStringContainsString('Fundamente abgeschlossen', $html);
         $this->assertStringContainsString('2026-09-14', $html);
+        $this->assertStringNotContainsString('Echo Heard', $html);
     }
 
     /**
-     * Leerzustand: ohne bestandenen Track zeigt das PDF einen sinnvollen
-     * Hinweis statt einer leeren Tabelle.
+     * Leerzustand: ohne freigeschaltetes Achievement zeigt das PDF einen
+     * sinnvollen Hinweis statt einer leeren Tabelle.
      */
-    public function test_pdf_template_shows_an_empty_state_without_a_passed_track(): void
+    public function test_pdf_template_shows_an_empty_state_without_unlocked_achievements(): void
     {
         $html = View::make('profiles.pdf', [
             'profile' => [
@@ -123,12 +132,13 @@ class PublicProfileControllerTest extends TestCase
                 'points' => 0,
                 'skill_vector' => ['netzwerk' => 0, 'datenmodell' => 0, 'bildgebung' => 0, 'integration' => 0, 'security' => 0],
                 'member_since' => '01.01.2026',
-                'first_bloods' => [],
-                'track_badges' => [],
+                'achievements' => [
+                    ['slug' => 'echo-heard', 'name' => 'Echo Heard', 'description' => '...', 'unlocked' => false, 'unlocked_at' => null],
+                ],
             ],
         ])->render();
 
-        $this->assertStringContainsString('Noch keine Abschlussprüfung bestanden.', $html);
+        $this->assertStringContainsString('Noch keine Achievements verfügbar.', $html);
     }
 
     /**
@@ -148,7 +158,7 @@ class PublicProfileControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->has('profile.achievements', 6)
+            ->has('profile.achievements', 13)
             ->where('profile.achievements', function ($achievements) {
                 $sandboxStarter = collect($achievements)->firstWhere('slug', 'sandbox-starter');
 

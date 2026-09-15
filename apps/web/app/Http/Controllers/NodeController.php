@@ -246,10 +246,11 @@ class NodeController extends Controller
         if ($result['correct']) {
             $user = $request->user();
             $profiles->recomputeAfterSolve($user, $node);
-            // Achievement-Vergabe (first-blood, node-gebundene Achievements)
-            // laeuft jetzt deklarativ ueber ActivityProgressRecorder ->
-            // AchievementUnlockEvaluator gegen content/achievements.yml
-            // (ADR 0077), nicht mehr ueber Controller-Code.
+            // Achievement-Vergabe (Trailblazer -- globaler Wettlauf um die
+            // Erstloesung dieser Node, ADR 0090b -- und alle node-gebundenen
+            // Achievements) laeuft deklarativ ueber ActivityProgressRecorder
+            // -> AchievementUnlockEvaluator gegen content/achievements.yml
+            // (ADR 0077), nicht ueber Controller-Code.
             $unlockedAchievements = $progressRecorder->record('node', $node->slug, $user);
         }
 
