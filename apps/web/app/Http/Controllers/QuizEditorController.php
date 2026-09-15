@@ -5,11 +5,9 @@ namespace App\Http\Controllers;
 use App\Activities\ActivityRegistry;
 use App\Content\ContentRepository;
 use App\Content\ContentVersioningService;
-use App\Content\ContentWriter;
 use App\Content\MarkdownRenderer;
 use App\Content\QuizContent;
 use App\Models\Activity;
-use App\Models\ContentVersion;
 use App\Models\Lesson;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -75,31 +73,6 @@ class QuizEditorController extends Controller
         $versions->createDraft($activity, ['quiz' => $questions], $request->user());
 
         return back()->with('status', 'Entwurf gespeichert.');
-    }
-
-    public function submitForReview(ContentVersion $version, ContentVersioningService $versions): RedirectResponse
-    {
-        Gate::authorize('update', $version->activity);
-
-        $versions->submitForReview($version);
-
-        return back()->with('status', 'Zur Pruefung eingereicht.');
-    }
-
-    public function publish(Request $request, ContentVersion $version, ContentVersioningService $versions, ContentWriter $writer): RedirectResponse
-    {
-        Gate::authorize('publish', $version->activity);
-
-        $lessonActivity = app(ActivityRegistry::class)->resolve($version->activity);
-        $issues = $writer->write($lessonActivity, $version->payload);
-
-        if ($issues !== []) {
-            return back()->withErrors(['quiz' => array_map(fn ($issue) => (string) $issue, $issues)]);
-        }
-
-        $versions->publish($version, $request->user());
-
-        return back()->with('status', 'Veroeffentlicht.');
     }
 
     private function activityFor(Lesson $lesson): Activity

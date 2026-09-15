@@ -6,7 +6,9 @@ use App\Content\ContentIssue;
 use App\Content\ContentRepository;
 use App\Content\ContentValidator;
 use App\Content\FrontMatter;
+use App\Content\LessonMetaGenerator;
 use App\Content\LessonQuizGenerator;
+use App\Content\QuizContent;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\User;
@@ -123,13 +125,45 @@ final readonly class LessonActivity implements ActivityContract
         $metaRaw = $entry['meta_raw'];
         $mdRaw = $entry['md_raw'];
 
-        // Fuer W6 wird bisher nur der Fragenteil eines Entwurfs wirklich
-        // erzeugt (Quiz-Editor) -- andere Felder eines $draft (Titel, Text,
-        // ...) folgen mit dem Lektions-/Pruefungs-Editor.
-        if ($draft !== null && isset($draft['quiz'])) {
-            $frontMatter = FrontMatter::parse($mdRaw);
+        if ($draft === null) {
+            return [
+                ['path' => "lessons/{$this->lesson->lesson_id}/meta.yml", 'contents' => $metaRaw],
+                ['path' => "lessons/{$this->lesson->lesson_id}/de.md", 'contents' => $mdRaw],
+            ];
+        }
+
+        // Skalar-/Listenfelder in meta.yml und Titel/Teaser in der
+        // Frontmatter (ADR 0080/0081, W6.1/W6.2) -- sandbox/lab (verschachtelte
+        // Bloecke) und objectives (mehrzeilige Liste) sind bewusst noch nicht
+        // Teil dieses Editors, siehe docs/offene-fragen.md.
+        $metaRaw = LessonMetaGenerator::regenerateMeta($metaRaw, $draft);
+        $mdRaw = LessonMetaGenerator::regenerateFrontMatter($mdRaw, $draft);
+
+        if (isset($draft['quiz'])) {
             $metaRaw = LessonQuizGenerator::regenerateMeta($metaRaw, $draft['quiz']);
-            $mdRaw = $this->withNewBody($mdRaw, LessonQuizGenerator::regenerateBody($frontMatter['body'], $draft['quiz']));
+        }
+
+        if (isset($draft['quiz']) || array_key_exists('body', $draft)) {
+            $frontMatter = FrontMatter::parse($mdRaw);
+            $body = $frontMatter['body'];
+
+            if (array_key_exists('body', $draft)) {
+                // Nur die Prosa vor dem Quiz-Abschnitt wird vom Lektions-
+                // Editor bearbeitet -- ein bestehender Quiz-Abschnitt und
+                // die Fussnote danach ("Als Naechstes: ...") bleiben
+                // unangetastet erhalten, bis der Entwurf sie selbst aendert.
+                $split = QuizContent::splitBody($body);
+                $newBefore = rtrim((string) $draft['body'], "\r\n");
+                $body = $split['quiz_raw'] !== ''
+                    ? $newBefore."\n\n".$split['quiz_raw']."\n\n".$split['after']
+                    : $newBefore;
+            }
+
+            if (isset($draft['quiz'])) {
+                $body = LessonQuizGenerator::regenerateBody($body, $draft['quiz']);
+            }
+
+            $mdRaw = $this->withNewBody($mdRaw, $body);
         }
 
         return [
