@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Achievements\AchievementUnlockResult;
 use App\Models\AchievementDefinition;
 use App\Models\AchievementUnlock;
+use App\Models\Activity;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 
 /**
  * Generisches Achievement-System (Auftrag "Achievement-System"): eine
@@ -20,14 +22,20 @@ use Illuminate\Support\Collection;
 final class AchievementService
 {
     /**
-     * Race-sicher wie ProfileService::maybeAwardFirstBlood(): der
-     * Unique-Index (user_id, achievement_definition_id) laesst bei
-     * gleichzeitigen Unlock-Versuchen nur den ersten Insert durch, der
-     * zweite faengt die Exception ab und liefert already_unlocked.
+     * Race-sicher wie ProfileService::maybeAwardFirstBlood(): der jeweils
+     * passende Unique-Index laesst bei gleichzeitigen Unlock-Versuchen nur
+     * den ersten Insert durch, der zweite faengt die Exception ab und
+     * liefert already_unlocked.
+     *
+     * Bei `scope: global` (ADR 0077) ist die Vergabe nicht je Nutzer
+     * begrenzt, sondern je Aktivitaet einmalig, unabhaengig davon, welcher
+     * Nutzer zuerst gewinnt -- deshalb ist `$activity` dafuer Pflicht und
+     * der Pruef-/Unique-Schluessel ist (achievement_definition_id,
+     * activity_id) statt (user_id, achievement_definition_id).
      *
      * @param  array<string, mixed>  $metadata
      */
-    public function unlock(User $user, string $slug, array $metadata = []): AchievementUnlockResult
+    public function unlock(User $user, string $slug, array $metadata = [], ?Activity $activity = null): AchievementUnlockResult
     {
         $definition = AchievementDefinition::query()->where('slug', $slug)->first();
 
@@ -35,10 +43,15 @@ final class AchievementService
             return AchievementUnlockResult::notFound();
         }
 
-        $existing = AchievementUnlock::query()
-            ->where('user_id', $user->id)
-            ->where('achievement_definition_id', $definition->id)
-            ->first();
+        $isGlobal = $definition->scope === 'global';
+
+        if ($isGlobal && $activity === null) {
+            throw new InvalidArgumentException("Global-scoped Achievement \"{$slug}\" braucht eine Aktivitaet.");
+        }
+
+        $existing = $isGlobal
+            ? AchievementUnlock::query()->where('achievement_definition_id', $definition->id)->where('activity_id', $activity->id)->first()
+            : AchievementUnlock::query()->where('user_id', $user->id)->where('achievement_definition_id', $definition->id)->first();
 
         if ($existing !== null) {
             return AchievementUnlockResult::alreadyUnlocked($definition);
@@ -48,6 +61,7 @@ final class AchievementService
             $unlock = AchievementUnlock::create([
                 'user_id' => $user->id,
                 'achievement_definition_id' => $definition->id,
+                'activity_id' => $isGlobal ? $activity->id : null,
                 'unlocked_at' => now(),
                 'metadata' => $metadata,
             ]);

@@ -173,7 +173,16 @@ erzeugten Artefakt machen.
   fuellen jetzt zusaetzlich `activity_progress`; `activity:backfill-progress`
   uebertraegt den Bestand. Grundlage fuer die eigentliche
   Achievement-Vereinheitlichung (W4), die als naechstes folgt.
-- W4–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W4 — Deklarative Achievements** (fertig, siehe ADR 0077):
+  `achievement_definitions` bekommt `scope`/`unlock_when`,
+  `App\Achievements\AchievementUnlockEvaluator` vergibt Achievements
+  automatisch beim Abschluss der zugeordneten Aktivität.
+  `NodeController::unlockNodeAchievements()` ist komplett entfernt; die
+  vier node-gebundenen Achievements stehen jetzt in `achievements.yml`
+  statt in `node.yml`. Das aeltere "Pionier"-System (first_blood/
+  track_badges, ADR 0070) bleibt bewusst unverändert, siehe
+  `docs/offene-fragen.md`.
+- W5–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 

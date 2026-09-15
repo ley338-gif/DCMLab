@@ -4,6 +4,27 @@ Entscheidungen aus dem Ausbau zum Lightweight LMS (`dcm-lab-lms-agent-prompt.md`
 die der Betreiber trifft, nicht der Code-Agent. Format: Frage, Kontext,
 Empfehlung. Erledigte Punkte werden hier durchgestrichen, nicht geloescht.
 
+## Pionier-System (first_blood/track_badges) in Achievements migrieren (nach W4)
+
+**Frage:** Sollen `achievements` (global first_blood) und `track_badges` zu
+echten `achievement_definitions`/`achievement_unlocks`-Einträgen werden,
+statt als eigenes, bild-freies "Pionier"-Lesemodell bestehen zu bleiben?
+
+**Kontext:** ADR 0070 hat eine Schema-Vereinheitlichung geprüft und
+verworfen, u. a. weil Pionier bewusst ohne Badge-Bildsprache lebt. W4 (ADR
+0077) hat das deklarative Vergabesystem (`scope`, `unlock_when`) gebaut,
+aber die Pionier-Daten selbst nicht migriert — jede migrierte Zeile bräuchte
+ein Bild-Asset unter `public/images/achievements/`, das es fuer "wer hat
+diese Node zuerst gelöst" oder "Track X bestanden" nie gab.
+
+**Empfehlung:** Nur migrieren, wenn jemand tatsächlich Kartenoptik für diese
+beiden Mechaniken will (Bild, Rarity, Kategorie) — dann sind sechs
+(fuer bestehende Tracks) plus eine globale Definition zu gestalten, danach
+ist die Datenmigration selbst mechanisch (siehe `ContentVersioningService`-
+und `ContentValidator`-Extraktionen dieser Session fuer das Muster: Service
+zuerst, dann Daten). Ohne neuen Bildbedarf: Pionier bleibt, wie es ist,
+kein technischer Nachteil dadurch.
+
 ## `status: fertig` im Bestand normalisieren (vor jeder Sichtbarkeits-Gate, W3+)
 
 **Frage:** Soll der reale Content-Bestand von `status: fertig` (25

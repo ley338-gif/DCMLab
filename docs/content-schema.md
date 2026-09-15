@@ -215,7 +215,6 @@ points: 10                      # 10 | 25 | 50 | 100
 category: netzwerk              # netzwerk | datenmodell | bildgebung | integration | security
 themenfeld: dicom                # Slug aus themenfelder.yml, Default dicom (Abschnitt 13)
 skills: [netzwerk]              # fließt ins Skill-Radar des Profils
-achievements: [echo-heard]      # optional, siehe docs/achievements.md
 related_lessons: ["1.5", "4.1"]
 estimated_minutes: 15
 interaction: terminal           # terminal | scenario, Default terminal (siehe 6j)
@@ -282,7 +281,6 @@ updated: "2026-09-12"
 - Der Flag-Klartext liegt **nie** im Repo, nur sein Hash.
 - `config_editable` markiert, woran der Lernende schrauben darf. Alles andere ist Umgebung.
 - `skills` speist das Radar-Chart — sparsam vergeben, maximal zwei je Node.
-- `achievements` ist optional (Default: keins) und verweist auf Slugs aus der zentralen Achievement-Registry (`App\Achievements\AchievementRegistry`, siehe `docs/achievements.md`). Löst ein Nutzer die Node, werden alle dort genannten Achievements freigeschaltet — praktisch für Achievements, die an ein bestimmtes Lernziel gebunden sind (z. B. "erstes erfolgreiches C-ECHO"), aber kein eigenes, von der Engine gemeldetes Ereignis haben. `content:validate` prüft, dass jeder genannte Slug existiert.
 - `templates` sind kein Hint und kosten keine Punkte. Ein Platzhalter darf nie die Lösung vorwegnehmen — im Gegenteil: Er markiert genau die Stelle, an der die Node ihre Frage stellt.
 - Auch Nodes nennen ihre Werkzeuge als Slugs. Die Node-Oberfläche zeigt sie in derselben Leiste wie die Lektionen.
 - `interaction` ist optional (Default `terminal`) — bestehende Nodes brauchen das Feld nicht. `scenario` ersetzt `environment:` durch einen Entscheidungsbaum, siehe 6j.
@@ -805,7 +803,7 @@ die Lektion um den fehlenden Absatz ergänzt, statt die Frage zu streichen.
 
 ## 12. Achievements — `achievements.yml`
 
-Flache Liste, sprachneutral (keine `<locale>.md`-Gegenstelle — Achievement-Texte sind kurz genug, um direkt in der YAML zu stehen). `AchievementSeeder` schreibt diese Liste nach `achievement_definitions`; `node.yml`s `achievements:`-Feld (Abschnitt 6) referenziert Slugs von hier, `content:validate` prüft beide Richtungen.
+Flache Liste, sprachneutral (keine `<locale>.md`-Gegenstelle — Achievement-Texte sind kurz genug, um direkt in der YAML zu stehen). `AchievementSeeder` schreibt diese Liste nach `achievement_definitions`.
 
 ```yaml
 - slug: echo-heard                 # unveränderlich, Primärschlüssel in achievement_definitions
@@ -817,9 +815,39 @@ Flache Liste, sprachneutral (keine `<locale>.md`-Gegenstelle — Achievement-Tex
   points: 0
   is_hidden: false
   sort_order: 30
+  unlock_when:                     # optional, siehe unten
+    type: activity_completed
+    activity_type: node
+    key: silent-ct
 ```
 
-Alle neun Felder sind Pflicht (`rarity` darf `null` sein, der Schlüssel muss aber existieren). `category` und `rarity` sind bewusst offene Strings statt eines Enums — bei mehreren Themenfeldern bekommt jedes seine eigenen `category`-Werte, ohne dass diese Datei oder ihr Schema sich ändern muss.
+Die neun Basisfelder sind Pflicht (`rarity` darf `null` sein, der Schlüssel muss aber existieren). `category` und `rarity` sind bewusst offene Strings statt eines Enums — bei mehreren Themenfeldern bekommt jedes seine eigenen `category`-Werte, ohne dass diese Datei oder ihr Schema sich ändern muss.
+
+**`unlock_when` (ADR 0071/0077, P10.74) — deklaratives Auslösekriterium,
+optional.** Fehlt es, bleibt die Vergabe hartkodiert (heute nur noch
+`sandbox-starter` in `SandboxController`, weil "Spielwiese gestartet" kein
+Abschluss ist). Ist es gesetzt, wertet
+`App\Achievements\AchievementUnlockEvaluator` es automatisch aus, sobald
+die referenzierte Aktivität abgeschlossen wird — ohne dass dafür
+Controller-Code nötig ist. Bekannte `type`-Werte:
+
+- `activity_completed` (`activity_type`, optional `key`): die gerade
+  abgeschlossene Aktivität passt auf Typ/Schlüssel. Ohne `key` passt jede
+  Aktivität dieses Typs.
+- `track_passed` (`track`): die Abschlussprüfung des angegebenen Tracks
+  wurde bestanden.
+- `first_solve` (optional `activity_type`): der erste jemals
+  abgeschlossene Datensatz dieses Nutzers in `activity_progress`.
+
+`scope` (optional, Default `personal`) unterscheidet persönliche Abzeichen
+(unique je Nutzer) von `global` (unique je Aktivität, unabhängig davon,
+welcher Nutzer zuerst gewinnt — für "wer war der Erste"-Mechaniken).
+`content:validate` prüft `unlock_when.type` gegen die bekannten Werte und,
+je nach Typ, `track`/`key` gegen echte Tracks/Nodes.
+
+Das frühere `node.yml`-Feld `achievements:` (Abschnitt 6) ist damit
+abgelöst und wird nicht mehr verwendet — die vier Nodes, die es nutzten,
+sind jetzt stattdessen über `unlock_when` in `achievements.yml` verdrahtet.
 
 ## 13. Themenfeld — `themenfelder.yml`
 

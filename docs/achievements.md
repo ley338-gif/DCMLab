@@ -72,34 +72,47 @@ Frontend (Achievement-DTOs, siehe resources/js/types/achievement.ts)
 
 ## Wo Achievements freigeschaltet werden
 
-Keine Event/Listener-Architektur (das Projekt hat nirgends welche) — direkte
-Service-Aufrufe aus Controllern:
+Seit ADR 0077 (P10.74) deklarativ statt über Controller-Code: jede
+Aktivität, die abschließt, läuft durch
+`App\Activities\ActivityProgressRecorder` (schreibt `activity_progress`)
+und direkt danach durch `App\Achievements\AchievementUnlockEvaluator`, der
+alle `achievement_definitions` mit einem `unlock_when`-Kriterium
+(`docs/content-schema.md` Abschnitt 12) dagegen prüft und passende über
+`AchievementService::unlock()` freischaltet. Kein Event/Listener-System
+(das Projekt hat nirgends eines) — ein direkter Methodenaufruf am Ende der
+Schreibkette.
 
-- **`NodeController::submitFlag()`**: nach korrektem Flag,
-  - `first-blood`, wenn dies der erste jemals von diesem Nutzer gelöste
-    Node/Lab ist (`NodeAttempt::where('status','solved')->count() === 1`),
-  - alle Slugs aus dem optionalen `achievements:`-Feld des gelösten
-    `node.yml` (siehe unten).
-  - Response bekommt `unlocked_achievements: [...]` (nur tatsächlich neu
-    freigeschaltete) für die Unlock-Notification im Frontend.
-- **`SandboxController::create()`**: `sandbox-starter`, aber nur wenn die
-  Spielwiese wirklich erzeugt wurde (Orchestrator-Antwort ohne `error`-Feld),
-  nicht beim bloßen Öffnen der Lektion.
+- **`NodeController::submitFlag()`**: nach korrektem Flag ruft
+  `ActivityProgressRecorder::record('node', $node->slug, $user)` den
+  Evaluator auf. `first-blood` (`unlock_when: {type: first_solve,
+  activity_type: node}`) und die vier node-gebundenen Achievements
+  (`unlock_when: {type: activity_completed, activity_type: node, key:
+  ...}`) entstehen daraus automatisch, ohne dass `NodeController` die
+  Slugs kennt.
+  - Response bekommt weiterhin `unlocked_achievements: [...]` (der
+    Rückgabewert von `record()`) für die Unlock-Notification im Frontend.
+- **`SandboxController::create()`**: `sandbox-starter` bleibt hartkodiert.
+  Der Auslöser ("Spielwiese gestartet") ist kein Abschluss und passt
+  deshalb nicht in `activity_progress`/`unlock_when` — siehe ADR 0077 für
+  die Begründung.
 
-## Achievement an einen Node koppeln (`node.yml`)
+## Achievement an eine Aktivität koppeln (`achievements.yml`)
 
-Die simulierte Engine kennt kein separates "C-ECHO erfolgreich"-Ereignis —
-Lösen einer Node heißt "korrekte Flag eingereicht", nicht "Protokoll X
-erfolgreich ausgeführt". Für Achievements, die an ein bestimmtes Lernziel
-gebunden sind (z. B. C-ECHO, C-STORE, MWL), deklariert `node.yml` deshalb
-optional:
+Das frühere `node.yml`-Feld `achievements:` ist abgelöst. Ein Achievement,
+das an ein bestimmtes Lernziel gebunden ist (z. B. C-ECHO, C-STORE, MWL),
+deklariert stattdessen sein eigenes Auslösekriterium direkt in
+`achievements.yml`:
 
 ```yaml
-achievements: [echo-heard]
+unlock_when:
+  type: activity_completed
+  activity_type: node
+  key: silent-ct
 ```
 
-`content:validate` prüft, dass jeder genannte Slug in der Registry existiert.
-Aktuelle Zuordnung:
+`content:validate` prüft `unlock_when.type` gegen die bekannten Werte und
+`key`/`track` gegen echte Nodes/Tracks (`docs/content-schema.md` Abschnitt
+12 für alle Typen). Aktuelle Zuordnung:
 
 | Achievement | Node | Warum |
 |---|---|---|
@@ -113,9 +126,9 @@ Aktuelle Zuordnung:
 1. PNG nach `apps/web/public/images/achievements/<slug>.png` ablegen
    (quadratisch, wird per `aspect-ratio: 1/1; object-fit: contain`
    dargestellt — keine Verzerrung nötig).
-2. Eintrag in `App\Achievements\AchievementRegistry::all()` ergänzen (slug,
-   name, description, image, category, rarity, points, is_hidden,
-   sort_order).
+2. Eintrag in `content/achievements.yml` ergänzen (slug, name, description,
+   image, category, rarity, points, is_hidden, sort_order, optional
+   `unlock_when`/`scope` — siehe `docs/content-schema.md` Abschnitt 12).
 3. `php artisan db:seed --class=AchievementSeeder` ausführen (idempotent,
    auch Teil von `DatabaseSeeder`).
 4. Unlock-Kriterium ergänzen: entweder ein neuer `unlock()`-Aufruf an der
@@ -153,7 +166,10 @@ Aktuelle Zuordnung:
   `listForUser()`.
 - `Tests\Feature\NodeControllerTest`: `first-blood` beim ersten gelösten
   Node, kein zweites Mal beim zweiten; node-gebundene Achievements über
-  `achievements:` in `node.yml`.
+  `unlock_when` in `achievements.yml`.
+- `Tests\Unit\Achievements\AchievementUnlockEvaluatorTest`: alle
+  `unlock_when`-Kriterientypen, inklusive `scope: global`
+  (Race-Sicherheit über zwei Nutzer hinweg).
 - `Tests\Feature\SandboxControllerTest`: `sandbox-starter` nur bei
   wirklich erzeugter Sandbox, nicht bei Kontingent-Fehler.
 - `Tests\Feature\DashboardTest` / `PublicProfileControllerTest`: die
