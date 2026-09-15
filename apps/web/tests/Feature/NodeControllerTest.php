@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Models\AchievementDefinition;
 use App\Models\AchievementUnlock;
+use App\Models\Activity;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\Themenfeld;
@@ -255,7 +257,8 @@ class NodeControllerTest extends TestCase
 
     public function test_correct_flag_unlocks_the_personal_first_blood_achievement_once(): void
     {
-        [$user, , $attempt] = $this->userWithExistingAttempt();
+        [$user, $node, $attempt] = $this->userWithExistingAttempt();
+        Activity::factory()->create(['type' => 'node', 'key' => $node->slug]);
 
         Http::fake([
             '*/v1/sessions/existing-session/flag' => Http::response(['correct' => true, 'points' => 9]),
@@ -277,9 +280,16 @@ class NodeControllerTest extends TestCase
         );
 
         // Ein zweiter geloester Node darf first-blood nicht erneut vergeben,
-        // aber sein eigenes, node-gebundenes Achievement schon (siehe
-        // node.yml-Fixture unten: "achievements: [echo-heard]").
+        // aber sein eigenes, deklarativ an ihn gebundenes Achievement schon
+        // (ADR 0077: unlock_when statt node.yml-Feld).
+        AchievementDefinition::create([
+            'slug' => 'second-node-badge', 'name' => 'Zweiter Node', 'description' => 'Test',
+            'image' => 'second-node-badge.png', 'category' => 'test', 'points' => 0,
+            'is_hidden' => false, 'sort_order' => 100,
+            'unlock_when' => ['type' => 'activity_completed', 'activity_type' => 'node', 'key' => 'test-node-2'],
+        ]);
         $secondNode = Node::factory()->create(['slug' => 'test-node-2']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node-2']);
         $secondAttempt = NodeAttempt::create([
             'user_id' => $user->id,
             'node_id' => $secondNode->id,
@@ -299,7 +309,7 @@ class NodeControllerTest extends TestCase
 
         $secondResponse->assertOk();
         $this->assertSame(
-            ['echo-heard'],
+            ['second-node-badge'],
             array_column($secondResponse->json('unlocked_achievements'), 'slug'),
         );
         $this->assertSame(
@@ -441,7 +451,6 @@ class NodeControllerTest extends TestCase
         points: 5
         category: netzwerk
         skills: [netzwerk]
-        achievements: [echo-heard]
         related_lessons: []
         estimated_minutes: 10
 

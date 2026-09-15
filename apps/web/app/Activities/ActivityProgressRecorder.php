@@ -2,13 +2,15 @@
 
 namespace App\Activities;
 
+use App\Achievements\AchievementUnlockEvaluator;
 use App\Models\Activity;
 use App\Models\ActivityProgress;
 use App\Models\User;
 
 /**
  * Schreibt `activity_progress` fort, wenn ein Nutzer eine Aktivitaet
- * abschliesst (ADR 0076, Vorstufe zu W4). Nutzt bewusst
+ * abschliesst (ADR 0076, Vorstufe zu W4), und wertet danach deklarative
+ * Achievement-Kriterien dagegen aus (ADR 0077, W4). Nutzt bewusst
  * ActivityContract::result() statt eigener Punkte-/Skill-Logik, damit es
  * nie zwei Quellen fuer "was bedeutet Abschluss bei diesem Typ" gibt --
  * dieselbe Methode, die schon `ActivityRegistryTest` und die einzelnen
@@ -26,20 +28,24 @@ final class ActivityProgressRecorder
 {
     public function __construct(
         private readonly ActivityRegistry $registry,
+        private readonly AchievementUnlockEvaluator $achievements,
     ) {}
 
-    public function record(string $type, string $key, User $user): void
+    /**
+     * @return list<array<string, mixed>> neu freigeschaltete Achievements, fertig fuers Frontend
+     */
+    public function record(string $type, string $key, User $user): array
     {
         $activity = Activity::query()->where('type', $type)->where('key', $key)->first();
 
         if ($activity === null) {
-            return;
+            return [];
         }
 
         $result = $this->registry->resolve($activity)->result($user);
 
         if ($result === null) {
-            return;
+            return [];
         }
 
         ActivityProgress::updateOrCreate(
@@ -52,5 +58,7 @@ final class ActivityProgressRecorder
                 'completed_at' => $result->completedAt,
             ],
         );
+
+        return $this->achievements->evaluate($activity, $user, $result);
     }
 }

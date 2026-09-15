@@ -15,11 +15,12 @@ use App\Content\ContentRepository;
 final class AchievementRegistry
 {
     private const FIELDS = [
-        'slug', 'name', 'description', 'image', 'category', 'rarity', 'points', 'is_hidden', 'sort_order',
+        'slug', 'name', 'description', 'image', 'category', 'rarity', 'scope', 'unlock_when',
+        'points', 'is_hidden', 'sort_order',
     ];
 
     /**
-     * @return array<int, array<string, mixed>> Felder wie in content/achievements.yml (Abschnitt 12): slug, name, description, image, category, rarity, points, is_hidden, sort_order
+     * @return array<int, array<string, mixed>> Felder wie in content/achievements.yml (Abschnitt 12): slug, name, description, image, category, rarity, scope, unlock_when, points, is_hidden, sort_order
      */
     public static function all(): array
     {

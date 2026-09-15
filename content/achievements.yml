@@ -1,6 +1,14 @@
 # Achievement-Definitionen (siehe docs/content-schema.md Abschnitt 12).
-# AchievementSeeder schreibt diese Liste nach `achievement_definitions`;
-# ContentValidate prueft node.yml-Metadaten gegen die hier vorhandenen slugs.
+# AchievementSeeder schreibt diese Liste nach `achievement_definitions`.
+#
+# unlock_when (ADR 0071/0077, P10.74): deklaratives Ausloesekriterium,
+# ausgewertet von App\Achievements\AchievementUnlockEvaluator gegen
+# activity_progress, sobald eine Aktivitaet abgeschlossen wird -- ersetzt
+# das frueher hier ignorierte, jetzt entfernte node.yml-Feld
+# `achievements:` (siehe docs/offene-fragen.md fuer den Verweis auf die
+# alte Fassung). sandbox-starter hat bewusst kein unlock_when: sein
+# Ausloeser ("Spielwiese gestartet") ist kein Abschluss und passt damit
+# nicht in activity_progress -- bleibt hartkodiert in SandboxController.
 
 - slug: first-blood
   name: First Blood
@@ -11,6 +19,9 @@
   points: 0
   is_hidden: false
   sort_order: 10
+  unlock_when:
+    type: first_solve
+    activity_type: node
 
 - slug: association-accepted
   name: Association Accepted
@@ -21,6 +32,10 @@
   points: 0
   is_hidden: false
   sort_order: 20
+  unlock_when:
+    type: activity_completed
+    activity_type: node
+    key: verbindung-ohne-bild
 
 - slug: echo-heard
   name: Echo Heard
@@ -31,6 +46,10 @@
   points: 0
   is_hidden: false
   sort_order: 30
+  unlock_when:
+    type: activity_completed
+    activity_type: node
+    key: silent-ct
 
 - slug: store-and-forward
   name: Store & Forward
@@ -41,6 +60,10 @@
   points: 0
   is_hidden: false
   sort_order: 40
+  unlock_when:
+    type: activity_completed
+    activity_type: node
+    key: teiltransfer
 
 - slug: worklist-whisperer
   name: Worklist Whisperer
@@ -51,6 +74,10 @@
   points: 0
   is_hidden: false
   sort_order: 50
+  unlock_when:
+    type: activity_completed
+    activity_type: node
+    key: worklist-query-empty
 
 - slug: sandbox-starter
   name: Sandbox Starter

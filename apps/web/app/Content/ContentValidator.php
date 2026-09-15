@@ -45,7 +45,7 @@ final class ContentValidator
     ): array {
         $this->issues = [];
 
-        $this->checkAchievements($achievements);
+        $this->checkAchievements($achievements, $nodes, $tracks);
         $this->checkTrackThemenfelder($tracks, $themenfelder);
 
         foreach ($lessons as $id => $lesson) {
@@ -659,10 +659,13 @@ final class ContentValidator
 
     /**
      * @param  array<int, array<string, mixed>>  $achievements
+     * @param  array<string, array<string, mixed>>  $nodes
+     * @param  array<int, array<string, mixed>>  $tracks
      */
-    private function checkAchievements(array $achievements): void
+    private function checkAchievements(array $achievements, array $nodes, array $tracks): void
     {
         $seenSlugs = [];
+        $trackSlugs = array_column($tracks, 'slug');
 
         foreach ($achievements as $achievement) {
             $file = $achievement['_file'];
@@ -682,6 +685,49 @@ final class ContentValidator
                 }
 
                 $seenSlugs[$slug] = true;
+            }
+
+            $this->checkAchievementUnlockWhen($file, $line, $slug, $achievement['unlock_when'] ?? null, $nodes, $trackSlugs);
+        }
+    }
+
+    /**
+     * Deklaratives Ausloesekriterium (ADR 0077, W4): dieselben Typen, die
+     * App\Achievements\AchievementUnlockEvaluator kennt. Ein Achievement
+     * ohne `unlock_when` ist gueltig (z. B. sandbox-starter, dessen
+     * Ausloeser kein Abschluss ist und deshalb hartkodiert bleibt).
+     *
+     * @param  array<string, mixed>|null  $unlockWhen
+     * @param  array<string, array<string, mixed>>  $nodes
+     * @param  array<int, string>  $trackSlugs
+     */
+    private function checkAchievementUnlockWhen(string $file, ?int $line, ?string $slug, ?array $unlockWhen, array $nodes, array $trackSlugs): void
+    {
+        if ($unlockWhen === null) {
+            return;
+        }
+
+        $type = $unlockWhen['type'] ?? null;
+
+        if (! in_array($type, ['activity_completed', 'track_passed', 'first_solve'], true)) {
+            $this->issue($file, $line, "Achievement \"{$slug}\": unlock_when.type \"{$type}\" ist unbekannt (erlaubt: activity_completed, track_passed, first_solve)");
+
+            return;
+        }
+
+        if ($type === 'track_passed') {
+            $track = $unlockWhen['track'] ?? null;
+
+            if (! in_array($track, $trackSlugs, true)) {
+                $this->issue($file, $line, "Achievement \"{$slug}\": unlock_when.track verweist auf unbekannten Track \"{$track}\"");
+            }
+        }
+
+        if ($type === 'activity_completed' && ($unlockWhen['activity_type'] ?? null) === 'node' && isset($unlockWhen['key'])) {
+            $key = (string) $unlockWhen['key'];
+
+            if (! array_key_exists($key, $nodes)) {
+                $this->issue($file, $line, "Achievement \"{$slug}\": unlock_when.key verweist auf unbekannte Node \"{$key}\"");
             }
         }
     }

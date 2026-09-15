@@ -3,7 +3,6 @@ difficulty: easy
 points: 10
 category: netzwerk
 skills: [netzwerk]
-achievements: [echo-heard]
 related_lessons: ["1.5", "4.1"]
 estimated_minutes: 15
 

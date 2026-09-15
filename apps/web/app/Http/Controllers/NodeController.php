@@ -9,8 +9,6 @@ use App\Content\NodeSections;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\NodeAttempt;
-use App\Models\User;
-use App\Services\AchievementService;
 use App\Services\EngineClientContract;
 use App\Services\EngineClientResolver;
 use App\Services\ProfileService;
@@ -226,10 +224,8 @@ class NodeController extends Controller
     public function submitFlag(
         Request $request,
         Node $node,
-        ContentRepository $content,
         EngineClientResolver $engineResolver,
         ProfileService $profiles,
-        AchievementService $achievements,
         ActivityProgressRecorder $progressRecorder,
     ): JsonResponse {
         $engine = $engineResolver->for($node);
@@ -250,49 +246,14 @@ class NodeController extends Controller
         if ($result['correct']) {
             $user = $request->user();
             $profiles->recomputeAfterSolve($user, $node);
-            $unlockedAchievements = $this->unlockNodeAchievements($user, $node, $content, $achievements);
-            $progressRecorder->record('node', $node->slug, $user);
+            // Achievement-Vergabe (first-blood, node-gebundene Achievements)
+            // laeuft jetzt deklarativ ueber ActivityProgressRecorder ->
+            // AchievementUnlockEvaluator gegen content/achievements.yml
+            // (ADR 0077), nicht mehr ueber Controller-Code.
+            $unlockedAchievements = $progressRecorder->record('node', $node->slug, $user);
         }
 
         return response()->json([...$result, 'unlocked_achievements' => $unlockedAchievements]);
-    }
-
-    /**
-     * Achievement-System (Auftrag Abschnitt 6/7): "first-blood" ist die
-     * persoenliche erste geloeste Node ueberhaupt, unabhaengig davon, wer
-     * sie zuerst geloest hat (nicht zu verwechseln mit dem aelteren,
-     * global-pro-Node "first_blood"-Achievement aus ProfileService). Die
-     * uebrigen DICOM-Achievements sind an bestimmte Nodes gekoppelt, weil
-     * die simulierte Engine kein separates "C-ECHO erfolgreich"-Ereignis
-     * kennt -- geloest = korrekte Flag, siehe docs/achievements.md.
-     *
-     * @return list<array<string, mixed>>
-     */
-    private function unlockNodeAchievements(User $user, Node $node, ContentRepository $content, AchievementService $achievements): array
-    {
-        $solvedCount = NodeAttempt::query()
-            ->where('user_id', $user->id)
-            ->where('status', 'solved')
-            ->count();
-
-        $slugs = $solvedCount === 1 ? ['first-blood'] : [];
-
-        $nodeContent = $content->nodes()[$node->slug] ?? null;
-        foreach (data_get($nodeContent, 'def.achievements', []) as $slug) {
-            $slugs[] = (string) $slug;
-        }
-
-        $unlocked = [];
-
-        foreach (array_unique($slugs) as $slug) {
-            $unlockResult = $achievements->unlock($user, $slug, ['node' => $node->slug, 'source' => 'node_completed']);
-
-            if ($unlockResult->isNewlyUnlocked() && $unlockResult->definition !== null) {
-                $unlocked[] = $achievements->toArray($unlockResult->definition, $unlockResult->unlock);
-            }
-        }
-
-        return $unlocked;
     }
 
     /**
