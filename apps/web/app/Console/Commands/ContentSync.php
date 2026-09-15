@@ -126,7 +126,10 @@ class ContentSync extends Command
             }
 
             $status = $lesson['meta']['status'] ?? 'draft';
-            $authors = $lesson['meta']['authors'] ?? [];
+            // Freitext aus dem Bestand (z. B. "ley338"), nie auf ein
+            // Nutzerkonto aufgeloest (docs/offene-fragen.md) -- landet nur in
+            // legacy_authors, nie in der echten activity_authors-Pivot.
+            $legacyAuthors = $lesson['meta']['authors'] ?? [];
             $title = ['de' => $lesson['frontmatter']['title'] ?? ''];
             $teaser = ['de' => $lesson['frontmatter']['teaser'] ?? ''];
             $order = $lesson['meta']['order'] ?? 0;
@@ -147,7 +150,7 @@ class ContentSync extends Command
                     'glossary_terms' => $lesson['meta']['glossary_terms'] ?? [],
                     'tools_checked' => $lesson['meta']['tools_checked'] ?? null,
                     'status' => $status,
-                    'authors' => $authors,
+                    'legacy_authors' => $legacyAuthors,
                     'content_updated_at' => $lesson['meta']['updated'] ?? null,
                     'title' => $title,
                     'teaser' => $teaser,
@@ -161,7 +164,7 @@ class ContentSync extends Command
                     'track_id' => $trackIds[$trackSlug],
                     'order' => $order,
                     'status' => $status,
-                    'authors' => $authors,
+                    'legacy_authors' => $legacyAuthors,
                     'title' => $title,
                     'teaser' => $teaser,
                     'source_hash' => $sourceHash,

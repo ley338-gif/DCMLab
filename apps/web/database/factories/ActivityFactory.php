@@ -19,7 +19,7 @@ class ActivityFactory extends Factory
             'key' => fake()->unique()->slug(2),
             'order' => 0,
             'status' => 'draft',
-            'authors' => [],
+            'legacy_authors' => [],
             'title' => ['de' => fake()->words(2, true)],
             'teaser' => ['de' => fake()->sentence()],
             'source_hash' => fake()->sha256(),
