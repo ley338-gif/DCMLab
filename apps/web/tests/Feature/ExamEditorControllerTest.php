@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Symfony\Component\Yaml\Yaml;
 use Tests\TestCase;
 
 /**
@@ -176,11 +177,11 @@ class ExamEditorControllerTest extends TestCase
         );
         File::put(
             $this->contentDir.'/lessons/1.0/meta.yml',
-            "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: []\nglossary_terms: []\ntools_checked: \"".now()->toDateString()."\"\nstatus: draft\n",
+            "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: []\nglossary_terms: []\nquiz:\n  - id: q1\n    type: single\n    answer: 0\ntools_checked: \"".now()->toDateString()."\"\nstatus: draft\n",
         );
         File::put(
             $this->contentDir.'/lessons/1.0/de.md',
-            "---\ntitle: Lektion\nteaser: Teaser\nobjectives: []\n---\n\n## Intro\n\nText.\n",
+            "---\ntitle: Lektion\nteaser: Teaser\nobjectives: []\n---\n\n## Intro\n\nText.\n\n## Quiz\n\n**q1 — Testfrage?**\n1. A\n2. B\n",
         );
         $this->app->instance(ContentRepository::class, new ContentRepository($this->contentDir));
     }
@@ -213,7 +214,131 @@ class ExamEditorControllerTest extends TestCase
                 ->where('fields.pass_percent', 80)
                 ->where('coverage.pool_size', 8)
                 ->where('coverage.cross_count', 4)
+                ->has('fields.questions', 8)
+                ->where('fields.questions.0.id', 'f01')
+                ->where('fields.questions.0.answer', 0)
+                ->where('fields.questions.0.explanation', 'Testerklaerung eins.')
+                ->where('catalog.lessons', ['1.0'])
+                ->where('catalog.lesson_headings', fn ($headings) => $headings['1.0'] === ['intro', 'quiz'])
+                ->where('catalog.lesson_quiz_questions', fn ($quiz) => $quiz['1.0'] === ['q1'])
             );
+    }
+
+    public function test_validate_reports_coverage_for_the_submitted_draft_not_the_saved_pool(): void
+    {
+        [$track, , $author] = $this->trackAndActivity();
+
+        $payload = array_merge($this->settingsPayload(), ['questions' => []]);
+
+        $this->actingAs($author)
+            ->postJson("/de/author/exams/{$track->slug}/edit/validate", $payload)
+            ->assertOk()
+            ->assertJson(fn ($json) => $json->where('coverage.pool_size', 0)->etc());
+    }
+
+    public function test_the_full_lifecycle_can_edit_an_existing_question(): void
+    {
+        [$track, $activity, $author] = $this->trackAndActivity();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $questions = $this->basePoolQuestions();
+        $questions[0]['question'] = 'Neu formulierte Frage eins?';
+        $questions[0]['explanation'] = 'Neue Erklärung eins.';
+        $payload = array_merge($this->settingsPayload(), ['questions' => $questions]);
+
+        $this->actingAs($author)
+            ->postJson("/de/author/exams/{$track->slug}/edit/validate", $payload)
+            ->assertOk()
+            ->assertJson(fn ($json) => $json->where('issues', [])->etc());
+
+        $this->actingAs($author)
+            ->post("/de/author/exams/{$track->slug}/edit", $payload)
+            ->assertRedirect();
+
+        $version = ContentVersion::where('activity_id', $activity->id)->firstOrFail();
+        $this->actingAs($author)->post("/de/author/quiz-versions/{$version->id}/submit")->assertRedirect();
+        $this->actingAs($reviewer)->post("/de/author/quiz-versions/{$version->id}/publish")->assertRedirect();
+
+        $this->assertSame('published', $version->refresh()->status);
+
+        $writtenBody = File::get($this->contentDir.'/exams/fundamente/de.md');
+        $this->assertStringContainsString('### f01 — Neu formulierte Frage eins?', $writtenBody);
+        $this->assertStringContainsString('Neue Erklärung eins.', $writtenBody);
+        $this->assertStringContainsString('### f02 — Welche Aussagen stimmen?', $writtenBody, 'unveraenderte Fragen bleiben erhalten.');
+    }
+
+    public function test_the_full_lifecycle_can_add_a_ref_question_replacing_an_own_question(): void
+    {
+        [$track, $activity, $author] = $this->trackAndActivity();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $questions = $this->basePoolQuestions();
+        // f06 (single, cross) wird durch eine ref-Frage auf denselben Typ
+        // ersetzt (die Lektions-Quizfrage q1 ist ebenfalls "single") --
+        // Pool-Zusammensetzung (Typmischung/Cross-Anzahl) bleibt gleich.
+        $questions[5] = [
+            'id' => 'f06', 'is_ref' => true, 'ref_lesson' => '1.0', 'ref_question' => 'q1',
+            'lesson' => 'cross', 'review' => [['lesson' => '1.0', 'anchor' => 'intro']],
+            'difficulty' => 1, 'tags' => [],
+        ];
+        $payload = array_merge($this->settingsPayload(), ['questions' => $questions]);
+
+        $this->actingAs($author)
+            ->post("/de/author/exams/{$track->slug}/edit", $payload)
+            ->assertRedirect();
+
+        $version = ContentVersion::where('activity_id', $activity->id)->firstOrFail();
+        $this->actingAs($author)->post("/de/author/quiz-versions/{$version->id}/submit")->assertRedirect();
+        $this->actingAs($reviewer)->post("/de/author/quiz-versions/{$version->id}/publish")->assertRedirect();
+
+        $this->assertSame('published', $version->refresh()->status);
+
+        $writtenMeta = File::get($this->contentDir.'/exams/fundamente/exam.yml');
+        $writtenBody = File::get($this->contentDir.'/exams/fundamente/de.md');
+
+        $parsed = Yaml::parse($writtenMeta);
+        $f06 = collect($parsed['questions'])->firstWhere('id', 'f06');
+        $this->assertSame(['lesson' => '1.0', 'question' => 'q1'], $f06['ref']);
+        $this->assertStringNotContainsString('### f06', $writtenBody, 'ref-Fragen bekommen keinen eigenen Block.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function settingsPayload(): array
+    {
+        return [
+            'title' => 'Alte Pruefung',
+            'intro' => 'Alter Intro',
+            'pass_percent' => 80,
+            'draw' => 1,
+            'duration_minutes' => 10,
+            'shuffle' => false,
+            'min_per_lesson' => 1,
+        ];
+    }
+
+    /**
+     * Dieselben acht Fragen wie im setUp()-Fixture, als Editor-Entwurf --
+     * Basis fuer Tests, die einzelne Fragen aendern/ersetzen, ohne die
+     * statistische Gueltigkeit des Pools zu verlieren.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function basePoolQuestions(): array
+    {
+        $review = [['lesson' => '1.0', 'anchor' => 'intro']];
+
+        return [
+            ['id' => 'f01', 'is_ref' => false, 'type' => 'single', 'question' => 'Frage eins?', 'options' => ['A', 'B', 'C', 'D'], 'answer' => 0, 'explanation' => 'Testerklaerung eins.', 'lesson' => '1.0', 'review' => $review, 'difficulty' => 3, 'tags' => []],
+            ['id' => 'f02', 'is_ref' => false, 'type' => 'multi', 'question' => 'Welche Aussagen stimmen?', 'options' => ['A', 'B', 'C'], 'answer' => [0, 1], 'explanation' => 'Testerklaerung zwei.', 'lesson' => '1.0', 'review' => $review, 'difficulty' => 1, 'tags' => []],
+            ['id' => 'f03', 'is_ref' => false, 'type' => 'truefalse', 'question' => 'Aussage drei.', 'answer' => true, 'explanation' => 'Testerklaerung drei.', 'lesson' => '1.0', 'review' => $review, 'difficulty' => 1, 'tags' => []],
+            ['id' => 'f04', 'is_ref' => false, 'type' => 'input', 'question' => 'Wie lautet Antwort vier?', 'answer' => 'test', 'explanation' => 'Testerklaerung vier.', 'lesson' => '1.0', 'review' => $review, 'difficulty' => 1, 'tags' => []],
+            ['id' => 'f05', 'is_ref' => false, 'type' => 'single', 'question' => 'Frage fuenf?', 'options' => ['A', 'B', 'C'], 'answer' => 1, 'explanation' => 'Testerklaerung fuenf.', 'lesson' => 'cross', 'review' => $review, 'difficulty' => 3, 'tags' => []],
+            ['id' => 'f06', 'is_ref' => false, 'type' => 'single', 'question' => 'Frage sechs?', 'options' => ['A', 'B', 'C'], 'answer' => 2, 'explanation' => 'Testerklaerung sechs.', 'lesson' => 'cross', 'review' => $review, 'difficulty' => 1, 'tags' => []],
+            ['id' => 'f07', 'is_ref' => false, 'type' => 'multi', 'question' => 'Welche Aussagen stimmen?', 'options' => ['A', 'B', 'C'], 'answer' => [0, 2], 'explanation' => 'Testerklaerung sieben.', 'lesson' => 'cross', 'review' => $review, 'difficulty' => 1, 'tags' => []],
+            ['id' => 'f08', 'is_ref' => false, 'type' => 'truefalse', 'question' => 'Aussage acht.', 'answer' => false, 'explanation' => 'Testerklaerung acht.', 'lesson' => 'cross', 'review' => $review, 'difficulty' => 1, 'tags' => []],
+        ];
     }
 
     public function test_the_full_lifecycle_writes_only_the_settings_and_preserves_the_question_pool(): void

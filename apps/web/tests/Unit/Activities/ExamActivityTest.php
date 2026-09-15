@@ -10,6 +10,7 @@ use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\Yaml\Yaml;
 use Tests\TestCase;
 
 class ExamActivityTest extends TestCase
@@ -153,6 +154,44 @@ class ExamActivityTest extends TestCase
         foreach ($issues as $issue) {
             $this->assertStringStartsWith('exams/fundamente/', $issue->file);
         }
+    }
+
+    public function test_serialize_with_a_questions_draft_replaces_the_entire_pool(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize(['questions' => [
+            [
+                'id' => 'f01', 'is_ref' => false, 'type' => 'truefalse', 'question' => 'Neue Aussage.',
+                'explanation' => 'Neue Erklärung.', 'answer' => true, 'lesson' => '1.0',
+                'review' => [['lesson' => '1.0', 'anchor' => 'intro']], 'difficulty' => 2, 'tags' => [],
+            ],
+        ]]);
+
+        $parsedMeta = Yaml::parse($files[0]['contents']);
+        $this->assertCount(1, $parsedMeta['questions']);
+        $this->assertSame('truefalse', $parsedMeta['questions'][0]['type']);
+        $this->assertStringContainsString('### f01 — Neue Aussage.', $files[1]['contents']);
+        $this->assertStringNotContainsString('Frage?', $files[1]['contents'], 'die alte Frage muss ersetzt sein.');
+    }
+
+    public function test_validate_with_a_questions_draft_checks_the_regenerated_pool(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate(['questions' => [
+            [
+                'id' => 'f01', 'is_ref' => false, 'type' => 'single', 'question' => 'Neue Frage?',
+                'options' => ['A'], 'explanation' => 'X.', 'answer' => 5, 'lesson' => '1.0',
+                'review' => [['lesson' => '1.0', 'anchor' => 'intro']], 'difficulty' => 1, 'tags' => [],
+            ],
+        ]]);
+
+        $messages = array_map(fn ($issue) => (string) $issue, $issues);
+        $this->assertTrue(
+            (bool) array_filter($messages, fn (string $m) => str_contains($m, 'answer-Index liegt ausserhalb')
+                || str_contains($m, 'answer')),
+        );
     }
 
     private function makeActivity(): ExamActivity

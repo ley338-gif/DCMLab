@@ -219,17 +219,16 @@ erzeugten Artefakt machen.
   sind seit ADR 0089 ebenfalls pflegbar (Dropdowns aus dem echten
   Bestand für Datensatz/Lab-Node, `objectives_count` wird automatisch
   aus der Lernziel-Liste abgeleitet).
-- **W6.3 — Prüfungs-Editor (Einstellungen)** (fertig, siehe ADR 0082):
+- **W6.3 — Prüfungs-Editor** (fertig, siehe ADR 0082 und ADR 0090):
   Titel, Einleitung, Bestehensgrenze, Fragenzahl je Versuch, Dauer,
   Mischen und `min_per_lesson` sind unter
-  `/de/author/exams/{track}/edit` pflegbar, plus eine live berechnete
-  Pool-Übersicht (Lektionsabdeckung, Cross-Anzahl, Typmischung,
-  Schwierigkeitsanteil) als Fortschrittsanzeige. Der Fragenpool selbst
-  (einzelne Fragen hinzufügen/entfernen/bearbeiten) bleibt bewusst
-  Kommandozeilen-Sache -- die statistischen Poolanforderungen
-  (`ContentValidator::checkExamStructure()`) sind Eigenschaften des
-  gesamten Pools, nicht einer einzelnen Frage, siehe
-  `docs/offene-fragen.md`.
+  `/de/author/exams/{track}/edit` pflegbar, ebenso der Fragenpool selbst
+  (Fragen hinzufügen/bearbeiten/entfernen, inklusive `ref`-Erstellung mit
+  Lektion/Frage-Dropdown und Anker-Dropdown aus den Überschriften der
+  Ziellektion). Eine live berechnete Pool-Übersicht (Lektionsabdeckung,
+  Cross-Anzahl, Typmischung, Schwierigkeitsanteil) rechnet dabei gegen den
+  aktuellen Entwurf im Formular, nicht nur gegen den gespeicherten
+  Bestand -- als Fortschrittsanzeige während der Bearbeitung.
 - **W6.4 — Achievement-Editor** (fertig, siehe ADR 0083): ein einzelnes
   Achievement anlegen oder bearbeiten unter
   `/de/author/achievements/{slug}/edit`, inklusive Auslösekriterium-
