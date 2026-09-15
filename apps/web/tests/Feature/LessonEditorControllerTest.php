@@ -89,17 +89,30 @@ class LessonEditorControllerTest extends TestCase
      * Seit CMS-6d Teil 3 (ADR 0109) kann eine Node rein in Studio angelegt
      * sein, ohne jemals eine content/nodes/**-Datei zu haben -- der
      * Composer-Katalog muss sie trotzdem als Lab-Auswahl anbieten, nicht nur
-     * den datei-basierten Bestand.
+     * den datei-basierten Bestand. Seit ADR 0110 (CMS-6d Haertung) nur, wenn
+     * sie tatsaechlich "published" ist.
      */
-    public function test_the_node_catalog_includes_a_studio_only_node_without_a_content_file(): void
+    public function test_the_node_catalog_includes_a_published_studio_only_node_without_a_content_file(): void
     {
         [$lesson, , $author] = $this->lessonAndActivity();
-        Node::factory()->create(['slug' => 'studio-only-node']);
+        Node::factory()->create(['slug' => 'studio-only-node', 'status' => 'published']);
 
         $this->actingAs($author)
             ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
             ->assertInertia(fn ($page) => $page
                 ->where('catalog.nodes', fn ($nodes) => collect($nodes)->contains('studio-only-node'))
+            );
+    }
+
+    public function test_the_node_catalog_excludes_a_node_that_is_not_yet_published(): void
+    {
+        [$lesson, , $author] = $this->lessonAndActivity();
+        Node::factory()->create(['slug' => 'draft-node', 'status' => 'draft']);
+
+        $this->actingAs($author)
+            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->assertInertia(fn ($page) => $page
+                ->where('catalog.nodes', fn ($nodes) => ! collect($nodes)->contains('draft-node'))
             );
     }
 

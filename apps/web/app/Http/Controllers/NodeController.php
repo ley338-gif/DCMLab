@@ -6,6 +6,7 @@ use App\Activities\ActivityProgressRecorder;
 use App\Content\ContentRepository;
 use App\Content\MarkdownRenderer;
 use App\Content\NodeSections;
+use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\NodeAttempt;
@@ -16,18 +17,19 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class NodeController extends Controller
 {
     /**
-     * Oeffentlicher Katalog aller Nodes (Abschnitt 6) -- wie Tracks/Index
-     * ohne Login sichtbar, ein Klick auf eine Node fuehrt Gaeste zum Login.
-     * `status` (draft|review|published) ist bei Nodes anders als bei Track
-     * bislang reine Redaktionsmarkierung, kein Zugriffsfilter -- show()
-     * selbst prueft nur, ob Content existiert, nicht den Status. Deshalb
-     * werden hier ebenfalls alle Nodes gelistet, nicht nur "published".
+     * Oeffentlicher Katalog aller veroeffentlichten Nodes (Abschnitt 6) --
+     * wie Tracks/Index ohne Login sichtbar, ein Klick auf eine Node fuehrt
+     * Gaeste zum Login. Seit ADR 0110 (CMS-6d Haertung) zeigt der Katalog
+     * nur `status: published` -- ein per Studio angelegter Entwurf (ADR
+     * 0109) ist damit erst nach echter Freigabe fuer Lernende sichtbar, ein
+     * Autor sieht ihn vorher ueber "Vorschau" (siehe show()).
      */
     public function index(): Response
     {
@@ -78,11 +80,16 @@ class NodeController extends Controller
 
     public function show(Node $node, ContentRepository $content, EngineClientResolver $engineResolver): Response
     {
-        // Archiviert (analog Track, ADR 0100) heisst nicht mehr sichtbar --
-        // anders als "draft", das (wie ein Track im Entwurf) per Direktlink
-        // weiterhin erreichbar bleibt, u. a. damit ein Autor eine frisch in
-        // Studio angelegte Node ueber "Vorschau" (ADR 0109) sehen kann.
-        abort_if($node->status === 'archived', 404);
+        // Seit ADR 0110 (CMS-6d Haertung) ist eine nicht veroeffentlichte
+        // Node (draft/review, sowie archiviert) fuer normale Lernende
+        // gesperrt -- nur wer die zugehoerige Activity bearbeiten darf
+        // (zugewiesener Autor oder Reviewer/Administrator, ActivityPolicy)
+        // sieht sie trotzdem, das ist die "Vorschau" aus dem Studio-Editor
+        // (ADR 0109), keine zweite Route.
+        if ($node->status !== 'published') {
+            $activity = Activity::query()->where('type', 'node')->where('key', $node->slug)->first();
+            abort_unless($activity !== null && Gate::allows('update', $activity), 404);
+        }
 
         $engine = $engineResolver->for($node);
         $nodeContent = $content->nodes()[$node->slug] ?? null;
@@ -285,7 +292,7 @@ class NodeController extends Controller
         $difficultyRank = ['easy' => 0, 'medium' => 1, 'hard' => 2, 'insane' => 3];
 
         return Node::query()
-            ->where('status', '!=', 'archived')
+            ->where('status', 'published')
             ->with('themenfeld')
             ->get()
             ->sortBy(fn (Node $node) => sprintf(

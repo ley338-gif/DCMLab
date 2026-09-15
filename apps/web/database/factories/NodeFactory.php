@@ -22,7 +22,11 @@ class NodeFactory extends Factory
             'skills' => ['netzwerk'],
             'related_lessons' => [],
             'estimated_minutes' => 15,
-            'status' => 'draft',
+            // Wie jede real existierende Node (ADR 0110, CMS-6d Haertung:
+            // NodeController zeigt Lernenden nur "published") -- ein Test,
+            // der explizit eine noch nicht freigegebene Node braucht,
+            // ueberschreibt das gezielt.
+            'status' => 'published',
             'content_updated_at' => now(),
             'title' => ['de' => fake()->words(2, true)],
             'scenario_title' => ['de' => fake()->sentence()],

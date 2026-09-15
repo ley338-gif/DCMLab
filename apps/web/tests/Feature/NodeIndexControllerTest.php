@@ -31,12 +31,9 @@ class NodeIndexControllerTest extends TestCase
         $this->get('/de/nodes')->assertOk();
     }
 
-    public function test_it_lists_all_nodes_regardless_of_draft_status(): void
+    public function test_it_lists_a_published_node(): void
     {
-        // Alle 16 Nodes im Repo stehen auf status: draft (Redaktionsmarkierung,
-        // kein Zugriffsfilter -- siehe NodeController::show). Der Katalog darf
-        // deshalb nicht auf "published" filtern, sonst waere er immer leer.
-        Node::factory()->create(['slug' => 'silent-ct', 'status' => 'draft']);
+        Node::factory()->create(['slug' => 'silent-ct', 'status' => 'published']);
 
         $response = $this->get('/de/nodes');
 
@@ -44,6 +41,21 @@ class NodeIndexControllerTest extends TestCase
             ->component('Nodes/Index')
             ->where('nodes.0.slug', 'silent-ct'),
         );
+    }
+
+    /**
+     * Seit ADR 0110 (CMS-6d Haertung): eine per Studio angelegte, noch nicht
+     * freigegebene Node (ADR 0109) darf im oeffentlichen Katalog nicht
+     * auftauchen -- vorher haette jeder Entwurf sofort jeden Lernenden
+     * erreicht.
+     */
+    public function test_it_excludes_a_node_that_is_not_yet_published(): void
+    {
+        Node::factory()->create(['slug' => 'draft-node', 'status' => 'draft']);
+
+        $response = $this->get('/de/nodes');
+
+        $response->assertInertia(fn ($page) => $page->has('nodes', 0));
     }
 
     public function test_it_marks_solved_nodes_for_the_authenticated_user(): void
