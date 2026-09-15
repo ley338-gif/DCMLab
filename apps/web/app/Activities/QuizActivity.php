@@ -74,13 +74,13 @@ final readonly class QuizActivity implements ActivityContract
         ];
     }
 
-    public function validate(): array
+    public function validate(?array $draft = null): array
     {
         // Bewusst leer, siehe LessonActivity::validate().
         return [];
     }
 
-    public function serialize(): array
+    public function serialize(?array $draft = null): array
     {
         // Kein eigenes Dateiziel -- das Quiz ist Teil des Lektions-Markdowns
         // und -meta.yml, siehe LessonActivity::serialize().

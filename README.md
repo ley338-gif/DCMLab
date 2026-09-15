@@ -193,7 +193,15 @@ erzeugten Artefakt machen.
   `type`/`answer` tragen und damit eine Lektions-Quizfrage wiederverwenden
   -- eine Pflegestelle statt zwei. Kein realer Bestand wurde umgestellt
   (redaktionelle Entscheidung, siehe `docs/offene-fragen.md`).
-- W6–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W6.1 — Quiz-Editor** (fertig, siehe ADR 0080): eine Lektion mit
+  Kommandozeile anzulegen war nie das Problem, ihr Quiz ohne sie zu
+  pflegen dagegen unmöglich -- jetzt geht es unter
+  `/de/author/lessons/{lesson}/quiz`. `LessonActivity::serialize()`/
+  `validate()` können erstmals einen Entwurf statt des Ist-Zustands
+  erzeugen bzw. prüfen; Freigabe schreibt über `ContentWriter` tatsächlich
+  nach `content/`. W6.2–W6.4 (Lektion, Prüfung, Achievement) folgen im
+  selben Muster.
+- W6.2–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 

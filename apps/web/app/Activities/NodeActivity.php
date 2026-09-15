@@ -70,7 +70,7 @@ final readonly class NodeActivity implements ActivityContract
         ];
     }
 
-    public function validate(): array
+    public function validate(?array $draft = null): array
     {
         $prefix = "nodes/{$this->node->slug}/";
 
@@ -92,7 +92,7 @@ final readonly class NodeActivity implements ActivityContract
         ));
     }
 
-    public function serialize(): array
+    public function serialize(?array $draft = null): array
     {
         $entry = $this->contentEntry();
 

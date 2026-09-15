@@ -129,12 +129,12 @@ final readonly class QuestActivity implements ActivityContract
         return [];
     }
 
-    public function validate(): array
+    public function validate(?array $draft = null): array
     {
         return [];
     }
 
-    public function serialize(): array
+    public function serialize(?array $draft = null): array
     {
         return [];
     }
