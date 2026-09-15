@@ -62,7 +62,7 @@ class AuthorUserController extends Controller
         Gate::authorize('update', $user);
 
         $data = $request->validate([
-            'role' => 'required|string|in:learner,author,reviewer',
+            'role' => 'required|string|in:learner,author,reviewer,administrator',
         ]);
 
         $user->role = UserRole::from($data['role']);

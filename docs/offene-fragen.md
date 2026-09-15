@@ -29,6 +29,23 @@ Operator-Pfad gibt (der dann dokumentiert gehoert), oder ob
 Bind-Mount fuer `content/` braucht, analog zu anderen dev-spezifischen
 Overrides dort.
 
+## Reviewer-Faehigkeiten spaeter exklusiv auf Administrator verengen? (nach CMS-3a)
+
+**Frage:** Sollen Nutzerverwaltung, Sandbox-Vorlagen-Verwaltung und
+Freigaben irgendwann exklusiv `administrator` vorbehalten werden (wie im
+Studio-Auftrag Abschnitt 18 vorgesehen), statt weiterhin additiv auch
+`reviewer` offen zu stehen?
+
+**Kontext:** ADR 0098 (CMS-3a) fuehrt die `administrator`-Rolle additiv
+ein, um den heute einzigen Betreiber (Reviewer) nicht sofort von diesen
+Faehigkeiten auszusperren -- es existiert noch kein einziges
+Administrator-Konto in einer echten Umgebung.
+
+**Empfehlung:** Erst verengen, sobald tatsaechlich mindestens ein
+Administrator-Konto in jeder relevanten Umgebung angelegt und bestaetigt
+ist (Betreiberentscheidung, analog zum Vorgehen bei ADR 0091s
+Pionier-Migration) -- nie automatisch beim Deploy.
+
 ## ~~`SandboxSession` fehlt noch -- `state`/`exec`/`destroy` loesen fest auf "docker" auf (CMS-2b)~~ Erledigt
 
 **Umgesetzt (15.09.2026, ADR 0097):** `sandbox_sessions` ist jetzt eine

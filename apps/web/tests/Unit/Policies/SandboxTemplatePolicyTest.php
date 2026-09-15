@@ -48,4 +48,15 @@ class SandboxTemplatePolicyTest extends TestCase
 
         $this->assertTrue($author->can('viewAny', SandboxTemplate::class));
     }
+
+    /**
+     * ADR 0098 (CMS-3a): Administrator erweitert Reviewer additiv.
+     */
+    public function test_an_administrator_can_manage_templates(): void
+    {
+        $administrator = User::factory()->administrator()->create();
+        $template = SandboxTemplate::factory()->create();
+
+        $this->assertTrue($administrator->can('manage', $template));
+    }
 }

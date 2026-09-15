@@ -75,4 +75,12 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => ['role' => UserRole::Reviewer]);
     }
+
+    /**
+     * @see UserRole
+     */
+    public function administrator(): static
+    {
+        return $this->state(fn (array $attributes) => ['role' => UserRole::Administrator]);
+    }
 }

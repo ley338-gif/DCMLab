@@ -17,6 +17,8 @@ use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\Track;
+use App\Models\User;
+use App\Models\UserRole;
 use App\Services\EngineClient;
 use App\Services\EngineClientContract;
 use App\Services\SandboxClient;
@@ -24,6 +26,7 @@ use App\Services\SandboxClientContract;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -103,6 +106,21 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureGates();
+    }
+
+    /**
+     * `studio.access` (ADR 0098, CMS-3a) ersetzt AuthorPanelControllers
+     * bisheriges `abort_if($user->role === UserRole::Learner, 403)` --
+     * dieselbe Regel, aber als Policy-Entscheidung statt als Rollen-If im
+     * Controller. Ein benannter Gate statt einer Modell-Policy, weil es
+     * keine einzelne Eloquent-Ressource gibt, die "der Autoren-/Studio-
+     * Bereich als Ganzes" waere (analog zu ReviewQueueController, das
+     * dafuer bewusst UserPolicy::viewAny wiederverwendet).
+     */
+    protected function configureGates(): void
+    {
+        Gate::define('studio.access', fn (User $user): bool => $user->role !== UserRole::Learner);
     }
 
     /**

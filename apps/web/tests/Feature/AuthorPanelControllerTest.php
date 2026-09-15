@@ -73,4 +73,25 @@ class AuthorPanelControllerTest extends TestCase
                 ->where('review_queue_count', 1)
             );
     }
+
+    /**
+     * ADR 0098 (CMS-3a): Administrator erweitert Reviewer additiv.
+     */
+    public function test_an_administrator_sees_the_review_queue_count(): void
+    {
+        $administrator = User::factory()->administrator()->create();
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review', 'payload' => [],
+            'is_current' => false, 'created_by' => $administrator->id,
+        ]);
+
+        $this->actingAs($administrator)
+            ->get('/de/author')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('role', 'administrator')
+                ->where('review_queue_count', 1)
+            );
+    }
 }
