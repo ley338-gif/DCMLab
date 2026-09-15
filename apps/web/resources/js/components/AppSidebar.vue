@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
     BookOpenText,
     FlaskConical,
     GraduationCap,
     LayoutGrid,
+    ShieldCheck,
 } from '@lucide/vue';
+import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -20,32 +22,48 @@ import {
 } from '@/components/ui/sidebar';
 import { trans } from '@/lib/trans';
 import { dashboard, home } from '@/routes';
+import { index as authorPanelIndex } from '@/routes/author';
 import { index as glossaryIndex } from '@/routes/glossary';
 import { index as nodesIndex } from '@/routes/nodes';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: trans('Tracks'),
-        href: home(),
-        icon: GraduationCap,
-    },
-    {
-        title: trans('Dashboard'),
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: trans('Labs'),
-        href: nodesIndex(),
-        icon: FlaskConical,
-    },
-    {
-        title: trans('Glossar'),
-        href: glossaryIndex(),
-        icon: BookOpenText,
-    },
-];
+const page = usePage();
+const user = computed(() => page.props.auth.user);
+
+const mainNavItems = computed<NavItem[]>(() => {
+    const items: NavItem[] = [
+        {
+            title: trans('Tracks'),
+            href: home(),
+            icon: GraduationCap,
+        },
+        {
+            title: trans('Dashboard'),
+            href: dashboard(),
+            icon: LayoutGrid,
+        },
+        {
+            title: trans('Labs'),
+            href: nodesIndex(),
+            icon: FlaskConical,
+        },
+        {
+            title: trans('Glossar'),
+            href: glossaryIndex(),
+            icon: BookOpenText,
+        },
+    ];
+
+    if (user.value && user.value.role !== 'learner') {
+        items.push({
+            title: trans('Autoren-Panel'),
+            href: authorPanelIndex(),
+            icon: ShieldCheck,
+        });
+    }
+
+    return items;
+});
 </script>
 
 <template>

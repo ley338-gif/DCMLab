@@ -252,6 +252,15 @@ erzeugten Artefakt machen.
   Deployment führt aber noch keinen Scheduler-Prozess aus, siehe
   `docs/offene-fragen.md` für die dafür zu treffende Betreiber-
   Entscheidung. Damit sind alle Arbeitsphasen W0–W7 abgeschlossen.
+- **Autoren-Panel** (fertig, siehe ADR 0092): Einstiegspunkt unter
+  `/de/author` für Author/Reviewer, vorher nur über einzelne URLs mit
+  fester Ressourcen-ID erreichbar. Eine übergreifende Review-Queue
+  (`/de/author/review-queue`, Reviewer) zeigt alle zur Prüfung
+  eingereichten Entwürfe quer über jeden Aktivitätstyp, mit direktem
+  Freigeben-Knopf. Eine Nutzerverwaltung (`/de/author/users`, Reviewer)
+  vergibt Rollen und weist Autor:innen einzelnen Aktivitäten zu, statt nur
+  direkt in der Datenbank. Es gibt weiterhin keine eigene Admin-Rolle --
+  Reviewer ist die höchste bestehende Stufe.
 
 ## Bekannte Lücken
 

@@ -4,6 +4,31 @@ Entscheidungen aus dem Ausbau zum Lightweight LMS (`dcm-lab-lms-agent-prompt.md`
 die der Betreiber trifft, nicht der Code-Agent. Format: Frage, Kontext,
 Empfehlung. Erledigte Punkte werden hier durchgestrichen, nicht geloescht.
 
+## `content/` ist in `infra/docker-compose.yml` fuer `app` read-only gemountet -- Freigeben schlaegt im Standard-Dev-Setup fehl
+
+**Frage:** Wie soll ein Reviewer eine Einreichung lokal tatsaechlich
+freigeben koennen (`ContentVersionController::publish()` -> `ContentWriter`
+schreibt nach `content/`), wenn `../content:/var/www/html/content:ro` den
+Schreibzugriff im Container grundsaetzlich verbietet?
+
+**Kontext:** Entdeckt beim Testen des neuen Autoren-Panels (ADR 0092): ein
+"Freigeben"-Klick scheitert mit einem 500er
+(`file_put_contents(...): Failed to open stream: Read-only file system`).
+Das betrifft nicht das Panel selbst, sondern jeden bestehenden Editor
+(Lektion/Quiz/Pruefung/Achievement) gleichermassen -- der Mount ist in
+`infra/docker-compose.yml` fuer `app`, `engine`, `sandbox`,
+`scenario-engine` fest auf `:ro` gesetzt, `infra/docker-compose.dev.yml`
+ueberschreibt das nicht. Vermutlich eine bewusste Sicherheitsmassnahme
+(ein laufender Container soll den git-verfolgten Content nicht versehentlich
+korrumpieren), aber `docs/betrieb.md` beschreibt keinen alternativen Weg,
+wie eine echte Freigabe dann tatsaechlich content/ aendert.
+
+**Empfehlung:** Klaeren, ob es einen separaten, schreibbaren Deploy-/
+Operator-Pfad gibt (der dann dokumentiert gehoert), oder ob
+`docker-compose.dev.yml` fuer lokale Entwicklung einen schreibbaren
+Bind-Mount fuer `content/` braucht, analog zu anderen dev-spezifischen
+Overrides dort.
+
 ## Bestehende Pruefungsfragen auf `ref` umstellen (nach W5)
 
 **Frage:** Sollen einzelne der 40 bestehenden Pruefungsfragen, die

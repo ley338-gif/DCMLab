@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AchievementEditorController;
+use App\Http\Controllers\AuthorPanelController;
+use App\Http\Controllers\AuthorUserController;
 use App\Http\Controllers\ContentVersionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExamController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\PublicProfileController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\QuizEditorController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\ReviewQueueController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\TrackController;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +53,19 @@ Route::prefix('de')->group(function () {
 
         Route::prefix('lessons/{lesson}/quiz')->name('quiz.')->middleware('throttle:60,1')->group(function () {
             Route::post('{questionId}/answer', [QuizController::class, 'answer'])->name('answer');
+        });
+
+        // Autoren-Panel (ADR 0092): Einstiegspunkt, Review-Queue und
+        // Nutzerverwaltung fuer Author/Reviewer -- vorher gab es keine
+        // Seite, von der aus die einzelnen Editoren unten ueberhaupt
+        // auffindbar waren.
+        Route::get('author', [AuthorPanelController::class, 'index'])->name('author.index');
+        Route::get('author/review-queue', [ReviewQueueController::class, 'index'])->name('author.review-queue.index');
+        Route::prefix('author/users')->name('author.users.')->group(function () {
+            Route::get('/', [AuthorUserController::class, 'index'])->name('index');
+            Route::patch('{user}', [AuthorUserController::class, 'updateRole'])->name('update');
+            Route::post('{user}/activities', [AuthorUserController::class, 'assignActivity'])->name('activities.store');
+            Route::delete('{user}/activities/{activity}', [AuthorUserController::class, 'removeActivity'])->name('activities.destroy');
         });
 
         // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte
