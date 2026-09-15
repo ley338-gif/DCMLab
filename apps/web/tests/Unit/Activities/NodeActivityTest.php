@@ -4,12 +4,14 @@ namespace Tests\Unit\Activities;
 
 use App\Activities\NodeActivity;
 use App\Content\ContentRepository;
+use App\Content\FrontMatter;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Symfony\Component\Yaml\Yaml;
 use Tests\TestCase;
 
 class NodeActivityTest extends TestCase
@@ -31,7 +33,7 @@ class NodeActivityTest extends TestCase
         );
         File::put(
             $this->contentDir.'/nodes/test-node/de.md',
-            "---\ntitle: Test Node\n---\n\nBriefing-Text.\n",
+            "---\ntitle: Test Node\nscenario_title: Test Szenario\n---\n\nBriefing-Text.\n",
         );
     }
 
@@ -53,9 +55,9 @@ class NodeActivityTest extends TestCase
         $this->assertTrue($supports->freelyPlaceable);
         $this->assertSame('container', $supports->runtimeType);
         $this->assertTrue($supports->reusable);
-        // Kein Node-Editor legt heute einen Entwurf an -- serialize($draft)
-        // ignoriert $draft, siehe NodeActivity::supports().
-        $this->assertFalse($supports->versionable);
+        // Seit ADR 0108 (CMS-6d Teil 2) wertet serialize($draft) den Entwurf
+        // tatsaechlich aus, siehe NodeActivity::supports().
+        $this->assertTrue($supports->versionable);
     }
 
     public function test_result_is_null_before_any_attempt_exists(): void
@@ -112,6 +114,97 @@ class NodeActivityTest extends TestCase
         $this->assertCount(2, $files);
         $this->assertSame('nodes/test-node/node.yml', $files[0]['path']);
         $this->assertStringContainsString('slug: test-node', $files[0]['contents']);
+    }
+
+    public function test_serialize_with_a_draft_regenerates_only_the_named_fields(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize([
+            'difficulty' => 'medium',
+            'points' => 20,
+            'category' => 'sicherheit',
+            'interaction' => 'terminal',
+            'estimated_minutes' => 30,
+            'skills' => ['netzwerk', 'sicherheit'],
+            'related_lessons' => ['1.1'],
+            'title' => 'Neuer Titel',
+            'scenario_title' => 'Neues Szenario',
+        ]);
+
+        $parsedDef = Yaml::parse($files[0]['contents']);
+        $this->assertSame('medium', $parsedDef['difficulty']);
+        $this->assertSame(20, $parsedDef['points']);
+        $this->assertSame('sicherheit', $parsedDef['category']);
+        $this->assertSame(30, $parsedDef['estimated_minutes']);
+        $this->assertSame(['netzwerk', 'sicherheit'], $parsedDef['skills']);
+        $this->assertSame(['1.1'], $parsedDef['related_lessons']);
+
+        $frontMatter = FrontMatter::parse($files[1]['contents']);
+        $this->assertSame('Neuer Titel', $frontMatter['attributes']['title']);
+        $this->assertSame('Neues Szenario', $frontMatter['attributes']['scenario_title']);
+    }
+
+    public function test_serialize_with_a_body_draft_replaces_only_the_body(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize(['body' => '## Briefing'.PHP_EOL.PHP_EOL.'Neuer Briefing-Text.']);
+
+        $frontMatter = FrontMatter::parse($files[1]['contents']);
+        $this->assertSame('Test Node', $frontMatter['attributes']['title'], 'Frontmatter darf unangetastet bleiben.');
+        $this->assertStringContainsString('Neuer Briefing-Text.', $files[1]['contents']);
+        $this->assertStringNotContainsString('Briefing-Text.'.PHP_EOL, $files[1]['contents']);
+    }
+
+    public function test_serialize_with_a_hints_draft_regenerates_only_the_hints_block(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize(['hints' => [['id' => 'h1', 'cost' => 1], ['id' => 'h2', 'cost' => 2]]]);
+        $parsedDef = Yaml::parse($files[0]['contents']);
+
+        $this->assertSame([
+            ['id' => 'h1', 'cost' => 1],
+            ['id' => 'h2', 'cost' => 2],
+        ], $parsedDef['hints']);
+        $this->assertSame('easy', $parsedDef['difficulty'], 'difficulty darf unangetastet bleiben.');
+    }
+
+    public function test_validate_with_a_draft_checks_what_serialize_would_produce_instead_of_the_current_state(): void
+    {
+        $activity = $this->makeActivity();
+
+        // related_lessons verweist auf eine unbekannte Lektion -- dieselbe
+        // Regel wie ContentValidator::checkNodeStructure() im Ist-Zustand.
+        $issues = $activity->validate(['related_lessons' => ['9.9']]);
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'unbekannte Lektion'),
+        ));
+    }
+
+    public function test_validate_without_a_draft_still_checks_the_current_state(): void
+    {
+        $activity = $this->makeActivity();
+
+        $withDraft = $activity->validate(null);
+        $withoutArgument = $activity->validate();
+
+        $this->assertEquals($withoutArgument, $withDraft);
+    }
+
+    public function test_deserialize_normalizes_the_current_fields(): void
+    {
+        $activity = $this->makeActivity();
+
+        $draft = $activity->deserialize();
+
+        $this->assertSame('test-node', $draft['slug']);
+        $this->assertSame('easy', $draft['difficulty']);
+        $this->assertSame(10, $draft['points']);
+        $this->assertIsString($draft['body']);
+        $this->assertSame([], $draft['hints']);
     }
 
     private function makeActivity(): NodeActivity

@@ -15,10 +15,11 @@ use App\Models\Activity;
  * Eine Lektionsfeld-Aenderung (kein `quiz`-Schluessel im Payload) geht seit
  * ADR 0101/0102 direkt in die DB (`LessonContentPublisher`), ein
  * Quiz-Entwurf (`quiz`-Schluessel -- weiterhin an seine Lektion gebunden,
- * ADR 0097) seit ADR 0104 ueber `QuizContentPublisher` -- `content/` wird
- * in beiden Faellen nicht mehr angefasst. Jeder andere Fall (Pruefung,
- * Achievement, Node) nutzt weiterhin `ContentWriter`, bis auch deren
- * Fliesstext DB-gefuehrt ist (CMS-8).
+ * ADR 0097) seit ADR 0104 ueber `QuizContentPublisher`, ein Node-Entwurf seit
+ * ADR 0108 (CMS-6d Teil 2) ueber `NodeContentPublisher` -- `content/` wird in
+ * allen drei Faellen nicht mehr angefasst. Jeder andere Fall (Pruefung,
+ * Achievement) nutzt weiterhin `ContentWriter`, bis auch deren Fliesstext
+ * DB-gefuehrt ist (CMS-8).
  */
 final readonly class ActivityContentApplier
 {
@@ -27,6 +28,7 @@ final readonly class ActivityContentApplier
         private ContentWriter $writer,
         private LessonContentPublisher $lessonPublisher,
         private QuizContentPublisher $quizPublisher,
+        private NodeContentPublisher $nodePublisher,
     ) {}
 
     /**
@@ -48,6 +50,12 @@ final readonly class ActivityContentApplier
             } else {
                 $this->lessonPublisher->publish($activityModel, $payload);
             }
+
+            return [];
+        }
+
+        if ($activityModel->type === ActivityType::Node->value) {
+            $this->nodePublisher->publish($activityModel, $payload);
 
             return [];
         }
