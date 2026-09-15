@@ -35,6 +35,9 @@ services:
       - ../apps/web/.env.docker
     environment:
       DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
+      # Zentral statt pro Container generiert (ADR 0087) -- app und scheduler
+      # muessen denselben Schluessel benutzen, siehe .env.example.
+      APP_KEY: ${APP_KEY:?APP_KEY fehlt in .env -- siehe .env.example zum Erzeugen}
       ENGINE_URL: http://engine:8100
       SCENARIO_ENGINE_URL: http://scenario-engine:8300
       DB_USERNAME: ${POSTGRES_USER:-dcmlab}
@@ -60,6 +63,36 @@ services:
         condition: service_started
       scenario-engine:
         condition: service_started
+
+  # W7-Erinnerungen (ADR 0084/0087): derselbe Image-Build wie app, aber mit
+  # `schedule:work` statt php-fpm -- ein eigener, lang laufender Prozess statt
+  # eines externen Cron-Eintrags, der `docker compose exec app ...` bräuchte.
+  # Bewusst kein web-public-Mount (das Volume ist nur fuer den HTTP-Weg
+  # relevant, siehe docker/entrypoint.sh: die Neubefuellung laeuft dort nur
+  # noch fuer das Kommando "php-fpm").
+  scheduler:
+    build:
+      context: ../apps/web
+    command: ["php", "artisan", "schedule:work"]
+    env_file:
+      - ../apps/web/.env.docker
+    environment:
+      DCMLAB_INTERNAL_KEY: ${DCMLAB_INTERNAL_KEY:-change-me-in-production}
+      APP_KEY: ${APP_KEY:?APP_KEY fehlt in .env -- siehe .env.example zum Erzeugen}
+      ENGINE_URL: http://engine:8100
+      SCENARIO_ENGINE_URL: http://scenario-engine:8300
+      DB_USERNAME: ${POSTGRES_USER:-dcmlab}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      DB_DATABASE: ${POSTGRES_DB:-dcmlab}
+      CONTENT_PATH: /var/www/html/content
+      APP_URL: http://localhost:${APP_HOST_PORT:-8080}
+    volumes:
+      - ../content:/var/www/html/content:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
 
   caddy:
     image: caddy:2-alpine

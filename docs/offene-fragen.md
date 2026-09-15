@@ -140,33 +140,21 @@ gegen einen sich noch aendernden Vertrag entwickeln.
 `dcm-lab-lms-agent-prompt.md` Abschnitt 8. Kein neuer Befund in diesem
 Ausbau.
 
-## Scheduler-Betrieb fuer review:send-reminders (nach W7)
+## ~~Scheduler-Betrieb fuer review:send-reminders (nach W7)~~ -- erledigt
 
-**Frage:** Wie soll `php artisan review:send-reminders` (und jeder
+~~**Frage:** Wie soll `php artisan review:send-reminders` (und jeder
 kuenftige geplante Befehl) im Produktivbetrieb tatsaechlich taeglich
-ausgefuehrt werden?
+ausgefuehrt werden?~~
 
-**Kontext:** ADR 0084 (W7) registriert den Befehl in
-`bootstrap/app.php` (`withSchedule()`), aber `infra/docker-compose.yml`
-fuehrt aktuell keinen Scheduler- oder Queue-Worker-Prozess aus -- der
-`app`-Container startet ausschliesslich `php-fpm`. Ein zweiter Container
-auf demselben Image (`php artisan schedule:work`) ist der naheliegende
-Weg, wuerde aber zwei bestehende Annahmen von `docker/entrypoint.sh`
-sichtbar machen: `APP_KEY` wird derzeit PRO CONTAINER beim ersten Start
-lokal generiert (`.env.docker` laesst ihn absichtlich leer) statt zentral
-gesetzt -- ein zweiter Container bekaeme einen anderen Schluessel als
-`app`; ausserdem leert/befuellt der Entrypoint bei jedem Start das
-geteilte `web-public`-Volume neu, was zwei gleichzeitig startende
-Container in einen Race liefe.
-
-**Empfehlung:** Vor dem produktiven Einsatz von `review:send-reminders`
-entscheiden: (a) `APP_KEY` zentral setzen (z. B. ueber die zentrale
-`.env`, nicht `.env.docker`) statt ihn pro Container generieren zu
-lassen, (b) `entrypoint.sh` um eine Bedingung erweitern, die die
-Volume-Befuellung nur fuer den Web-Container ausfuehrt, oder (c) einen
-eigenen, schlankeren Entrypoint fuer einen Scheduler-Container schreiben.
-Bis dahin laesst sich der Befehl von Hand oder ueber Host-Cron
-(`docker compose exec app php artisan review:send-reminders`) anstossen.
+**Umgesetzt (15.09.2026, ADR 0087):** `APP_KEY` kommt jetzt zentral aus
+der Root-`.env` (Pflichtvariable, `docker-compose.yml` bricht mit
+klarer Meldung ab, falls sie fehlt) statt pro Container generiert zu
+werden. `entrypoint.sh` fuehrt die `web-public`-Neubefuellung nur noch
+fuer das Kommando `php-fpm` aus, Migrationen laufen mit `--isolated`
+(Sperre ueber `CACHE_STORE=redis`). Ein neuer `scheduler`-Service
+(`php artisan schedule:work`, kein `web-public`-Mount) startet mit
+`make up` automatisch mit. Smoke-getestet gegen die laufende lokale
+Compose-Umgebung, siehe ADR 0087.
 
 ## Bild-Upload im Achievement-Editor (nach W6.4)
 

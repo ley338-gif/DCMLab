@@ -35,9 +35,16 @@ Voraussetzung: Docker.
 
 ```bash
 cp .env.example .env
+echo "APP_KEY=base64:$(openssl rand -base64 32)" >> .env
 make up
 make seed
 ```
+
+`APP_KEY` ist absichtlich nicht in `.env.example` vorbelegt (ADR 0087) --
+app- und scheduler-Container (siehe unten) teilen sich diesen Schlüssel
+zentral über `.env`, statt ihn wie vorher je Container selbst zu
+erzeugen. Ohne ihn bricht `docker compose` mit einer klaren Fehlermeldung
+ab, statt still mit inkompatiblen Schlüsseln weiterzulaufen.
 
 Startseite dann unter `http://localhost:8090` (Port konfigurierbar über
 `APP_HOST_PORT` in `.env`). `make seed` legt einen Testnutzer an
