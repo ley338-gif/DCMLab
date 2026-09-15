@@ -25,6 +25,7 @@ class NodeContentPublisherTest extends TestCase
             'difficulty' => 'easy',
             'points' => 10,
             'body' => 'Alter Text.',
+            'status' => 'draft',
         ]);
         $activity = Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
 
@@ -43,6 +44,7 @@ class NodeContentPublisherTest extends TestCase
         ]);
 
         $node->refresh();
+        $this->assertSame('published', $node->status);
         $this->assertSame('Neu', $node->title['de']);
         $this->assertSame('Neues Szenario', $node->scenario_title['de']);
         $this->assertSame('medium', $node->difficulty);
@@ -54,6 +56,20 @@ class NodeContentPublisherTest extends TestCase
         $this->assertSame(['1.1'], $node->related_lessons);
         $this->assertSame([['id' => 'h1', 'cost' => 1]], $node->hints);
         $this->assertSame('Neuer Text.', $node->body);
+    }
+
+    public function test_it_does_not_unarchive_a_node_through_publishing(): void
+    {
+        $node = Node::factory()->create(['slug' => 'test-node', 'status' => 'archived']);
+        $activity = Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+
+        (new NodeContentPublisher)->publish($activity, [
+            'title' => 'Neu', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
+            'points' => 10, 'category' => 'netzwerk', 'interaction' => 'terminal', 'estimated_minutes' => 15,
+            'skills' => [], 'related_lessons' => [], 'hints' => [], 'body' => 'Text.',
+        ]);
+
+        $this->assertSame('archived', $node->fresh()->status);
     }
 
     public function test_it_keeps_the_activity_row_title_in_sync(): void

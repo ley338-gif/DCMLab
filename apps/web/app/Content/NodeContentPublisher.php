@@ -28,6 +28,13 @@ final class NodeContentPublisher
         $node = Node::where('slug', $activity->key)->firstOrFail();
 
         $node->update([
+            // Eine archivierte Node bleibt archiviert -- eine Freigabe holt
+            // sie nicht heimlich zurueck (dafuer gibt es
+            // StudioNodeController::restore()); jede andere Node ist nach
+            // ihrer ersten echten Freigabe "published", nicht mehr laenger
+            // "draft" (die Studio-Statusanzeige haette sonst nach einer
+            // vollstaendigen Freigabe weiterhin "Entwurf" gezeigt).
+            'status' => $node->status === 'archived' ? $node->status : 'published',
             'title' => ['de' => $payload['title']],
             'scenario_title' => ['de' => $payload['scenario_title']],
             'difficulty' => $payload['difficulty'],

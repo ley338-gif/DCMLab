@@ -184,6 +184,31 @@ class NodeActivityTest extends TestCase
         ));
     }
 
+    /**
+     * Eine rein in Studio angelegte Node (ADR 0109, CMS-6d Teil 3) hat kein
+     * content/nodes/<slug>/-Gegenstueck -- serialize($draft)/validate($draft)
+     * muessen trotzdem einen validen Rumpf erzeugen, statt (wie ohne Draft)
+     * einfach [] zurueckzugeben.
+     */
+    public function test_serialize_with_a_draft_builds_a_valid_body_even_without_a_matching_content_file(): void
+    {
+        $node = Node::factory()->create(['slug' => 'studio-only-node']);
+        $activity = new NodeActivity($node, new ContentRepository($this->contentDir));
+
+        $files = $activity->serialize([
+            'title' => 'Neue Node', 'scenario_title' => 'Neues Szenario', 'difficulty' => 'easy',
+            'points' => 5, 'category' => 'netzwerk', 'estimated_minutes' => 10,
+        ]);
+
+        $parsedDef = Yaml::parse($files[0]['contents']);
+        $this->assertSame('easy', $parsedDef['difficulty']);
+        $this->assertSame(5, $parsedDef['points']);
+
+        $frontMatter = FrontMatter::parse($files[1]['contents']);
+        $this->assertSame('Neue Node', $frontMatter['attributes']['title']);
+        $this->assertSame('Neues Szenario', $frontMatter['attributes']['scenario_title']);
+    }
+
     public function test_validate_without_a_draft_still_checks_the_current_state(): void
     {
         $activity = $this->makeActivity();

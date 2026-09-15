@@ -6,6 +6,7 @@ use App\Content\ContentRepository;
 use App\Models\Activity;
 use App\Models\ContentVersion;
 use App\Models\Lesson;
+use App\Models\Node;
 use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,6 +82,24 @@ class LessonEditorControllerTest extends TestCase
                 ->where('fields.lab.optional', true)
                 ->where('catalog.tools', ['dcmdump'])
                 ->where('catalog.datasets', ['ct-thorax-60'])
+            );
+    }
+
+    /**
+     * Seit CMS-6d Teil 3 (ADR 0109) kann eine Node rein in Studio angelegt
+     * sein, ohne jemals eine content/nodes/**-Datei zu haben -- der
+     * Composer-Katalog muss sie trotzdem als Lab-Auswahl anbieten, nicht nur
+     * den datei-basierten Bestand.
+     */
+    public function test_the_node_catalog_includes_a_studio_only_node_without_a_content_file(): void
+    {
+        [$lesson, , $author] = $this->lessonAndActivity();
+        Node::factory()->create(['slug' => 'studio-only-node']);
+
+        $this->actingAs($author)
+            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->assertInertia(fn ($page) => $page
+                ->where('catalog.nodes', fn ($nodes) => collect($nodes)->contains('studio-only-node'))
             );
     }
 

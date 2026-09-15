@@ -124,12 +124,17 @@ final readonly class NodeActivity implements ActivityContract
     {
         $entry = $this->contentEntry();
 
-        if ($entry === null) {
+        // Eine rein in Studio angelegte Node (ADR 0109, CMS-6d Teil 3) hat
+        // keinen content/nodes/<slug>/-Eintrag -- ohne $draft gibt es dann
+        // nichts zu serialisieren, MIT $draft muss trotzdem ein valider
+        // node.yml/de.md-Rumpf entstehen, damit validate($draft) den
+        // Entwurf einer neuen Node ueberhaupt pruefen kann.
+        if ($entry === null && $draft === null) {
             return [];
         }
 
-        $defRaw = $entry['def_raw'];
-        $mdRaw = $entry['md_raw'];
+        $defRaw = $entry['def_raw'] ?? '';
+        $mdRaw = $entry['md_raw'] ?? "---\n---\n";
 
         if ($draft === null) {
             return [

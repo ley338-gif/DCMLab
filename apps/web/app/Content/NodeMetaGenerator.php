@@ -75,19 +75,32 @@ final class NodeMetaGenerator
             return $mdRaw;
         }
 
-        $frontMatterBlock = implode("\n", array_slice($lines, 0, $closingIndex + 1));
+        // Innerhalb der Delimiter ersetzen/einfuegen statt eine Zeile blind
+        // ans Ende des ganzen Blocks anzuhaengen (das laege hinter dem
+        // schliessenden "---" und waere kein Frontmatter-Feld mehr) -- z. B.
+        // bei einer frisch in Studio angelegten Node (ADR 0109), deren de.md
+        // noch keine der beiden Felder traegt.
+        $frontMatterLines = array_slice($lines, 1, $closingIndex - 1);
+        $seen = [];
+
+        foreach ($frontMatterLines as $index => $line) {
+            foreach (self::FRONT_MATTER_FIELDS as $key) {
+                if (array_key_exists($key, $fields) && preg_match('/^'.preg_quote($key, '/').':/', $line) === 1) {
+                    $frontMatterLines[$index] = "{$key}: ".self::dumpValue($fields[$key]);
+                    $seen[$key] = true;
+                }
+            }
+        }
 
         foreach (self::FRONT_MATTER_FIELDS as $key) {
-            if (! array_key_exists($key, $fields)) {
-                continue;
+            if (array_key_exists($key, $fields) && ! ($seen[$key] ?? false)) {
+                $frontMatterLines[] = "{$key}: ".self::dumpValue($fields[$key]);
             }
-
-            $frontMatterBlock = self::replaceLine($frontMatterBlock, $key, "{$key}: ".self::dumpValue($fields[$key]));
         }
 
         $rest = implode("\n", array_slice($lines, $closingIndex + 1));
 
-        return $frontMatterBlock."\n".$rest;
+        return "---\n".implode("\n", $frontMatterLines)."\n---\n".$rest;
     }
 
     private static function dumpValue(mixed $value): string

@@ -20,6 +20,7 @@ use App\Http\Controllers\ReviewQueueController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\StudioController;
 use App\Http\Controllers\StudioLessonController;
+use App\Http\Controllers\StudioNodeController;
 use App\Http\Controllers\StudioSandboxTemplateController;
 use App\Http\Controllers\StudioTrackController;
 use App\Http\Controllers\TrackController;
@@ -93,6 +94,22 @@ Route::prefix('de')->group(function () {
         // Elementsequenz (ADR 0105/0106, CMS-6b/CMS-6c).
         Route::get('studio/lessons/{lesson}', [StudioLessonController::class, 'show'])->name('studio.lessons.show');
         Route::patch('studio/lessons/{lesson}/reorder', [StudioLessonController::class, 'reorder'])->name('studio.lessons.reorder');
+        // Node-Editor (ADR 0107/0108/0109, CMS-6d): store/duplicate/archive/
+        // restore/updateThemenfeld sind strukturelle Eingriffe (NodePolicy),
+        // update() speichert einen Content-Entwurf (ActivityPolicy) --
+        // einreichen/freigeben laufen ueber den generischen
+        // author.quiz-versions-Kreislauf weiter unten.
+        Route::prefix('studio/nodes')->name('studio.nodes.')->group(function () {
+            Route::get('/', [StudioNodeController::class, 'index'])->name('index');
+            Route::post('/', [StudioNodeController::class, 'store'])->name('store');
+            Route::get('{node}', [StudioNodeController::class, 'edit'])->name('edit');
+            Route::post('{node}/validate', [StudioNodeController::class, 'validateDraft'])->name('validate');
+            Route::patch('{node}', [StudioNodeController::class, 'update'])->name('update');
+            Route::patch('{node}/themenfeld', [StudioNodeController::class, 'updateThemenfeld'])->name('update-themenfeld');
+            Route::post('{node}/duplicate', [StudioNodeController::class, 'duplicate'])->name('duplicate');
+            Route::post('{node}/archive', [StudioNodeController::class, 'archive'])->name('archive');
+            Route::post('{node}/restore', [StudioNodeController::class, 'restore'])->name('restore');
+        });
 
         // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte
         // Berechtigung liegt in den Controller-Methoden, nicht in der
