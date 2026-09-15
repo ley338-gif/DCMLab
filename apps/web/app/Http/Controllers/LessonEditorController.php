@@ -8,6 +8,7 @@ use App\Content\ContentVersioningService;
 use App\Content\QuizContent;
 use App\Models\Activity;
 use App\Models\Lesson;
+use App\Models\Node;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,7 +51,10 @@ class LessonEditorController extends Controller
                 'tools' => array_keys($content->tools()),
                 'glossary_terms' => array_keys($content->glossary()),
                 'datasets' => array_keys($content->datasets()),
-                'nodes' => array_keys($content->nodes()),
+                // Seit CMS-6d Teil 3 (ADR 0109) auch Nodes, die nur in der DB
+                // existieren (per Studio angelegt, kein content/nodes/**) --
+                // vorher sah der Composer nur den Datei-Bestand.
+                'nodes' => Node::query()->pluck('slug')->merge(array_keys($content->nodes()))->unique()->sort()->values()->all(),
             ],
             'pending_version' => $pendingVersion === null ? null : [
                 'id' => $pendingVersion->id,

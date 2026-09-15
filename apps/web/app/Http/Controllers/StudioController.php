@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Node;
 use App\Models\SandboxTemplate;
 use App\Models\Track;
 use Illuminate\Http\Request;
@@ -29,6 +30,8 @@ class StudioController extends Controller
             'sandbox_template_count' => SandboxTemplate::query()->count(),
             'can_manage_tracks' => Gate::allows('manage', Track::class),
             'track_count' => Track::query()->count(),
+            'can_manage_nodes' => Gate::allows('manage', Node::class),
+            'node_count' => Node::query()->count(),
         ]);
     }
 }

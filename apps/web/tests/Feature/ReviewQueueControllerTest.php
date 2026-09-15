@@ -85,6 +85,22 @@ class ReviewQueueControllerTest extends TestCase
             );
     }
 
+    public function test_a_pending_node_draft_links_to_the_studio_node_editor(): void
+    {
+        $reviewer = User::factory()->reviewer()->create();
+        $author = User::factory()->author()->create();
+        $node = Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        ContentVersion::create([
+            'activity_id' => $node->id, 'status' => 'review', 'payload' => [],
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+
+        $this->actingAs($reviewer)
+            ->get('/de/author/review-queue')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('items.0.edit_url', '/de/studio/nodes/test-node'));
+    }
+
     public function test_the_queue_shows_only_the_latest_pending_version_per_activity(): void
     {
         $reviewer = User::factory()->reviewer()->create();

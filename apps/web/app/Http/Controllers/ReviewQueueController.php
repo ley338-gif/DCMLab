@@ -58,6 +58,7 @@ class ReviewQueueController extends Controller
         return match ($type) {
             'lesson' => "/de/author/lessons/{$key}/edit",
             'exam' => "/de/author/exams/{$key}/edit",
+            'node' => "/de/studio/nodes/{$key}",
             // Alle Achievements teilen eine Aktivitaet (`type=achievement,
             // key=catalog`, ADR 0083) -- der konkrete Slug steht nur im
             // Entwurfs-Payload selbst, nie im Aktivitaetsschluessel.

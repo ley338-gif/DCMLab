@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { index as authorPanelIndex } from '@/routes/author';
+import { index as studioNodesIndex } from '@/routes/studio/nodes';
 import { index as sandboxTemplatesIndex } from '@/routes/studio/sandbox-templates';
 import { index as studioTracksIndex } from '@/routes/studio/tracks';
 
@@ -16,6 +17,8 @@ const props = defineProps<{
     sandbox_template_count: number;
     can_manage_tracks: boolean;
     track_count: number;
+    can_manage_nodes: boolean;
+    node_count: number;
 }>();
 
 const roleLabels: Record<string, string> = {
@@ -68,6 +71,28 @@ const roleLabels: Record<string, string> = {
                             props.can_manage_tracks
                                 ? trans('Tracks verwalten')
                                 : trans('Tracks ansehen')
+                        }}</Button>
+                    </Link>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ trans('Nodes') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="flex flex-col gap-3">
+                    <p class="text-muted-foreground text-sm">
+                        {{
+                            trans(':count Nodes insgesamt.', {
+                                count: props.node_count,
+                            })
+                        }}
+                    </p>
+                    <Link :href="studioNodesIndex()">
+                        <Button variant="outline">{{
+                            props.can_manage_nodes
+                                ? trans('Nodes verwalten')
+                                : trans('Nodes ansehen')
                         }}</Button>
                     </Link>
                 </CardContent>

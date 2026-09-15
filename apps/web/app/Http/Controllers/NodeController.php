@@ -78,6 +78,12 @@ class NodeController extends Controller
 
     public function show(Node $node, ContentRepository $content, EngineClientResolver $engineResolver): Response
     {
+        // Archiviert (analog Track, ADR 0100) heisst nicht mehr sichtbar --
+        // anders als "draft", das (wie ein Track im Entwurf) per Direktlink
+        // weiterhin erreichbar bleibt, u. a. damit ein Autor eine frisch in
+        // Studio angelegte Node ueber "Vorschau" (ADR 0109) sehen kann.
+        abort_if($node->status === 'archived', 404);
+
         $engine = $engineResolver->for($node);
         $nodeContent = $content->nodes()[$node->slug] ?? null;
 
@@ -279,6 +285,7 @@ class NodeController extends Controller
         $difficultyRank = ['easy' => 0, 'medium' => 1, 'hard' => 2, 'insane' => 3];
 
         return Node::query()
+            ->where('status', '!=', 'archived')
             ->with('themenfeld')
             ->get()
             ->sortBy(fn (Node $node) => sprintf(

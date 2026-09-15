@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Container, GraduationCap, LayoutGrid, ShieldCheck } from '@lucide/vue';
+import { Container, GraduationCap, LayoutGrid, ShieldCheck, Terminal } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -17,6 +17,7 @@ import {
 import { trans } from '@/lib/trans';
 import { index as authorPanelIndex } from '@/routes/author';
 import { index as studioIndex } from '@/routes/studio';
+import { index as studioNodesIndex } from '@/routes/studio/nodes';
 import { index as sandboxTemplatesIndex } from '@/routes/studio/sandbox-templates';
 import { index as studioTracksIndex } from '@/routes/studio/tracks';
 import type { NavItem } from '@/types';
@@ -34,6 +35,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: trans('Tracks'),
         href: studioTracksIndex(),
         icon: GraduationCap,
+    },
+    {
+        title: trans('Nodes'),
+        href: studioNodesIndex(),
+        icon: Terminal,
     },
     {
         title: trans('Sandbox-Vorlagen'),
