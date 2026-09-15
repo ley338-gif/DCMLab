@@ -19,6 +19,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ReviewQueueController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\StudioController;
+use App\Http\Controllers\StudioLessonController;
 use App\Http\Controllers\StudioSandboxTemplateController;
 use App\Http\Controllers\StudioTrackController;
 use App\Http\Controllers\TrackController;
@@ -89,6 +90,9 @@ Route::prefix('de')->group(function () {
             Route::post('{track}/archive', [StudioTrackController::class, 'archive'])->name('archive');
             Route::post('{track}/restore', [StudioTrackController::class, 'restore'])->name('restore');
         });
+        // Sichtbarkeit der Elementsequenz (ADR 0105, CMS-6b) -- noch ohne
+        // Drag & Drop, das ist CMS-6c.
+        Route::get('studio/lessons/{lesson}', [StudioLessonController::class, 'show'])->name('studio.lessons.show');
 
         // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte
         // Berechtigung liegt in den Controller-Methoden, nicht in der

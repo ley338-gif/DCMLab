@@ -50,11 +50,18 @@ class LessonController extends Controller
         // waere die alte, nicht-interaktive Darstellung) -- er wird
         // herausgetrennt und stattdessen strukturiert an eine eigene
         // Vue-Komponente uebergeben (Abschnitt 4.7).
+        // ADR 0105 (CMS-6b): Content ist jetzt ein einzelnes, zusammen-
+        // haengendes Element -- der Quiz-Abschnitt wird nicht mehr
+        // zwischen "vorher"/"nachher" eingeschoben, sondern als eigenes
+        // Element ueber lesson_elements positioniert.
         $split = QuizContent::splitBody($body);
-        $bodyHtml = $renderer->render($split['before']);
-        $bodyAfterQuizHtml = trim($split['after']) !== '' ? $renderer->render($split['after']) : null;
+        $contentHtml = $renderer->render(trim($split['before']."\n\n".$split['after']));
 
-        $quizMeta = $lessonContent['meta']['quiz'] ?? [];
+        // ADR 0104 (CMS-6a): dieselbe DB-Vorrang-Regel wie body oben --
+        // vermeidet, gegen einen nach einer Quiz-Freigabe veralteten
+        // Dateistand zu lesen (siehe ADR 0103 fuer denselben Fund beim
+        // Lektions-Editor).
+        $quizMeta = $lesson->quiz ?? $lessonContent['meta']['quiz'] ?? [];
         $questions = QuizContent::parseQuestions($split['quiz_raw'], $quizMeta, $renderer);
 
         $userId = Auth::id();
@@ -73,15 +80,17 @@ class LessonController extends Controller
             ->get()
             ->keyBy('question_id');
 
-        $quiz = collect($questions)->map(fn (array $question) => [
+        $quiz = array_values(collect($questions)->map(fn (array $question) => [
             ...$question,
             'last_result' => $reviewsByQuestion[$question['id']]->last_result ?? null,
-        ])->values();
+        ])->all());
 
         $trackLessons = $lesson->track->lessons()->get();
         $positionInTrack = $trackLessons->search(fn (Lesson $candidate) => $candidate->id === $lesson->id);
         $previousLesson = $positionInTrack > 0 ? $trackLessons->get($positionInTrack - 1) : null;
         $nextLesson = $positionInTrack !== false ? $trackLessons->get($positionInTrack + 1) : null;
+
+        $toolbar = $this->toolbarData($lesson, $tools, $datasets, Auth::user(), $prerequisites);
 
         return Inertia::render('Lessons/Show', [
             'lesson' => [
@@ -91,8 +100,6 @@ class LessonController extends Controller
                 'objectives' => $lesson->objectives ?? $lessonContent['frontmatter']['objectives'] ?? [],
                 'duration_minutes' => $lesson->duration_minutes,
                 'level' => $lesson->level,
-                'body_html' => $bodyHtml,
-                'body_after_quiz_html' => $bodyAfterQuizHtml,
                 'position_in_track' => $positionInTrack !== false ? $positionInTrack + 1 : null,
                 'track_lessons_count' => $trackLessons->count(),
                 'prev' => $previousLesson !== null ? [
@@ -108,14 +115,121 @@ class LessonController extends Controller
                 'slug' => $lesson->track->slug,
                 'title_key' => $lesson->track->title_key,
             ],
-            'quiz' => $quiz,
-            'toolbar' => $this->toolbarData($lesson, $tools, $datasets, Auth::user(), $prerequisites),
+            // ADR 0105 (CMS-6b): die geordnete Elementsequenz -- die Vue-
+            // Seite rendert genau diese Reihenfolge, nicht mehr eine fest
+            // verdrahtete Body/Sandbox/Lab/Quiz-Abfolge.
+            'elements' => $this->elementsFor($lesson, $contentHtml, $quiz, $toolbar),
+            'toolbar' => [
+                'tools' => $toolbar['tools'],
+                'requires' => $toolbar['requires'],
+                'prerequisites_met' => $toolbar['prerequisites_met'],
+                'lab_optional' => $toolbar['lab_optional'],
+            ],
             'progress' => [
                 'status' => $progress->status,
                 'is_returning_visit' => $isReturningVisit,
             ],
             'sidebar' => $navigation->sidebarFor(Auth::user(), $lesson),
         ]);
+    }
+
+    /**
+     * Baut die renderbare Form von `lesson_elements` (ADR 0105, CMS-6b):
+     * WELCHE Art Element es ist, kommt von der verlinkten Activity selbst
+     * (`activity->type`), nicht von einem in `lesson_elements` fest
+     * kodierten Modultyp -- passend zum dortigen Domainmodell. Jeder Zweig
+     * ruft eine eigene, `array` (ohne engere Formangabe) deklarierte
+     * Hilfsmethode auf, statt Literale mit unterschiedlichen `type`-Werten
+     * direkt in einer `match`/einem Array zu mischen -- sonst haelt PHPStan
+     * die einzelnen Formen (je nach `type`-Literal) fuer inkompatibel.
+     *
+     * @param  list<array{id: string, type: string, question_html: string, options_html: array<int, string>, last_result: string|null}>  $quiz
+     * @param  array<string, mixed>  $toolbar
+     * @return list<array<string, mixed>>
+     */
+    private function elementsFor(Lesson $lesson, string $contentHtml, array $quiz, array $toolbar): array
+    {
+        $stored = $lesson->elements()->with('activity')->get();
+
+        if ($stored->isEmpty()) {
+            // Fallback fuer eine Lektion, deren naechster content:sync-Lauf
+            // die Elementsequenz noch nicht angelegt hat (ADR 0105) --
+            // derselbe kanonische Ablauf, den der Sync-Backfill erzeugen
+            // wuerde (Content, Sandbox, Lab, Quiz, nur wenn vorhanden).
+            $fallback = [$this->contentElement($contentHtml)];
+
+            if ($toolbar['needs_sandbox']) {
+                $fallback[] = $this->sandboxElement($toolbar);
+            }
+
+            if ($toolbar['lab_node'] !== null) {
+                $fallback[] = $this->labElement($toolbar);
+            }
+
+            if ($quiz !== []) {
+                $fallback[] = $this->quizElement($quiz);
+            }
+
+            return $fallback;
+        }
+
+        $elements = [];
+
+        foreach ($stored as $element) {
+            if ($element->type === 'content') {
+                $elements[] = $this->contentElement($contentHtml);
+
+                continue;
+            }
+
+            $rendered = match ($element->activity?->type) {
+                'sandbox' => $this->sandboxElement($toolbar),
+                'node' => $this->labElement($toolbar),
+                'quiz' => $this->quizElement($quiz),
+                default => null,
+            };
+
+            if ($rendered !== null) {
+                $elements[] = $rendered;
+            }
+        }
+
+        return $elements;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function contentElement(string $contentHtml): array
+    {
+        return ['type' => 'content', 'body_html' => $contentHtml];
+    }
+
+    /**
+     * @param  array<string, mixed>  $toolbar
+     * @return array<string, mixed>
+     */
+    private function sandboxElement(array $toolbar): array
+    {
+        return ['type' => 'sandbox', 'dataset' => $toolbar['dataset']];
+    }
+
+    /**
+     * @param  array<string, mixed>  $toolbar
+     * @return array<string, mixed>
+     */
+    private function labElement(array $toolbar): array
+    {
+        return ['type' => 'lab', 'lab_node' => $toolbar['lab_node']];
+    }
+
+    /**
+     * @param  list<array{id: string, type: string, question_html: string, options_html: array<int, string>, last_result: string|null}>  $quiz
+     * @return array<string, mixed>
+     */
+    private function quizElement(array $quiz): array
+    {
+        return ['type' => 'quiz', 'questions' => $quiz];
     }
 
     public function complete(Request $request, Lesson $lesson, ActivityProgressRecorder $progressRecorder): RedirectResponse

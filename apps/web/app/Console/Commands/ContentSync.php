@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Content\ContentRepository;
 use App\Models\Activity;
 use App\Models\Lesson;
+use App\Models\LessonElement;
 use App\Models\Node;
 use App\Models\Themenfeld;
 use App\Models\Track;
@@ -32,14 +33,18 @@ class ContentSync extends Command
         $nodeCount = $this->syncNodes($content, $themenfeldIds);
         $examCount = $this->syncExamActivities($content, $trackIds);
         $this->syncAchievementCatalogActivity($content);
+        // Erst nach syncNodes(): eine Lab-Referenz braucht die
+        // `type=node`-Activity des verlinkten Node, siehe Klassendoc dort.
+        $elementCount = $this->syncLessonElements($content);
 
         $this->info(sprintf(
-            'content:sync — %d Themenfelder, %d Tracks, %d Lektionen, %d Nodes, %d Pruefungen synchronisiert.',
+            'content:sync — %d Themenfelder, %d Tracks, %d Lektionen, %d Nodes, %d Pruefungen, %d neue Lesson-Elemente synchronisiert.',
             count($themenfeldIds),
             count($trackIds),
             $lessonCount,
             $nodeCount,
             $examCount,
+            $elementCount,
         ));
 
         return self::SUCCESS;
@@ -199,7 +204,91 @@ class ContentSync extends Command
                 );
             }
 
+            // ADR 0104/0105 (CMS-6a/CMS-6b): analog zur Spielwiese oben --
+            // nur wenn die Lektion tatsaechlich ein Quiz hat (quiz:-Block in
+            // meta.yml nicht leer).
+            if (($lesson['meta']['quiz'] ?? []) !== []) {
+                Activity::updateOrCreate(
+                    ['type' => 'quiz', 'key' => $id],
+                    [
+                        'track_id' => $trackIds[$trackSlug],
+                        'order' => $order,
+                        'status' => $status,
+                        'title' => $title,
+                        'source_hash' => $sourceHash,
+                    ],
+                );
+            }
+
             $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * Backfuellt die geordnete Elementsequenz einer Lektion (ADR 0105,
+     * CMS-6b) -- lesson_elements kennt "content:sync" bewusst nicht: diese
+     * Methode legt nur FEHLENDE kanonische Slots an (Content, Sandbox, Lab,
+     * Quiz, in dieser Reihenfolge, nur wenn das jeweilige Element
+     * existiert) und ruehrt NIE eine bereits vorhandene Zeile an -- eine
+     * spaeter in Studio (CMS-6c) per Drag & Drop geaenderte Reihenfolge
+     * bleibt so ueber jeden weiteren Sync-Lauf hinweg erhalten. Laeuft erst
+     * NACH syncNodes(), weil eine Lab-Referenz die `type=node`-Activity des
+     * verlinkten Node braucht, die syncLessons() allein noch nicht anlegt.
+     */
+    private function syncLessonElements(ContentRepository $content): int
+    {
+        $count = 0;
+
+        foreach ($content->lessons() as $id => $lessonData) {
+            $lesson = Lesson::where('lesson_id', $id)->first();
+
+            if ($lesson === null) {
+                continue;
+            }
+
+            $slots = [['type' => 'content', 'activity_id' => null]];
+
+            $sandboxActivityId = Activity::query()->where('type', 'sandbox')->where('key', $id)->value('id');
+            if ($sandboxActivityId !== null) {
+                $slots[] = ['type' => 'activity', 'activity_id' => $sandboxActivityId];
+            }
+
+            $labNodeSlug = $lessonData['meta']['lab']['node'] ?? null;
+            if ($labNodeSlug !== null) {
+                $nodeActivityId = Activity::query()->where('type', 'node')->where('key', $labNodeSlug)->value('id');
+                if ($nodeActivityId !== null) {
+                    $slots[] = ['type' => 'activity', 'activity_id' => $nodeActivityId];
+                }
+            }
+
+            $quizActivityId = Activity::query()->where('type', 'quiz')->where('key', $id)->value('id');
+            if ($quizActivityId !== null) {
+                $slots[] = ['type' => 'activity', 'activity_id' => $quizActivityId];
+            }
+
+            foreach ($slots as $slot) {
+                $alreadyExists = LessonElement::query()
+                    ->where('lesson_id', $lesson->id)
+                    ->where('type', $slot['type'])
+                    ->where('activity_id', $slot['activity_id'])
+                    ->exists();
+
+                if ($alreadyExists) {
+                    continue;
+                }
+
+                $nextPosition = (LessonElement::query()->where('lesson_id', $lesson->id)->max('position') ?? -1) + 1;
+
+                LessonElement::create([
+                    'lesson_id' => $lesson->id,
+                    'type' => $slot['type'],
+                    'position' => $nextPosition,
+                    'activity_id' => $slot['activity_id'],
+                ]);
+                $count++;
+            }
         }
 
         return $count;

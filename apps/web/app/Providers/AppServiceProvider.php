@@ -8,6 +8,7 @@ use App\Activities\ActivityType;
 use App\Activities\ExamActivity;
 use App\Activities\LessonActivity;
 use App\Activities\NodeActivity;
+use App\Activities\QuizActivity;
 use App\Activities\SandboxActivity;
 use App\Content\CacheInvalidatorContract;
 use App\Content\ContentRepository;
@@ -52,13 +53,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ActivityRegistry::class, function ($app) {
             $registry = new ActivityRegistry;
 
-            // Quiz haengt an seiner Lektion und hat keinen eigenen
-            // `activities`-Verzeichniseintrag -- siehe QuizActivity
-            // Klassendoc. Spielwiese hat seit ADR 0096 (CMS-2b) einen
-            // eigenen Eintrag (nur wenn die Lektion eine hat, siehe
-            // ContentSync::syncLessons()), ist aber wie Quiz weiterhin
-            // nicht versionable -- ihre Konfiguration bleibt Teil des
-            // Lektions-content_versions-Datensatzes.
+            // Sandbox und Quiz haben seit ADR 0096/0105 (CMS-2b/CMS-6b)
+            // beide einen eigenen `activities`-Eintrag (nur wenn die
+            // Lektion tatsaechlich eine Spielwiese/ein Quiz hat, siehe
+            // ContentSync::syncLessons()) -- fuer lesson_elements'
+            // Activity-Referenz. Beide bleiben trotzdem nicht versionable
+            // (ADR 0095): ihre Konfiguration haengt weiterhin am
+            // Lektions-content_versions-Datensatz, siehe ihre jeweilige
+            // Klassendoc.
             $registry->register(
                 ActivityType::Lesson,
                 fn (Activity $activity) => new LessonActivity(
@@ -77,6 +79,13 @@ class AppServiceProvider extends ServiceProvider
                 ActivityType::Sandbox,
                 fn (Activity $activity) => new SandboxActivity(
                     Lesson::where('lesson_id', $activity->key)->firstOrFail(),
+                ),
+            );
+            $registry->register(
+                ActivityType::Quiz,
+                fn (Activity $activity) => new QuizActivity(
+                    Lesson::where('lesson_id', $activity->key)->firstOrFail(),
+                    $app->make(ContentRepository::class),
                 ),
             );
             $registry->register(
