@@ -29,7 +29,7 @@ class LessonFactory extends Factory
             'glossary_terms' => [],
             'tools_checked' => now(),
             'status' => 'draft',
-            'authors' => [],
+            'legacy_authors' => [],
             'content_updated_at' => now(),
             'title' => ['de' => fake()->sentence()],
             'teaser' => ['de' => fake()->sentence()],

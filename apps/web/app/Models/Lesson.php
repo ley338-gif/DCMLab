@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property array<int, string> $glossary_terms
  * @property Carbon|null $tools_checked
  * @property string $status
- * @property array<int, string> $authors
+ * @property array<int, string> $legacy_authors Freitext aus content:sync (docs/offene-fragen.md) -- nie auf ein Nutzerkonto aufgeloest
  * @property Carbon|null $content_updated_at
  * @property array<string, string> $title
  * @property array<string, string> $teaser
@@ -38,7 +38,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'lesson_id', 'track_id', 'order', 'level', 'duration_minutes', 'objectives_count',
     'requires', 'tools', 'sandbox', 'lab', 'glossary_terms', 'tools_checked', 'status',
-    'authors', 'content_updated_at', 'title', 'teaser', 'source_hash',
+    'legacy_authors', 'content_updated_at', 'title', 'teaser', 'source_hash',
 ])]
 class Lesson extends Model
 {
@@ -58,7 +58,7 @@ class Lesson extends Model
             'sandbox' => 'array',
             'lab' => 'array',
             'glossary_terms' => 'array',
-            'authors' => 'array',
+            'legacy_authors' => 'array',
             'title' => 'array',
             'teaser' => 'array',
             'tools_checked' => 'date',

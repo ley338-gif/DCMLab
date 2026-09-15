@@ -87,33 +87,30 @@ eine kurzzeitig veraltete Engine ist kein Grund, eine Veroeffentlichung
 abzubrechen. Aufwand: klein, aber dienstuebergreifend (drei FastAPI-Apps),
 deshalb bewusst nicht im selben Schritt wie `ContentWriter` erledigt.
 
-## Pruefung je Track oder freier (vor W6.3)
+## ~~Pruefung je Track oder freier (vor W6.3)~~ -- entschieden: eine je Track
 
-**Frage:** Bleibt `exams/<track>/` bei genau einer Pruefung pro Track, oder
-sollen modul-/trackuebergreifende Pruefungen moeglich werden?
+~~**Frage:** Bleibt `exams/<track>/` bei genau einer Pruefung pro Track, oder
+sollen modul-/trackuebergreifende Pruefungen moeglich werden?~~
 
-**Kontext:** Der heutige Aufbau (ein `exam.yml` je Track-Slug) ist im
-Aktivitaetsvertrag als `ExamActivity` 1:1 auf `Track` abgebildet. Eine
-Erweiterung auf mehrere Pruefungen pro Track oder trackuebergreifende
-Pruefungen ist nach dem Pruefungs-Editor (W6.3) teurer als davor.
+**Entscheidung (15.09.2026):** Bei genau einer Pruefung pro Track
+belassen -- der Pruefungs-Editor (W6.3, ADR 0082) ist bereits 1:1 auf
+`Track` gebaut, und Konzept-Abschnitt 4 (selbstgesteuertes Lernen) nennt
+keinen konkreten Bedarf fuer mehrere Pruefungen je Track. Keine
+Code-Aenderung noetig.
 
-**Empfehlung:** Bei genau einer Pruefung pro Track bleiben, solange kein
-konkreter fachlicher Bedarf fuer mehrere vorliegt -- Konzept-Abschnitt 4
-(selbstgesteuertes Lernen) nennt keinen.
+## ~~Herkunft von `authors` beim Import (vor W2/W3)~~ -- erledigt
 
-## Herkunft von `authors` beim Import (vor W2/W3)
-
-**Frage:** Loest der Bestandscontent-Freitext in `authors` (z. B. `"ley338"`)
+~~**Frage:** Loest der Bestandscontent-Freitext in `authors` (z. B. `"ley338"`)
 beim einmaligen Import auf ein echtes Nutzerkonto auf, oder bleibt er als
-Historie stehen?
+Historie stehen?~~
 
-**Kontext:** ADR 0071 macht `authors` zu einer echten Beziehung auf `users`
-(W3). Der heutige Bestand traegt dort Freitext ohne Kontobezug.
-
-**Empfehlung:** Freitext als Historie in einem zusaetzlichen Feld
-(`legacy_authors` o. ae.) belassen und `authors` beim Import leer lassen,
-statt zu raten, welches Konto gemeint ist -- eine falsche automatische
-Zuordnung waere schlechter als keine.
+**Umgesetzt (15.09.2026):** `lessons.authors`/`activities.authors` in
+`legacy_authors` umbenannt (Migration, Modelle, `ContentSync`, Factories) --
+strukturell unmissverstaendlich als reine Historie markiert, nie als
+Berechtigungsquelle. Es gab keinen Code, der versucht hat, den Freitext auf
+ein Nutzerkonto aufzuloesen; die echte Rechtepruefung lief immer schon
+ausschliesslich ueber `activity_authors`/`Activity::authorUsers()` (ADR
+0071, W3). Kein automatisches Matching hinzugefuegt, wie empfohlen.
 
 ## Engine-Modul je Themenfeld (nicht Teil dieses Auftrags)
 

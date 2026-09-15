@@ -23,14 +23,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $track_id
  * @property int $order
  * @property string $status
- * @property array<int, string> $authors Freitext aus content:sync -- fuer echte Rechteprüfung siehe authorUsers()
+ * @property array<int, string> $legacy_authors Freitext aus content:sync (docs/offene-fragen.md) -- nie auf ein Nutzerkonto aufgeloest, fuer echte Rechteprüfung siehe authorUsers()
  * @property array<string, string>|null $title
  * @property array<string, string>|null $teaser
  * @property string|null $source_hash
  * @property-read Track|null $track
  */
 #[Fillable([
-    'type', 'key', 'track_id', 'order', 'status', 'authors', 'title', 'teaser', 'source_hash',
+    'type', 'key', 'track_id', 'order', 'status', 'legacy_authors', 'title', 'teaser', 'source_hash',
 ])]
 class Activity extends Model
 {
@@ -40,7 +40,7 @@ class Activity extends Model
     protected function casts(): array
     {
         return [
-            'authors' => 'array',
+            'legacy_authors' => 'array',
             'title' => 'array',
             'teaser' => 'array',
         ];
@@ -64,8 +64,8 @@ class Activity extends Model
 
     /**
      * Die echte Autoren-Beziehung (ADR 0071, W3), gegen die ActivityPolicy
-     * prueft -- bewusst nicht "authors" genannt, das ist schon die
-     * Freitextspalte oben.
+     * prueft -- bewusst nicht "authors" genannt, das ist die
+     * Freitext-Historienspalte `legacy_authors` oben.
      *
      * @return BelongsToMany<User, $this>
      */
