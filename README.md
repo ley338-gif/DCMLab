@@ -210,7 +210,18 @@ erzeugten Artefakt machen.
   `ContentVersionController` verallgemeinert Submit/Publish aus dem
   Quiz-Editor für alle künftigen Editoren. `sandbox`/`lab`/`objectives`
   bleiben bewusst außerhalb (siehe `docs/offene-fragen.md`).
-- W6.3–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W6.3 — Prüfungs-Editor (Einstellungen)** (fertig, siehe ADR 0082):
+  Titel, Einleitung, Bestehensgrenze, Fragenzahl je Versuch, Dauer,
+  Mischen und `min_per_lesson` sind unter
+  `/de/author/exams/{track}/edit` pflegbar, plus eine live berechnete
+  Pool-Übersicht (Lektionsabdeckung, Cross-Anzahl, Typmischung,
+  Schwierigkeitsanteil) als Fortschrittsanzeige. Der Fragenpool selbst
+  (einzelne Fragen hinzufügen/entfernen/bearbeiten) bleibt bewusst
+  Kommandozeilen-Sache -- die statistischen Poolanforderungen
+  (`ContentValidator::checkExamStructure()`) sind Eigenschaften des
+  gesamten Pools, nicht einer einzelnen Frage, siehe
+  `docs/offene-fragen.md`.
+- W6.4–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 

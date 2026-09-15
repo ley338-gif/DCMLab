@@ -4,6 +4,7 @@ namespace Tests\Unit\Activities;
 
 use App\Activities\ExamActivity;
 use App\Content\ContentRepository;
+use App\Content\FrontMatter;
 use App\Models\ExamAttempt;
 use App\Models\Track;
 use App\Models\User;
@@ -108,6 +109,50 @@ class ExamActivityTest extends TestCase
         $this->assertCount(2, $files);
         $this->assertSame('exams/fundamente/exam.yml', $files[0]['path']);
         $this->assertStringContainsString('track: fundamente', $files[0]['contents']);
+    }
+
+    public function test_serialize_with_a_settings_draft_regenerates_only_the_named_fields(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize([
+            'pass_percent' => 90,
+            'draw' => 1,
+            'duration_minutes' => 5,
+            'shuffle' => true,
+            'title' => 'Neuer Titel',
+            'intro' => 'Neuer Intro',
+        ]);
+
+        $this->assertStringContainsString('pass_percent: 90', $files[0]['contents']);
+        $this->assertStringContainsString('draw: 1', $files[0]['contents']);
+        $this->assertStringContainsString('id: f01', $files[0]['contents']);
+        $frontMatter = FrontMatter::parse($files[1]['contents']);
+        $this->assertSame('Neuer Titel', $frontMatter['attributes']['title']);
+        $this->assertStringContainsString('### f01 — Frage?', $files[1]['contents']);
+    }
+
+    public function test_validate_with_an_invalid_settings_draft_reports_the_issue(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate(['pass_percent' => 30]);
+
+        $messages = array_map(fn ($issue) => (string) $issue, $issues);
+        $this->assertTrue(
+            (bool) array_filter($messages, fn (string $m) => str_contains($m, 'pass_percent muss zwischen 50 und 100 liegen')),
+        );
+    }
+
+    public function test_validate_without_a_draft_is_unaffected_by_this_change(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate();
+
+        foreach ($issues as $issue) {
+            $this->assertStringStartsWith('exams/fundamente/', $issue->file);
+        }
     }
 
     private function makeActivity(): ExamActivity
