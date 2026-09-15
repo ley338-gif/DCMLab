@@ -65,24 +65,31 @@ class ActivityContentApplierTest extends TestCase
         $this->assertStringNotContainsString('Neue Prosa.', File::get($this->contentDir.'/lessons/1.0/de.md'));
     }
 
-    public function test_a_quiz_draft_for_the_same_lesson_type_writes_via_content_writer_instead(): void
+    public function test_a_quiz_draft_for_the_same_lesson_type_is_also_applied_directly_to_the_db(): void
     {
         $track = Track::factory()->create(['slug' => 'fundamente']);
-        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'title' => ['de' => 'Unveraendert']]);
-        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
-        $activity = Activity::query()->where('type', 'lesson')->where('key', '1.0')->firstOrFail();
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.0',
+            'track_id' => $track->id,
+            'title' => ['de' => 'Unveraendert'],
+            'body' => "Alte Prosa.\n\n```\n\$ dcmdump datei.dcm\n```\n\n**Was du daran abliest:** Test.",
+        ]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+
+        $originalFile = File::get($this->contentDir.'/lessons/1.0/de.md');
 
         $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
             'quiz' => [['id' => 'q1', 'type' => 'single', 'answer' => 1, 'question' => 'Frage?', 'options' => ['A', 'B']]],
         ]);
 
-        // Der Lektions-Datensatz bleibt unangetastet -- LessonContentPublisher
-        // wurde nicht aufgerufen, weil das Payload einen quiz-Schluessel hat.
-        $this->assertSame('Unveraendert', $lesson->fresh()->title['de']);
-        // Stattdessen ging es ueber ContentWriter -- die Datei traegt jetzt
-        // den Quiz-Abschnitt.
+        // Lektionsfelder (title etc.) bleiben unangetastet -- nur die
+        // Quiz-spezifischen Felder aendern sich, ueber QuizContentPublisher.
         $this->assertSame([], $issues);
-        $this->assertStringContainsString('Quiz', File::get($this->contentDir.'/lessons/1.0/de.md'));
+        $lesson->refresh();
+        $this->assertSame('Unveraendert', $lesson->title['de']);
+        $this->assertSame([['id' => 'q1', 'type' => 'single', 'answer' => 1]], $lesson->quiz);
+        $this->assertStringContainsString('Frage?', $lesson->body);
+        $this->assertSame($originalFile, File::get($this->contentDir.'/lessons/1.0/de.md'));
     }
 
     public function test_it_reports_validation_issues_without_applying_anything(): void

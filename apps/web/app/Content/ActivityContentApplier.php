@@ -8,15 +8,17 @@ use App\Models\Activity;
 
 /**
  * Entscheidet, WIE ein freigegebener Entwurf tatsaechlich wirksam wird (ADR
- * 0102, CMS-5b) -- ersetzt den bisherigen, immer-datei-schreibenden Aufruf
- * von `ContentWriter::write()` in `ContentVersionController::publish()`.
+ * 0102/0104, CMS-5b/CMS-6a) -- ersetzt den bisherigen, immer-datei-
+ * schreibenden Aufruf von `ContentWriter::write()` in
+ * `ContentVersionController::publish()`.
  *
  * Eine Lektionsfeld-Aenderung (kein `quiz`-Schluessel im Payload) geht seit
- * ADR 0101 direkt in die DB (`LessonContentPublisher`) -- `content/` wird
- * dabei nicht mehr angefasst. Jeder andere Fall (Quiz-Entwurf -- weiterhin
- * an seine Lektion gebunden, ADR 0097 --, Pruefung, Achievement, Node) nutzt
- * weiterhin `ContentWriter`, bis auch deren Fliesstext DB-gefuehrt ist
- * (CMS-6/CMS-8).
+ * ADR 0101/0102 direkt in die DB (`LessonContentPublisher`), ein
+ * Quiz-Entwurf (`quiz`-Schluessel -- weiterhin an seine Lektion gebunden,
+ * ADR 0097) seit ADR 0104 ueber `QuizContentPublisher` -- `content/` wird
+ * in beiden Faellen nicht mehr angefasst. Jeder andere Fall (Pruefung,
+ * Achievement, Node) nutzt weiterhin `ContentWriter`, bis auch deren
+ * Fliesstext DB-gefuehrt ist (CMS-8).
  */
 final readonly class ActivityContentApplier
 {
@@ -24,6 +26,7 @@ final readonly class ActivityContentApplier
         private ActivityRegistry $registry,
         private ContentWriter $writer,
         private LessonContentPublisher $lessonPublisher,
+        private QuizContentPublisher $quizPublisher,
     ) {}
 
     /**
@@ -39,8 +42,12 @@ final readonly class ActivityContentApplier
             return $issues;
         }
 
-        if ($activityModel->type === ActivityType::Lesson->value && ! isset($payload['quiz'])) {
-            $this->lessonPublisher->publish($activityModel, $payload);
+        if ($activityModel->type === ActivityType::Lesson->value) {
+            if (isset($payload['quiz'])) {
+                $this->quizPublisher->publish($activityModel, $payload);
+            } else {
+                $this->lessonPublisher->publish($activityModel, $payload);
+            }
 
             return [];
         }

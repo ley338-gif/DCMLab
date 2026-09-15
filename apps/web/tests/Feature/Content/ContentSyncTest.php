@@ -152,6 +152,29 @@ class ContentSyncTest extends TestCase
         File::deleteDirectory($dir);
     }
 
+    /**
+     * ADR 0104 (CMS-6a): quiz-Metadaten (id/type/answer) werden aus
+     * derselben Datei befuellt wie body/objectives.
+     */
+    public function test_it_fills_lesson_quiz_metadata_from_real_content(): void
+    {
+        $dir = base_path('../../content');
+
+        if (! is_dir($dir.'/lessons/1.5')) {
+            $this->markTestSkipped('content/lessons/1.5 nicht gefunden.');
+        }
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $lesson15 = Lesson::where('lesson_id', '1.5')->first();
+        $this->assertNotNull($lesson15->quiz);
+        $this->assertSame('q1', $lesson15->quiz[0]['id']);
+        $this->assertSame('single', $lesson15->quiz[0]['type']);
+        $this->assertSame(1, $lesson15->quiz[0]['answer']);
+    }
+
     public function test_it_indexes_the_silent_ct_node_from_real_content(): void
     {
         $dir = base_path('../../content');
