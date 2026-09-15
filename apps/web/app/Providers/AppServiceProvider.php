@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Activities\AchievementCatalogActivity;
 use App\Activities\ActivityRegistry;
 use App\Activities\ActivityType;
 use App\Activities\ExamActivity;
@@ -60,6 +61,15 @@ class AppServiceProvider extends ServiceProvider
                 ActivityType::Exam,
                 fn (Activity $activity) => new ExamActivity(
                     Track::where('slug', $activity->key)->firstOrFail(),
+                    $app->make(ContentRepository::class),
+                ),
+            );
+            // Der Achievement-Katalog kennt nur eine Instanz (`key ===
+            // 'catalog'`, ADR 0083) -- welcher einzelne Eintrag bearbeitet
+            // wird, steht im Entwurf, nicht in der Aktivitaets-Identitaet.
+            $registry->register(
+                ActivityType::Achievement,
+                fn (Activity $activity) => new AchievementCatalogActivity(
                     $app->make(ContentRepository::class),
                 ),
             );

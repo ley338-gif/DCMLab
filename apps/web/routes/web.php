@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AchievementEditorController;
 use App\Http\Controllers\ContentVersionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExamController;
@@ -69,6 +70,13 @@ Route::prefix('de')->group(function () {
             Route::get('/', [ExamEditorController::class, 'edit'])->name('edit');
             Route::post('validate', [ExamEditorController::class, 'validateDraft'])->name('validate');
             Route::post('/', [ExamEditorController::class, 'storeDraft'])->name('store');
+        });
+        // Kein Model-Binding -- ein Achievement-Slug ist kein Eloquent-Model
+        // (ADR 0083), sondern ein Eintrag in achievements.yml.
+        Route::prefix('author/achievements/{slug}/edit')->name('author.achievements.edit.')->group(function () {
+            Route::get('/', [AchievementEditorController::class, 'edit'])->name('edit');
+            Route::post('validate', [AchievementEditorController::class, 'validateDraft'])->name('validate');
+            Route::post('/', [AchievementEditorController::class, 'storeDraft'])->name('store');
         });
         // Generischer Freigabe-Kreislauf fuer jeden Editor -- Name aus
         // historischen Gruenden noch "quiz-versions" (ADR 0081), verarbeitet

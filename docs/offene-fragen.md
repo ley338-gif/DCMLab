@@ -133,6 +133,26 @@ gegen einen sich noch aendernden Vertrag entwickeln.
 `dcm-lab-lms-agent-prompt.md` Abschnitt 8. Kein neuer Befund in diesem
 Ausbau.
 
+## Bild-Upload im Achievement-Editor (nach W6.4)
+
+**Frage:** Wann bekommt der Achievement-Editor einen echten Datei-Upload
+fuer `image`, statt eines Freitextfelds fuer einen bereits vorhandenen
+Dateinamen unter `public/images/achievements/`?
+
+**Kontext:** ADR 0083 (W6.4) haelt `image` bewusst als Freitextfeld --
+ein Upload braucht einen eigenen, sicherheitsgeprueften Endpunkt
+(Mime-/Groessenpruefung, Bildverarbeitung) ausserhalb der
+`content_versions`-Transaktion, weil Bilder unter `public/` liegen, nicht
+unter `content/`, und `ContentWriter` ausschliesslich Text unter
+`content/` schreibt. Ein Achievement-Bild ist damit auch nie Teil des
+versionierten Review/Freigabe-Kreislaufs gewesen (kein Rollback fuer
+Bilder).
+
+**Empfehlung:** Als eigene, sicherheitsfokussierte Erweiterung angehen,
+mit eigener Validierung (erlaubte Formate, maximale Groesse) statt sie an
+`ContentVersioningService::createDraft()`/`ContentWriter::write()`
+anzuhaengen, die fuer Text-Content ausgelegt sind.
+
 ## Fragenpool-Verwaltung im Pruefungs-Editor (nach W6.3)
 
 **Frage:** Wann bekommt der Pruefungs-Editor die Faehigkeit, einzelne

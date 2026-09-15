@@ -27,7 +27,7 @@ class ActivityRegistryTest extends TestCase
     {
         $registry = $this->app->make(ActivityRegistry::class);
 
-        $this->assertEqualsCanonicalizing(['lesson', 'node', 'exam'], $registry->registeredTypes());
+        $this->assertEqualsCanonicalizing(['lesson', 'node', 'exam', 'achievement'], $registry->registeredTypes());
     }
 
     public function test_a_sixth_activity_type_can_be_registered_displayed_completed_and_scored(): void
