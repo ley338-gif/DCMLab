@@ -4,6 +4,28 @@ Entscheidungen aus dem Ausbau zum Lightweight LMS (`dcm-lab-lms-agent-prompt.md`
 die der Betreiber trifft, nicht der Code-Agent. Format: Frage, Kontext,
 Empfehlung. Erledigte Punkte werden hier durchgestrichen, nicht geloescht.
 
+## `status: fertig` im Bestand normalisieren (vor jeder Sichtbarkeits-Gate, W3+)
+
+**Frage:** Soll der reale Content-Bestand von `status: fertig` (25
+Lektionen/Nodes) auf das dokumentierte `status: published`
+(`docs/content-schema.md`) umgestellt werden?
+
+**Kontext:** ADR 0075 hat beim Umsetzen von W3 festgestellt: kein einziger
+realer Datensatz unter `content/` traegt `status: published`. 34 tragen
+`status: draft`, 25 das nirgends dokumentierte `status: fertig`. Solange das
+so ist, kann `status` nicht sicher fuer Lernenden-Sichtbarkeit ausgewertet
+werden -- jede Umstellung wuerde den kompletten heutigen Lernstoff
+verbergen. `ContentVersioningService::isPublished()` (W3) umgeht das
+Problem bewusst, indem Bestandscontent ohne Versionshistorie als sichtbar
+gilt, aber das ist ein Provisorium, kein Ersatz fuer saubere Daten.
+
+**Empfehlung:** `fertig` in den 25 betroffenen `meta.yml`/`node.yml`-Dateien
+auf `published` umstellen (reine Werteaenderung, keine Strukturaenderung),
+die 34 `draft`-Faelle einzeln pruefen, ob sie tatsaechlich unfertig sind
+oder nur nie umgestellt wurden. Das ist eine redaktionelle Entscheidung
+ueber echten Lernstoff und sollte in einem eigenen, review-baren Commit
+geschehen, nicht als Nebeneffekt eines Agentenlaufs.
+
 ## Cache-Invalidierung bei Engine/Sandbox nach einer Veroeffentlichung (W2)
 
 **Frage:** Sollen `services/engine`, `services/scenario-engine` und

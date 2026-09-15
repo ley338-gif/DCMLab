@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -22,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $track_id
  * @property int $order
  * @property string $status
- * @property array<int, string> $authors
+ * @property array<int, string> $authors Freitext aus content:sync -- fuer echte Rechteprüfung siehe authorUsers()
  * @property array<string, string>|null $title
  * @property array<string, string>|null $teaser
  * @property string|null $source_hash
@@ -59,5 +60,25 @@ class Activity extends Model
     public function progress(): HasMany
     {
         return $this->hasMany(ActivityProgress::class);
+    }
+
+    /**
+     * Die echte Autoren-Beziehung (ADR 0071, W3), gegen die ActivityPolicy
+     * prueft -- bewusst nicht "authors" genannt, das ist schon die
+     * Freitextspalte oben.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function authorUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'activity_authors');
+    }
+
+    /**
+     * @return HasMany<ContentVersion, $this>
+     */
+    public function contentVersions(): HasMany
+    {
+        return $this->hasMany(ContentVersion::class);
     }
 }
