@@ -27,6 +27,10 @@ class SandboxActivityTest extends TestCase
         $this->assertFalse($supports->tracksCompletion);
         $this->assertTrue($supports->needsContainer);
         $this->assertFalse($supports->freelyPlaceable);
+        $this->assertSame('container', $supports->runtimeType);
+        // Kein eigenes Dateiziel -- die Spielwiesen-Konfiguration haengt am
+        // content_versions-Datensatz der Lektion, siehe SandboxActivity::supports().
+        $this->assertFalse($supports->versionable);
     }
 
     public function test_learner_view_exposes_the_lessons_dataset(): void

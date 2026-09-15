@@ -28,6 +28,8 @@ class LessonActivityTest extends TestCase
         $this->assertFalse($supports->isGraded);
         $this->assertFalse($supports->needsContainer);
         $this->assertTrue($supports->authorable);
+        $this->assertNull($supports->runtimeType);
+        $this->assertTrue($supports->versionable);
     }
 
     public function test_learner_view_reflects_not_started_without_progress(): void

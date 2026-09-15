@@ -45,6 +45,8 @@ class AchievementCatalogActivityTest extends TestCase
         $this->assertTrue($supports->authorable);
         $this->assertFalse($supports->tracksCompletion);
         $this->assertFalse($supports->isGraded);
+        $this->assertTrue($supports->versionable);
+        $this->assertTrue($supports->reusable);
     }
 
     public function test_result_is_always_null(): void

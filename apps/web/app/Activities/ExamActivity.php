@@ -45,6 +45,9 @@ final readonly class ExamActivity implements ActivityContract
             needsContainer: false,
             authorable: true,
             freelyPlaceable: false,
+            // versionable: serialize($draft) wertet den Entwurf tatsaechlich
+            // aus (siehe oben).
+            versionable: true,
         );
     }
 

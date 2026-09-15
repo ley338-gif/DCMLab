@@ -51,6 +51,11 @@ class NodeActivityTest extends TestCase
         $this->assertTrue($supports->isGraded);
         $this->assertTrue($supports->needsContainer);
         $this->assertTrue($supports->freelyPlaceable);
+        $this->assertSame('container', $supports->runtimeType);
+        $this->assertTrue($supports->reusable);
+        // Kein Node-Editor legt heute einen Entwurf an -- serialize($draft)
+        // ignoriert $draft, siehe NodeActivity::supports().
+        $this->assertFalse($supports->versionable);
     }
 
     public function test_result_is_null_before_any_attempt_exists(): void

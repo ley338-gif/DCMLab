@@ -46,6 +46,12 @@ final readonly class QuizActivity implements ActivityContract
             needsContainer: false,
             authorable: true,
             freelyPlaceable: false,
+            // versionable bleibt false: dieser Vertrag hat kein eigenes
+            // Dateiziel, serialize($draft) ignoriert $draft immer (siehe
+            // oben) -- ein Quiz-Entwurf haengt am content_versions-Datensatz
+            // der LEKTION (LessonActivity::serialize($draft['quiz'])), nicht
+            // an einer eigenen Instanz. Siehe docs/studio-architecture-plan.md
+            // Abschnitt 2.3 fuer die geplante Aufloesung dieser Kopplung.
         );
     }
 

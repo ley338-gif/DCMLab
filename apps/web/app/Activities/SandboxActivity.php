@@ -41,6 +41,15 @@ final readonly class SandboxActivity implements ActivityContract
             needsContainer: true,
             authorable: true,
             freelyPlaceable: false,
+            runtimeType: 'container',
+            // versionable bleibt false: dieser Vertrag hat kein eigenes
+            // Dateiziel, serialize() ignoriert $draft immer (siehe oben) --
+            // die Spielwiesen-Konfiguration haengt am content_versions-
+            // Datensatz der LEKTION (LessonActivity::serialize($draft['sandbox']),
+            // LessonMetaGenerator::regenerateSandbox()). Siehe
+            // docs/studio-architecture-plan.md Abschnitt 6 fuer die geplante
+            // Aufloesung dieser Kopplung (SandboxTemplate/SandboxActivity/
+            // SandboxSession).
         );
     }
 
