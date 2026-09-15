@@ -37,7 +37,8 @@ type ToolbarData = {
     tools: ToolbarTool[];
     needs_sandbox: boolean;
     dataset: { note: string | null; file_count: number | null } | null;
-    requires: { lesson_id: string; title: string }[];
+    requires: { lesson_id: string; title: string; completed: boolean }[];
+    prerequisites_met: boolean;
     lab_node: {
         slug: string;
         title: string;

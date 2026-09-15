@@ -10,7 +10,9 @@ use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Node;
 use App\Models\QuizReview;
+use App\Models\User;
 use App\Services\LessonNavigationService;
+use App\Services\LessonPrerequisiteService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,8 +25,12 @@ class LessonController extends Controller
      * Zeigt eine Lektion: gerenderte Werkzeugleiste (Abschnitt 4.4), Prosa
      * mit aufgeloesten Glossar-Begriffen, Fortschritt fuer den Nutzer.
      */
-    public function show(Lesson $lesson, ContentRepository $content, LessonNavigationService $navigation): Response
-    {
+    public function show(
+        Lesson $lesson,
+        ContentRepository $content,
+        LessonNavigationService $navigation,
+        LessonPrerequisiteService $prerequisites,
+    ): Response {
         $lessonContent = $content->lessons()[$lesson->lesson_id] ?? null;
 
         abort_unless($lessonContent !== null && $lessonContent['body'] !== null, 404);
@@ -97,7 +103,7 @@ class LessonController extends Controller
                 'title_key' => $lesson->track->title_key,
             ],
             'quiz' => $quiz,
-            'toolbar' => $this->toolbarData($lesson, $tools, $datasets),
+            'toolbar' => $this->toolbarData($lesson, $tools, $datasets, Auth::user(), $prerequisites),
             'progress' => [
                 'status' => $progress->status,
                 'is_returning_visit' => $isReturningVisit,
@@ -136,7 +142,7 @@ class LessonController extends Controller
      * @param  array<string, array<string, mixed>>  $datasets
      * @return array<string, mixed>
      */
-    private function toolbarData(Lesson $lesson, array $tools, array $datasets): array
+    private function toolbarData(Lesson $lesson, array $tools, array $datasets, ?User $user, LessonPrerequisiteService $prerequisites): array
     {
         // "NEU" (Abschnitt 4.4): kein frueherer Eintrag im selben Track hat
         // dieses Werkzeug schon vorgestellt.
@@ -166,12 +172,18 @@ class LessonController extends Controller
         $datasetSlug = $lesson->sandbox['dataset'] ?? null;
         $dataset = $datasetSlug !== null ? ($datasets[$datasetSlug] ?? null) : null;
 
+        // requires ist eine fachliche Empfehlung, kein Zugriffsschutz
+        // (docs/content-schema.md Abschnitt 2, "Quereinstieg") -- unmetIds
+        // steuert nur die Anzeige ("gesperrt, mit Hinweis"), nie den Zugriff.
+        $unmetIds = $user !== null ? array_column($prerequisites->unmetFor($user, $lesson), 'lesson_id') : [];
+
         $requiresLessons = collect($lesson->requires)
             ->map(fn (string $requiredId) => Lesson::where('lesson_id', $requiredId)->first())
             ->filter()
             ->map(fn (Lesson $required) => [
                 'lesson_id' => $required->lesson_id,
                 'title' => $required->title['de'] ?? $required->lesson_id,
+                'completed' => ! in_array($required->lesson_id, $unmetIds, true),
             ])
             ->values();
 
@@ -199,6 +211,7 @@ class LessonController extends Controller
                 'file_count' => $dataset['file_count'] ?? null,
             ] : null,
             'requires' => $requiresLessons,
+            'prerequisites_met' => $unmetIds === [],
             'lab_node' => $labNode,
             'lab_optional' => (bool) ($lesson->lab['optional'] ?? false),
         ];

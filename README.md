@@ -182,7 +182,13 @@ erzeugten Artefakt machen.
   statt in `node.yml`. Das aeltere "Pionier"-System (first_blood/
   track_badges, ADR 0070) bleibt bewusst unverändert, siehe
   `docs/offene-fragen.md`.
-- W5–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W5 (Teil 1) — Voraussetzungen weich durchsetzen** (fertig, siehe ADR
+  0078): `LessonPrerequisiteService` zeigt offene `requires` auf der
+  Lektionsseite und in der Trackübersicht sichtbar an (Schloss-Hinweis),
+  blockiert aber nie den Zugriff -- `requires` war nie ein
+  Zugriffsschutz, siehe `docs/content-schema.md` Abschnitt 2. Die
+  Fragenbank (Teil 2) folgt als eigener Schritt.
+- W5 (Teil 2) – W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 
