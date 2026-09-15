@@ -13,12 +13,18 @@ use App\Content\HeadingSlug;
  * Rich-Content-Dokumente statt Markdown erzeugt.
  *
  * Erwartet ein bereits gegen `RichContentValidator` geprueftes Dokument --
- * wirft keine eigenen Fehler fuer ein ungueltiges Dokument, sondern laesst
- * einen fehlenden/falschen Wert bewusst mit einem freundlichen Fallback
- * durchlaufen (siehe einzelne render*-Methoden).
+ * wirft keine eigenen Fehler fuer ein strukturell ungueltiges Dokument,
+ * sondern laesst einen fehlenden/falschen Wert bewusst mit einem
+ * freundlichen Fallback durchlaufen (siehe einzelne render*-Methoden). Die
+ * einzige Ausnahme ist `doc.version` (ADR 0112): eine andere Version als
+ * die hier bekannte wird nicht "irgendwie" gerendert, sondern wirft
+ * `UnsupportedRichContentVersionException` -- ein stiller Fallback waere
+ * hier keine Kulanz, sondern ein falsch dargestelltes Dokument.
  */
 final class RichContentRenderer
 {
+    private const SUPPORTED_VERSION = 1;
+
     /** @var array<int, string> */
     private array $headingSlugs = [];
 
@@ -33,9 +39,15 @@ final class RichContentRenderer
 
     /**
      * @param  array<string, mixed>  $doc
+     *
+     * @throws UnsupportedRichContentVersionException
      */
     public function render(array $doc): string
     {
+        if (($doc['version'] ?? null) !== self::SUPPORTED_VERSION) {
+            throw UnsupportedRichContentVersionException::forVersion($doc['version'] ?? null);
+        }
+
         $blocks = is_array($doc['content'] ?? null) ? $doc['content'] : [];
 
         $this->headingSlugs = HeadingSlug::uniqueSlugs($this->collectHeadingTexts($blocks));
@@ -88,8 +100,23 @@ final class RichContentRenderer
             'blockquote' => '<blockquote>'.$this->renderBlockContent($node).'</blockquote>',
             'code_block' => $this->renderCodeBlock($node),
             'table' => $this->renderTable($node),
+            'self_check' => $this->renderSelfCheck($node),
             default => '',
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function renderSelfCheck(array $node): string
+    {
+        $summary = is_string($node['attrs']['summary'] ?? null) ? $node['attrs']['summary'] : '';
+
+        return sprintf(
+            '<details><summary>%s</summary>%s</details>',
+            e($summary),
+            $this->renderBlockContent($node),
+        );
     }
 
     /**
