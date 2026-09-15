@@ -237,8 +237,10 @@ erzeugten Artefakt machen.
   `achievements.yml` als eine Instanz, welcher Eintrag bearbeitet wird
   steht im Entwurf. `AchievementCatalogGenerator` ersetzt/ergänzt
   chirurgisch genau einen Eintrag in der flachen Top-Level-Liste. Ein
-  echter Bild-Upload ist bewusst nicht Teil dieses Editors -- `image`
-  bleibt ein Freitextfeld, siehe `docs/offene-fragen.md`.
+  echter Bild-Upload (ADR 0088) schreibt sofort nach
+  `public/images/achievements/`, ausserhalb des Entwurfs-/Freigabe-
+  Kreislaufs -- der Dateiname wird immer aus dem Slug erzeugt, nie aus
+  dem Client-Dateinamen.
 - **W7 — Wiederholungs-Erinnerungen** (fertig, siehe ADR 0084): eine Mail
   mit der Zahl fälliger Wissenskarten, in einstellbarem Abstand (Standard
   3 Tage, `config('review.reminder_interval_days')`), abschaltbar unter

@@ -77,6 +77,9 @@ Route::prefix('de')->group(function () {
             Route::get('/', [AchievementEditorController::class, 'edit'])->name('edit');
             Route::post('validate', [AchievementEditorController::class, 'validateDraft'])->name('validate');
             Route::post('/', [AchievementEditorController::class, 'storeDraft'])->name('store');
+            Route::post('image', [AchievementEditorController::class, 'uploadImage'])
+                ->middleware('throttle:10,1')
+                ->name('image');
         });
         // Generischer Freigabe-Kreislauf fuer jeden Editor -- Name aus
         // historischen Gruenden noch "quiz-versions" (ADR 0081), verarbeitet

@@ -42,3 +42,34 @@ export function postJson<T>(url: string, body: unknown = {}): Promise<T> {
 export function deleteJson<T>(url: string, body: unknown = {}): Promise<T> {
     return sendJson<T>('DELETE', url, body);
 }
+
+/**
+ * Fuer Datei-Uploads (z. B. Achievement-Bild, ADR 0088) -- kein
+ * `Content-Type`-Header setzen, der Browser haengt selbst die
+ * `multipart/form-data`-Boundary an.
+ */
+export async function postFormData<T>(
+    url: string,
+    formData: FormData,
+): Promise<T> {
+    const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-XSRF-TOKEN': readCookie('XSRF-TOKEN') ?? '',
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const message = await response
+            .json()
+            .then((data) => data?.message)
+            .catch(() => null);
+        throw new Error(message ?? `${url} -> ${response.status}`);
+    }
+
+    return (await response.json()) as T;
+}

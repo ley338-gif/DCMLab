@@ -156,25 +156,19 @@ fuer das Kommando `php-fpm` aus, Migrationen laufen mit `--isolated`
 `make up` automatisch mit. Smoke-getestet gegen die laufende lokale
 Compose-Umgebung, siehe ADR 0087.
 
-## Bild-Upload im Achievement-Editor (nach W6.4)
+## ~~Bild-Upload im Achievement-Editor (nach W6.4)~~ -- erledigt
 
-**Frage:** Wann bekommt der Achievement-Editor einen echten Datei-Upload
+~~**Frage:** Wann bekommt der Achievement-Editor einen echten Datei-Upload
 fuer `image`, statt eines Freitextfelds fuer einen bereits vorhandenen
-Dateinamen unter `public/images/achievements/`?
+Dateinamen unter `public/images/achievements/`?~~
 
-**Kontext:** ADR 0083 (W6.4) haelt `image` bewusst als Freitextfeld --
-ein Upload braucht einen eigenen, sicherheitsgeprueften Endpunkt
-(Mime-/Groessenpruefung, Bildverarbeitung) ausserhalb der
-`content_versions`-Transaktion, weil Bilder unter `public/` liegen, nicht
-unter `content/`, und `ContentWriter` ausschliesslich Text unter
-`content/` schreibt. Ein Achievement-Bild ist damit auch nie Teil des
-versionierten Review/Freigabe-Kreislaufs gewesen (kein Rollback fuer
-Bilder).
-
-**Empfehlung:** Als eigene, sicherheitsfokussierte Erweiterung angehen,
-mit eigener Validierung (erlaubte Formate, maximale Groesse) statt sie an
-`ContentVersioningService::createDraft()`/`ContentWriter::write()`
-anzuhaengen, die fuer Text-Content ausgelegt sind.
+**Umgesetzt (15.09.2026, ADR 0088):** `POST author/achievements/{slug}/
+edit/image` schreibt sofort und direkt nach `public/images/achievements/`,
+ausserhalb der `content_versions`-Transaktion (wie empfohlen). Der
+Dateiname wird immer aus dem URL-Slug erzeugt, nie aus dem
+Client-Dateinamen (Schutz vor Pfad-Traversal); `image`-Validierung
+(echter Bildinhalt, `mimes:png,jpg,jpeg,webp`, `max:512` KB) plus
+`throttle:10,1`.
 
 ## Fragenpool-Verwaltung im Pruefungs-Editor (nach W6.3)
 
