@@ -106,6 +106,34 @@ class NodeControllerTest extends TestCase
             && $request['node_slug'] === 'test-node');
     }
 
+    /**
+     * ADR 0107 (CMS-6d): body/hints kommen bevorzugt aus der DB, nicht mehr
+     * live aus content/ -- derselbe Fund/dieselbe Loesung wie bei Lesson
+     * (ADR 0101).
+     */
+    public function test_it_prefers_the_db_body_and_hints_over_the_file(): void
+    {
+        Node::factory()->create([
+            'slug' => 'test-node',
+            'points' => 10,
+            'body' => "## Briefing\n\nAus der DB, nicht aus der Datei.\n\n## Hints\n\n### h1\n\nDB-Hinweis.\n\n## Write-up\n\nDB-Loesung.",
+            'hints' => [['id' => 'h1', 'cost' => 3]],
+        ]);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'sess-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/sess-1/state' => Http::response($this->baseState()),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/de/nodes/test-node')
+            ->assertInertia(fn ($page) => $page
+                ->where('briefing_html', fn (string $html) => str_contains($html, 'Aus der DB'))
+                ->where('hints.0.id', 'h1'),
+            );
+    }
+
     public function test_second_visit_reuses_the_existing_session(): void
     {
         $node = Node::factory()->create(['slug' => 'test-node']);

@@ -80,10 +80,22 @@ class NodeController extends Controller
     {
         $engine = $engineResolver->for($node);
         $nodeContent = $content->nodes()[$node->slug] ?? null;
-        abort_unless($nodeContent !== null && $nodeContent['def'] !== null, 404);
 
-        $def = $nodeContent['def'];
-        $sections = NodeSections::parse($nodeContent['body'] ?? '');
+        // ADR 0107 (CMS-6d): body/hints bevorzugt aus der DB (von
+        // content:sync befuellt) -- ContentRepository bleibt nur noch
+        // Fallback fuer eine Node, deren naechster Sync-Lauf noch aussteht
+        // (derselbe Fallback-Mechanismus wie bei Lesson, ADR 0101).
+        // `environment` (Runtime-Konfiguration: Templates/Platzhalter fuer
+        // die Engine) bleibt bewusst datei-gefuehrt -- kein Autorenfeld,
+        // siehe Node-Klassendoc.
+        $body = $node->body ?? $nodeContent['body'] ?? null;
+        /** @var array<int, array<string, mixed>> $hintDefinitions */
+        $hintDefinitions = $node->hints ?? $nodeContent['def']['hints'] ?? [];
+        $environment = $nodeContent['def']['environment'] ?? [];
+
+        abort_unless($body !== null, 404);
+
+        $sections = NodeSections::parse($this->bodyFor($node, $content));
         $renderer = new MarkdownRenderer($content->glossary());
 
         $attempt = $this->attemptFor($node, $engine);
@@ -91,8 +103,6 @@ class NodeController extends Controller
 
         $hintsUsed = $engineState['hints_used'];
 
-        /** @var array<int, array<string, mixed>> $hintDefinitions */
-        $hintDefinitions = $def['hints'] ?? [];
         $hints = collect($hintDefinitions)->map(fn (array $hint) => [
             'id' => $hint['id'],
             'cost' => $hint['cost'],
@@ -133,8 +143,8 @@ class NodeController extends Controller
             'write_up_html' => ($engineState['write_up_seen'] || $engineState['solved'])
                 ? $renderer->render($sections['write_up'])
                 : null,
-            'templates' => $def['environment']['templates'] ?? [],
-            'placeholders' => $def['environment']['placeholders'] ?? [],
+            'templates' => $environment['templates'] ?? [],
+            'placeholders' => $environment['placeholders'] ?? [],
             'state' => $engineState,
             'attempt' => [
                 'status' => $attempt->status,
@@ -194,8 +204,7 @@ class NodeController extends Controller
         $result = $engine->useHint($attempt->engine_session_id, $data['hint_id']);
         $this->syncAttempt($attempt, $engine);
 
-        $nodeContent = $content->nodes()[$node->slug] ?? null;
-        $sections = NodeSections::parse($nodeContent['body'] ?? '');
+        $sections = NodeSections::parse($this->bodyFor($node, $content));
         $renderer = new MarkdownRenderer($content->glossary());
 
         return response()->json([
@@ -211,8 +220,7 @@ class NodeController extends Controller
         $result = $engine->viewWriteUp($attempt->engine_session_id);
         $this->syncAttempt($attempt, $engine);
 
-        $nodeContent = $content->nodes()[$node->slug] ?? null;
-        $sections = NodeSections::parse($nodeContent['body'] ?? '');
+        $sections = NodeSections::parse($this->bodyFor($node, $content));
         $renderer = new MarkdownRenderer($content->glossary());
 
         return response()->json([
@@ -336,6 +344,16 @@ class NodeController extends Controller
         }
 
         return $result;
+    }
+
+    /**
+     * ADR 0107 (CMS-6d): bevorzugt die DB, ContentRepository bleibt nur
+     * noch Fallback fuer eine Node, deren naechster Sync-Lauf noch
+     * aussteht (derselbe Fallback wie in show()).
+     */
+    private function bodyFor(Node $node, ContentRepository $content): string
+    {
+        return $node->body ?? $content->nodes()[$node->slug]['body'] ?? '';
     }
 
     private function attemptFor(Node $node, EngineClientContract $engine): NodeAttempt

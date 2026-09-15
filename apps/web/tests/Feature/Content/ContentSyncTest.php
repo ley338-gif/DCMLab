@@ -198,6 +198,29 @@ class ContentSyncTest extends TestCase
     }
 
     /**
+     * ADR 0107 (CMS-6d): body/hints werden aus derselben Datei befuellt,
+     * die auch title/scenario_title liefert.
+     */
+    public function test_it_fills_node_body_and_hints_from_real_content(): void
+    {
+        $dir = base_path('../../content');
+
+        if (! is_dir($dir.'/nodes/silent-ct')) {
+            $this->markTestSkipped('content/nodes/silent-ct nicht gefunden.');
+        }
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $node = Node::where('slug', 'silent-ct')->first();
+        $this->assertNotNull($node->body);
+        $this->assertStringContainsString('## Briefing', $node->body);
+        $this->assertSame('h1', $node->hints[0]['id']);
+        $this->assertSame(1, $node->hints[0]['cost']);
+    }
+
+    /**
      * ADR 0105 (CMS-6b): content:sync backfuellt lesson_elements in der
      * kanonischen Reihenfolge (Content, Sandbox, Lab, Quiz -- nur wenn
      * vorhanden). Diese Fixture hat weder ein `nodes/`-Verzeichnis (Lab
