@@ -56,18 +56,29 @@ interface ActivityContract
     public function authorView(): array;
 
     /**
+     * `$draft` ist optional (ADR 0080, W6): ohne ihn wird der Ist-Zustand
+     * geprueft (wie bisher), mit ihm ein noch nicht geschriebener Entwurf
+     * -- z. B. `['quiz' => [...]]` fuer eine neue Fragenliste vor dem
+     * Speichern. Nicht jeder Typ wertet jedes Feld eines Entwurfs aus; ein
+     * Typ, der `$draft` nicht kennt, ignoriert ihn und prueft den
+     * Ist-Zustand wie ohne Argument.
+     *
+     * @param  array<string, mixed>|null  $draft
      * @return list<ContentIssue>
      */
-    public function validate(): array;
+    public function validate(?array $draft = null): array;
 
     /**
-     * Erzeugte Datei(en) unter content/** (ADR 0071, W2). `path` ist relativ
-     * zu ContentRepository::basePath(). Leere Liste, wenn dieser Typ keine
-     * eigene Datei hat (Quiz/Spielwiese haengen an ihrer Lektion).
+     * Erzeugte Datei(en) unter content/** (ADR 0071/0080, W2/W6). `path`
+     * ist relativ zu ContentRepository::basePath(). Leere Liste, wenn
+     * dieser Typ keine eigene Datei hat (Quiz/Spielwiese haengen an ihrer
+     * Lektion). Mit `$draft` wird aus dem Entwurf erzeugt statt aus dem
+     * Ist-Zustand, siehe validate().
      *
+     * @param  array<string, mixed>|null  $draft
      * @return list<array{path: string, contents: string}>
      */
-    public function serialize(): array;
+    public function serialize(?array $draft = null): array;
 
     /**
      * Gegenstueck zum Importer: die aktuellen Nutzdaten dieser Instanz als

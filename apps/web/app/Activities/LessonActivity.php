@@ -5,9 +5,12 @@ namespace App\Activities;
 use App\Content\ContentIssue;
 use App\Content\ContentRepository;
 use App\Content\ContentValidator;
+use App\Content\FrontMatter;
+use App\Content\LessonQuizGenerator;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\User;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Aktivitaetsvertrag fuer eine Lektion (ADR 0072). Der Abschlusszustand
@@ -75,11 +78,20 @@ final readonly class LessonActivity implements ActivityContract
         ];
     }
 
-    public function validate(): array
+    public function validate(?array $draft = null): array
     {
         // Derselbe Regelsatz wie `content:validate` (ADR 0071/0073, W1),
         // eingegrenzt auf Befunde, die zu dieser Lektion gehoeren -- keine
-        // zweite, eigene Pruefung.
+        // zweite, eigene Pruefung. Mit $draft wird nicht der Ist-Zustand
+        // geprueft, sondern das, was serialize($draft) erzeugen wuerde
+        // (ADR 0080, W6) -- derselbe Weg wie ContentRepository::lessons()
+        // baut den Eintrag, damit ContentValidator keinen Unterschied sieht.
+        $lessons = $this->content->lessons();
+
+        if ($draft !== null) {
+            $lessons[$this->lesson->lesson_id] = $this->syntheticEntry($draft);
+        }
+
         $prefix = "lessons/{$this->lesson->lesson_id}/";
 
         return array_values(array_filter(
@@ -87,7 +99,7 @@ final readonly class LessonActivity implements ActivityContract
                 themenfelder: $this->content->themenfelder(),
                 tracks: $this->content->tracks(),
                 achievements: $this->content->achievements(),
-                lessons: $this->content->lessons(),
+                lessons: $lessons,
                 nodes: $this->content->nodes(),
                 exams: $this->content->exams(),
                 tools: $this->content->tools(),
@@ -100,7 +112,7 @@ final readonly class LessonActivity implements ActivityContract
         ));
     }
 
-    public function serialize(): array
+    public function serialize(?array $draft = null): array
     {
         $entry = $this->contentEntry();
 
@@ -108,9 +120,65 @@ final readonly class LessonActivity implements ActivityContract
             return [];
         }
 
+        $metaRaw = $entry['meta_raw'];
+        $mdRaw = $entry['md_raw'];
+
+        // Fuer W6 wird bisher nur der Fragenteil eines Entwurfs wirklich
+        // erzeugt (Quiz-Editor) -- andere Felder eines $draft (Titel, Text,
+        // ...) folgen mit dem Lektions-/Pruefungs-Editor.
+        if ($draft !== null && isset($draft['quiz'])) {
+            $frontMatter = FrontMatter::parse($mdRaw);
+            $metaRaw = LessonQuizGenerator::regenerateMeta($metaRaw, $draft['quiz']);
+            $mdRaw = $this->withNewBody($mdRaw, LessonQuizGenerator::regenerateBody($frontMatter['body'], $draft['quiz']));
+        }
+
         return [
-            ['path' => "lessons/{$this->lesson->lesson_id}/meta.yml", 'contents' => $entry['meta_raw']],
-            ['path' => "lessons/{$this->lesson->lesson_id}/de.md", 'contents' => $entry['md_raw']],
+            ['path' => "lessons/{$this->lesson->lesson_id}/meta.yml", 'contents' => $metaRaw],
+            ['path' => "lessons/{$this->lesson->lesson_id}/de.md", 'contents' => $mdRaw],
+        ];
+    }
+
+    /**
+     * Ersetzt nur den Body eines de.md, die Frontmatter (Titel, Teaser,
+     * Lernziele) bleibt Zeile fuer Zeile unangetastet.
+     */
+    private function withNewBody(string $mdRaw, string $newBody): string
+    {
+        $frontMatter = FrontMatter::parse($mdRaw);
+        $lines = preg_split('/\R/', $mdRaw) ?: [];
+        $frontMatterLines = array_slice($lines, 0, max(0, $frontMatter['bodyStartLine'] - 1));
+
+        return implode("\n", $frontMatterLines)."\n".$newBody;
+    }
+
+    /**
+     * Baut denselben Eintrag, den ContentRepository::lessons() fuer diese
+     * Lektion liefern wuerde, aber aus serialize($draft) statt von der
+     * Platte -- damit validate($draft) den Entwurf pruefen kann, bevor er
+     * geschrieben wird.
+     *
+     * @param  array<string, mixed>  $draft
+     * @return array<string, mixed>
+     */
+    private function syntheticEntry(array $draft): array
+    {
+        $files = $this->serialize($draft);
+        $metaRaw = $files[0]['contents'] ?? '';
+        $mdRaw = $files[1]['contents'] ?? '';
+
+        $meta = Yaml::parse($metaRaw) ?? [];
+        $frontMatter = FrontMatter::parse($mdRaw);
+
+        return [
+            'id' => $this->lesson->lesson_id,
+            'meta' => $meta,
+            'meta_file' => "lessons/{$this->lesson->lesson_id}/meta.yml",
+            'meta_raw' => $metaRaw,
+            'md_file' => "lessons/{$this->lesson->lesson_id}/de.md",
+            'md_raw' => $mdRaw,
+            'frontmatter' => $frontMatter['attributes'],
+            'body' => $frontMatter['body'],
+            'body_start_line' => $frontMatter['bodyStartLine'],
         ];
     }
 

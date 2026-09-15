@@ -171,12 +171,12 @@ class ContentWriterTest extends TestCase
                 return [];
             }
 
-            public function validate(): array
+            public function validate(?array $draft = null): array
             {
                 return $this->issues;
             }
 
-            public function serialize(): array
+            public function serialize(?array $draft = null): array
             {
                 return $this->files;
             }

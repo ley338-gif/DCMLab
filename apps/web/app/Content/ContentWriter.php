@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\File;
  * `ContentBuilder` (Flag-Hashes) und Cache-Invalidierung bei Engine und
  * Orchestrator.
  *
- * `serialize()` liefert heute noch den unveraenderten Ist-Zustand (ADR
- * 0073) -- sobald W3 echte Entwuerfe einfuehrt, aendert sich daran fuer
- * diese Klasse nichts, sie bleibt agnostisch gegenueber der Herkunft der
- * Dateiinhalte.
+ * `serialize()`/`validate()` liefern ohne `$draft` weiterhin den
+ * unveraenderten Ist-Zustand (ADR 0073); mit `$draft` (ADR 0080, W6) das,
+ * was ein Editor gerade speichern will -- ContentWriter bleibt in beiden
+ * Faellen agnostisch gegenueber der Herkunft der Dateiinhalte.
  */
 final readonly class ContentWriter
 {
@@ -27,17 +27,18 @@ final readonly class ContentWriter
     ) {}
 
     /**
+     * @param  array<string, mixed>|null  $draft
      * @return list<ContentIssue> Nicht leer, wenn NICHTS geschrieben wurde.
      */
-    public function write(ActivityContract $activity): array
+    public function write(ActivityContract $activity, ?array $draft = null): array
     {
-        $issues = $activity->validate();
+        $issues = $activity->validate($draft);
 
         if ($issues !== []) {
             return $issues;
         }
 
-        $this->writeAtomically($activity->serialize());
+        $this->writeAtomically($activity->serialize($draft));
 
         Artisan::call('content:sync');
         $this->builder->build($this->content);

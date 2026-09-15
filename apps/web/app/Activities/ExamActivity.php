@@ -68,7 +68,7 @@ final readonly class ExamActivity implements ActivityContract
         ];
     }
 
-    public function validate(): array
+    public function validate(?array $draft = null): array
     {
         $prefix = "exams/{$this->track->slug}/";
 
@@ -90,7 +90,7 @@ final readonly class ExamActivity implements ActivityContract
         ));
     }
 
-    public function serialize(): array
+    public function serialize(?array $draft = null): array
     {
         $entry = $this->contentEntry();
 

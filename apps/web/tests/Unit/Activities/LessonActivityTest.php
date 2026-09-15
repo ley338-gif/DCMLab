@@ -91,6 +91,57 @@ class LessonActivityTest extends TestCase
         }
     }
 
+    public function test_serialize_with_a_quiz_draft_regenerates_the_quiz_block_and_section(): void
+    {
+        $activity = $this->makeActivity();
+        $draft = ['quiz' => [
+            ['id' => 'q1', 'type' => 'single', 'answer' => 0, 'question' => 'Neue Frage?', 'options' => ['Ja', 'Nein']],
+        ]];
+
+        $files = $activity->serialize($draft);
+
+        $this->assertStringContainsString("quiz:\n  - id: q1\n    type: single\n    answer: 0", $files[0]['contents']);
+        $this->assertStringContainsString('**q1 — Neue Frage?**', $files[1]['contents']);
+    }
+
+    public function test_validate_with_a_quiz_draft_catches_an_out_of_range_answer(): void
+    {
+        $activity = $this->makeActivity();
+        $draft = ['quiz' => [
+            ['id' => 'q1', 'type' => 'single', 'answer' => 5, 'question' => 'Neue Frage?', 'options' => ['Ja', 'Nein']],
+        ]];
+
+        $issues = $activity->validate($draft);
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'answer-Index liegt ausserhalb'),
+        ));
+    }
+
+    public function test_validate_with_a_valid_quiz_draft_raises_no_quiz_issue(): void
+    {
+        $activity = $this->makeActivity();
+        $draft = ['quiz' => [
+            ['id' => 'q1', 'type' => 'single', 'answer' => 0, 'question' => 'Neue Frage?', 'options' => ['Ja', 'Nein']],
+        ]];
+
+        $issues = $activity->validate($draft);
+
+        $this->assertFalse(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'Quiz-Frage'),
+        ));
+    }
+
+    public function test_validate_without_a_draft_still_checks_the_current_state(): void
+    {
+        $activity = $this->makeActivity();
+
+        $withDraft = $activity->validate(null);
+        $withoutArgument = $activity->validate();
+
+        $this->assertEquals($withoutArgument, $withDraft);
+    }
+
     public function test_deserialize_normalizes_the_current_fields(): void
     {
         $activity = $this->makeActivity();

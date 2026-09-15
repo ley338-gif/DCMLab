@@ -62,13 +62,13 @@ final readonly class SandboxActivity implements ActivityContract
         ];
     }
 
-    public function validate(): array
+    public function validate(?array $draft = null): array
     {
         // Bewusst leer, siehe LessonActivity::validate().
         return [];
     }
 
-    public function serialize(): array
+    public function serialize(?array $draft = null): array
     {
         // Kein eigenes Dateiziel -- die Spielwiese ist Teil von meta.yml der
         // Lektion, siehe LessonActivity::serialize().

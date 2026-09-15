@@ -8,6 +8,7 @@ use App\Http\Controllers\LessonController;
 use App\Http\Controllers\NodeController;
 use App\Http\Controllers\PublicProfileController;
 use App\Http\Controllers\QuizController;
+use App\Http\Controllers\QuizEditorController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\TrackController;
@@ -45,6 +46,20 @@ Route::prefix('de')->group(function () {
 
         Route::prefix('lessons/{lesson}/quiz')->name('quiz.')->middleware('throttle:60,1')->group(function () {
             Route::post('{questionId}/answer', [QuizController::class, 'answer'])->name('answer');
+        });
+
+        // Autoren-Editor (ADR 0071/0080, W6) -- Policy-gepruefte
+        // Berechtigung liegt in den Controller-Methoden, nicht in der
+        // Route, weil sie gegen die Aktivitaet der Lektion prueft, nicht
+        // gegen die Lektion selbst.
+        Route::prefix('author/lessons/{lesson}/quiz')->name('author.lessons.quiz.')->group(function () {
+            Route::get('/', [QuizEditorController::class, 'edit'])->name('edit');
+            Route::post('validate', [QuizEditorController::class, 'validateDraft'])->name('validate');
+            Route::post('/', [QuizEditorController::class, 'storeDraft'])->name('store');
+        });
+        Route::prefix('author/quiz-versions/{version}')->name('author.quiz-versions.')->group(function () {
+            Route::post('submit', [QuizEditorController::class, 'submitForReview'])->name('submit');
+            Route::post('publish', [QuizEditorController::class, 'publish'])->name('publish');
         });
 
         Route::prefix('tracks/{track}/exam')->name('tracks.exam.')->middleware('throttle:60,1')->group(function () {
