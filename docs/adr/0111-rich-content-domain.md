@@ -2,7 +2,11 @@
 
 ## Status
 
-Angenommen, 16.09.2026.
+Angenommen, 16.09.2026. **Teilweise korrigiert durch ADR 0112:** die
+Aussage weiter unten, TipTap produziere "dieselbe Form" und CMS-7b brauche
+"keine Uebersetzungsschicht", stimmt nicht -- ADR 0112 legt stattdessen
+einen kleinen, expliziten `RichContentEditorAdapter` fest. Alle anderen
+Entscheidungen dieser ADR bleiben unveraendert gueltig.
 
 ## Kontext
 

@@ -3,6 +3,7 @@
 namespace Tests\Unit\Content\RichContent;
 
 use App\Content\RichContent\RichContentRenderer;
+use App\Content\RichContent\UnsupportedRichContentVersionException;
 use Tests\TestCase;
 
 class RichContentRendererTest extends TestCase
@@ -10,6 +11,38 @@ class RichContentRendererTest extends TestCase
     private function doc(array $content): array
     {
         return ['type' => 'doc', 'version' => 1, 'content' => $content];
+    }
+
+    /**
+     * ADR 0112: eine unbekannte Dokumentversion wird nicht still gerendert
+     * -- ein `version: 1`-Leser darf ein spaeteres Dokument nicht
+     * "irgendwie" darstellen.
+     */
+    public function test_it_throws_for_an_unsupported_document_version(): void
+    {
+        $this->expectException(UnsupportedRichContentVersionException::class);
+
+        (new RichContentRenderer)->render(['type' => 'doc', 'version' => 2, 'content' => []]);
+    }
+
+    public function test_it_renders_a_self_check(): void
+    {
+        $html = (new RichContentRenderer)->render($this->doc([
+            ['type' => 'self_check', 'attrs' => ['summary' => 'Frage?'], 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Antwort.']]],
+            ]],
+        ]));
+
+        $this->assertSame('<details><summary>Frage?</summary><p>Antwort.</p></details>', $html);
+    }
+
+    public function test_it_escapes_the_self_check_summary(): void
+    {
+        $html = (new RichContentRenderer)->render($this->doc([
+            ['type' => 'self_check', 'attrs' => ['summary' => '<script>'], 'content' => []],
+        ]));
+
+        $this->assertStringNotContainsString('<script>', $html);
     }
 
     public function test_it_renders_a_paragraph_with_marks(): void

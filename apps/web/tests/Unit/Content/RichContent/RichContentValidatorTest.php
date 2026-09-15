@@ -178,4 +178,38 @@ class RichContentValidatorTest extends TestCase
 
         $this->assertSame(['doc.content: muss eine Liste sein'], $issues);
     }
+
+    public function test_it_accepts_a_valid_self_check(): void
+    {
+        $doc = [
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'self_check', 'attrs' => ['summary' => 'Frage?'], 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Antwort.']]],
+            ]]],
+        ];
+
+        $this->assertSame([], (new RichContentValidator)->validate($doc));
+    }
+
+    public function test_it_rejects_a_self_check_without_a_summary(): void
+    {
+        $issues = (new RichContentValidator)->validate([
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'self_check', 'attrs' => [], 'content' => []]],
+        ]);
+
+        $this->assertTrue(collect($issues)->contains(fn ($issue) => str_contains($issue, 'attrs.summary')));
+    }
+
+    public function test_it_validates_the_content_inside_a_self_check(): void
+    {
+        $issues = (new RichContentValidator)->validate([
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'self_check', 'attrs' => ['summary' => 'Frage?'], 'content' => [
+                ['type' => 'video', 'content' => []],
+            ]]],
+        ]);
+
+        $this->assertTrue(collect($issues)->contains(fn ($issue) => str_contains($issue, 'unbekannter Block-Typ')));
+    }
 }

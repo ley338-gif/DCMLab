@@ -3,21 +3,27 @@
 namespace App\Content\RichContent;
 
 /**
- * Prueft ein Rich-Content-Dokument gegen das Schema aus ADR 0111 (CMS-7a):
- * ein strukturiertes JSON-Dokument (`{type: "doc", version, content: [...]}`)
- * ist Quelle der Wahrheit fuer Lesson-/Node-Fliesstext, TipTap (CMS-7b) ist
- * nur EIN Editor dafuer, nicht das Schema selbst -- ein Dokument muss daher
- * unabhaengig von TipTap validierbar sein, bevor es gespeichert wird.
+ * Prueft ein Rich-Content-Dokument gegen das Schema aus ADR 0111/0112
+ * (CMS-7a): ein strukturiertes JSON-Dokument (`{type: "doc", version,
+ * content: [...]}`) ist Quelle der Wahrheit fuer Lesson-/Node-Fliesstext.
+ * Das Schema ist bewusst DCMLab-eigen (snake_case, `code_block.text` statt
+ * verschachteltem Text-Node) -- TipTap (CMS-7b) ist nur EIN Editor dafuer
+ * ueber einen eigenen Adapter, nicht das Schema selbst, ein Dokument muss
+ * daher unabhaengig von TipTap validierbar sein, bevor es gespeichert wird.
  *
  * Bewusst kein generisches JSON-Schema-Paket: derselbe Stil wie
  * `ContentValidator` -- eine kleine, lesbare, deterministische PHP-Pruefung
- * ohne zusaetzliche Abhaengigkeit.
+ * ohne zusaetzliche Abhaengigkeit. Eine falsche `doc.version` ist hier ein
+ * gewoehnlicher Validierungsbefund (String in der Ergebnisliste) --
+ * `RichContentRenderer` dagegen wirft dafuer eine echte Exception (ADR
+ * 0112): rendern ist der Fall, in dem ein stiller Fallback ein falsch
+ * dargestelltes Dokument waere, validieren nicht.
  *
  * @phpstan-type RichContentIssue string
  */
 final class RichContentValidator
 {
-    private const BLOCK_TYPES = ['paragraph', 'heading', 'bullet_list', 'ordered_list', 'blockquote', 'code_block', 'table'];
+    private const BLOCK_TYPES = ['paragraph', 'heading', 'bullet_list', 'ordered_list', 'blockquote', 'code_block', 'table', 'self_check'];
 
     private const INLINE_TYPES = ['text', 'glossary_term', 'hard_break'];
 
@@ -84,7 +90,28 @@ final class RichContentValidator
             'blockquote' => $this->validateBlockContent($node, $path),
             'code_block' => $this->validateCodeBlock($node, $path),
             'table' => $this->validateTable($node, $path),
+            'self_check' => $this->validateSelfCheck($node, $path),
         };
+    }
+
+    /**
+     * `self_check` (ADR 0112): ein didaktischer Lernbaustein ("Antwort
+     * anzeigen") -- fachlich ein eigener Block, kein beliebiges
+     * `raw_html`, damit Renderer/Editor ihn gezielt behandeln koennen statt
+     * generisches HTML durchzureichen.
+     *
+     * @param  array<string, mixed>  $node
+     * @return list<string>
+     */
+    private function validateSelfCheck(array $node, string $path): array
+    {
+        $issues = [];
+
+        if (! is_string($node['attrs']['summary'] ?? null) || $node['attrs']['summary'] === '') {
+            $issues[] = "{$path}.attrs.summary: muss ein nicht-leerer String sein";
+        }
+
+        return [...$issues, ...$this->validateBlockContent($node, $path)];
     }
 
     /**

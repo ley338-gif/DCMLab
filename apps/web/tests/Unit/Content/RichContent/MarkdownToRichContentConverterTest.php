@@ -146,6 +146,26 @@ class MarkdownToRichContentConverterTest extends TestCase
         $this->assertSame('scp', $blocks[0]['content'][3]['attrs']['slug']);
     }
 
+    public function test_it_converts_a_details_block_to_a_self_check(): void
+    {
+        $blocks = $this->blocks("<details>\n<summary>Frage?</summary>\n\nAntwort.\n</details>");
+
+        $this->assertSame('self_check', $blocks[0]['type']);
+        $this->assertSame('Frage?', $blocks[0]['attrs']['summary']);
+        $this->assertSame('paragraph', $blocks[0]['content'][0]['type']);
+        $this->assertSame('Antwort.', $blocks[0]['content'][0]['content'][0]['text']);
+    }
+
+    public function test_it_stops_consuming_content_after_the_self_check_closes(): void
+    {
+        $blocks = $this->blocks("<details>\n<summary>Frage?</summary>\n\nAntwort.\n</details>\n\nDanach.");
+
+        $this->assertCount(2, $blocks);
+        $this->assertSame('self_check', $blocks[0]['type']);
+        $this->assertSame('paragraph', $blocks[1]['type']);
+        $this->assertSame('Danach.', $blocks[1]['content'][0]['text']);
+    }
+
     public function test_it_converts_a_gfm_table_with_a_header_row(): void
     {
         $blocks = $this->blocks("| Tag | Wert |\n|---|---|\n| (0008,0060) | CT |");
@@ -166,6 +186,7 @@ class MarkdownToRichContentConverterTest extends TestCase
             "<!-- kein-beispiel -->\n```\nA -> B\n```",
             "| A | B |\n|---|---|\n| 1 | 2 |",
             'Ein Link zu {{term:dicom}} und [mehr](https://example.test).',
+            "<details>\n<summary>Frage?</summary>\n\nAntwort.\n</details>",
         ];
 
         $validator = new RichContentValidator;
@@ -177,13 +198,13 @@ class MarkdownToRichContentConverterTest extends TestCase
 
     /**
      * Kein Anspruch auf verlustfreie Konvertierung des GESAMTEN
-     * Lektions-Bodys (u. a. `<details>`-Selbstcheck-Bloecke sind bewusst
+     * Lektions-Bodys (z. B. Bilder/horizontale Trennlinien sind bewusst
      * noch nicht abgedeckt, siehe Klassendoc von
-     * MarkdownToRichContentConverter) -- dieser Test beweist nur, dass ein
+     * MarkdownToRichContentConverter) -- dieser Test beweist, dass ein
      * echter, komplexer Bestand nicht abstuerzt und ein valides Dokument
      * ergibt, und dass die zentralen Konstrukte (Tabelle, kein-beispiel-
-     * Diagramm, annotierter Code-Block, Glossarbegriff) tatsaechlich
-     * ankommen.
+     * Diagramm, annotierter Code-Block, Glossarbegriff, alle vier
+     * Selbstcheck-Bloecke als `self_check`) tatsaechlich ankommen.
      */
     public function test_it_converts_a_real_lesson_body_into_a_valid_document(): void
     {
@@ -197,6 +218,12 @@ class MarkdownToRichContentConverterTest extends TestCase
         $types = collect($doc['content'])->pluck('type');
         $this->assertTrue($types->contains('table'), 'sollte die Tabelle am Lektionsende enthalten');
         $this->assertTrue($types->contains('heading'), 'sollte Ueberschriften enthalten');
+
+        $selfChecks = collect($doc['content'])->where('type', 'self_check');
+        $this->assertCount(4, $selfChecks, 'sollte alle vier <details>-Selbstchecks erkennen');
+        $this->assertTrue($selfChecks->pluck('attrs.summary')->contains(
+            fn (string $summary) => str_contains($summary, 'Was prüfst du, und womit?'),
+        ));
 
         $codeBlocks = collect($doc['content'])->where('type', 'code_block');
         $this->assertTrue($codeBlocks->pluck('attrs.variant')->contains('diagram'), 'sollte den kein-beispiel-Block als diagram erkennen');
