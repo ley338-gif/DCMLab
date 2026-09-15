@@ -40,7 +40,7 @@ type ExamAvailability = {
 };
 
 const props = defineProps<{
-    track: { slug: string; title_key: string };
+    track: { slug: string; title_key: string; themenfeld: string };
     lessons: LessonSummary[];
     exam: ExamAvailability;
 }>();
@@ -56,6 +56,10 @@ const page = usePage();
             class="mb-6"
             :breadcrumbs="[
                 { title: trans('Tracks'), href: home() },
+                {
+                    title: trans(`themenfeld.${track.themenfeld}.title`),
+                    href: home(),
+                },
                 { title: trans(track.title_key), href: showTrack(track.slug) },
             ]"
         />

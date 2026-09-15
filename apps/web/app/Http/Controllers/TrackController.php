@@ -19,8 +19,16 @@ class TrackController extends Controller
     {
         $tracks = Track::query()
             ->withCount('lessons')
-            ->orderBy('order')
+            ->with('themenfeld')
             ->get()
+            ->sortBy(fn (Track $track) => sprintf(
+                '%02d-%s-%02d-%s',
+                $this->themenfeldOrder($track),
+                $this->themenfeldSlug($track),
+                $track->order,
+                $track->slug,
+            ))
+            ->values()
             ->map(fn (Track $track) => [
                 'slug' => $track->slug,
                 'title_key' => $track->title_key,
@@ -28,6 +36,7 @@ class TrackController extends Controller
                 'hours' => $track->hours,
                 'status' => $track->status,
                 'lessons_count' => $track->lessons_count,
+                'themenfeld' => $this->themenfeldSlug($track),
             ]);
 
         return Inertia::render('Tracks/Index', [
@@ -74,6 +83,7 @@ class TrackController extends Controller
             'track' => [
                 'slug' => $track->slug,
                 'title_key' => $track->title_key,
+                'themenfeld' => $this->themenfeldSlug($track),
             ],
             'lessons' => $lessons,
             'exam' => [
@@ -83,5 +93,25 @@ class TrackController extends Controller
                 'passed' => $status['passed'],
             ],
         ]);
+    }
+
+    /**
+     * Themenfeld-Slug eines Tracks, mit "dicom" als Fallback (Abschnitt 13):
+     * `themenfeld_id` ist nullable (siehe Migration), praktisch aber immer
+     * gesetzt, sobald content:sync gelaufen ist -- derselbe Fallback wie in
+     * NodeController::themenfeldSlug().
+     */
+    private function themenfeldSlug(Track $track): string
+    {
+        return $track->themenfeld_id === null ? 'dicom' : $track->themenfeld->slug;
+    }
+
+    /**
+     * @see self::themenfeldSlug() -- 1 ist dicoms tatsaechlicher Wert in
+     * themenfelder.yml, deshalb derselbe Fallback wie dort.
+     */
+    private function themenfeldOrder(Track $track): int
+    {
+        return $track->themenfeld_id === null ? 1 : $track->themenfeld->order;
     }
 }
