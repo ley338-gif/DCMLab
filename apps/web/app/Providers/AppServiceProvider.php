@@ -7,7 +7,9 @@ use App\Activities\ActivityType;
 use App\Activities\ExamActivity;
 use App\Activities\LessonActivity;
 use App\Activities\NodeActivity;
+use App\Content\CacheInvalidatorContract;
 use App\Content\ContentRepository;
+use App\Content\NullCacheInvalidator;
 use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ContentRepository::class, fn () => new ContentRepository(config('content.path')));
         $this->app->singleton(EngineClientContract::class, EngineClient::class);
         $this->app->singleton(SandboxClientContract::class, SandboxClient::class);
+        $this->app->singleton(CacheInvalidatorContract::class, NullCacheInvalidator::class);
 
         $this->app->singleton(ActivityRegistry::class, function ($app) {
             $registry = new ActivityRegistry;

@@ -26,6 +26,7 @@ prototyp/      Die spielbare Node "Silent CT" als einzelne HTML-Datei (P0)
 | den Betrieb verstehen (Backup, Update, Logs) | `docs/betrieb.md` |
 | bekannte Content-Lücken sehen | `docs/content-todo.md` |
 | Entscheidungen je Phase nachvollziehen | `docs/adr/` |
+| offene Entscheidungen sehen, die der Betreiber trifft | `docs/offene-fragen.md` |
 | den Bauauftrag lesen | `dcm-lab-agent-prompt.md` |
 
 ## Starten
@@ -153,7 +154,14 @@ erzeugten Artefakt machen.
   ohne Dateisystemzugriff gegen Arrays aufrufbar. Das Artisan-Command ist ein
   duenner Aufruf; `LessonActivity`/`NodeActivity`/`ExamActivity::validate()`
   nutzen denselben Service, gefiltert auf ihre eigenen Dateien.
-- W2–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W2 — `ContentWriter`/`ContentImporter`** (fertig, siehe ADR 0074): Writer
+  validiert vor dem Schreiben, schreibt atomar mit Kopf-Marker, stoesst
+  `content:sync` und `ContentBuilder` (ebenfalls jetzt ein Service) an.
+  Laeuft bisher nur gegen Tests, nicht gegen die echte `content/` -- das
+  waere ein groesserer, review-pflichtiger Schritt fuer sich.
+  Cache-Invalidierung bei Engine/Sandbox ist als Schnittstelle vorbereitet,
+  aber ein No-op (siehe `docs/offene-fragen.md`).
+- W3–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 
