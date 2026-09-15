@@ -94,9 +94,10 @@ final class ExamAttemptService
         abort_if($questionId === null, 409);
 
         [$exam, $entry] = $this->loadQuestion($attempt->track, $questionId);
+        $lessons = $this->content->lessons();
 
-        $correctAnswer = ExamContent::answerFor($exam['meta']['questions'], $questionId);
-        $correct = AnswerGrader::isCorrect((string) $entry['type'], $submitted, $correctAnswer);
+        $correctAnswer = ExamContent::answerFor($exam['meta']['questions'], $questionId, $lessons);
+        $correct = AnswerGrader::isCorrect(ExamContent::typeFor($entry, $lessons), $submitted, $correctAnswer);
 
         $answers = $attempt->answers;
         $answers[$questionId] = ['submitted' => $submitted, 'correct' => $correct];

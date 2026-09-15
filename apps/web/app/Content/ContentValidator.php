@@ -348,30 +348,48 @@ final class ContentValidator
 
             $this->checkExamReview($metaFile, $metaRaw, $id, $entry, $allLessons, $trackLessonIds);
 
-            $block = $blocks[$id] ?? null;
-            if ($block === null) {
-                $this->issue($exam['md_file'], null, "Pruefungsfrage \"{$id}\" aus exam.yml hat keinen \"### {$id} — ...\"-Abschnitt in de.md");
+            $ref = $entry['ref'] ?? null;
 
-                continue;
+            if ($ref !== null) {
+                $optionCount = $this->checkExamQuestionRef($metaFile, $metaRaw, $id, $ref, $allLessons);
+
+                if ($optionCount === null) {
+                    continue;
+                }
+
+                $block = $blocks[$id] ?? null;
+
+                if ($block !== null) {
+                    $this->checkExamExplanation($exam['md_file'], $id, $block);
+                }
+
+                $answer = QuizContent::answerFor($allLessons[$ref['lesson']]['meta']['quiz'] ?? [], (string) $ref['question']);
+                $type = ExamContent::typeFor($entry, $allLessons);
+            } else {
+                $block = $blocks[$id] ?? null;
+
+                if ($block === null) {
+                    $this->issue($exam['md_file'], null, "Pruefungsfrage \"{$id}\" aus exam.yml hat keinen \"### {$id} — ...\"-Abschnitt in de.md");
+
+                    continue;
+                }
+
+                $this->checkExamExplanation($exam['md_file'], $id, $block);
+
+                $type = (string) ($entry['type'] ?? '');
+                $optionCount = count(ExamContent::extractOptions($block['body']));
+                $answer = $entry['answer'] ?? null;
             }
-
-            $explanationCount = preg_match_all('/^\*\*Erklärung:\*\*/mu', $block['body']);
-            if ($explanationCount !== 1) {
-                $this->issue($exam['md_file'], null, "Pruefungsfrage \"{$id}\": braucht genau eine \"**Erklärung:**\"-Zeile ({$explanationCount} gefunden)");
-            }
-
-            $type = (string) ($entry['type'] ?? '');
-            $optionCount = count(ExamContent::extractOptions($block['body']));
 
             if (array_key_exists($type, $typeCounts)) {
                 $typeCounts[$type]++;
             }
 
             match ($type) {
-                'single' => $this->checkQuizIndexAnswer($metaFile, $metaRaw, $id, $entry['answer'] ?? null, $optionCount),
-                'multi' => $this->checkQuizMultiAnswer($metaFile, $metaRaw, $id, $entry['answer'] ?? null, $optionCount),
-                'truefalse' => $this->checkExamTrueFalseAnswer($metaFile, $metaRaw, $id, $entry['answer'] ?? null),
-                'input' => $this->checkQuizInputAnswer($metaFile, $metaRaw, $id, $entry['answer'] ?? null),
+                'single' => $this->checkQuizIndexAnswer($metaFile, $metaRaw, $id, $answer, $optionCount),
+                'multi' => $this->checkQuizMultiAnswer($metaFile, $metaRaw, $id, $answer, $optionCount),
+                'truefalse' => $this->checkExamTrueFalseAnswer($metaFile, $metaRaw, $id, $answer),
+                'input' => $this->checkQuizInputAnswer($metaFile, $metaRaw, $id, $answer),
                 default => $this->issue(
                     $metaFile,
                     LineFinder::firstLineContaining($metaRaw, $id),
@@ -466,6 +484,58 @@ final class ContentValidator
             if (! in_array($target['anchor'], $validSlugs, true)) {
                 $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": anchor \"{$target['anchor']}\" ist keine Ueberschrift in Lektion \"{$target['lesson']}\"");
             }
+        }
+    }
+
+    /**
+     * Fragenbank (ADR 0071/0079, W5): prueft, dass `ref.lesson` existiert
+     * und `ref.question` eine echte Frage in deren `quiz:`-Block ist, und
+     * liefert die Optionsanzahl aus der Lektion selbst zurueck -- dieselbe
+     * Zaehlung wie fuer die Lektion, damit `answer`-Grenzen (Index-Bereich
+     * bei single/multi) nicht ein zweites Mal, abweichend gepflegt werden.
+     * `null` bedeutet: nicht aufloesbar, bereits als Issue vermerkt.
+     *
+     * @param  array<string, mixed>  $ref
+     * @param  array<string, array<string, mixed>>  $allLessons
+     */
+    private function checkExamQuestionRef(string $metaFile, string $metaRaw, string $id, array $ref, array $allLessons): ?int
+    {
+        $lessonId = (string) ($ref['lesson'] ?? '');
+        $questionId = (string) ($ref['question'] ?? '');
+        $lesson = $allLessons[$lessonId] ?? null;
+
+        if ($lesson === null) {
+            $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": ref.lesson verweist auf unbekannte Lektion \"{$lessonId}\"");
+
+            return null;
+        }
+
+        $exists = false;
+        foreach ($lesson['meta']['quiz'] ?? [] as $candidate) {
+            if ((string) ($candidate['id'] ?? '') === $questionId) {
+                $exists = true;
+                break;
+            }
+        }
+
+        if (! $exists) {
+            $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": ref.question \"{$questionId}\" existiert nicht im quiz-Block von Lektion \"{$lessonId}\"");
+
+            return null;
+        }
+
+        return $this->countQuizOptions((string) ($lesson['md_raw'] ?? ''), $questionId);
+    }
+
+    /**
+     * @param  array{question: string, body: string}  $block
+     */
+    private function checkExamExplanation(string $mdFile, string $id, array $block): void
+    {
+        $explanationCount = preg_match_all('/^\*\*Erklärung:\*\*/mu', $block['body']);
+
+        if ($explanationCount !== 1) {
+            $this->issue($mdFile, null, "Pruefungsfrage \"{$id}\": braucht genau eine \"**Erklärung:**\"-Zeile ({$explanationCount} gefunden)");
         }
     }
 

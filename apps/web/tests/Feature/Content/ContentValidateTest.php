@@ -584,6 +584,66 @@ class ContentValidateTest extends TestCase
     }
 
     // -----------------------------------------------------------------
+    // Fragenbank: ref-Eintraege (ADR 0071/0079, W5)
+    // -----------------------------------------------------------------
+
+    public function test_valid_exam_ref_question_passes_without_its_own_markdown_block(): void
+    {
+        $dir = $this->buildContentDir(array_merge(
+            $this->examFiles([
+                'exams/fundamente/exam.yml' => str_replace(
+                    "  - id: f01\n    type: single\n    answer: 0\n    lesson: \"1.0\"",
+                    "  - id: f01\n    ref: { lesson: \"1.0\", question: \"q1\" }\n    lesson: \"1.0\"",
+                    $this->validExamYml(),
+                ),
+                'exams/fundamente/de.md' => str_replace(
+                    "### f01 — Testfrage eins?\n\n1. Richtig\n2. Falsch\n\n**Erklärung:** Testerklaerung eins.\n\n",
+                    '',
+                    $this->validExamMarkdown(),
+                ),
+            ]),
+            [
+                'lessons/1.0/meta.yml' => str_replace(
+                    'glossary_terms: [dicom]',
+                    "glossary_terms: [dicom]\nquiz:\n  - id: q1\n    type: single\n    answer: 0",
+                    $this->validLessonMeta(),
+                ),
+                'lessons/1.0/de.md' => $this->validLessonMarkdown()."\n\n## Quiz\n\n**q1 — Testfrage eins?**\n1. Richtig\n2. Falsch\n",
+            ],
+        ));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(0, $result['exitCode'], $result['output']);
+    }
+
+    public function test_exam_ref_to_unknown_question_fails(): void
+    {
+        $dir = $this->buildContentDir(array_merge(
+            $this->examFiles([
+                'exams/fundamente/exam.yml' => str_replace(
+                    "  - id: f01\n    type: single\n    answer: 0\n    lesson: \"1.0\"",
+                    "  - id: f01\n    ref: { lesson: \"1.0\", question: \"q99\" }\n    lesson: \"1.0\"",
+                    $this->validExamYml(),
+                ),
+            ]),
+            [
+                'lessons/1.0/meta.yml' => str_replace(
+                    'glossary_terms: [dicom]',
+                    "glossary_terms: [dicom]\nquiz:\n  - id: q1\n    type: single\n    answer: 0",
+                    $this->validLessonMeta(),
+                ),
+                'lessons/1.0/de.md' => $this->validLessonMarkdown()."\n\n## Quiz\n\n**q1 — Testfrage eins?**\n1. Richtig\n2. Falsch\n",
+            ],
+        ));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('ref.question "q99" existiert nicht im quiz-Block von Lektion "1.0"', $result['output']);
+    }
+
+    // -----------------------------------------------------------------
     // Fixture-Aufbau
     // -----------------------------------------------------------------
 
