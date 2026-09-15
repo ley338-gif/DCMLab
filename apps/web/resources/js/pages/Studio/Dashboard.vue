@@ -8,11 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { index as authorPanelIndex } from '@/routes/author';
 import { index as sandboxTemplatesIndex } from '@/routes/studio/sandbox-templates';
+import { index as studioTracksIndex } from '@/routes/studio/tracks';
 
 const props = defineProps<{
     role: 'learner' | 'author' | 'reviewer' | 'administrator';
     can_manage_sandbox_templates: boolean;
     sandbox_template_count: number;
+    can_manage_tracks: boolean;
+    track_count: number;
 }>();
 
 const roleLabels: Record<string, string> = {
@@ -48,6 +51,28 @@ const roleLabels: Record<string, string> = {
         </div>
 
         <div class="grid gap-4 md:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ trans('Tracks') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="flex flex-col gap-3">
+                    <p class="text-muted-foreground text-sm">
+                        {{
+                            trans(':count Tracks insgesamt.', {
+                                count: props.track_count,
+                            })
+                        }}
+                    </p>
+                    <Link :href="studioTracksIndex()">
+                        <Button variant="outline">{{
+                            props.can_manage_tracks
+                                ? trans('Tracks verwalten')
+                                : trans('Tracks ansehen')
+                        }}</Button>
+                    </Link>
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle>{{ trans('Sandbox-Vorlagen') }}</CardTitle>

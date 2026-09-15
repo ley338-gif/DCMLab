@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\SandboxTemplate;
+use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -74,5 +75,22 @@ class StudioControllerTest extends TestCase
         $this->actingAs($author)
             ->get('/de/studio')
             ->assertInertia(fn ($page) => $page->where('sandbox_template_count', 3));
+    }
+
+    public function test_it_reports_the_track_count_and_manage_rights(): void
+    {
+        Track::factory()->count(2)->create();
+        $author = User::factory()->author()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($author)
+            ->get('/de/studio')
+            ->assertInertia(fn ($page) => $page
+                ->where('track_count', 2)
+                ->where('can_manage_tracks', false));
+
+        $this->actingAs($reviewer)
+            ->get('/de/studio')
+            ->assertInertia(fn ($page) => $page->where('can_manage_tracks', true));
     }
 }

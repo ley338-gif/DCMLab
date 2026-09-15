@@ -20,6 +20,7 @@ use App\Http\Controllers\ReviewQueueController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\StudioController;
 use App\Http\Controllers\StudioSandboxTemplateController;
+use App\Http\Controllers\StudioTrackController;
 use App\Http\Controllers\TrackController;
 use Illuminate\Support\Facades\Route;
 
@@ -78,6 +79,15 @@ Route::prefix('de')->group(function () {
             Route::get('/', [StudioSandboxTemplateController::class, 'index'])->name('index');
             Route::post('/', [StudioSandboxTemplateController::class, 'store'])->name('store');
             Route::patch('{sandboxTemplate}', [StudioSandboxTemplateController::class, 'update'])->name('update');
+        });
+        Route::prefix('studio/tracks')->name('studio.tracks.')->group(function () {
+            Route::get('/', [StudioTrackController::class, 'index'])->name('index');
+            Route::post('/', [StudioTrackController::class, 'store'])->name('store');
+            Route::patch('{track}', [StudioTrackController::class, 'update'])->name('update');
+            Route::post('{track}/publish', [StudioTrackController::class, 'publish'])->name('publish');
+            Route::post('{track}/unpublish', [StudioTrackController::class, 'unpublish'])->name('unpublish');
+            Route::post('{track}/archive', [StudioTrackController::class, 'archive'])->name('archive');
+            Route::post('{track}/restore', [StudioTrackController::class, 'restore'])->name('restore');
         });
 
         // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte
