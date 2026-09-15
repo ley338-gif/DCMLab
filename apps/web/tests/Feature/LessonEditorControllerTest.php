@@ -165,6 +165,19 @@ class LessonEditorControllerTest extends TestCase
         $activity->refresh();
         $this->assertSame('Neuer Titel', $activity->title['de']);
         $this->assertSame('Neuer Teaser', $activity->teaser['de']);
+
+        // ADR 0102-Nachtrag: re-oeffnen zeigt den frisch veroeffentlichten
+        // Stand, nicht die veraltete Datei (die bewusst nie geschrieben
+        // wurde) -- currentFields() muss deshalb die DB bevorzugen.
+        $this->actingAs($author)
+            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->assertInertia(fn ($page) => $page
+                ->where('fields.title', 'Neuer Titel')
+                ->where('fields.level', 'aufbau')
+                ->where('fields.objectives', ['Neues Lernziel eins', 'Neues Lernziel zwei'])
+                ->where('fields.body', fn (string $body) => str_contains($body, 'Neue Einleitung')
+                    && ! str_contains($body, 'q1 — Frage')),
+            );
     }
 
     /**
@@ -180,9 +193,16 @@ class LessonEditorControllerTest extends TestCase
         $lesson = Lesson::factory()->create([
             'lesson_id' => '1.0',
             'track_id' => $track->id,
+            'level' => 'einsteiger',
+            'duration_minutes' => 5,
+            'requires' => [],
+            'tools' => ['dcmdump'],
+            'glossary_terms' => ['dicom'],
             'title' => ['de' => 'Alter Titel'],
             'teaser' => ['de' => 'Alter Teaser'],
             'objectives' => ['Altes Lernziel'],
+            'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+            'lab' => ['node' => null, 'optional' => true],
             'body' => "## Intro\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Test.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.",
         ]);
         $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
