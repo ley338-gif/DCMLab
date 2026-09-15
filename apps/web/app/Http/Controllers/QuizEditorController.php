@@ -111,10 +111,27 @@ class QuizEditorController extends Controller
      * kommen so unveraendert zurueck; mit Auszeichnung geht nur die
      * Formatierung selbst verloren, nicht der Text.
      *
+     * Seit ADR 0104 (CMS-6a) bevorzugt aus der DB (`lessons.quiz`/`body`,
+     * von content:sync befuellt) -- eine Quiz-Freigabe schreibt seitdem
+     * nicht mehr nach `content/`, ein Datei-Ist-Zustand waere fuer eine
+     * bereits so veroeffentlichte Lektion veraltet (derselbe Fund wie ADR
+     * 0103 fuer den Lektions-Editor). `content/` bleibt Fallback fuer eine
+     * noch nicht synchronisierte Lektion.
+     *
      * @return list<array{id: string, type: string, answer: mixed, question: string, options: list<string>}>
      */
     private function currentQuestions(Lesson $lesson, ContentRepository $content): array
     {
+        $renderer = new MarkdownRenderer($content->glossary());
+
+        if ($lesson->body !== null) {
+            /** @var list<array<string, mixed>> $quizMeta */
+            $quizMeta = $lesson->quiz ?? [];
+            $split = QuizContent::splitBody($lesson->body);
+
+            return $this->mergeQuestionsWithMeta($quizMeta, QuizContent::parseQuestions($split['quiz_raw'], $quizMeta, $renderer));
+        }
+
         $entry = $content->lessons()[$lesson->lesson_id] ?? null;
 
         if ($entry === null) {
@@ -124,9 +141,17 @@ class QuizEditorController extends Controller
         /** @var list<array<string, mixed>> $quizMeta */
         $quizMeta = $entry['meta']['quiz'] ?? [];
         $split = QuizContent::splitBody($entry['body'] ?? '');
-        $renderer = new MarkdownRenderer($content->glossary());
-        $parsed = QuizContent::parseQuestions($split['quiz_raw'], $quizMeta, $renderer);
 
+        return $this->mergeQuestionsWithMeta($quizMeta, QuizContent::parseQuestions($split['quiz_raw'], $quizMeta, $renderer));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $quizMeta
+     * @param  array<int, array{id: string, type: string, question_html: string, options_html: array<int, string>}>  $parsed
+     * @return list<array{id: string, type: string, answer: mixed, question: string, options: list<string>}>
+     */
+    private function mergeQuestionsWithMeta(array $quizMeta, array $parsed): array
+    {
         $parsedById = [];
         foreach ($parsed as $parsedQuestion) {
             $parsedById[$parsedQuestion['id']] = $parsedQuestion;

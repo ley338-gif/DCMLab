@@ -92,10 +92,17 @@ class QuizEditorControllerTest extends TestCase
         $this->assertSame(0, ContentVersion::count());
     }
 
-    public function test_the_full_lifecycle_from_draft_to_publish_actually_writes_content(): void
+    /**
+     * ADR 0104 (CMS-6a): eine Quiz-Freigabe schreibt jetzt direkt in die DB
+     * (QuizContentPublisher) -- content/ bleibt unangetastet.
+     */
+    public function test_the_full_lifecycle_from_draft_to_publish_writes_to_the_db_without_touching_content_files(): void
     {
         [$lesson, $activity, $author] = $this->lessonAndActivity();
         $reviewer = User::factory()->reviewer()->create();
+
+        $originalMeta = File::get($this->contentDir.'/lessons/1.0/meta.yml');
+        $originalBody = File::get($this->contentDir.'/lessons/1.0/de.md');
 
         $payload = [
             'questions' => [
@@ -128,7 +135,7 @@ class QuizEditorControllerTest extends TestCase
             ->post("/de/author/quiz-versions/{$version->id}/publish")
             ->assertForbidden();
 
-        // 4. Freigeben -- schreibt tatsaechlich nach content/.
+        // 4. Freigeben -- schreibt direkt in die DB, nicht mehr nach content/.
         $this->actingAs($reviewer)
             ->post("/de/author/quiz-versions/{$version->id}/publish")
             ->assertRedirect();
@@ -136,14 +143,21 @@ class QuizEditorControllerTest extends TestCase
         $this->assertSame('published', $version->refresh()->status);
         $this->assertTrue($version->is_current);
 
-        $writtenMeta = File::get($this->contentDir.'/lessons/1.0/meta.yml');
-        $writtenBody = File::get($this->contentDir.'/lessons/1.0/de.md');
-        $this->assertStringContainsString('quiz:', $writtenMeta);
-        $this->assertStringContainsString('id: q1', $writtenMeta);
-        $this->assertStringContainsString('Was stimmt?', $writtenBody);
+        // content/ bleibt vollstaendig unangetastet.
+        $this->assertSame($originalMeta, File::get($this->contentDir.'/lessons/1.0/meta.yml'));
+        $this->assertSame($originalBody, File::get($this->contentDir.'/lessons/1.0/de.md'));
 
-        // 5. Danach benutzen: content:sync hat den neuen source_hash uebernommen.
-        $this->assertDatabaseHas('activities', ['id' => $activity->id]);
+        $lesson->refresh();
+        $this->assertSame([['id' => 'q1', 'type' => 'single', 'answer' => 0]], $lesson->quiz);
+        $this->assertStringContainsString('Was stimmt?', $lesson->body);
+
+        // 5. Erneutes Oeffnen zeigt den frisch veroeffentlichten Stand.
+        $this->actingAs($author)
+            ->get("/de/author/lessons/{$lesson->lesson_id}/quiz")
+            ->assertInertia(fn ($page) => $page
+                ->where('questions.0.id', 'q1')
+                ->where('questions.0.question', 'Was stimmt?'),
+            );
     }
 
     /**
@@ -152,7 +166,13 @@ class QuizEditorControllerTest extends TestCase
     private function lessonAndActivity(): array
     {
         $track = Track::factory()->create(['slug' => 'fundamente']);
-        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id]);
+        // Body wie ihn ein bereits gelaufener content:sync (ADR 0101) aus
+        // derselben Datei in die DB uebernommen haette.
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.0',
+            'track_id' => $track->id,
+            'body' => "## Intro\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Test.",
+        ]);
         $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
         $author = User::factory()->author()->create();
         $activity->authorUsers()->attach($author);

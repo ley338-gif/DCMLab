@@ -159,6 +159,9 @@ class ContentSync extends Command
                     // zusaetzlicher Lesevorgang, nur zwei weitere Spalten.
                     'body' => $lesson['body'] ?? null,
                     'objectives' => $lesson['frontmatter']['objectives'] ?? [],
+                    // ADR 0104 (CMS-6a): dieselbe Datei wie objectives/body,
+                    // nur der quiz:-Block aus meta.yml statt der Frontmatter.
+                    'quiz' => $lesson['meta']['quiz'] ?? [],
                     'source_hash' => $sourceHash,
                 ],
             );

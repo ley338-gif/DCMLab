@@ -110,10 +110,19 @@ final readonly class QuizActivity implements ActivityContract
     }
 
     /**
+     * Seit ADR 0104 (CMS-6a) bevorzugt aus der DB (von content:sync aus
+     * meta.yml befuellt) -- content/ bleibt Fallback fuer eine Lektion,
+     * deren naechster Sync-Lauf noch aussteht (wie schon bei
+     * LessonActivity::validate(), ADR 0101).
+     *
      * @return array<int, array<string, mixed>>
      */
     private function quizMeta(): array
     {
+        if ($this->lesson->quiz !== null) {
+            return $this->lesson->quiz;
+        }
+
         $entry = $this->content->lessons()[$this->lesson->lesson_id] ?? null;
 
         return $entry['meta']['quiz'] ?? [];
@@ -124,6 +133,10 @@ final readonly class QuizActivity implements ActivityContract
      */
     private function splitBody(): array
     {
+        if ($this->lesson->body !== null) {
+            return QuizContent::splitBody($this->lesson->body);
+        }
+
         $entry = $this->content->lessons()[$this->lesson->lesson_id] ?? null;
 
         return QuizContent::splitBody($entry['body'] ?? '');
