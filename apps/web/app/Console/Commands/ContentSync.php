@@ -171,6 +171,26 @@ class ContentSync extends Command
                 ],
             );
 
+            // ADR 0096 (CMS-2b): eine Spielwiese bekommt nur dann einen
+            // eigenen activities-Verzeichniseintrag, wenn die Lektion
+            // tatsaechlich eine hat (sandbox.dataset gesetzt) -- anders als
+            // bei Lesson/Node/Exam gibt es hier keine 1:1-Entsprechung.
+            // Wird eine Spielwiese spaeter aus einer Lektion entfernt, bleibt
+            // ihr Activity-Eintrag bestehen (content:sync loescht nie, siehe
+            // docs/offene-fragen.md).
+            if (($lesson['meta']['sandbox']['dataset'] ?? null) !== null) {
+                Activity::updateOrCreate(
+                    ['type' => 'sandbox', 'key' => $id],
+                    [
+                        'track_id' => $trackIds[$trackSlug],
+                        'order' => $order,
+                        'status' => $status,
+                        'title' => $title,
+                        'source_hash' => $sourceHash,
+                    ],
+                );
+            }
+
             $count++;
         }
 

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Activity;
 use App\Models\Lesson;
+use App\Models\SandboxSession;
 use App\Models\SandboxTemplate;
 use App\Services\AchievementService;
 use App\Services\RuntimeProviderRegistry;
@@ -12,16 +14,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Proxy zur Spielwiese (Abschnitt 6) -- kein eigener Zustand auf der
- * Laravel-Seite: "kein Zustand ueber Sitzungen hinweg, Neustart ist immer
- * eine Zeile". Die sandbox_id lebt nur im Browser (Vue-Komponentenstand).
- *
- * Seit ADR 0096 (CMS-2) geht jeder Aufruf ueber RuntimeProviderRegistry statt
- * direkt gegen SandboxClientContract -- state()/exec()/destroy() kennen den
- * urspruenglichen Provider einer sandbox_id noch nicht (kein SandboxSession-
- * Datensatz, siehe docs/offene-fragen.md) und loesen deshalb weiterhin fest
- * "docker" auf; nur create() prueft bereits gegen ein echtes, freigegebenes
- * SandboxTemplate.
+ * Proxy zur Spielwiese (Abschnitt 6) -- kein eigener LAUFZEITzustand auf der
+ * Laravel-Seite ("kein Zustand ueber Sitzungen hinweg, Neustart ist immer
+ * eine Zeile"): die sandbox_id lebt weiterhin nur im Browser. Seit ADR 0096
+ * (CMS-2b) schreibt create() aber einen durablen SandboxSession-Datensatz
+ * (Historie/Audit, nicht Laufzeitzustand) -- state()/exec()/destroy() nutzen
+ * ihn, um `runtime_provider` korrekt nachzuschlagen statt ihn zu raten.
+ * Kennt eine sandbox_id keine Sitzung (z. B. aus einer Zeit vor dieser
+ * Migration), bleibt "docker" der Fallback.
  */
 class SandboxController extends Controller
 {
@@ -49,6 +49,20 @@ class SandboxController extends Controller
             return response()->json($result, 429);
         }
 
+        // activity_id bleibt null, solange content:sync fuer diese Lektion
+        // noch keinen type=sandbox-Eintrag angelegt hat (ContentSync::
+        // syncLessons()) -- die Sitzung entsteht trotzdem.
+        SandboxSession::query()->create([
+            'user_id' => Auth::id(),
+            'activity_id' => Activity::query()->where('type', 'sandbox')->where('key', $lesson->lesson_id)->value('id'),
+            'sandbox_template_id' => $template->id,
+            'runtime_provider' => $template->runtime_provider,
+            'runtime_instance_id' => $result['sandbox_id'] ?? null,
+            'status' => $result['status'] ?? 'running',
+            'started_at' => now(),
+            'last_activity_at' => now(),
+        ]);
+
         // "sandbox-starter" nur bei wirklich erzeugter Umgebung, nicht beim
         // reinen Anklicken der Lektion (Achievement-System, Abschnitt 6).
         $unlockResult = $achievements->unlock(Auth::user(), 'sandbox-starter', [
@@ -65,20 +79,52 @@ class SandboxController extends Controller
 
     public function state(string $sandboxId, RuntimeProviderRegistry $runtimeProviders): JsonResponse
     {
-        return response()->json($runtimeProviders->for('docker')->state($sandboxId));
+        return response()->json($runtimeProviders->for($this->runtimeProviderFor($sandboxId))->state($sandboxId));
     }
 
     public function exec(Request $request, string $sandboxId, RuntimeProviderRegistry $runtimeProviders): JsonResponse
     {
         $data = $request->validate(['command' => 'required|string']);
 
-        return response()->json($runtimeProviders->for('docker')->exec($sandboxId, $data['command']));
+        $session = $this->sessionFor($sandboxId);
+        $session?->update(['last_activity_at' => now()]);
+
+        return response()->json($runtimeProviders->for($this->runtimeProviderFor($sandboxId, $session))->exec($sandboxId, $data['command']));
     }
 
     public function destroy(string $sandboxId, RuntimeProviderRegistry $runtimeProviders): JsonResponse
     {
-        $runtimeProviders->for('docker')->delete($sandboxId);
+        $session = $this->sessionFor($sandboxId);
+
+        $runtimeProviders->for($this->runtimeProviderFor($sandboxId, $session))->delete($sandboxId);
+
+        $session?->update(['status' => 'destroyed', 'finished_at' => now()]);
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * `$session` kann bereits vorab geladen uebergeben werden, um dieselbe
+     * Abfrage nicht doppelt zu stellen; sonst wird sie hier nachgeholt.
+     * "docker" bleibt der Fallback, solange keine Sitzung bekannt ist (z. B.
+     * eine sandbox_id aus der Zeit vor ADR 0096/CMS-2b).
+     */
+    private function runtimeProviderFor(string $sandboxId, ?SandboxSession $session = null): string
+    {
+        $session ??= $this->sessionFor($sandboxId);
+
+        if ($session === null) {
+            return 'docker';
+        }
+
+        return $session->runtime_provider;
+    }
+
+    private function sessionFor(string $sandboxId): ?SandboxSession
+    {
+        return SandboxSession::query()
+            ->where('runtime_instance_id', $sandboxId)
+            ->latest('id')
+            ->first();
     }
 }

@@ -8,6 +8,7 @@ use App\Activities\ActivityType;
 use App\Activities\ExamActivity;
 use App\Activities\LessonActivity;
 use App\Activities\NodeActivity;
+use App\Activities\SandboxActivity;
 use App\Content\CacheInvalidatorContract;
 use App\Content\ContentRepository;
 use App\Content\HttpCacheInvalidator;
@@ -48,9 +49,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ActivityRegistry::class, function ($app) {
             $registry = new ActivityRegistry;
 
-            // Quiz und Spielwiese haengen an ihrer Lektion und haben keinen
-            // eigenen `activities`-Verzeichniseintrag -- siehe
-            // QuizActivity/SandboxActivity Klassendoc.
+            // Quiz haengt an seiner Lektion und hat keinen eigenen
+            // `activities`-Verzeichniseintrag -- siehe QuizActivity
+            // Klassendoc. Spielwiese hat seit ADR 0096 (CMS-2b) einen
+            // eigenen Eintrag (nur wenn die Lektion eine hat, siehe
+            // ContentSync::syncLessons()), ist aber wie Quiz weiterhin
+            // nicht versionable -- ihre Konfiguration bleibt Teil des
+            // Lektions-content_versions-Datensatzes.
             $registry->register(
                 ActivityType::Lesson,
                 fn (Activity $activity) => new LessonActivity(
@@ -63,6 +68,12 @@ class AppServiceProvider extends ServiceProvider
                 fn (Activity $activity) => new NodeActivity(
                     Node::where('slug', $activity->key)->firstOrFail(),
                     $app->make(ContentRepository::class),
+                ),
+            );
+            $registry->register(
+                ActivityType::Sandbox,
+                fn (Activity $activity) => new SandboxActivity(
+                    Lesson::where('lesson_id', $activity->key)->firstOrFail(),
                 ),
             );
             $registry->register(

@@ -2,7 +2,9 @@
 
 namespace Tests\Unit\Activities;
 
+use App\Activities\ActivityRegistry;
 use App\Activities\SandboxActivity;
+use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Track;
 use App\Models\User;
@@ -10,8 +12,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Spielwiese haengt an ihrer Lektion und hat deshalb keinen eigenen
- * `activities`-Verzeichniseintrag -- siehe SandboxActivity Klassendoc.
+ * Spielwiesen-Konfiguration haengt weiterhin an ihrer Lektion, hat aber seit
+ * ADR 0096 (CMS-2b) einen eigenen `activities`-Verzeichniseintrag -- siehe
+ * SandboxActivity Klassendoc.
  */
 class SandboxActivityTest extends TestCase
 {
@@ -50,6 +53,26 @@ class SandboxActivityTest extends TestCase
         $user = User::factory()->create();
 
         $this->assertNull($activity->result($user));
+    }
+
+    public function test_it_resolves_via_the_activity_registry(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create([
+            'track_id' => $track->id,
+            'sandbox' => ['required' => true, 'dataset' => 'ct-thorax-60'],
+        ]);
+        $record = Activity::factory()->create([
+            'type' => 'sandbox',
+            'key' => $lesson->lesson_id,
+            'track_id' => $track->id,
+        ]);
+
+        $resolved = $this->app->make(ActivityRegistry::class)->resolve($record);
+
+        $this->assertInstanceOf(SandboxActivity::class, $resolved);
+        $this->assertSame('sandbox', $resolved->activityType());
+        $this->assertSame($lesson->lesson_id, $resolved->key());
     }
 
     private function makeActivity(): SandboxActivity

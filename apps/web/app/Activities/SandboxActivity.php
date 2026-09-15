@@ -6,12 +6,16 @@ use App\Models\Lesson;
 use App\Models\User;
 
 /**
- * Aktivitaetsvertrag fuer die Spielwiese einer Lektion (ADR 0072). Wie Quiz
- * haengt eine Spielwiese heute an genau einer Lektion (`lessons.sandbox`)
- * und hat keinen eigenen `activities`-Verzeichniseintrag -- Instanzen
- * entstehen ueber `new SandboxActivity($lesson)`. ADR 0072 sieht die
- * Spielwiese perspektivisch als frei platzierbar vor; das setzt eine
- * eigene Content-Struktur voraus und ist nicht Teil von W0.
+ * Aktivitaetsvertrag fuer die Spielwiese einer Lektion (ADR 0072). Ihre
+ * Konfiguration (`dataset`, `note`) haengt weiterhin an genau einer Lektion
+ * (`lessons.sandbox`) -- serialize()/validate() haben bewusst kein eigenes
+ * Dateiziel, siehe unten. Seit ADR 0096 (CMS-2b) bekommt sie aber einen
+ * eigenen `activities`-Verzeichniseintrag (nur wenn die Lektion tatsaechlich
+ * eine Spielwiese hat, `ContentSync::syncLessons()`) und ist bei
+ * ActivityRegistry registriert -- das gibt ihr eine echte Identitaet fuer
+ * Autorenzuordnung (`activity_authors`) und kuenftige Platzierung
+ * (`freelyPlaceable`, ADR 0072/CMS-6), auch wenn ihre Konfiguration
+ * weiterhin ueber den Lektions-Editor gepflegt wird.
  *
  * Es gibt keinen Bewertungs- oder Abschlusszustand (Laravel haelt ohnehin
  * keinen eigenen Zustand fuer die Spielwiese, siehe SandboxController) --

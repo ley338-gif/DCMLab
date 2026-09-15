@@ -57,6 +57,42 @@ class ContentSyncTest extends TestCase
         $this->assertSame($lesson15->source_hash, $activity->source_hash);
     }
 
+    public function test_it_registers_a_sandbox_activity_entry_for_a_lesson_with_a_sandbox(): void
+    {
+        $dir = base_path('tests/Fixtures/content-real');
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        // Alle drei Fixture-Lektionen haben eine Spielwiese (sandbox.dataset
+        // gesetzt) -- siehe tests/Fixtures/content-real/lessons/*/meta.yml.
+        $sandbox = Activity::query()->where('type', 'sandbox')->where('key', '1.5')->first();
+        $this->assertNotNull($sandbox);
+        $lesson15 = Lesson::where('lesson_id', '1.5')->first();
+        $this->assertSame($lesson15->track_id, $sandbox->track_id);
+        $this->assertSame($lesson15->status, $sandbox->status);
+    }
+
+    public function test_it_skips_the_sandbox_activity_entry_for_a_lesson_without_a_sandbox(): void
+    {
+        $dir = storage_path('framework/testing/sync-'.uniqid());
+
+        File::ensureDirectoryExists($dir.'/lessons/1.0');
+        File::put($dir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: t\n  status: published\n");
+        File::put($dir.'/tracks.yml', "- slug: fundamente\n  themenfeld: dicom\n  order: 1\n  title_key: t\n  level: einsteiger\n  hours: 1\n  status: published\n");
+        File::put($dir.'/lessons/1.0/meta.yml', "id: \"1.0\"\ntrack: fundamente\norder: 0\nduration_minutes: 5\nlevel: einsteiger\nobjectives_count: 1\nrequires: []\ntools: []\nglossary_terms: []\nstatus: draft\n");
+        File::put($dir.'/lessons/1.0/de.md', "---\ntitle: Test\nteaser: Test\nobjectives:\n  - Eins\n---\n\nText.\n");
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $this->assertNotNull(Activity::query()->where('type', 'lesson')->where('key', '1.0')->first());
+        $this->assertNull(Activity::query()->where('type', 'sandbox')->where('key', '1.0')->first());
+
+        File::deleteDirectory($dir);
+    }
+
     public function test_it_is_idempotent(): void
     {
         $dir = base_path('tests/Fixtures/content-real');
