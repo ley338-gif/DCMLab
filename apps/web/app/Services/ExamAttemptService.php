@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Activities\ActivityProgressRecorder;
 use App\Content\AnswerGrader;
 use App\Content\ContentRepository;
 use App\Content\ExamContent;
@@ -38,6 +39,7 @@ final class ExamAttemptService
         private readonly ContentRepository $content,
         private readonly QuizSchedulerService $scheduler,
         private readonly ProfileService $profiles,
+        private readonly ActivityProgressRecorder $progressRecorder,
     ) {}
 
     /**
@@ -157,6 +159,8 @@ final class ExamAttemptService
         $attempt->badge_awarded = $badgeNewlyAwarded;
         $attempt->completed_at = now();
         $attempt->save();
+
+        $this->progressRecorder->record('exam', $attempt->track->slug, $attempt->user);
 
         return $attempt;
     }

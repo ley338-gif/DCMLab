@@ -168,6 +168,11 @@ erzeugten Artefakt machen.
   Sichtbarkeit fuer Lernende ist bewusst noch nicht an `status` gekoppelt --
   der reale Content-Bestand hat kein einziges `status: published`
   (`docs/offene-fragen.md`), das waere sonst eine sofortige Regression.
+- **Vorstufe zu W4 — `activity_progress` als echtes Schreibziel** (fertig,
+  siehe ADR 0076): Node-Solve, Lektionsabschluss und Pruefungsabschluss
+  fuellen jetzt zusaetzlich `activity_progress`; `activity:backfill-progress`
+  uebertraegt den Bestand. Grundlage fuer die eigentliche
+  Achievement-Vereinheitlichung (W4), die als naechstes folgt.
 - W4–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken

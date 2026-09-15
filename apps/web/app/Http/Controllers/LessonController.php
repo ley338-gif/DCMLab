@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Activities\ActivityProgressRecorder;
 use App\Content\ContentRepository;
 use App\Content\MarkdownRenderer;
 use App\Content\QuizContent;
@@ -105,27 +106,29 @@ class LessonController extends Controller
         ]);
     }
 
-    public function complete(Request $request, Lesson $lesson): RedirectResponse
+    public function complete(Request $request, Lesson $lesson, ActivityProgressRecorder $progressRecorder): RedirectResponse
     {
-        $this->setStatus($request, $lesson, 'completed');
+        $this->setStatus($request, $lesson, 'completed', $progressRecorder);
 
         return back();
     }
 
-    public function reopen(Request $request, Lesson $lesson): RedirectResponse
+    public function reopen(Request $request, Lesson $lesson, ActivityProgressRecorder $progressRecorder): RedirectResponse
     {
-        $this->setStatus($request, $lesson, 'started');
+        $this->setStatus($request, $lesson, 'started', $progressRecorder);
 
         return back();
     }
 
-    private function setStatus(Request $request, Lesson $lesson, string $status): void
+    private function setStatus(Request $request, Lesson $lesson, string $status, ActivityProgressRecorder $progressRecorder): void
     {
         $progress = LessonProgress::firstOrNew(['user_id' => $request->user()->id, 'lesson_id' => $lesson->id]);
         $progress->status = $status;
         $progress->started_at ??= now();
         $progress->completed_at = $status === 'completed' ? now() : null;
         $progress->save();
+
+        $progressRecorder->record('lesson', $lesson->lesson_id, $request->user());
     }
 
     /**
