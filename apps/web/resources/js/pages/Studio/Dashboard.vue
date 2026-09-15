@@ -1,0 +1,94 @@
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3';
+import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import PageContainer from '@/components/PageContainer.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { trans } from '@/lib/trans';
+import { index as authorPanelIndex } from '@/routes/author';
+import { index as sandboxTemplatesIndex } from '@/routes/studio/sandbox-templates';
+
+const props = defineProps<{
+    role: 'learner' | 'author' | 'reviewer' | 'administrator';
+    can_manage_sandbox_templates: boolean;
+    sandbox_template_count: number;
+}>();
+
+const roleLabels: Record<string, string> = {
+    author: trans('Autor:in'),
+    reviewer: trans('Reviewer:in'),
+    administrator: trans('Administrator:in'),
+};
+</script>
+
+<template>
+    <Head :title="trans('Studio')" />
+
+    <PageContainer>
+        <Breadcrumbs
+            class="mb-6"
+            :breadcrumbs="[{ title: trans('Studio'), href: '' }]"
+        />
+
+        <div class="mb-6 flex items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-semibold">
+                    {{ trans('DCMLab Studio') }}
+                </h1>
+                <p class="text-muted-foreground mt-1 text-sm">
+                    {{
+                        trans(
+                            'Wächst schrittweise neben dem Autoren-Panel — bisherige Editoren bleiben erreichbar.',
+                        )
+                    }}
+                </p>
+            </div>
+            <Badge variant="outline">{{ roleLabels[props.role] }}</Badge>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ trans('Sandbox-Vorlagen') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="flex flex-col gap-3">
+                    <p class="text-muted-foreground text-sm">
+                        {{
+                            trans(':count Vorlagen im Katalog.', {
+                                count: props.sandbox_template_count,
+                            })
+                        }}
+                    </p>
+                    <Link :href="sandboxTemplatesIndex()">
+                        <Button variant="outline">{{
+                            props.can_manage_sandbox_templates
+                                ? trans('Vorlagen verwalten')
+                                : trans('Vorlagen ansehen')
+                        }}</Button>
+                    </Link>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ trans('Autoren-Panel') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="flex flex-col gap-3">
+                    <p class="text-muted-foreground text-sm">
+                        {{
+                            trans(
+                                'Lektions-, Prüfungs-, Quiz- und Achievement-Editoren sind vorerst weiterhin dort.',
+                            )
+                        }}
+                    </p>
+                    <Link :href="authorPanelIndex()">
+                        <Button variant="outline">{{
+                            trans('Zum Autoren-Panel')
+                        }}</Button>
+                    </Link>
+                </CardContent>
+            </Card>
+        </div>
+    </PageContainer>
+</template>

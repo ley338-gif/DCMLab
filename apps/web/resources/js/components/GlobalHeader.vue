@@ -4,6 +4,7 @@ import {
     BookOpenText,
     FlaskConical,
     GraduationCap,
+    LayoutDashboard,
     LayoutGrid,
     ListChecks,
     Menu,
@@ -34,6 +35,7 @@ import { index as authorPanelIndex } from '@/routes/author';
 import { index as glossaryIndex } from '@/routes/glossary';
 import { index as nodesIndex } from '@/routes/nodes';
 import { index as reviewIndex } from '@/routes/review';
+import { index as studioIndex } from '@/routes/studio';
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
@@ -136,6 +138,19 @@ function isActive(prefix: string): boolean {
                                     <span>{{ trans('Autoren-Panel') }}</span>
                                 </Link>
                                 <Link
+                                    v-if="user && user.role !== 'learner'"
+                                    :href="studioIndex()"
+                                    :class="{
+                                        'is-active': isActive('/de/studio'),
+                                    }"
+                                >
+                                    <LayoutDashboard
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    <span>{{ trans('Studio') }}</span>
+                                </Link>
+                                <Link
                                     :href="glossaryIndex()"
                                     :class="{
                                         'is-active': isActive('/de/glossar'),
@@ -198,6 +213,14 @@ function isActive(prefix: string): boolean {
                 >
                     <ShieldCheck class="size-4" aria-hidden="true" />
                     {{ trans('Autoren-Panel') }}
+                </Link>
+                <Link
+                    v-if="user && user.role !== 'learner'"
+                    :href="studioIndex()"
+                    :class="{ 'is-active': isActive('/de/studio') }"
+                >
+                    <LayoutDashboard class="size-4" aria-hidden="true" />
+                    {{ trans('Studio') }}
                 </Link>
                 <Link
                     :href="glossaryIndex()"

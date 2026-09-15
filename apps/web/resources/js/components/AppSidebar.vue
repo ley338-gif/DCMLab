@@ -4,6 +4,7 @@ import {
     BookOpenText,
     FlaskConical,
     GraduationCap,
+    LayoutDashboard,
     LayoutGrid,
     ShieldCheck,
 } from '@lucide/vue';
@@ -25,6 +26,7 @@ import { dashboard, home } from '@/routes';
 import { index as authorPanelIndex } from '@/routes/author';
 import { index as glossaryIndex } from '@/routes/glossary';
 import { index as nodesIndex } from '@/routes/nodes';
+import { index as studioIndex } from '@/routes/studio';
 import type { NavItem } from '@/types';
 
 const page = usePage();
@@ -59,6 +61,11 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: trans('Autoren-Panel'),
             href: authorPanelIndex(),
             icon: ShieldCheck,
+        });
+        items.push({
+            title: trans('Studio'),
+            href: studioIndex(),
+            icon: LayoutDashboard,
         });
     }
 
