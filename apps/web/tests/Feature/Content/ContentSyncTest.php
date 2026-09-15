@@ -39,6 +39,31 @@ class ContentSyncTest extends TestCase
         $this->assertNotNull($lesson11);
     }
 
+    /**
+     * ADR 0101 (CMS-5a): body/objectives werden aus derselben Datei
+     * gefuellt, die auch title/teaser liefert.
+     */
+    public function test_it_fills_lesson_body_and_objectives_from_the_same_file(): void
+    {
+        $dir = base_path('tests/Fixtures/content-real');
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $lesson15 = Lesson::where('lesson_id', '1.5')->first();
+        $this->assertNotNull($lesson15->body);
+        $this->assertStringContainsString('Der Techniker des Modalitätenherstellers', $lesson15->body);
+        $this->assertSame(
+            [
+                'SCU und SCP als Rollen pro Dienst begreifen, nicht als Geräteeigenschaft',
+                'Called und Calling AE Title korrekt zuordnen',
+                'Die Rollenumkehr bei C-MOVE erklären',
+                'Einschätzen, was ein erfolgreiches C-ECHO beweist — und was nicht',
+            ],
+            $lesson15->objectives,
+        );
+    }
+
     public function test_it_also_registers_an_activity_entry_per_lesson(): void
     {
         $dir = base_path('tests/Fixtures/content-real');
