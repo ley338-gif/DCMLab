@@ -161,7 +161,14 @@ erzeugten Artefakt machen.
   waere ein groesserer, review-pflichtiger Schritt fuer sich.
   Cache-Invalidierung bei Engine/Sandbox ist als Schnittstelle vorbereitet,
   aber ein No-op (siehe `docs/offene-fragen.md`).
-- W3–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W3 — Versionierung, Rollen, Besitz** (fertig, siehe ADR 0075): drei
+  Rollen (`learner`/`author`/`reviewer`), `ActivityPolicy` (ein Autor darf
+  nur eigene Aktivitaeten bearbeiten), `content_versions` mit
+  `ContentVersioningService` (draft → review → published, Rollback).
+  Sichtbarkeit fuer Lernende ist bewusst noch nicht an `status` gekoppelt --
+  der reale Content-Bestand hat kein einziges `status: published`
+  (`docs/offene-fragen.md`), das waere sonst eine sofortige Regression.
+- W4–W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
 
 ## Bekannte Lücken
 

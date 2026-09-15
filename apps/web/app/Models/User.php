@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -20,6 +21,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property UserRole $role
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -44,6 +46,7 @@ class User extends Authenticatable implements PasskeyUser
     protected function casts(): array
     {
         return [
+            'role' => UserRole::class,
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
@@ -84,5 +87,17 @@ class User extends Authenticatable implements PasskeyUser
     public function achievementUnlocks(): HasMany
     {
         return $this->hasMany(AchievementUnlock::class);
+    }
+
+    /**
+     * Aktivitaeten, bei denen dieser Nutzer als Autor eingetragen ist
+     * (ADR 0071, W3) -- die echte Beziehung, gegen die ActivityPolicy
+     * prueft, nicht die Freitextliste in activities.authors.
+     *
+     * @return BelongsToMany<Activity, $this>
+     */
+    public function authoredActivities(): BelongsToMany
+    {
+        return $this->belongsToMany(Activity::class, 'activity_authors');
     }
 }
