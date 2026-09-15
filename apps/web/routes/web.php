@@ -3,6 +3,7 @@
 use App\Http\Controllers\ContentVersionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExamController;
+use App\Http\Controllers\ExamEditorController;
 use App\Http\Controllers\GlossaryController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
@@ -63,6 +64,11 @@ Route::prefix('de')->group(function () {
             Route::get('/', [LessonEditorController::class, 'edit'])->name('edit');
             Route::post('validate', [LessonEditorController::class, 'validateDraft'])->name('validate');
             Route::post('/', [LessonEditorController::class, 'storeDraft'])->name('store');
+        });
+        Route::prefix('author/exams/{track}/edit')->name('author.exams.edit.')->group(function () {
+            Route::get('/', [ExamEditorController::class, 'edit'])->name('edit');
+            Route::post('validate', [ExamEditorController::class, 'validateDraft'])->name('validate');
+            Route::post('/', [ExamEditorController::class, 'storeDraft'])->name('store');
         });
         // Generischer Freigabe-Kreislauf fuer jeden Editor -- Name aus
         // historischen Gruenden noch "quiz-versions" (ADR 0081), verarbeitet
