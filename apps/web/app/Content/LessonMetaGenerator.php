@@ -6,17 +6,19 @@ use Symfony\Component\Yaml\Yaml;
 
 /**
  * Erzeugt einzelne Felder in `meta.yml` und der Frontmatter von `de.md` aus
- * einem Entwurf (ADR 0080/0081, W6.2) -- chirurgisch wie
+ * einem Entwurf (ADR 0080/0081/0089, W6.2) -- chirurgisch wie
  * `LessonQuizGenerator`: nur die genannten Felder werden ersetzt, jede
- * andere Zeile (Kommentare eingeschlossen) bleibt unangetastet. Deckt nur
- * einzeilige Felder ab (Skalar oder Inline-Liste `[a, b]`), so wie sie im
- * echten Bestand tatsächlich vorkommen -- `quiz:` (mehrzeilig) bleibt
- * `LessonQuizGenerator`s Aufgabe, `objectives:` (mehrzeilige Liste in der
- * Frontmatter) ist bewusst noch nicht Teil dieses Editors.
+ * andere Zeile (Kommentare eingeschlossen) bleibt unangetastet.
+ * META_FIELDS/FRONT_MATTER_FIELDS decken einzeilige Felder ab (Skalar oder
+ * Inline-Liste `[a, b]`); `regenerateSandbox()`/`regenerateLab()` (ADR 0089)
+ * ersetzen die verschachtelten `sandbox:`/`lab:`-Bloecke nach demselben
+ * Block-Muster wie `LessonQuizGenerator`s `quiz:`-Block,
+ * `regenerateFrontMatter()`s `objectives`-Zweig die mehrzeilige Liste in
+ * der Frontmatter.
  */
 final class LessonMetaGenerator
 {
-    private const META_FIELDS = ['level', 'duration_minutes', 'tools', 'requires', 'glossary_terms'];
+    private const META_FIELDS = ['level', 'duration_minutes', 'tools', 'requires', 'glossary_terms', 'objectives_count'];
 
     private const FRONT_MATTER_FIELDS = ['title', 'teaser'];
 
@@ -37,7 +39,48 @@ final class LessonMetaGenerator
     }
 
     /**
-     * @param  array<string, mixed>  $fields  nur die Schluessel aus FRONT_MATTER_FIELDS werden ausgewertet, andere ignoriert
+     * `sandbox: {required, dataset?, note?}` (ADR 0089) -- `dataset`/`note`
+     * werden nur geschrieben, wenn sie einen Wert tragen (leer/null lassen
+     * die Zeile ganz weg, wie im echten Bestand: `sandbox.dataset` fehlt
+     * z. B. komplett, wenn `required: false`).
+     *
+     * @param  array{required: bool, dataset?: string|null, note?: string|null}  $sandbox
+     */
+    public static function regenerateSandbox(string $metaRaw, array $sandbox): string
+    {
+        $lines = ['sandbox:', '  required: '.self::dumpValue((bool) $sandbox['required'])];
+
+        if (! empty($sandbox['dataset'])) {
+            $lines[] = '  dataset: '.self::dumpValue($sandbox['dataset']);
+        }
+
+        if (! empty($sandbox['note'])) {
+            $lines[] = '  note: '.self::dumpValue($sandbox['note']);
+        }
+
+        return self::replaceBlock($metaRaw, 'sandbox', implode("\n", $lines)."\n");
+    }
+
+    /**
+     * `lab: {node, optional}` (ADR 0089) -- `node` steht im echten Bestand
+     * immer als Zeile da, auch wenn kein Lab zugeordnet ist (`node: null`).
+     *
+     * @param  array{node?: string|null, optional?: bool}  $lab
+     */
+    public static function regenerateLab(string $metaRaw, array $lab): string
+    {
+        $node = $lab['node'] ?? null;
+        $lines = [
+            'lab:',
+            '  node: '.($node === null || $node === '' ? 'null' : self::dumpValue($node)),
+            '  optional: '.self::dumpValue((bool) ($lab['optional'] ?? true)),
+        ];
+
+        return self::replaceBlock($metaRaw, 'lab', implode("\n", $lines)."\n");
+    }
+
+    /**
+     * @param  array<string, mixed>  $fields  nur die Schluessel aus FRONT_MATTER_FIELDS und `objectives` werden ausgewertet, andere ignoriert
      */
     public static function regenerateFrontMatter(string $mdRaw, array $fields): string
     {
@@ -70,6 +113,22 @@ final class LessonMetaGenerator
             $frontMatterBlock = self::replaceLine($frontMatterBlock, $key, "{$key}: ".self::dumpValue($fields[$key]));
         }
 
+        if (array_key_exists('objectives', $fields)) {
+            /** @var list<string> $objectives */
+            $objectives = $fields['objectives'];
+            $objectivesLines = ['objectives:'];
+
+            foreach ($objectives as $objective) {
+                $objectivesLines[] = '  - '.self::dumpValue($objective);
+            }
+
+            $frontMatterBlock = self::replaceBlock(
+                $frontMatterBlock,
+                'objectives',
+                implode("\n", $objectivesLines)."\n",
+            );
+        }
+
         $rest = implode("\n", array_slice($lines, $closingIndex + 1));
 
         return $frontMatterBlock."\n".$rest;
@@ -98,5 +157,24 @@ final class LessonMetaGenerator
         }
 
         return rtrim($raw, "\r\n")."\n".$newLine;
+    }
+
+    /**
+     * Ersetzt den gesamten mehrzeiligen Block, der mit `key:` beginnt (die
+     * Schluesselzeile selbst plus jede folgende eingerueckte oder leere
+     * Zeile) -- dasselbe Muster wie `LessonQuizGenerator::regenerateMeta()`
+     * fuer den `quiz:`-Block, hier fuer `sandbox:`/`lab:`/`objectives:`
+     * wiederverwendet. Haengt den Block ans Ende an, wenn der Schluessel
+     * noch nicht existiert.
+     */
+    private static function replaceBlock(string $raw, string $key, string $newBlock): string
+    {
+        $pattern = '/^'.preg_quote($key, '/').':\r?\n(?:[ \t].*\r?\n|\r?\n)*/m';
+
+        if (preg_match($pattern, $raw) === 1) {
+            return preg_replace($pattern, $newBlock, $raw, 1);
+        }
+
+        return rtrim($raw, "\r\n")."\n".$newBlock;
     }
 }

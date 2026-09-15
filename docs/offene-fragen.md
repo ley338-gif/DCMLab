@@ -196,19 +196,18 @@ nicht nachtraeglich in W6.3 hineingezogen, mit derselben
 `coverage()`-Berechnung aus `ExamEditorController`, aber gegen den
 laufenden Entwurf statt gegen den bestehenden Pool.
 
-## `sandbox`/`lab`/`objectives` im Lektions-Editor (nach W6.2)
+## ~~`sandbox`/`lab`/`objectives` im Lektions-Editor (nach W6.2)~~ -- erledigt
 
-**Frage:** Wann bekommen die Sandbox-/Lab-Verknuepfung (verschachtelte
+~~**Frage:** Wann bekommen die Sandbox-/Lab-Verknuepfung (verschachtelte
 YAML-Bloecke in `meta.yml`) und die Lernziele (`objectives`, mehrzeilige
 Liste im Frontmatter von `de.md`) einen eigenen Bearbeitungsbaustein im
-Lektions-Editor?
+Lektions-Editor?~~
 
-**Kontext:** ADR 0081 (W6.2) beschraenkt den Lektions-Editor bewusst auf
-Felder, die als einzelne Zeile ersetzbar sind (`LessonMetaGenerator`).
-`sandbox`/`lab` sind verschachtelte Strukturen, `objectives` ist eine
-mehrzeilige Liste -- beide brauchen einen eigenen UI-Baustein (Struktur-
-bzw. Listeneditor) statt eines Zeilenersatzes.
-
-**Empfehlung:** Erst angehen, wenn ein konkreter Autoren-Workflow das
-braucht -- bis dahin bleibt die Kommandozeile der Weg fuer diese drei
-Felder, alles andere an einer Lektion ist ueber den Editor pflegbar.
+**Umgesetzt (15.09.2026, ADR 0089):** `LessonMetaGenerator::
+regenerateSandbox()`/`regenerateLab()` und ein dritter Zweig in
+`regenerateFrontMatter()` fuer `objectives` -- dasselbe chirurgische
+Block-Muster wie `LessonQuizGenerator`s `quiz:`-Block, verallgemeinert.
+`objectives_count` wird nie eigenstaendig entgegengenommen, sondern
+immer aus der Listenlaenge von `objectives` abgeleitet (schliesst einen
+Mismatch strukturell aus). `sandbox.dataset`/`lab.node` sind im Editor
+Dropdowns aus dem echten Bestand, keine Freitextfelder.

@@ -216,7 +216,9 @@ erzeugten Artefakt machen.
   YAML-/Frontmatter-Felder statt eines ganzen Blocks;
   `ContentVersionController` verallgemeinert Submit/Publish aus dem
   Quiz-Editor für alle künftigen Editoren. `sandbox`/`lab`/`objectives`
-  bleiben bewusst außerhalb (siehe `docs/offene-fragen.md`).
+  sind seit ADR 0089 ebenfalls pflegbar (Dropdowns aus dem echten
+  Bestand für Datensatz/Lab-Node, `objectives_count` wird automatisch
+  aus der Lernziel-Liste abgeleitet).
 - **W6.3 — Prüfungs-Editor (Einstellungen)** (fertig, siehe ADR 0082):
   Titel, Einleitung, Bestehensgrenze, Fragenzahl je Versuch, Dauer,
   Mischen und `min_per_lesson` sind unter

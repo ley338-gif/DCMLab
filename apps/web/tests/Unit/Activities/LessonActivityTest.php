@@ -11,6 +11,7 @@ use App\Models\LessonProgress;
 use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\Yaml\Yaml;
 use Tests\TestCase;
 
 class LessonActivityTest extends TestCase
@@ -179,6 +180,57 @@ class LessonActivityTest extends TestCase
         $this->assertStringContainsString('Neue Einleitung', $files[1]['contents']);
         $this->assertStringContainsString('Neuer Text.', $files[1]['contents']);
         $this->assertStringContainsString(trim($originalQuizRaw), $files[1]['contents']);
+    }
+
+    public function test_serialize_with_a_sandbox_draft_regenerates_only_the_sandbox_block(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize(['sandbox' => ['required' => false]]);
+        $parsed = Yaml::parse($files[0]['contents']);
+
+        $this->assertFalse($parsed['sandbox']['required']);
+        $this->assertArrayNotHasKey('dataset', $parsed['sandbox']);
+        $this->assertSame(['node' => null, 'optional' => true], $parsed['lab'], 'lab darf unangetastet bleiben.');
+    }
+
+    public function test_serialize_with_a_lab_draft_regenerates_only_the_lab_block(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize(['lab' => ['node' => 'silent-ct', 'optional' => false]]);
+        $parsed = Yaml::parse($files[0]['contents']);
+
+        $this->assertSame('silent-ct', $parsed['lab']['node']);
+        $this->assertFalse($parsed['lab']['optional']);
+        $this->assertTrue($parsed['sandbox']['required'], 'sandbox darf unangetastet bleiben.');
+    }
+
+    public function test_serialize_with_an_objectives_draft_keeps_objectives_count_in_sync(): void
+    {
+        $activity = $this->makeActivity();
+
+        $files = $activity->serialize(['objectives' => ['Eins', 'Zwei']]);
+        $parsedMeta = Yaml::parse($files[0]['contents']);
+        $frontMatter = FrontMatter::parse($files[1]['contents']);
+
+        $this->assertSame(['Eins', 'Zwei'], $frontMatter['attributes']['objectives']);
+        $this->assertSame(2, $parsedMeta['objectives_count']);
+    }
+
+    public function test_validate_with_an_objectives_draft_that_mismatches_the_count_field_is_impossible_by_construction(): void
+    {
+        // objectives_count wird von serialize() immer aus der Listenlaenge
+        // von "objectives" abgeleitet (nie eigenstaendig aus dem Entwurf
+        // uebernommen) -- ein Mismatch kann ueber diesen Weg gar nicht erst
+        // entstehen. Dieser Test dokumentiert genau das.
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate(['objectives' => ['Nur eins']]);
+
+        $this->assertFalse(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'objectives_count'),
+        ));
     }
 
     public function test_deserialize_normalizes_the_current_fields(): void
