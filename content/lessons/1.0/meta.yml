@@ -31,5 +31,5 @@ quiz:
     type: input
     answer: "dcmdump +P SeriesDescription datei.dcm"
 tools_checked: "2026-09-12"
-status: draft
+status: published
 updated: "2026-09-12"

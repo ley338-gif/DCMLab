@@ -27,5 +27,5 @@ quiz:
     type: input
     answer: "1.2.840.10008.1.2.1"
 tools_checked: "2026-09-13"
-status: draft
+status: published
 updated: "2026-09-13"

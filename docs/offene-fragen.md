@@ -43,27 +43,42 @@ und `ContentValidator`-Extraktionen dieser Session fuer das Muster: Service
 zuerst, dann Daten). Ohne neuen Bildbedarf: Pionier bleibt, wie es ist,
 kein technischer Nachteil dadurch.
 
-## `status: fertig` im Bestand normalisieren (vor jeder Sichtbarkeits-Gate, W3+)
+## ~~`status: fertig` im Bestand normalisieren (vor jeder Sichtbarkeits-Gate, W3+)~~ -- erledigt
 
-**Frage:** Soll der reale Content-Bestand von `status: fertig` (25
+~~**Frage:** Soll der reale Content-Bestand von `status: fertig` (25
 Lektionen/Nodes) auf das dokumentierte `status: published`
-(`docs/content-schema.md`) umgestellt werden?
+(`docs/content-schema.md`) umgestellt werden?~~
 
-**Kontext:** ADR 0075 hat beim Umsetzen von W3 festgestellt: kein einziger
-realer Datensatz unter `content/` traegt `status: published`. 34 tragen
-`status: draft`, 25 das nirgends dokumentierte `status: fertig`. Solange das
-so ist, kann `status` nicht sicher fuer Lernenden-Sichtbarkeit ausgewertet
-werden -- jede Umstellung wuerde den kompletten heutigen Lernstoff
-verbergen. `ContentVersioningService::isPublished()` (W3) umgeht das
-Problem bewusst, indem Bestandscontent ohne Versionshistorie als sichtbar
-gilt, aber das ist ein Provisorium, kein Ersatz fuer saubere Daten.
+**Umgesetzt (15.09.2026, ADR 0086):** Alle 59 betroffenen Dateien (25
+`fertig`, 34 `draft`) einzeln geprueft (Zeilenzahl, Geruest-Marker,
+Abgleich mit `docs/content-todo.md`s eigenen "✅ fertig"-Vermerken) und
+auf `published` gesetzt -- keine blieb `draft`, jede der 34 Dateien war
+tatsaechlich fertiggestellter, nur nie umgestellter Lernstoff.
+`content:validate` bleibt frei von Verstoessen. Siehe ADR 0086 fuer die
+volle Beweisfuehrung je Kategorie.
 
-**Empfehlung:** `fertig` in den 25 betroffenen `meta.yml`/`node.yml`-Dateien
-auf `published` umstellen (reine Werteaenderung, keine Strukturaenderung),
-die 34 `draft`-Faelle einzeln pruefen, ob sie tatsaechlich unfertig sind
-oder nur nie umgestellt wurden. Das ist eine redaktionelle Entscheidung
-ueber echten Lernstoff und sollte in einem eigenen, review-baren Commit
-geschehen, nicht als Nebeneffekt eines Agentenlaufs.
+## `README.md`/`docs/content-todo.md` sind an mehreren Stellen veraltet (Nebenbefund aus ADR 0086)
+
+**Frage:** Sollen `README.md` ("Track 2, 3, 5 sind im Konzept geplant,
+aber nicht angelegt", "10 Node-Definitionen") und die betroffenen
+Abschnitte in `docs/content-todo.md` (Track-4-Abschnitt behauptet noch
+fehlenden Fliesstext, `docs/content-schema.md` Abschnitt 10 behauptet
+noch fehlende Werkzeugbeispiele in 1.1/1.5) auf den tatsaechlichen Stand
+gebracht werden?
+
+**Kontext:** Beim Normalisieren des `status`-Felds (ADR 0086) zeigte
+sich: Tracks 2/3/5 existieren laengst vollstaendig (`content/lessons/
+2.1`–`5.8`), es gibt 17 statt 10 Node-Definitionen, und mehrere als
+"Geruest, Fliesstext fehlt" dokumentierte Lektionen/Nodes sind
+tatsaechlich fertig geschrieben. Die Dokumentation wurde an diesen
+Stellen offenbar nach Abschluss der jeweiligen Arbeit nicht mehr
+nachgezogen.
+
+**Empfehlung:** Als eigene Doku-Pflege-Aufgabe angehen (README "Was
+funktioniert"/"Bekannte Luecken" und die betroffenen
+`content-todo.md`-Abschnitte gegen den echten `content/`-Bestand
+abgleichen), nicht rueckwirkend in ADR 0086 hineingezogen -- diese
+Aenderung hat ausschliesslich das `status`-Feld angefasst.
 
 ## ~~Cache-Invalidierung bei Engine/Sandbox nach einer Veroeffentlichung (W2)~~ -- erledigt
 
