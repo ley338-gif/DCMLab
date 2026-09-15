@@ -12,10 +12,16 @@
         "test": "vitest run"
     },
     "dependencies": {
+        "@floating-ui/dom": "^1.8.0",
         "@inertiajs/vite": "^3.0.0",
         "@inertiajs/vue3": "^3.0.0",
         "@laravel/passkeys": "^0.2.0",
         "@lucide/vue": "^1.17.0",
+        "@tiptap/core": "^3.31.3",
+        "@tiptap/extension-code-block": "^3.31.3",
+        "@tiptap/pm": "^3.31.3",
+        "@tiptap/starter-kit": "^3.31.3",
+        "@tiptap/vue-3": "^3.31.3",
         "@vueuse/core": "^12.8.2",
         "@xterm/xterm": "^6.0.0",
         "class-variance-authority": "^0.7.1",
