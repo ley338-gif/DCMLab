@@ -16,7 +16,7 @@ import {
     store as storeActivity,
 } from '@/routes/author/users/activities';
 
-type Role = 'learner' | 'author' | 'reviewer';
+type Role = 'learner' | 'author' | 'reviewer' | 'administrator';
 
 type AuthoredActivity = {
     id: number;
@@ -47,6 +47,7 @@ const roleLabels: Record<Role, string> = {
     learner: trans('Lernende:r'),
     author: trans('Autor:in'),
     reviewer: trans('Reviewer:in'),
+    administrator: trans('Administrator:in'),
 };
 
 const expanded = ref<number | null>(null);

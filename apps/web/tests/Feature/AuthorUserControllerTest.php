@@ -84,6 +84,23 @@ class AuthorUserControllerTest extends TestCase
         $this->assertSame('author', $target->fresh()->role->value);
     }
 
+    /**
+     * ADR 0098 (CMS-3a): Administrator erweitert Reviewer additiv, kann
+     * also ebenfalls Rollen vergeben -- auch die neue administrator-Rolle
+     * selbst.
+     */
+    public function test_an_administrator_can_promote_a_learner_to_administrator(): void
+    {
+        $administrator = User::factory()->administrator()->create();
+        $target = User::factory()->create();
+
+        $this->actingAs($administrator)
+            ->patch("/de/author/users/{$target->id}", ['role' => 'administrator'])
+            ->assertRedirect();
+
+        $this->assertSame('administrator', $target->fresh()->role->value);
+    }
+
     public function test_an_invalid_role_is_rejected(): void
     {
         $reviewer = User::factory()->reviewer()->create();

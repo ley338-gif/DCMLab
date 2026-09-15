@@ -62,4 +62,16 @@ class ActivityPolicyTest extends TestCase
         $this->assertTrue($reviewer->can('publish', $activity));
         $this->assertFalse($author->can('publish', $activity));
     }
+
+    /**
+     * ADR 0098 (CMS-3a): Administrator erweitert Reviewer additiv.
+     */
+    public function test_an_administrator_can_update_and_publish_any_activity(): void
+    {
+        $administrator = User::factory()->administrator()->create();
+        $activity = Activity::factory()->create();
+
+        $this->assertTrue($administrator->can('update', $activity));
+        $this->assertTrue($administrator->can('publish', $activity));
+    }
 }
