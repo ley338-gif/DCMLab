@@ -10,6 +10,7 @@ use App\Activities\LessonActivity;
 use App\Activities\NodeActivity;
 use App\Content\CacheInvalidatorContract;
 use App\Content\ContentRepository;
+use App\Content\HttpCacheInvalidator;
 use App\Content\NullCacheInvalidator;
 use App\Models\Activity;
 use App\Models\Lesson;
@@ -35,7 +36,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ContentRepository::class, fn () => new ContentRepository(config('content.path')));
         $this->app->singleton(EngineClientContract::class, EngineClient::class);
         $this->app->singleton(SandboxClientContract::class, SandboxClient::class);
-        $this->app->singleton(CacheInvalidatorContract::class, NullCacheInvalidator::class);
+        // In der Testumgebung bewusst NullCacheInvalidator statt echter
+        // HTTP-Aufrufe an drei (in Tests nie erreichbare) Dienste --
+        // HttpCacheInvalidator selbst hat eine eigene Testabdeckung
+        // (HttpCacheInvalidatorTest, mit Http::fake()).
+        $this->app->singleton(
+            CacheInvalidatorContract::class,
+            fn ($app) => $app->environment('testing') ? new NullCacheInvalidator : new HttpCacheInvalidator,
+        );
 
         $this->app->singleton(ActivityRegistry::class, function ($app) {
             $registry = new ActivityRegistry;

@@ -57,3 +57,10 @@ def load_worklist_params(slug: str) -> WorklistParams:
         "scheduled_procedure_step_description": worklist["scheduled_procedure_step_description"],
         "scheduled_procedure_step_id": worklist["scheduled_procedure_step_id"],
     }
+
+
+def clear_cache() -> None:
+    """Aufgerufen ueber POST /internal/cache/clear (docs/offene-fragen.md,
+    "Cache-Invalidierung bei Engine/Sandbox nach einer Veroeffentlichung")."""
+
+    _all.cache_clear()

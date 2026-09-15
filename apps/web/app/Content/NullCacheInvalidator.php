@@ -3,14 +3,12 @@
 namespace App\Content;
 
 /**
- * Default-Implementierung von CacheInvalidatorContract (ADR 0074): bewusst
- * ein No-op. Echte Invalidierung braucht eigene Endpunkte in
- * services/engine, services/scenario-engine und services/sandbox, die es
- * heute nicht gibt -- das ist eine eigene, dienstuebergreifende Aenderung
- * und nicht Teil von W2 (siehe docs/offene-fragen.md). Bis dahin bleibt der
- * bestehende Mechanismus wirksam: alle drei Dienste cachen `content/` nur
- * pro Prozess (`lru_cache`, siehe services/engine/app/content.py und
- * services/sandbox/app/datasets_yaml.py) und lesen bei jedem Neustart neu.
+ * No-op-Implementierung von CacheInvalidatorContract (ADR 0074/0085) --
+ * gebunden in der Testumgebung (AppServiceProvider), damit die Suite keine
+ * echten HTTP-Aufrufe an drei in Tests nie erreichbare Dienste macht.
+ * Ausserhalb von Tests ist die Bindung `HttpCacheInvalidator`, die die
+ * `/internal/cache/clear`-Endpunkte in services/engine,
+ * services/scenario-engine und services/sandbox aufruft.
  */
 final class NullCacheInvalidator implements CacheInvalidatorContract
 {

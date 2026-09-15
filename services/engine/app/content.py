@@ -105,3 +105,10 @@ def _datasets_cached(content_path: str) -> dict[str, Any]:
 
 def load_dataset(slug: str) -> dict[str, Any] | None:
     return _datasets_cached(settings.content_path).get(slug)
+
+
+def clear_cache() -> None:
+    """Aufgerufen ueber POST /internal/cache/clear (docs/offene-fragen.md,
+    "Cache-Invalidierung bei Engine/Sandbox nach einer Veroeffentlichung")."""
+
+    _datasets_cached.cache_clear()

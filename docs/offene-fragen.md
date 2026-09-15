@@ -65,27 +65,22 @@ oder nur nie umgestellt wurden. Das ist eine redaktionelle Entscheidung
 ueber echten Lernstoff und sollte in einem eigenen, review-baren Commit
 geschehen, nicht als Nebeneffekt eines Agentenlaufs.
 
-## Cache-Invalidierung bei Engine/Sandbox nach einer Veroeffentlichung (W2)
+## ~~Cache-Invalidierung bei Engine/Sandbox nach einer Veroeffentlichung (W2)~~ -- erledigt
 
-**Frage:** Sollen `services/engine`, `services/scenario-engine` und
+~~**Frage:** Sollen `services/engine`, `services/scenario-engine` und
 `services/sandbox` einen Endpunkt bekommen, den `ContentWriter` nach jedem
-Schreiben aufruft, um ihren `lru_cache`-Inhalt sofort zu invalidieren?
+Schreiben aufruft, um ihren `lru_cache`-Inhalt sofort zu invalidieren?~~
 
-**Kontext:** `ContentWriter` (ADR 0071/0074) haengt hinter
-`CacheInvalidatorContract` aktuell `NullCacheInvalidator` (No-op) ein. Die
-drei Python-Dienste cachen `content/` pro Prozess und lesen es erst beim
-naechsten Neustart neu ein -- eine frisch veroeffentlichte Lektion/Node
-erscheint dort also erst nach einem Neustart/Deploy des jeweiligen Dienstes,
-nicht sofort.
-
-**Empfehlung:** Einen einfachen `POST /internal/cache/clear`-Endpunkt in
-allen drei Diensten ergaenzen (loescht den `lru_cache`), abgesichert mit
-demselben `X-DCMLAB-KEY`-Header wie die bestehende Engine-Anbindung.
-`HttpCacheInvalidator implements CacheInvalidatorContract` ruft alle drei
-parallel auf und loggt, statt zu werfen, wenn einer nicht erreichbar ist --
-eine kurzzeitig veraltete Engine ist kein Grund, eine Veroeffentlichung
-abzubrechen. Aufwand: klein, aber dienstuebergreifend (drei FastAPI-Apps),
-deshalb bewusst nicht im selben Schritt wie `ContentWriter` erledigt.
+**Umgesetzt (15.09.2026, ADR 0085):** Alle drei Dienste haben jetzt
+`POST /internal/cache/clear` (abgesichert mit `X-DCMLAB-KEY`).
+`App\Content\HttpCacheInvalidator` ruft alle drei parallel auf und loggt
+Fehlschlaege, statt zu werfen. Gebunden ueberall ausser in der
+Testumgebung (dort weiterhin `NullCacheInvalidator`, sonst haette jeder
+Editor-Publish-Test drei echte, unerreichbare HTTP-Verbindungsversuche
+ausgeloest -- siehe ADR 0085 fuer die Messung). Nebenbefund: nur
+engine (`datasets.yml`) und sandbox (`datasets.yml`+`worklists.yml`)
+cachen ueberhaupt etwas; scenario-engine liest `content/` schon immer
+frisch, bekam den Endpunkt trotzdem fuer eine einheitliche Schnittstelle.
 
 ## ~~Pruefung je Track oder freier (vor W6.3)~~ -- entschieden: eine je Track
 
