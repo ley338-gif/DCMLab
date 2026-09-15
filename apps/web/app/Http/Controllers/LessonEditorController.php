@@ -117,17 +117,42 @@ class LessonEditorController extends Controller
     }
 
     /**
-     * Ist-Zustand direkt aus `content/` gelesen (wie
-     * `QuizEditorController::currentQuestions()`, ADR 0080) statt ueber die
-     * DB-Modelle -- diese werden erst durch `content:sync` aktualisiert und
-     * sind daher keine verlaessliche Quelle fuer den aktuellen Editor-Stand.
-     * Die Prosa wird auf den Teil vor einem bestehenden Quiz-Abschnitt
-     * eingegrenzt, siehe Klassendoc.
+     * Ist-Zustand seit ADR 0102 (CMS-5b) bevorzugt aus der DB: eine
+     * Lektionsfeld-Freigabe schreibt jetzt direkt in die `lessons`-Zeile,
+     * nicht mehr nach `content/` -- ein Datei-Ist-Zustand waere fuer eine
+     * bereits so veroeffentlichte Lektion veraltet. `content/` bleibt nur
+     * noch Fallback fuer eine Lektion, deren naechster `content:sync`-Lauf
+     * noch aussteht (siehe LessonController::show(), ADR 0101). Die Prosa
+     * wird auf den Teil vor einem bestehenden Quiz-Abschnitt eingegrenzt,
+     * siehe Klassendoc.
      *
      * @return array<string, mixed>
      */
     private function currentFields(Lesson $lesson, ContentRepository $content): array
     {
+        if ($lesson->body !== null) {
+            return [
+                'title' => $lesson->title['de'] ?? '',
+                'teaser' => $lesson->teaser['de'] ?? '',
+                'level' => $lesson->level,
+                'duration_minutes' => $lesson->duration_minutes,
+                'tools' => $lesson->tools,
+                'requires' => $lesson->requires,
+                'glossary_terms' => $lesson->glossary_terms,
+                'objectives' => $lesson->objectives ?? [],
+                'sandbox' => [
+                    'required' => $lesson->sandbox['required'] ?? false,
+                    'dataset' => $lesson->sandbox['dataset'] ?? null,
+                    'note' => $lesson->sandbox['note'] ?? null,
+                ],
+                'lab' => [
+                    'node' => $lesson->lab['node'] ?? null,
+                    'optional' => $lesson->lab['optional'] ?? true,
+                ],
+                'body' => QuizContent::splitBody($lesson->body)['before'],
+            ];
+        }
+
         $entry = $content->lessons()[$lesson->lesson_id] ?? null;
 
         if ($entry === null) {
