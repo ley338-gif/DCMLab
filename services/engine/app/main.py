@@ -190,3 +190,13 @@ def delete_session(session_id: str, db: Session = Depends(get_db)) -> None:
     row = _get_session_or_404(session_id, db)
     db.delete(row)
     db.commit()
+
+
+@app.post("/internal/cache/clear", dependencies=router_dependencies)
+async def clear_cache() -> dict[str, str]:
+    """Loest die offene Frage "Cache-Invalidierung bei Engine/Sandbox nach
+    einer Veroeffentlichung" (docs/offene-fragen.md): aufgerufen von
+    HttpCacheInvalidator (Laravel-Seite) nach jeder Content-Veroeffentlichung.
+    """
+    content.clear_cache()
+    return {"status": "cleared"}

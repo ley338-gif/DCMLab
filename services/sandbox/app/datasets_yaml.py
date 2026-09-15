@@ -51,3 +51,10 @@ def load_dataset_params(slug: str) -> DatasetParams:
         "series": series,
         "file_count": dataset["file_count"],
     }
+
+
+def clear_cache() -> None:
+    """Aufgerufen ueber POST /internal/cache/clear (docs/offene-fragen.md,
+    "Cache-Invalidierung bei Engine/Sandbox nach einer Veroeffentlichung")."""
+
+    _all.cache_clear()

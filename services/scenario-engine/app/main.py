@@ -190,3 +190,16 @@ def delete_session(session_id: str, db: Session = Depends(get_db)) -> None:
     row = _get_session_or_404(session_id, db)
     db.delete(row)
     db.commit()
+
+
+@app.post("/internal/cache/clear", dependencies=router_dependencies)
+async def clear_cache() -> dict[str, str]:
+    """Loest die offene Frage "Cache-Invalidierung bei Engine/Sandbox nach
+    einer Veroeffentlichung" (docs/offene-fragen.md). Dieser Dienst haelt
+    anders als engine/sandbox keinen `lru_cache` ueber content/ (siehe
+    app/content.py: jede Anfrage liest die Datei frisch) -- der Endpunkt
+    existiert trotzdem, damit HttpCacheInvalidator (Laravel-Seite) alle
+    drei internen Dienste einheitlich aufrufen kann, ohne einen davon als
+    Sonderfall zu behandeln.
+    """
+    return {"status": "cleared"}

@@ -6,7 +6,7 @@ import docker
 import redis
 from fastapi import Depends, FastAPI, HTTPException, status
 
-from app import orchestrator
+from app import datasets_yaml, orchestrator, worklists_yaml
 from app.config import settings
 from app.security import require_internal_key
 
@@ -128,3 +128,14 @@ async def delete_sandbox(sandbox_id: str) -> None:
     await asyncio.to_thread(
         orchestrator.delete_sandbox, get_redis(), get_docker(), sandbox_id=sandbox_id,
     )
+
+
+@app.post("/internal/cache/clear", dependencies=router_dependencies)
+async def clear_cache() -> dict[str, str]:
+    """Loest die offene Frage "Cache-Invalidierung bei Engine/Sandbox nach
+    einer Veroeffentlichung" (docs/offene-fragen.md): aufgerufen von
+    HttpCacheInvalidator (Laravel-Seite) nach jeder Content-Veroeffentlichung.
+    """
+    datasets_yaml.clear_cache()
+    worklists_yaml.clear_cache()
+    return {"status": "cleared"}
