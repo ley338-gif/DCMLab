@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import PageContainer from '@/components/PageContainer.vue';
@@ -16,6 +16,7 @@ import { home } from '@/routes';
 import { edit, store, validate } from '@/routes/author/lessons/edit';
 import { publish, submit } from '@/routes/author/quiz-versions';
 import { show as showLesson } from '@/routes/lessons';
+import { show as showStudioLesson } from '@/routes/studio/lessons';
 
 type SandboxFields = {
     required: boolean;
@@ -173,9 +174,17 @@ const statusLabels: Record<string, string> = {
                     trans('Lektion bearbeiten: :title', { title: lesson.title })
                 }}
             </h1>
-            <Badge v-if="pending_version" variant="outline">
-                {{ statusLabels[pending_version.status] }}
-            </Badge>
+            <div class="flex items-center gap-2">
+                <Link
+                    :href="showStudioLesson(lesson.lesson_id)"
+                    class="text-muted-foreground text-sm underline-offset-4 hover:underline"
+                >
+                    {{ trans('Elementreihenfolge ansehen') }}
+                </Link>
+                <Badge v-if="pending_version" variant="outline">
+                    {{ statusLabels[pending_version.status] }}
+                </Badge>
+            </div>
         </div>
 
         <Alert v-if="issues.length > 0" variant="destructive" class="mb-6">

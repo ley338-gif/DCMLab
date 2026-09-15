@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Models\Activity;
 use App\Models\Lesson;
+use App\Models\LessonElement;
 use App\Models\LessonProgress;
 use App\Models\Node;
 use App\Models\Track;
@@ -100,8 +102,11 @@ class LessonControllerTest extends TestCase
         $this->actingAs($user)
             ->get('/de/lessons/1.5')
             ->assertInertia(fn ($page) => $page
-                ->where('toolbar.lab_node.slug', 'silent-ct')
-                ->where('toolbar.lab_node.title', 'Silent CT'),
+                ->has('elements', 2)
+                ->where('elements.0.type', 'content')
+                ->where('elements.1.type', 'lab')
+                ->where('elements.1.lab_node.slug', 'silent-ct')
+                ->where('elements.1.lab_node.title', 'Silent CT'),
             );
     }
 
@@ -119,7 +124,10 @@ class LessonControllerTest extends TestCase
 
         $this->actingAs($user)
             ->get('/de/lessons/1.1')
-            ->assertInertia(fn ($page) => $page->where('toolbar.lab_node', null));
+            ->assertInertia(fn ($page) => $page
+                ->has('elements', 1)
+                ->where('elements.0.type', 'content'),
+            );
     }
 
     /**
@@ -147,7 +155,8 @@ class LessonControllerTest extends TestCase
                 ->where('lesson.title', 'DB-Titel')
                 ->where('lesson.teaser', 'DB-Teaser')
                 ->where('lesson.objectives', ['DB-Lernziel'])
-                ->where('lesson.body_html', fn (string $html) => str_contains($html, 'kommt aus der Datenbank')),
+                ->where('elements.0.type', 'content')
+                ->where('elements.0.body_html', fn (string $html) => str_contains($html, 'kommt aus der Datenbank')),
             );
     }
 
@@ -171,7 +180,69 @@ class LessonControllerTest extends TestCase
             ->get('/de/lessons/1.1')
             ->assertInertia(fn ($page) => $page
                 ->where('lesson.objectives', ['Testen'])
-                ->where('lesson.body_html', fn (string $html) => str_contains($html, 'ist wichtig')),
+                ->where('elements.0.type', 'content')
+                ->where('elements.0.body_html', fn (string $html) => str_contains($html, 'ist wichtig')),
+            );
+    }
+
+    /**
+     * ADR 0105 (CMS-6b), Betreiber-Abnahmekriterium: die gespeicherte
+     * Reihenfolge in `lesson_elements` bestimmt die tatsaechlich
+     * gerenderte Reihenfolge auf der Lern-Seite -- nicht mehr eine fest
+     * verdrahtete Body/Sandbox/Lab/Quiz-Abfolge.
+     */
+    public function test_reordering_lesson_elements_in_the_db_changes_the_rendered_order(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.9',
+            'track_id' => $track->id,
+            'tools' => ['echoscu'], // needs_sandbox: true im echten Bestand
+            'sandbox' => ['required' => true, 'dataset' => 'ct-head-01', 'note' => null],
+            'lab' => ['node' => 'silent-ct', 'optional' => false],
+            'body' => "Prosa-Inhalt der Lektion.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B",
+            'quiz' => [['id' => 'q1', 'type' => 'single', 'answer' => 0]],
+        ]);
+        Node::factory()->create(['slug' => 'silent-ct', 'title' => ['de' => 'Silent CT']]);
+
+        $sandboxActivity = Activity::factory()->create(['type' => 'sandbox', 'key' => '1.9']);
+        $labActivity = Activity::factory()->create(['type' => 'node', 'key' => 'silent-ct']);
+        $quizActivity = Activity::factory()->create(['type' => 'quiz', 'key' => '1.9']);
+
+        // Bewusst NICHT in der kanonischen Reihenfolge (Content/Sandbox/
+        // Lab/Quiz), sondern Quiz zuerst, dann Sandbox, dann Lab, dann
+        // Content zuletzt -- der Test darf diese Reihenfolge exakt so auf
+        // der gerenderten Seite wiederfinden.
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $quizActivity->id, 'position' => 0]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $sandboxActivity->id, 'position' => 1]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $labActivity->id, 'position' => 2]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'content', 'activity_id' => null, 'position' => 3]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.9')
+            ->assertInertia(fn ($page) => $page
+                ->has('elements', 4)
+                ->where('elements.0.type', 'quiz')
+                ->where('elements.1.type', 'sandbox')
+                ->where('elements.2.type', 'lab')
+                ->where('elements.3.type', 'content'),
+            );
+
+        // Jetzt umsortieren: Content zuerst, Quiz zuletzt.
+        LessonElement::where('lesson_id', $lesson->id)->where('type', 'content')->update(['position' => 0]);
+        LessonElement::where('activity_id', $sandboxActivity->id)->update(['position' => 1]);
+        LessonElement::where('activity_id', $labActivity->id)->update(['position' => 2]);
+        LessonElement::where('activity_id', $quizActivity->id)->update(['position' => 3]);
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.9')
+            ->assertInertia(fn ($page) => $page
+                ->where('elements.0.type', 'content')
+                ->where('elements.1.type', 'sandbox')
+                ->where('elements.2.type', 'lab')
+                ->where('elements.3.type', 'quiz'),
             );
     }
 

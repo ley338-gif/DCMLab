@@ -35,18 +35,28 @@ type ToolbarTool = {
 
 type ToolbarData = {
     tools: ToolbarTool[];
-    needs_sandbox: boolean;
-    dataset: { note: string | null; file_count: number | null } | null;
     requires: { lesson_id: string; title: string; completed: boolean }[];
     prerequisites_met: boolean;
-    lab_node: {
-        slug: string;
-        title: string;
-        difficulty: string;
-        points: number;
-    } | null;
     lab_optional: boolean;
 };
+
+type LabNode = {
+    slug: string;
+    title: string;
+    difficulty: string;
+    points: number;
+};
+
+type SandboxDataset = { note: string | null; file_count: number | null };
+
+// ADR 0105 (CMS-6b): die geordnete Elementsequenz einer Lektion -- WELCHE
+// Art Element es ist, steht in `type`, nicht mehr in einer fest
+// verdrahteten Body/Sandbox/Lab/Quiz-Abfolge im Template.
+type LessonElement =
+    | { type: 'content'; body_html: string }
+    | { type: 'sandbox'; dataset: SandboxDataset | null }
+    | { type: 'lab'; lab_node: LabNode | null }
+    | { type: 'quiz'; questions: QuizQuestion[] };
 
 type NeighborLesson = { lesson_id: string; title: string } | null;
 
@@ -58,15 +68,13 @@ const props = defineProps<{
         objectives: string[];
         duration_minutes: number;
         level: string;
-        body_html: string;
-        body_after_quiz_html: string | null;
         position_in_track: number | null;
         track_lessons_count: number;
         prev: NeighborLesson;
         next: NeighborLesson;
     };
     track: { slug: string; title_key: string };
-    quiz: QuizQuestion[];
+    elements: LessonElement[];
     toolbar: ToolbarData;
     progress: { status: string; is_returning_visit: boolean };
     sidebar: {
@@ -81,7 +89,15 @@ const props = defineProps<{
 }>();
 
 const contentRef = ref<HTMLElement | null>(null);
-const bodyHtml = computed(() => props.lesson.body_html);
+// useLessonToc muss nur wissen, WANN sich der Seiteninhalt geaendert hat
+// (Lektionswechsel) -- das Content-Element aendert sich dabei immer mit.
+const bodyHtml = computed(
+    () =>
+        props.elements.find(
+            (element): element is Extract<LessonElement, { type: 'content' }> =>
+                element.type === 'content',
+        )?.body_html ?? '',
+);
 
 const { entries, activeId, scrollToEntry } = useLessonToc(contentRef, bodyHtml);
 useLessonProseEnhancements(contentRef);
@@ -141,22 +157,34 @@ const nextNav = computed(() =>
 
             <ToolGrid :tools="toolbar.tools" />
 
-            <div class="lesson-prose" v-html="lesson.body_html" />
-
-            <PracticeTask
-                :lesson-id="lesson.lesson_id"
-                :needs-sandbox="toolbar.needs_sandbox"
-                :dataset="toolbar.dataset"
-                :lab-node="toolbar.lab_node"
-            />
-
-            <QuizSection :lesson-id="lesson.lesson_id" :questions="quiz" />
-
-            <div
-                v-if="lesson.body_after_quiz_html"
-                class="lesson-prose"
-                v-html="lesson.body_after_quiz_html"
-            />
+            <!-- ADR 0105 (CMS-6b): die Reihenfolge kommt aus
+                 lesson_elements, nicht mehr aus einer festen Abfolge hier. -->
+            <template v-for="(element, index) in elements" :key="index">
+                <div
+                    v-if="element.type === 'content'"
+                    class="lesson-prose"
+                    v-html="element.body_html"
+                />
+                <PracticeTask
+                    v-else-if="element.type === 'sandbox'"
+                    :lesson-id="lesson.lesson_id"
+                    :needs-sandbox="true"
+                    :dataset="element.dataset"
+                    :lab-node="null"
+                />
+                <PracticeTask
+                    v-else-if="element.type === 'lab'"
+                    :lesson-id="lesson.lesson_id"
+                    :needs-sandbox="false"
+                    :dataset="null"
+                    :lab-node="element.lab_node"
+                />
+                <QuizSection
+                    v-else-if="element.type === 'quiz'"
+                    :lesson-id="lesson.lesson_id"
+                    :questions="element.questions"
+                />
+            </template>
 
             <LessonSummary :objectives="lesson.objectives" />
         </div>

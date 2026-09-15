@@ -86,4 +86,14 @@ class Lesson extends Model
     {
         return $this->hasMany(LessonProgress::class);
     }
+
+    /**
+     * Die geordnete Elementsequenz dieser Lektion (ADR 0105, CMS-6b).
+     *
+     * @return HasMany<LessonElement, $this>
+     */
+    public function elements(): HasMany
+    {
+        return $this->hasMany(LessonElement::class)->orderBy('position');
+    }
 }

@@ -197,6 +197,58 @@ class ContentSyncTest extends TestCase
         $this->assertSame($node->status, $activity->status);
     }
 
+    /**
+     * ADR 0105 (CMS-6b): content:sync backfuellt lesson_elements in der
+     * kanonischen Reihenfolge (Content, Sandbox, Lab, Quiz -- nur wenn
+     * vorhanden). Diese Fixture hat weder ein `nodes/`-Verzeichnis (Lab
+     * daher uebersprungen) noch einen `quiz:`-Block in meta.yml fuer 1.5
+     * (siehe dortige Datei) -- nur Content und Sandbox werden erwartet.
+     */
+    public function test_it_backfills_lesson_elements_in_canonical_order_and_is_idempotent(): void
+    {
+        $dir = base_path('tests/Fixtures/content-real');
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $lesson15 = Lesson::where('lesson_id', '1.5')->first();
+        $elements = $lesson15->elements()->with('activity')->get();
+
+        $this->assertCount(2, $elements);
+        $this->assertSame('content', $elements[0]->type);
+        $this->assertSame('sandbox', $elements[1]->activity->type);
+
+        // Erneuter Lauf legt nichts doppelt an und veraendert keine Position.
+        Artisan::call('content:sync');
+        $this->assertCount(2, $lesson15->elements()->get());
+    }
+
+    /**
+     * Eine per Studio (CMS-6c, spaeter) umsortierte Reihenfolge darf ein
+     * weiterer content:sync-Lauf nicht zuruecksetzen -- syncLessonElements()
+     * legt nur fehlende Slots an, ruehrt aber nie eine bestehende Zeile an.
+     */
+    public function test_it_never_reorders_an_already_backfilled_element(): void
+    {
+        $dir = base_path('tests/Fixtures/content-real');
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $lesson15 = Lesson::where('lesson_id', '1.5')->first();
+        $contentElement = $lesson15->elements()->where('type', 'content')->firstOrFail();
+        $sandboxElement = $lesson15->elements()->where('type', 'activity')->firstOrFail();
+
+        // Manuell umsortiert, wie es CMS-6c ueber die DB taete.
+        $contentElement->update(['position' => 5]);
+        $sandboxElement->update(['position' => 1]);
+
+        Artisan::call('content:sync');
+
+        $this->assertSame(5, $contentElement->fresh()->position);
+        $this->assertSame(1, $sandboxElement->fresh()->position);
+    }
+
     public function test_it_registers_an_activity_entry_per_track_exam_from_real_content(): void
     {
         $dir = base_path('../../content');
