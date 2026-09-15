@@ -29,6 +29,30 @@ Operator-Pfad gibt (der dann dokumentiert gehoert), oder ob
 Bind-Mount fuer `content/` braucht, analog zu anderen dev-spezifischen
 Overrides dort.
 
+## `SandboxSession` fehlt noch -- `state`/`exec`/`destroy` loesen fest auf "docker" auf (CMS-2b)
+
+**Frage:** Wann bekommt eine laufende Spielwiesen-Sitzung einen eigenen,
+durable Datensatz (`SandboxSession`, siehe ADR 0096/
+`docs/studio-architecture-plan.md` Abschnitt 4), der festhaelt, welcher
+`RuntimeProviderContract` eine gegebene `sandbox_id` tatsaechlich erzeugt
+hat?
+
+**Kontext:** ADR 0096 (CMS-2a) fuehrt `SandboxTemplate` und
+`RuntimeProviderContract`/`RuntimeProviderRegistry` ein, aber nur
+`SandboxController::create()` loest den Provider tatsaechlich ueber eine
+freigegebene Vorlage auf. `state()`/`exec()`/`destroy()` kennen die
+urspruengliche Vorlage einer `sandbox_id` nicht (die ID lebt nur im
+Browser, siehe Klassendoc) und rufen deshalb weiterhin hart
+`RuntimeProviderRegistry::for('docker')` -- solange es nur einen Provider
+gibt, unschaedlich, aber nicht das im Studio-Auftrag (Abschnitt 9)
+beschriebene Ziel ("Der DCMLab Core soll nicht von Docker-spezifischen
+Details abhaengig sein").
+
+**Empfehlung:** `SandboxSession` in CMS-2b ergaenzen (durable Aufzeichnung
+neben dem weiterhin primaer in Redis/services/sandbox gehaltenen
+Live-Zustand), damit `state`/`exec`/`destroy` den Provider korrekt
+nachschlagen koennen, sobald ein zweiter Provider hinzukommt.
+
 ## Bestehende Pruefungsfragen auf `ref` umstellen (nach W5)
 
 **Frage:** Sollen einzelne der 40 bestehenden Pruefungsfragen, die

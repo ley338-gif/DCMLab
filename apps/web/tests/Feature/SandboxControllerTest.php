@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AchievementUnlock;
 use App\Models\Lesson;
+use App\Models\SandboxTemplate;
 use App\Models\Track;
 use App\Models\User;
 use Database\Seeders\AchievementSeeder;
@@ -19,6 +20,14 @@ use Tests\TestCase;
 class SandboxControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Seit ADR 0096 (CMS-2) braucht create() eine freigegebene Vorlage.
+        SandboxTemplate::factory()->published()->create(['runtime_provider' => 'docker']);
+    }
 
     public function test_guests_cannot_start_a_sandbox(): void
     {
@@ -87,6 +96,16 @@ class SandboxControllerTest extends TestCase
     public function test_it_rejects_lessons_without_a_sandbox_dataset(): void
     {
         $lesson = Lesson::factory()->create(['sandbox' => null]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->postJson("/de/lessons/{$lesson->lesson_id}/sandbox")
+            ->assertInvalid(['lesson']);
+    }
+
+    public function test_it_rejects_creation_when_no_sandbox_template_is_published(): void
+    {
+        SandboxTemplate::query()->delete();
+        $lesson = $this->lessonWithSandbox();
         $user = User::factory()->create();
 
         $this->actingAs($user)->postJson("/de/lessons/{$lesson->lesson_id}/sandbox")
