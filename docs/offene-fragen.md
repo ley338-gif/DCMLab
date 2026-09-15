@@ -57,28 +57,18 @@ tatsaechlich fertiggestellter, nur nie umgestellter Lernstoff.
 `content:validate` bleibt frei von Verstoessen. Siehe ADR 0086 fuer die
 volle Beweisfuehrung je Kategorie.
 
-## `README.md`/`docs/content-todo.md` sind an mehreren Stellen veraltet (Nebenbefund aus ADR 0086)
+## ~~`README.md`/`docs/content-todo.md` sind an mehreren Stellen veraltet (Nebenbefund aus ADR 0086)~~ Erledigt
 
-**Frage:** Sollen `README.md` ("Track 2, 3, 5 sind im Konzept geplant,
-aber nicht angelegt", "10 Node-Definitionen") und die betroffenen
-Abschnitte in `docs/content-todo.md` (Track-4-Abschnitt behauptet noch
-fehlenden Fliesstext, `docs/content-schema.md` Abschnitt 10 behauptet
-noch fehlende Werkzeugbeispiele in 1.1/1.5) auf den tatsaechlichen Stand
-gebracht werden?
-
-**Kontext:** Beim Normalisieren des `status`-Felds (ADR 0086) zeigte
-sich: Tracks 2/3/5 existieren laengst vollstaendig (`content/lessons/
-2.1`–`5.8`), es gibt 17 statt 10 Node-Definitionen, und mehrere als
-"Geruest, Fliesstext fehlt" dokumentierte Lektionen/Nodes sind
-tatsaechlich fertig geschrieben. Die Dokumentation wurde an diesen
-Stellen offenbar nach Abschluss der jeweiligen Arbeit nicht mehr
-nachgezogen.
-
-**Empfehlung:** Als eigene Doku-Pflege-Aufgabe angehen (README "Was
-funktioniert"/"Bekannte Luecken" und die betroffenen
-`content-todo.md`-Abschnitte gegen den echten `content/`-Bestand
-abgleichen), nicht rueckwirkend in ADR 0086 hineingezogen -- diese
-Aenderung hat ausschliesslich das `status`-Feld angefasst.
+**Erledigt (15.09.2026):** `README.md` ("Was funktioniert"/"Bekannte
+Luecken") ist gegen den echten `content/`-Bestand abgeglichen: alle
+sechs Tracks (nicht drei) sind vollstaendig veroeffentlicht, es gibt 17
+statt 10 spielbare Node-Definitionen. `docs/content-todo.md`s
+Abschnittsueberschriften fuer Track 2, 4 und 5 sind von "Geruest,
+Fliesstext fehlt" auf "vollstaendig geschrieben (seit PXX)"
+korrigiert -- denselben Abschluss, den ihr eigener Fliesstext schon
+dokumentierte, nur die Ueberschrift war stehen geblieben.
+`docs/content-schema.md` Abschnitt 10 ("Nachzuziehen") ist als erledigt
+markiert: die Werkzeugbeispiele in 1.1/1.5 sind laengst vorhanden.
 
 ## ~~Cache-Invalidierung bei Engine/Sandbox nach einer Veroeffentlichung (W2)~~ -- erledigt
 

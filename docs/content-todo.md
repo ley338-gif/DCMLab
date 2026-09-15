@@ -103,7 +103,7 @@ Redaktionelle Entscheidung nötig: Text für beide Dateien schreiben (macht
 die Node reichhaltiger, ändert aber nicht ihre Lösbarkeit) oder aus
 `environment.files` entfernen.
 
-## Track 4 — zehn Gerüste angelegt, Fließtext fehlt
+## Track 4 — vollständig geschrieben (seit P10.22)
 
 `content/lessons/4.1` bis `4.10` existieren jetzt als Gerüste
 (`status: draft`): vollständige `meta.yml` (Track, Reihenfolge, Dauer,
@@ -144,7 +144,7 @@ ursprüngliche Hinweis zu `lab.node: null` in allen zehn ist mit P9
 überholt — 4.2 zeigt jetzt auf die Node `verbindung-ohne-bild`, siehe
 unten.)
 
-## Track 2 — acht Gerüste angelegt, Fließtext fehlt (seit P10.24)
+## Track 2 — vollständig geschrieben (seit P10.32)
 
 `content/lessons/2.1` bis `2.8` existieren seit P10.24 als Gerüste
 (`status: draft`): vollständige `meta.yml` (Track, Reihenfolge, Dauer,
@@ -394,7 +394,7 @@ geschrieben, derselbe Maßstab wie bei Track 2 (ADR 0042).
 
 `content:validate` meldet für die sechs neuen Lektionen nichts.
 
-## Track 5 — acht Gerüste angelegt, Fließtext fehlt (seit P10.46)
+## Track 5 — vollständig geschrieben (seit P10.54)
 
 `content/lessons/5.1` bis `5.8` existieren seit P10.46 als Gerüste
 (`status: draft`): vollständige `meta.yml` und eine `de.md` mit Titel,
