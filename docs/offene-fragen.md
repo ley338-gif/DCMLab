@@ -170,31 +170,18 @@ Client-Dateinamen (Schutz vor Pfad-Traversal); `image`-Validierung
 (echter Bildinhalt, `mimes:png,jpg,jpeg,webp`, `max:512` KB) plus
 `throttle:10,1`.
 
-## Fragenpool-Verwaltung im Pruefungs-Editor (nach W6.3)
+## ~~Fragenpool-Verwaltung im Pruefungs-Editor (nach W6.3)~~ Umgesetzt
 
-**Frage:** Wann bekommt der Pruefungs-Editor die Faehigkeit, einzelne
-Fragen im Pool hinzuzufuegen, zu bearbeiten oder zu entfernen (inklusive
-`ref`-Erstellung und einem Anker-Dropdown aus den Ueberschriften der
-Ziellektion), statt nur die Einstellungen zu pflegen?
-
-**Kontext:** ADR 0082 (W6.3) liefert bewusst nur die Einstellungen
-(Titel, Bestehensgrenze, Fragenzahl je Versuch, Dauer, Mischen,
-`min_per_lesson`) plus eine live berechnete Pool-Uebersicht
-(Lektionsabdeckung, Cross-Anzahl, Typmischung, Schwierigkeitsanteil) als
-Fortschrittsanzeige. Der eigentliche Fragenpool bleibt Kommandozeilen-
-Sache, weil `ContentValidator::checkExamStructure()` globale Quoten ueber
-den GESAMTEN Pool durchsetzt (Typmischung 35-40/20-25/20-25/10-15%,
-mindestens 25% difficulty 3, mindestens 4 Fragen je Lektion, mindestens 4
-Cross-Fragen) -- eine einzelne Frage hinzuzufuegen oder zu entfernen
-verschiebt fast immer mindestens eine dieser Quoten, weshalb ein
-Einzelformular wie bei Quiz-/Lektionsfragen hier nicht passt. Ein echter
-Pool-Editor braucht ein UI, das dieselbe Statistik *waehrend* der
-Bearbeitung gegen den Entwurf nachfuehrt, nicht nur gegen den Ist-Zustand.
-
-**Empfehlung:** Als eigene, sorgfaeltig getestete Erweiterung angehen,
-nicht nachtraeglich in W6.3 hineingezogen, mit derselben
-`coverage()`-Berechnung aus `ExamEditorController`, aber gegen den
-laufenden Entwurf statt gegen den bestehenden Pool.
+**Umgesetzt (ADR 0090, 15.09.2026):** Der Pruefungs-Editor kann Fragen im
+Pool jetzt vollstaendig hinzufuegen, bearbeiten und entfernen, inklusive
+`ref`-Erstellung mit Lektion/Frage-Dropdown und einem Anker-Dropdown aus
+den Ueberschriften der Ziellektion. `ExamQuestionGenerator` ersetzt bei
+jeder Aenderung den GESAMTEN `questions:`-Block in `exam.yml` und alle
+`### fNN`-Abschnitte in `de.md` als Einheit (die Poolstatistik ist eine
+Eigenschaft der ganzen Liste, siehe ADR 0090/0082); `coverage()` rechnet
+jetzt live gegen den Entwurf im Formular, nicht nur gegen den
+gespeicherten Bestand. Ein neuer Pruefungspool ist damit vollstaendig ueber
+den Editor pflegbar, ohne Kommandozeile.
 
 ## ~~`sandbox`/`lab`/`objectives` im Lektions-Editor (nach W6.2)~~ -- erledigt
 

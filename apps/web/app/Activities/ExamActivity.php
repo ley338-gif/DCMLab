@@ -6,6 +6,7 @@ use App\Content\ContentIssue;
 use App\Content\ContentRepository;
 use App\Content\ContentValidator;
 use App\Content\ExamMetaGenerator;
+use App\Content\ExamQuestionGenerator;
 use App\Content\FrontMatter;
 use App\Models\ExamAttempt;
 use App\Models\Track;
@@ -104,11 +105,12 @@ final readonly class ExamActivity implements ActivityContract
 
     /**
      * Ohne Entwurf identisch zum Ist-Zustand (ADR 0073). Mit Entwurf
-     * regeneriert `ExamMetaGenerator` nur die Einstellungsfelder
+     * regeneriert `ExamMetaGenerator` die Einstellungsfelder
      * (pass_percent/draw/duration_minutes/shuffle/min_per_lesson,
-     * title/intro) -- der Fragenpool (`questions:` in exam.yml, die
-     * `### fNN — ...`-Abschnitte in de.md) ist bewusst nicht Teil dieses
-     * Editors (ADR 0082), siehe Klassendoc.
+     * title/intro); `ExamQuestionGenerator` (ADR 0090) ersetzt bei einem
+     * `questions`-Schluessel den gesamten Fragenpool -- der Pool ist eine
+     * Einheit, nicht einzelne Karten wie beim Lektions-Quiz, siehe dessen
+     * Klassendoc.
      */
     public function serialize(?array $draft = null): array
     {
@@ -131,10 +133,29 @@ final readonly class ExamActivity implements ActivityContract
         $metaRaw = ExamMetaGenerator::regenerateMeta($metaRaw, $draft);
         $mdRaw = ExamMetaGenerator::regenerateFrontMatter($mdRaw, $draft);
 
+        if (isset($draft['questions'])) {
+            $metaRaw = ExamQuestionGenerator::regenerateMeta($metaRaw, $draft['questions']);
+            $mdRaw = $this->withNewBody($mdRaw, ExamQuestionGenerator::regenerateBody($draft['questions']));
+        }
+
         return [
             ['path' => "exams/{$this->track->slug}/exam.yml", 'contents' => $metaRaw],
             ['path' => "exams/{$this->track->slug}/de.md", 'contents' => $mdRaw],
         ];
+    }
+
+    /**
+     * Ersetzt nur den Koerper eines de.md (alles nach der Frontmatter) --
+     * die Frontmatter (Titel, Einleitung) bleibt Zeile fuer Zeile
+     * unangetastet. Analog zu `LessonActivity::withNewBody()`.
+     */
+    private function withNewBody(string $mdRaw, string $newBody): string
+    {
+        $frontMatter = FrontMatter::parse($mdRaw);
+        $lines = preg_split('/\R/', $mdRaw) ?: [];
+        $frontMatterLines = array_slice($lines, 0, max(0, $frontMatter['bodyStartLine'] - 1));
+
+        return implode("\n", $frontMatterLines)."\n".$newBody;
     }
 
     /**

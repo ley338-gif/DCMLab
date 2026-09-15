@@ -317,6 +317,16 @@ final class ContentValidator
         foreach ($questions as $entry) {
             $id = (string) ($entry['id'] ?? '');
 
+            if (! preg_match('/^f\d+$/', $id)) {
+                // Die "### fNN — ..."-Ueberschrift in de.md wird von
+                // ExamContent::splitIntoBlocks() nur bei diesem Muster
+                // erkannt -- eine abweichende id verschmilzt sonst
+                // stillschweigend mit dem vorherigen Block (doppelte
+                // Erklaerung dort, fehlender Abschnitt hier), statt eines
+                // klaren Fehlers.
+                $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\": id muss dem Muster \"fNN\" folgen (z. B. f41)");
+            }
+
             if (isset($seenIds[$id])) {
                 $this->issue($metaFile, LineFinder::firstLineContaining($metaRaw, $id), "Pruefungsfrage \"{$id}\" ist mehrfach vergeben");
             }
