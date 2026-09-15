@@ -11,8 +11,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Sichtbarkeit der Elementsequenz in Studio (ADR 0105, CMS-6b) -- rein
- * lesend, noch ohne Drag & Drop (CMS-6c).
+ * Elementsequenz einer Lektion in Studio (ADR 0105/0106, CMS-6b/CMS-6c) --
+ * Ansehen offen fuer jede Nicht-Lernende-Rolle, Umsortieren an dieselbe
+ * Regel gebunden wie der Lektions-Editor selbst.
  */
 class StudioLessonControllerTest extends TestCase
 {
@@ -39,6 +40,7 @@ class StudioLessonControllerTest extends TestCase
     {
         $track = Track::factory()->create();
         $lesson = Lesson::factory()->create(['track_id' => $track->id]);
+        Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
         $quizActivity = Activity::factory()->create(['type' => 'quiz', 'key' => $lesson->lesson_id, 'title' => ['de' => 'Quiz-Titel']]);
 
         LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $quizActivity->id, 'position' => 0]);
@@ -55,5 +57,87 @@ class StudioLessonControllerTest extends TestCase
                 ->where('elements.0.kind', 'quiz')
                 ->where('elements.1.kind', 'content'),
             );
+    }
+
+    public function test_can_manage_reflects_the_same_rule_as_the_lesson_editor(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'content', 'position' => 0]);
+
+        $reviewer = User::factory()->reviewer()->create();
+        $unassignedAuthor = User::factory()->author()->create();
+        $assignedAuthor = User::factory()->author()->create();
+        $activity->authorUsers()->attach($assignedAuthor);
+
+        $this->actingAs($reviewer)
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
+            ->assertInertia(fn ($page) => $page->where('can_manage', true));
+
+        $this->actingAs($unassignedAuthor)
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
+            ->assertInertia(fn ($page) => $page->where('can_manage', false));
+
+        $this->actingAs($assignedAuthor)
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
+            ->assertInertia(fn ($page) => $page->where('can_manage', true));
+    }
+
+    public function test_a_reviewer_can_reorder_the_elements(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id]);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $quizActivity = Activity::factory()->create(['type' => 'quiz', 'key' => '1.0']);
+
+        $content = LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'content', 'position' => 0]);
+        $quiz = LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $quizActivity->id, 'position' => 1]);
+
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($reviewer)
+            ->patch("/de/studio/lessons/{$lesson->lesson_id}/reorder", [
+                'order' => [$quiz->id, $content->id],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(0, $quiz->fresh()->position);
+        $this->assertSame(1, $content->fresh()->position);
+    }
+
+    public function test_an_unassigned_author_cannot_reorder(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id]);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $content = LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'content', 'position' => 0]);
+
+        $author = User::factory()->author()->create();
+
+        $this->actingAs($author)
+            ->patch("/de/studio/lessons/{$lesson->lesson_id}/reorder", ['order' => [$content->id]])
+            ->assertForbidden();
+
+        $this->assertSame(0, $content->fresh()->position);
+    }
+
+    public function test_reordering_rejects_an_element_id_from_another_lesson(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id]);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $content = LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'content', 'position' => 0]);
+
+        $otherLesson = Lesson::factory()->create(['track_id' => $track->id]);
+        $foreignElement = LessonElement::create(['lesson_id' => $otherLesson->id, 'type' => 'content', 'position' => 0]);
+
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($reviewer)
+            ->patch("/de/studio/lessons/{$lesson->lesson_id}/reorder", [
+                'order' => [$foreignElement->id],
+            ])
+            ->assertSessionHasErrors('order.0');
     }
 }
