@@ -232,7 +232,14 @@ erzeugten Artefakt machen.
   chirurgisch genau einen Eintrag in der flachen Top-Level-Liste. Ein
   echter Bild-Upload ist bewusst nicht Teil dieses Editors -- `image`
   bleibt ein Freitextfeld, siehe `docs/offene-fragen.md`.
-- W7: siehe `dcm-lab-lms-agent-prompt.md` Abschnitt 5.
+- **W7 — Wiederholungs-Erinnerungen** (fertig, siehe ADR 0084): eine Mail
+  mit der Zahl fälliger Wissenskarten, in einstellbarem Abstand (Standard
+  3 Tage, `config('review.reminder_interval_days')`), abschaltbar unter
+  `settings/profile` (Standard: an). `review:send-reminders` ist in
+  `bootstrap/app.php` als täglicher Scheduler-Job registriert -- dieses
+  Deployment führt aber noch keinen Scheduler-Prozess aus, siehe
+  `docs/offene-fragen.md` für die dafür zu treffende Betreiber-
+  Entscheidung. Damit sind alle Arbeitsphasen W0–W7 abgeschlossen.
 
 ## Bekannte Lücken
 

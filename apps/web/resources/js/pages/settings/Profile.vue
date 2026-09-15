@@ -7,6 +7,7 @@ import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/profile';
@@ -101,6 +102,17 @@ const user = computed(() => page.props.auth.user);
                         )
                     }}
                 </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <Checkbox
+                    id="review_reminders_enabled"
+                    name="review_reminders_enabled"
+                    :default-checked="user.review_reminders_enabled"
+                />
+                <Label for="review_reminders_enabled">{{
+                    trans('Per E-Mail an fällige Wissenskarten erinnern')
+                }}</Label>
             </div>
 
             <div class="flex items-center gap-4">

@@ -43,6 +43,23 @@ class ProfileUpdateTest extends TestCase
         $this->assertNull($user->email_verified_at);
     }
 
+    public function test_review_reminders_default_to_enabled_and_can_be_turned_off(): void
+    {
+        $user = User::factory()->create();
+        $this->assertTrue($user->refresh()->review_reminders_enabled);
+
+        $response = $this
+            ->actingAs($user)
+            ->patch(route('profile.update'), [
+                'name' => $user->name,
+                'email' => $user->email,
+                'review_reminders_enabled' => false,
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertFalse($user->refresh()->review_reminders_enabled);
+    }
+
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged()
     {
         $user = User::factory()->create();

@@ -17,6 +17,9 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->profileRules($this->user()->id);
+        // review_reminders_enabled (W7, ADR 0084) gehoert nicht zu den
+        // gemeinsam mit der Registrierung genutzten profileRules() --
+        // ein neues Konto braucht diese Einstellung nicht im Formular.
+        return [...$this->profileRules($this->user()->id), 'review_reminders_enabled' => 'boolean'];
     }
 }
