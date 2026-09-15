@@ -2,9 +2,7 @@
 
 namespace App\Content;
 
-use League\CommonMark\Environment\Environment;
-use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
-use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
+use App\Content\RichContent\MarkdownEnvironmentFactory;
 use League\CommonMark\MarkdownConverter;
 
 /**
@@ -27,14 +25,7 @@ final class MarkdownRenderer
     public function __construct(
         private readonly array $glossary = [],
     ) {
-        $environment = new Environment([
-            'html_input' => 'allow',
-            'allow_unsafe_links' => false,
-        ]);
-        $environment->addExtension(new CommonMarkCoreExtension);
-        $environment->addExtension(new GithubFlavoredMarkdownExtension);
-
-        $this->converter = new MarkdownConverter($environment);
+        $this->converter = new MarkdownConverter(MarkdownEnvironmentFactory::make());
     }
 
     public function render(string $markdown): string
