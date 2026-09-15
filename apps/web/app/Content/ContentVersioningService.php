@@ -74,10 +74,20 @@ final class ContentVersioningService
 
     /**
      * Setzt die aktuell gueltige Version auf die zuletzt davor
-     * veroeffentlichte zurueck. Wirft, wenn es keine aktuelle oder keine
-     * vorherige veroeffentlichte Version gibt.
+     * veroeffentlichte zurueck -- als NEUE, eigene Version mit demselben
+     * `payload` (ADR 0102, CMS-5b): eine einmal veroeffentlichte Version
+     * wird nie erneut mutiert (weder ihr `payload` noch ihr `status`), nur
+     * `is_current` bewegt sich als reiner Zeiger auf die jeweils aktive
+     * Version -- das aendert keine Historie rueckwirkend. Wirft, wenn es
+     * keine aktuelle oder keine vorherige veroeffentlichte Version gibt.
+     *
+     * Bewusst weiterhin reine Buchfuehrung (siehe Klassendoc): das
+     * tatsaechliche Zurueckschreiben des wiederhergestellten `payload` auf
+     * die Lektion/Datei ist Aufgabe von ActivityContentApplier, sobald ein
+     * Aufrufer (z. B. eine kuenftige Studio-"Wiederherstellen"-Aktion) beide
+     * Schritte kombiniert -- siehe docs/offene-fragen.md.
      */
-    public function rollback(Activity $activity): ContentVersion
+    public function rollback(Activity $activity, User $performedBy): ContentVersion
     {
         $current = $activity->contentVersions()->where('is_current', true)->first();
 
@@ -95,15 +105,20 @@ final class ContentVersioningService
             throw new RuntimeException('Keine vorherige veroeffentlichte Version vorhanden.');
         }
 
-        DB::transaction(function () use ($current, $previous): void {
+        return DB::transaction(function () use ($current, $previous, $performedBy): ContentVersion {
             $current->is_current = false;
             $current->save();
 
-            $previous->is_current = true;
-            $previous->save();
+            return ContentVersion::create([
+                'activity_id' => $previous->activity_id,
+                'status' => 'published',
+                'payload' => $previous->payload,
+                'is_current' => true,
+                'created_by' => $previous->created_by,
+                'reviewed_by' => $performedBy->id,
+                'published_at' => now(),
+            ]);
         });
-
-        return $previous->refresh();
     }
 
     /**

@@ -4,18 +4,65 @@ Entscheidungen aus dem Ausbau zum Lightweight LMS (`dcm-lab-lms-agent-prompt.md`
 die der Betreiber trifft, nicht der Code-Agent. Format: Frage, Kontext,
 Empfehlung. Erledigte Punkte werden hier durchgestrichen, nicht geloescht.
 
-## `content/` ist in `infra/docker-compose.yml` fuer `app` read-only gemountet -- Freigeben schlaegt im Standard-Dev-Setup fehl
+## `content:export` fehlt noch -- `content/` ist nur noch Import-Format, kein deterministischer Export
+
+**Frage:** Wann bekommt `content/` ein echtes Gegenstueck zu
+`content:sync` -- ein `content:export`, das den aktuellen DB-Bestand
+deterministisch nach `content/**` schreibt (fuer Backups, neue
+Umgebungen, oder um einen DB-Stand als Ausgangspunkt fuer einen
+git-Diff zu haben)?
+
+**Kontext:** ADR 0102 (CMS-5b) stoppt den bisherigen automatischen
+Schreibpfad (Lektionsfeld-Freigabe schreibt jetzt direkt in die DB,
+nicht mehr nach `content/`) -- wie von Anfang an in
+`docs/studio-architecture-plan.md` Abschnitt 3 vorgesehen, wird
+`content/` damit endgueltig auf "Import/Export/Seed/Demo" reduziert.
+Die Export-Haelfte davon existiert aber noch nicht; `content/` ist
+seitdem nur noch "was `content:sync` zuletzt importiert hat", nicht
+"was der aktuelle DB-Stand tatsaechlich waere".
+
+**Empfehlung:** Erst bauen, wenn ein echter Bedarf ansteht (Backup,
+Umzug, Community-Beitrag) -- ein Export muss dieselbe YAML-/Markdown-
+Formatierung reproduzieren, die bisher `ContentWriter`/die Generatoren
+uebernommen haben, und ist ein eigenstaendiges, nicht triviales
+Vorhaben.
+
+## `ContentVersioningService::rollback()` schreibt die wiederhergestellte Version nicht auf die Lektion zurueck
+
+**Frage:** Wann bekommt "Wiederherstellen" eine echte Studio-Aktion
+(Route + UI), die `rollback()` mit `ActivityContentApplier::apply()`
+kombiniert, damit eine wiederhergestellte Version auch tatsaechlich
+wieder live ist?
+
+**Kontext:** ADR 0102 (CMS-5b) macht `rollback()` korrekt (neue Version
+statt Mutation einer bestehenden), belaesst es aber bewusst als reine
+Buchfuehrung (wie schon in ADR 0075 dokumentiert) -- es gibt heute keine
+Route/UI, die es aufruft. Ohne einen solchen Aufrufer aendert ein
+Rollback zwar die Versions-Historie korrekt, aber nicht das, was
+Lernende tatsaechlich sehen.
+
+**Empfehlung:** Erst bauen, wenn ein "Versionen anzeigen/
+Wiederherstellen"-Feature in Studio tatsaechlich ansteht (CMS-10,
+Revision History) -- nicht vorab, ohne dass irgendeine Oberflaeche es
+nutzt.
+
+## `content/` ist in `infra/docker-compose.yml` fuer `app` read-only gemountet -- Freigeben schlaegt im Standard-Dev-Setup fehl (nur noch Quiz/Pruefung/Achievement)
+
+**Seit ADR 0102 (CMS-5b) eingeschraenkt:** Eine Lektionsfeld-Freigabe
+schreibt nicht mehr nach `content/` (siehe oben) und ist von diesem
+Mount deshalb nicht mehr betroffen. Quiz-, Pruefungs- und Achievement-
+Freigaben schreiben weiterhin nach `content/` und scheitern deshalb
+weiterhin lokal wie unten beschrieben.
 
 **Frage:** Wie soll ein Reviewer eine Einreichung lokal tatsaechlich
-freigeben koennen (`ContentVersionController::publish()` -> `ContentWriter`
-schreibt nach `content/`), wenn `../content:/var/www/html/content:ro` den
-Schreibzugriff im Container grundsaetzlich verbietet?
+freigeben koennen (`ContentWriter` schreibt nach `content/`), wenn
+`../content:/var/www/html/content:ro` den Schreibzugriff im Container
+grundsaetzlich verbietet?
 
 **Kontext:** Entdeckt beim Testen des neuen Autoren-Panels (ADR 0092): ein
 "Freigeben"-Klick scheitert mit einem 500er
 (`file_put_contents(...): Failed to open stream: Read-only file system`).
-Das betrifft nicht das Panel selbst, sondern jeden bestehenden Editor
-(Lektion/Quiz/Pruefung/Achievement) gleichermassen -- der Mount ist in
+Das betraf urspruenglich jeden Editor gleichermassen; der Mount ist in
 `infra/docker-compose.yml` fuer `app`, `engine`, `sandbox`,
 `scenario-engine` fest auf `:ro` gesetzt, `infra/docker-compose.dev.yml`
 ueberschreibt das nicht. Vermutlich eine bewusste Sicherheitsmassnahme
