@@ -156,6 +156,61 @@ class RuntimeSessionServiceTest extends TestCase
         ));
     }
 
+    public function test_destroy_clears_the_attempts_current_session_pointer(): void
+    {
+        // CMS-8b, Betreiber-Review (drittes Review): reconcileGone() raeumte
+        // den Zeiger bereits, destroy() (explizites Beenden) vorher nicht --
+        // beide Pfade beenden dieselbe Runtime und muessen denselben
+        // Abschluss teilen.
+        $user = User::factory()->create();
+        $lab = Lab::factory()->create(['slug' => 'c-echo-connectivity']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $attempt = LabAttempt::create([
+            'user_id' => $user->id, 'activity_id' => $activity->id,
+            'status' => 'started', 'started_at' => now(),
+        ]);
+        $session = SandboxSession::factory()->create([
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+            'lab_attempt_id' => $attempt->id,
+        ]);
+        $attempt->update(['current_sandbox_session_id' => $session->id]);
+
+        Http::fake(['*/v1/sandboxes/sb-1' => Http::response('', 204)]);
+
+        $this->service()->destroy('sb-1');
+
+        $session->refresh();
+        $this->assertSame('destroyed', $session->status);
+        $this->assertNotNull($session->finished_at);
+        $this->assertNull($attempt->fresh()->current_sandbox_session_id);
+    }
+
+    public function test_destroy_does_not_touch_a_different_current_session(): void
+    {
+        $user = User::factory()->create();
+        $lab = Lab::factory()->create(['slug' => 'c-echo-connectivity']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $attempt = LabAttempt::create([
+            'user_id' => $user->id, 'activity_id' => $activity->id,
+            'status' => 'started', 'started_at' => now(),
+        ]);
+        $oldSession = SandboxSession::factory()->create([
+            'runtime_instance_id' => 'sb-old', 'runtime_provider' => 'docker', 'lab_attempt_id' => $attempt->id,
+        ]);
+        $newerSession = SandboxSession::factory()->create([
+            'runtime_instance_id' => 'sb-new', 'runtime_provider' => 'docker', 'lab_attempt_id' => $attempt->id,
+        ]);
+        $attempt->update(['current_sandbox_session_id' => $newerSession->id]);
+
+        Http::fake(['*/v1/sandboxes/sb-old' => Http::response('', 204)]);
+
+        $this->service()->destroy('sb-old');
+
+        $this->assertSame($newerSession->id, $attempt->fresh()->current_sandbox_session_id);
+        $this->assertSame('destroyed', $oldSession->fresh()->status);
+    }
+
     public function test_state_against_a_gone_session_reconciles_and_clears_the_attempts_current_session(): void
     {
         $user = User::factory()->create();

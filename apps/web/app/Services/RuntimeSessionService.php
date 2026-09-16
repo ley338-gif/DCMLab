@@ -138,7 +138,7 @@ final readonly class RuntimeSessionService
 
         $this->runtimeProviders->for($this->runtimeProviderFor($sandboxId, $session))->delete($sandboxId);
 
-        $session?->update(['status' => 'destroyed', 'finished_at' => now()]);
+        $this->finishSession($session, 'destroyed');
     }
 
     /**
@@ -167,11 +167,26 @@ final readonly class RuntimeSessionService
 
     private function reconcileGone(?SandboxSession $session): void
     {
+        $this->finishSession($session, 'reaped');
+    }
+
+    /**
+     * Gemeinsamer Abschluss-Pfad fuer `destroy()` (explizites Beenden) und
+     * `reconcileGone()` (Python meldet 404, CMS-8b Betreiber-Review): in
+     * BEIDEN Faellen ist die Runtime vorbei, und `LabAttempt.
+     * current_sandbox_session_id` darf nicht auf eine beendete Session
+     * zeigen bleiben -- sonst wuerde ein spaeterer Lab-Runtime-Neustart
+     * (CMS-8d) einen Komfortzeiger auf eine tote Session vorfinden. Vorher
+     * raeumte nur `reconcileGone()` den Zeiger; `destroy()` liess ihn
+     * stehen.
+     */
+    private function finishSession(?SandboxSession $session, string $status): void
+    {
         if ($session === null) {
             return;
         }
 
-        $session->update(['status' => 'reaped', 'finished_at' => now()]);
+        $session->update(['status' => $status, 'finished_at' => now()]);
 
         if ($session->lab_attempt_id === null) {
             return;
