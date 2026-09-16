@@ -6,10 +6,10 @@
  * internes Implementierungsdetail: `modelValue`/`update:modelValue` sind
  * nie TipTap-JSON, siehe `RichContentEditorAdapter`.
  *
- * Absichtlich noch ohne `lessons.rich_content`/`nodes.rich_content`,
- * Controller- oder Publisher-Anbindung und ohne Migration bestehender
- * Bodies -- dieser Slice bleibt isoliert testbar (Betreiber-Vorgabe fuer
- * CMS-7b/7c), bis CMS-7d den echten Cutover macht.
+ * Seit CMS-7d.3 (ADR 0118) tatsaechlich an `lessons.rich_content`/
+ * `nodes.rich_content` angeschlossen (`Author/LessonEditor.vue`,
+ * `Studio/Nodes/Edit.vue`) -- vorher (CMS-7b/7c) bewusst isoliert
+ * gehalten, ohne Controller-/Publisher-Anbindung.
  */
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import { ref, watch } from 'vue';

@@ -9,6 +9,7 @@ use App\Content\FrontMatter;
 use App\Content\LessonMetaGenerator;
 use App\Content\LessonQuizGenerator;
 use App\Content\QuizContent;
+use App\Content\RichContent\LessonPayloadNormalizer;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\User;
@@ -165,26 +166,14 @@ final readonly class LessonActivity implements ActivityContract
             $metaRaw = LessonQuizGenerator::regenerateMeta($metaRaw, $draft['quiz']);
         }
 
-        if (isset($draft['quiz']) || array_key_exists('body', $draft)) {
+        if (isset($draft['quiz'])) {
+            // Seit CMS-7d.3 ist `rich_content` die kanonische Prosa-Quelle
+            // (DB), nicht mehr `content/**` -- serialize() regeneriert die
+            // Datei deshalb nur noch fuer den Quiz-Block, den es ohnehin
+            // schon vorher separat behandelt hat. Die Prosa selbst (vor UND
+            // nach dem Quiz) bleibt in `de.md` exakt so stehen, wie sie war.
             $frontMatter = FrontMatter::parse($mdRaw);
-            $body = $frontMatter['body'];
-
-            if (array_key_exists('body', $draft)) {
-                // Nur die Prosa vor dem Quiz-Abschnitt wird vom Lektions-
-                // Editor bearbeitet -- ein bestehender Quiz-Abschnitt und
-                // die Fussnote danach ("Als Naechstes: ...") bleiben
-                // unangetastet erhalten, bis der Entwurf sie selbst aendert.
-                $split = QuizContent::splitBody($body);
-                $newBefore = rtrim((string) $draft['body'], "\r\n");
-                $body = $split['quiz_raw'] !== ''
-                    ? $newBefore."\n\n".$split['quiz_raw']."\n\n".$split['after']
-                    : $newBefore;
-            }
-
-            if (isset($draft['quiz'])) {
-                $body = LessonQuizGenerator::regenerateBody($body, $draft['quiz']);
-            }
-
+            $body = LessonQuizGenerator::regenerateBody($frontMatter['body'], $draft['quiz']);
             $mdRaw = $this->withNewBody($mdRaw, $body);
         }
 
@@ -211,7 +200,14 @@ final readonly class LessonActivity implements ActivityContract
      * Baut denselben Eintrag, den ContentRepository::lessons() fuer diese
      * Lektion liefern wuerde, aber aus serialize($draft) statt von der
      * Platte -- damit validate($draft) den Entwurf pruefen kann, bevor er
-     * geschrieben wird.
+     * geschrieben wird. Seit CMS-7d.3 zusaetzlich mit `rich_content`: ein
+     * Entwurf, der bereits `rich_content` traegt (der Normalfall, seit der
+     * Editor keinen `body` mehr schreibt), wird unveraendert durchgereicht;
+     * ein alter, noch `body`-tragender Entwurf (in-flight vor dem Cutover
+     * angelegt, oder eine wiederhergestellte historische Revision) wird
+     * hier ueber `LessonPayloadNormalizer` konvertiert. `ContentValidator`
+     * prueft dann `checkRichContentExampleRule()`/`checkRichContentTerms()`
+     * gegen dieses Feld statt der Markdown-Regeln gegen `body`.
      *
      * @param  array<string, mixed>  $draft
      * @return array<string, mixed>
@@ -235,6 +231,7 @@ final readonly class LessonActivity implements ActivityContract
             'frontmatter' => $frontMatter['attributes'],
             'body' => $frontMatter['body'],
             'body_start_line' => $frontMatter['bodyStartLine'],
+            'rich_content' => (new LessonPayloadNormalizer)->normalize($draft)['rich_content'] ?? null,
         ];
     }
 
@@ -254,8 +251,28 @@ final readonly class LessonActivity implements ActivityContract
             'glossary_terms' => $this->lesson->glossary_terms,
             'sandbox' => $this->lesson->sandbox,
             'lab' => $this->lesson->lab,
-            'body' => $entry['body'] ?? null,
+            // CMS-7d.3: rich_content ist die kanonische Prosa-Quelle. Ist
+            // die Spalte noch nicht befuellt (nicht migrierte/sehr neue
+            // Lektion), normalisiert derselbe Normalizer wie ueberall sonst
+            // den Legacy-Body -- aber NUR die Prosa (`before`+`after`,
+            // deckungsgleich mit `rich-content:migrate`/`LessonController::
+            // show()`), niemals den Quiz-Abschnitt selbst.
+            'rich_content' => $this->lesson->rich_content
+                ?? (new LessonPayloadNormalizer)->normalize(['body' => $this->legacyProse($entry['body'] ?? '')])['rich_content'],
         ];
+    }
+
+    /**
+     * `before` und `after` (`QuizContent::splitBody()`) zusammen, ohne den
+     * Quiz-Abschnitt selbst -- derselbe Ausschnitt, den `rich-content:
+     * migrate` (CMS-7d.2) und `LessonController::show()` als EIN
+     * Content-Element behandeln.
+     */
+    private function legacyProse(string $body): string
+    {
+        $split = QuizContent::splitBody($body);
+
+        return trim($split['before']."\n\n".$split['after']);
     }
 
     public function result(User $user): ?ActivityResult

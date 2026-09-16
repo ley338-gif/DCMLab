@@ -11,11 +11,20 @@ use Tests\TestCase;
 
 /**
  * ADR 0102 (CMS-5b): wendet einen Lektionsfeld-Entwurf direkt auf die DB an
- * -- kein Datei-Schreibvorgang, kein content:sync.
+ * -- kein Datei-Schreibvorgang, kein content:sync. Seit CMS-7d.3 (ADR 0118)
+ * schreibt der Publisher `rich_content`, nicht mehr `body` -- der Aufrufer
+ * (`ContentPublishingService`) normalisiert das Payload vorher immer schon.
  */
 class LessonContentPublisherTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function richContent(string $text): array
+    {
+        return ['type' => 'doc', 'version' => 1, 'content' => [
+            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $text]]],
+        ]];
+    }
 
     public function test_it_applies_every_field_directly_to_the_lesson_row(): void
     {
@@ -40,7 +49,7 @@ class LessonContentPublisherTest extends TestCase
             'objectives' => ['Ziel eins', 'Ziel zwei'],
             'sandbox' => ['required' => true, 'dataset' => 'ct-head-01', 'note' => null],
             'lab' => ['node' => 'silent-ct', 'optional' => true],
-            'body' => 'Neue Prosa.',
+            'rich_content' => $this->richContent('Neue Prosa.'),
         ]);
 
         $lesson->refresh();
@@ -55,29 +64,31 @@ class LessonContentPublisherTest extends TestCase
         $this->assertSame(2, $lesson->objectives_count);
         $this->assertTrue($lesson->sandbox['required']);
         $this->assertSame('silent-ct', $lesson->lab['node']);
-        $this->assertSame('Neue Prosa.', $lesson->body);
+        $this->assertSame('Neue Prosa.', $lesson->rich_content['content'][0]['content'][0]['text']);
     }
 
-    public function test_it_preserves_an_existing_quiz_section_in_the_body(): void
+    /**
+     * Betreiber-Vorgabe (CMS-7d.3): "keine zwei schreibenden Sources of
+     * Truth" -- der Publisher regeneriert `body` nicht mehr aus dem
+     * Entwurf, die Spalte bleibt exakt so stehen, wie sie vor dem Publish
+     * war (Legacy-Fallback fuer noch nicht migrierte Lektionen).
+     */
+    public function test_it_does_not_touch_the_legacy_body_column(): void
     {
         $track = Track::factory()->create();
-        $lesson = Lesson::factory()->create([
-            'track_id' => $track->id,
-            'body' => "Alte Prosa.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.",
-        ]);
+        $originalBody = "Alte Prosa.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.";
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'body' => $originalBody]);
         $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
 
         (new LessonContentPublisher)->publish($activity, [
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'objectives' => ['Ziel'], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true], 'body' => 'Neue Prosa.',
+            'lab' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent('Neue Prosa.'),
         ]);
 
         $lesson->refresh();
-        $this->assertStringContainsString('Neue Prosa.', $lesson->body);
-        $this->assertStringContainsString('q1 — Frage?', $lesson->body);
-        $this->assertStringContainsString('Als Nächstes', $lesson->body);
-        $this->assertStringNotContainsString('Alte Prosa.', $lesson->body);
+        $this->assertSame($originalBody, $lesson->body);
+        $this->assertSame('Neue Prosa.', $lesson->rich_content['content'][0]['content'][0]['text']);
     }
 
     public function test_it_keeps_the_activity_row_title_and_teaser_in_sync(): void
@@ -96,7 +107,7 @@ class LessonContentPublisherTest extends TestCase
             'title' => 'Neuer Aktivitaetstitel', 'teaser' => 'Neuer Aktivitaetsteaser',
             'level' => 'einsteiger', 'duration_minutes' => 5, 'objectives' => ['Ziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true], 'body' => 'Prosa.',
+            'lab' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent('Prosa.'),
         ]);
 
         $activity->refresh();

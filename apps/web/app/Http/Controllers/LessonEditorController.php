@@ -5,13 +5,16 @@ namespace App\Http\Controllers;
 use App\Activities\ActivityRegistry;
 use App\Content\ContentRepository;
 use App\Content\ContentVersioningService;
+use App\Content\LearnerViewBuilder;
 use App\Content\QuizContent;
+use App\Content\RichContent\LessonPayloadNormalizer;
 use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -46,10 +49,24 @@ class LessonEditorController extends Controller
                 'lesson_id' => $lesson->lesson_id,
                 'title' => $lesson->title['de'] ?? $lesson->lesson_id,
             ],
-            'fields' => $pendingVersion !== null ? $pendingVersion->payload : $this->currentFields($lesson, $content),
+            // Betreiber-Review vor #126: ein VOR dem Cutover angelegter
+            // Entwurf traegt noch `payload.body` (Legacy-Shape) statt
+            // `rich_content` -- ohne Normalisierung bekaeme der neue Editor
+            // ein Feld, das er nicht versteht. Derselbe Normalizer wie bei
+            // Publish/Restore/Preview, damit alle vier Wege dasselbe
+            // Ergebnis zeigen.
+            'fields' => $pendingVersion !== null
+                ? (new LessonPayloadNormalizer)->normalize($pendingVersion->payload, $lesson->body)
+                : $this->currentFields($lesson, $content),
             'catalog' => [
                 'tools' => array_keys($content->tools()),
                 'glossary_terms' => array_keys($content->glossary()),
+                // Fuer das Slash-Menue des RichContentEditor ("/glossary",
+                // ADR 0114/0118) -- {slug, term}-Paare statt nur Slugs,
+                // damit die Suche nach dem lesbaren Begriff funktioniert.
+                'glossary' => collect($content->glossary())
+                    ->map(fn (array $entry, string $slug): array => ['slug' => $slug, 'term' => $entry['term'] ?? $slug])
+                    ->values(),
                 'datasets' => array_keys($content->datasets()),
                 // Seit CMS-6d Teil 3 (ADR 0109) aus der DB statt aus
                 // ContentRepository -- damit sieht der Composer auch eine
@@ -66,6 +83,10 @@ class LessonEditorController extends Controller
                 'status' => $pendingVersion->status,
             ],
             'can_publish' => Gate::allows('publish', $activity),
+            // Echte Learner View des ungespeicherten Entwurfs (CMS-7d.3
+            // Phase 6, ADR 0118) statt eines Links auf die veroeffentlichte
+            // Lektion -- siehe preview() unten.
+            'preview_url' => route('author.lessons.edit.preview', $lesson),
         ]);
     }
 
@@ -89,6 +110,47 @@ class LessonEditorController extends Controller
         $versions->createDraft($activity, $this->validatedFields($request), $request->user());
 
         return back()->with('status', 'Entwurf gespeichert.');
+    }
+
+    /**
+     * Echte Learner View eines ungespeicherten Entwurfs (CMS-7d.3 Phase 6,
+     * ADR 0118): dieselbe `Lessons/Show`-Seite wie `LessonController::
+     * show()`, aber mit den entwurfsbetroffenen Feldern einer NIE
+     * gespeicherten Kopie ueberschrieben (`clone`, kein `save()`) --
+     * `body`, Track-Zugehoerigkeit, Quiz und `lesson_elements` bleiben
+     * unveraendert (der Rich-Content-Cutover fasst sie nicht an). Kein
+     * zweiter Renderer, `LearnerViewBuilder::lessonProps(...,
+     * trackProgress: false)` verhindert dabei, dass das blosse Ansehen
+     * eines Entwurfs echten Lernfortschritt fuer den Autor anlegt.
+     */
+    public function preview(Lesson $lesson, ContentRepository $content, LearnerViewBuilder $builder): Response
+    {
+        $activity = $this->activityFor($lesson);
+        Gate::authorize('update', $activity);
+
+        $pendingVersion = $activity->contentVersions()
+            ->whereIn('status', ['draft', 'review'])
+            ->latest()
+            ->first();
+
+        $draft = $pendingVersion !== null
+            ? (new LessonPayloadNormalizer)->normalize($pendingVersion->payload, $lesson->body)
+            : (new LessonPayloadNormalizer)->normalize($this->currentFields($lesson, $content));
+
+        $previewLesson = clone $lesson;
+        $previewLesson->title = ['de' => $draft['title']];
+        $previewLesson->teaser = ['de' => $draft['teaser']];
+        $previewLesson->level = $draft['level'];
+        $previewLesson->duration_minutes = $draft['duration_minutes'];
+        $previewLesson->tools = $draft['tools'];
+        $previewLesson->requires = $draft['requires'];
+        $previewLesson->glossary_terms = $draft['glossary_terms'];
+        $previewLesson->objectives = $draft['objectives'];
+        $previewLesson->sandbox = $draft['sandbox'];
+        $previewLesson->lab = $draft['lab'];
+        $previewLesson->rich_content = $draft['rich_content'];
+
+        return Inertia::render('Lessons/Show', $builder->lessonProps($previewLesson, Auth::user(), trackProgress: false));
     }
 
     private function activityFor(Lesson $lesson): Activity
@@ -121,7 +183,16 @@ class LessonEditorController extends Controller
             'lab' => 'required|array',
             'lab.node' => 'nullable|string',
             'lab.optional' => 'required|boolean',
-            'body' => 'required|string',
+            // Nur die grobe Form (ein Objekt) wird hier erzwungen -- die
+            // eigentliche Schema-/Inhaltspruefung (RichContentValidator,
+            // Leseanleitung/Glossar/Werkzeug-Regeln) laeuft ueber
+            // activity->validate($draft), nicht ueber Formular-Regeln
+            // (CMS-7d.3, ADR 0118). Bewusst KEINE weiteren
+            // `rich_content.*`-Regeln: Laravels validate() liesse sonst nur
+            // die explizit benannten Unterschluessel durch und wuerde
+            // `content` (und alles andere) aus dem validierten Ergebnis
+            // stillschweigend herausfiltern.
+            'rich_content' => 'required|array',
         ]);
     }
 
@@ -139,7 +210,7 @@ class LessonEditorController extends Controller
      */
     private function currentFields(Lesson $lesson, ContentRepository $content): array
     {
-        if ($lesson->body !== null) {
+        if ($lesson->body !== null || $lesson->rich_content !== null) {
             return [
                 'title' => $lesson->title['de'] ?? '',
                 'teaser' => $lesson->teaser['de'] ?? '',
@@ -158,7 +229,13 @@ class LessonEditorController extends Controller
                     'node' => $lesson->lab['node'] ?? null,
                     'optional' => $lesson->lab['optional'] ?? true,
                 ],
-                'body' => QuizContent::splitBody($lesson->body)['before'],
+                // CMS-7d.3: rich_content ist die kanonische Prosa-Quelle.
+                // Ist die Spalte noch nicht befuellt, normalisiert derselbe
+                // Normalizer wie ueberall sonst den Legacy-Body -- nur die
+                // Prosa (before+after), nie den Quiz-Abschnitt selbst
+                // (der bleibt Sache des Quiz-Editors).
+                'rich_content' => $lesson->rich_content
+                    ?? (new LessonPayloadNormalizer)->normalize(['body' => $this->legacyProse($lesson->body ?? '')])['rich_content'],
             ];
         }
 
@@ -170,7 +247,7 @@ class LessonEditorController extends Controller
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => [],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
                 'lab' => ['node' => null, 'optional' => true],
-                'body' => '',
+                'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
             ];
         }
 
@@ -195,7 +272,20 @@ class LessonEditorController extends Controller
                 'node' => $meta['lab']['node'] ?? null,
                 'optional' => $meta['lab']['optional'] ?? true,
             ],
-            'body' => QuizContent::splitBody((string) ($entry['body'] ?? ''))['before'],
+            'rich_content' => (new LessonPayloadNormalizer)->normalize(['body' => $this->legacyProse((string) ($entry['body'] ?? ''))])['rich_content'],
         ];
+    }
+
+    /**
+     * `before` und `after` (`QuizContent::splitBody()`) zusammen, ohne den
+     * Quiz-Abschnitt selbst -- derselbe Ausschnitt, den `rich-content:
+     * migrate` (CMS-7d.2) und `LessonController::show()` als EIN
+     * Content-Element behandeln.
+     */
+    private function legacyProse(string $body): string
+    {
+        $split = QuizContent::splitBody($body);
+
+        return trim($split['before']."\n\n".$split['after']);
     }
 }

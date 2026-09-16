@@ -20,6 +20,47 @@ festgehalten: Schema v1 gilt ab jetzt als eingefroren (der letzte
 guenstige Zeitpunkt dafuer, vor dem CMS-7d.2-Backfill), und
 `rich-content:audit` wird zum Gate vor jedem Backfill-Lauf.
 
+## Restore einer prae-7d.3-Lesson-Revision: `after` stammt aus einem Legacy-Snapshot, nicht aus dem aktuellen Rich Content
+
+**Frage:** Soll `LessonPayloadNormalizer` fuer eine sehr alte, `body`-
+tragende Lesson-Revision irgendwann den fehlenden Nach-Quiz-Teil
+(`after`) aus dem AKTUELLEN, zusammengefuehrten `rich_content` ziehen
+statt weiterhin aus der live `Lesson::body`-Spalte -- und wenn ja, ab
+welchem Zeitpunkt darf `body` als Restore-Kompatibilitaetspfad ganz
+entfallen?
+
+**Kontext:** ADR 0118 (CMS-7d.3) loest den urspruenglichen Fund
+(Restore einer Legacy-Revision haette `after` verloren) damit, dass
+`LessonPayloadNormalizer::normalize()` ein historisches `payload.body`
+als `before` interpretiert und das fehlende `after` aus der live
+`Lesson::body`-Spalte ergaenzt (`QuizContent::splitBody()`). Das ist
+fuer den urspruenglichen Vertragsbruch korrekt: vor 7d.3 speicherte der
+Lesson-Editor in `payload.body` ausdruecklich nur `before`, `after` kam
+nie aus dem Editor, sondern immer live aus `Lesson::body`.
+
+Seit dem Cutover wird `body` nach jedem Rich-Content-Publish aber
+absichtlich NICHT mehr aktualisiert ("keine zwei schreibenden Sources
+of Truth", ADR 0118) -- `body` friert deshalb den `after`-Stand exakt
+zum Zeitpunkt des letzten Vor-Cutover-Publishs ein. Bearbeitet ein Autor
+den ehemaligen Nach-Quiz-Bereich spaeter nur noch ueber das
+zusammengefuehrte Rich-Content-Dokument (dort ist er seit Phase 5
+sichtbar und editierbar), aendert sich `body` nicht mit -- ein
+anschliessender Restore einer prae-7d.3-Revision haengt deshalb weiterhin
+den EINGEFRORENEN Legacy-Stand an, nicht den zuletzt tatsaechlich
+gepflegten `after`-Text. Ein begrenzter, aber realer Legacy-Sonderfall,
+kein Bug -- `body` ist fuer genau diesen einen Zweck (Restore-
+Kompatibilitaet fuer eine noch nicht migrierte Alt-Revision) weiterhin
+lesend im Spiel, obwohl er sonst ueberall als reiner Anzeige-Fallback
+gilt.
+
+**Empfehlung:** Vorerst so belassen -- betrifft nur den Restore einer
+Revision, die noch aus der Zeit VOR dem Cutover stammt, eine mit der
+Zeit natuerlich schrumpfende Menge. Erst angehen, wenn CMS-7d.4 (oder
+eine spaetere Iteration) `body` vollstaendig aus jedem verbleibenden
+Lesepfad entfernt -- dann muesste der Normalizer sein `after`
+stattdessen aus dem aktuellen `Lesson::rich_content` extrahieren (oder
+der Restore-Pfad fuer `body`-Revisionen wird ganz eingestellt).
+
 ## `content:export` fehlt noch -- `content/` ist nur noch Import-Format, kein deterministischer Export
 
 **Frage:** Wann bekommt `content/` ein echtes Gegenstueck zu

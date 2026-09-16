@@ -145,16 +145,27 @@ class NodeActivityTest extends TestCase
         $this->assertSame('Neues Szenario', $frontMatter['attributes']['scenario_title']);
     }
 
-    public function test_serialize_with_a_body_draft_replaces_only_the_body(): void
+    /**
+     * CMS-7d.3: `rich_content` (DB) ist die kanonische Quelle fuer
+     * Briefing/Hints/Write-up, nicht mehr `content/**` -- ein
+     * `rich_content`-Entwurf regeneriert deshalb keinen Body-Teil in
+     * `de.md` mehr, nur noch Titel/Szenario-Titel in der Frontmatter.
+     */
+    public function test_serialize_with_a_rich_content_draft_does_not_touch_the_markdown_body(): void
     {
         $activity = $this->makeActivity();
+        $originalMdRaw = (new ContentRepository($this->contentDir))->nodes()['test-node']['md_raw'];
 
-        $files = $activity->serialize(['body' => '## Briefing'.PHP_EOL.PHP_EOL.'Neuer Briefing-Text.']);
+        $files = $activity->serialize([
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => []],
+                'hints' => [],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
+        ]);
 
-        $frontMatter = FrontMatter::parse($files[1]['contents']);
-        $this->assertSame('Test Node', $frontMatter['attributes']['title'], 'Frontmatter darf unangetastet bleiben.');
-        $this->assertStringContainsString('Neuer Briefing-Text.', $files[1]['contents']);
-        $this->assertStringNotContainsString('Briefing-Text.'.PHP_EOL, $files[1]['contents']);
+        $this->assertSame($originalMdRaw, $files[1]['contents']);
     }
 
     public function test_serialize_with_a_hints_draft_regenerates_only_the_hints_block(): void
@@ -228,8 +239,71 @@ class NodeActivityTest extends TestCase
         $this->assertSame('test-node', $draft['slug']);
         $this->assertSame('easy', $draft['difficulty']);
         $this->assertSame(10, $draft['points']);
-        $this->assertIsString($draft['body']);
+        $this->assertSame('node_content', $draft['rich_content']['type']);
+        $this->assertSame(1, $draft['rich_content']['version']);
+        $this->assertSame('doc', $draft['rich_content']['briefing']['type']);
         $this->assertSame([], $draft['hints']);
+    }
+
+    /**
+     * Betreiber-Vorgabe (CMS-7d.3): Node.hints (Metadaten) und
+     * rich_content.hints (Text) muessen exakt dieselben Ids tragen.
+     */
+    public function test_validate_catches_a_hint_with_metadata_but_no_rich_content_text(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate([
+            'hints' => [['id' => 'h1', 'cost' => 1]],
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => []],
+                'hints' => [],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
+        ]);
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'Hint "h1"') && str_contains($issue->message, 'keinen zugehoerigen Text'),
+        ));
+    }
+
+    public function test_validate_catches_rich_content_hint_text_without_metadata(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate([
+            'hints' => [],
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => []],
+                'hints' => ['h1' => ['type' => 'doc', 'version' => 1, 'content' => []]],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
+        ]);
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'rich_content.hints enthaelt "h1"'),
+        ));
+    }
+
+    public function test_validate_accepts_matching_hint_ids(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate([
+            'hints' => [['id' => 'h1', 'cost' => 1]],
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => []],
+                'hints' => ['h1' => ['type' => 'doc', 'version' => 1, 'content' => []]],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
+        ]);
+
+        $this->assertFalse(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'zugehoerigen Text') || str_contains($issue->message, 'rich_content.hints enthaelt'),
+        ));
     }
 
     private function makeActivity(): NodeActivity

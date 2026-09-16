@@ -109,6 +109,7 @@ Route::prefix('de')->group(function () {
             Route::post('{node}/duplicate', [StudioNodeController::class, 'duplicate'])->name('duplicate');
             Route::post('{node}/archive', [StudioNodeController::class, 'archive'])->name('archive');
             Route::post('{node}/restore', [StudioNodeController::class, 'restore'])->name('restore');
+            Route::get('{node}/preview', [StudioNodeController::class, 'preview'])->name('preview');
         });
 
         // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte
@@ -124,6 +125,7 @@ Route::prefix('de')->group(function () {
             Route::get('/', [LessonEditorController::class, 'edit'])->name('edit');
             Route::post('validate', [LessonEditorController::class, 'validateDraft'])->name('validate');
             Route::post('/', [LessonEditorController::class, 'storeDraft'])->name('store');
+            Route::get('preview', [LessonEditorController::class, 'preview'])->name('preview');
         });
         Route::prefix('author/exams/{track}/edit')->name('author.exams.edit.')->group(function () {
             Route::get('/', [ExamEditorController::class, 'edit'])->name('edit');
@@ -146,6 +148,7 @@ Route::prefix('de')->group(function () {
         Route::prefix('author/quiz-versions/{version}')->name('author.quiz-versions.')->group(function () {
             Route::post('submit', [ContentVersionController::class, 'submit'])->name('submit');
             Route::post('publish', [ContentVersionController::class, 'publish'])->name('publish');
+            Route::post('restore', [ContentVersionController::class, 'restore'])->name('restore');
         });
 
         Route::prefix('tracks/{track}/exam')->name('tracks.exam.')->middleware('throttle:60,1')->group(function () {

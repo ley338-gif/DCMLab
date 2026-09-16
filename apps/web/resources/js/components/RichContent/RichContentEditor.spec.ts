@@ -77,51 +77,32 @@ describe('RichContentEditor', () => {
     });
 
     /**
-     * `table` bleibt ausserhalb des CMS-7c-Editor-Scopes (generische
-     * Tabellen sind kein Ziel, siehe ADR 0114) -- damit weiterhin ein
-     * echtes Beispiel fuer einen unbekannten Knoten (anders als
-     * `self_check`/`glossary_term`, die CMS-7c editorfaehig gemacht hat).
+     * ADR 0118 (CMS-7d.3-Nachtrag): `table` wurde editorfaehig, nachdem
+     * sich beim Test gegen echten Bestand zeigte, dass fast jede Lektion/
+     * Node mindestens eine Tabelle hat (die urspruengliche ADR-0114-
+     * Annahme "selten" traf nicht zu). Es gibt aktuell keinen unterstuetzten
+     * DCMLab-Blocktyp mehr, der absichtlich unbekannt bleibt -- dieser Test
+     * simuliert deshalb einen kuenftigen, hier noch nicht nachgezogenen
+     * Schema-Zusatz per Typ-Cast, statt einen echten heutigen Typ zu
+     * missbrauchen.
      */
     it('surfaces an unsupported node instead of silently dropping it', () => {
-        const docWithTable: RichContentDocument = {
+        const docWithUnknownBlock = {
             type: 'doc',
             version: 1,
-            content: [
-                {
-                    type: 'table',
-                    content: [
-                        {
-                            type: 'table_row',
-                            content: [
-                                {
-                                    type: 'table_cell',
-                                    attrs: { header: true },
-                                    content: [
-                                        {
-                                            type: 'paragraph',
-                                            content: [
-                                                { type: 'text', text: 'Tag' },
-                                            ],
-                                        },
-                                    ],
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ],
-        };
+            content: [{ type: 'someFutureBlock' }],
+        } as unknown as RichContentDocument;
 
         const wrapper = mount(RichContentEditor, {
-            props: { modelValue: docWithTable },
+            props: { modelValue: docWithUnknownBlock },
         });
 
         expect(wrapper.emitted('unsupported-node')).toBeTruthy();
         const [error] = wrapper.emitted('unsupported-node')![0] as [
             { nodeType: string },
         ];
-        expect(error.nodeType).toBe('table');
-        expect(wrapper.text()).toContain('table');
+        expect(error.nodeType).toBe('someFutureBlock');
+        expect(wrapper.text()).toContain('someFutureBlock');
         expect(wrapper.find('.ProseMirror').exists()).toBe(false);
     });
 

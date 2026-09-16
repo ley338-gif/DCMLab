@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import RichContentEditor from '@/components/RichContent/RichContentEditor.vue';
 import { postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
 import { home } from '@/routes';
@@ -17,6 +18,8 @@ import { edit, store, validate } from '@/routes/author/lessons/edit';
 import { publish, submit } from '@/routes/author/quiz-versions';
 import { show as showLesson } from '@/routes/lessons';
 import { show as showStudioLesson } from '@/routes/studio/lessons';
+import type { RichContentDocument } from '@/types/richContent';
+import type { GlossaryTermOption } from '@/lib/richContent/slashCommand';
 
 type SandboxFields = {
     required: boolean;
@@ -40,7 +43,7 @@ type LessonFields = {
     objectives: string[];
     sandbox: SandboxFields;
     lab: LabFields;
-    body: string;
+    rich_content: RichContentDocument;
 };
 
 type PendingVersion = {
@@ -54,11 +57,13 @@ const props = defineProps<{
     catalog: {
         tools: string[];
         glossary_terms: string[];
+        glossary: GlossaryTermOption[];
         datasets: string[];
         nodes: string[];
     };
     pending_version: PendingVersion;
     can_publish: boolean;
+    preview_url: string;
 }>();
 
 const fields = ref<LessonFields>({ ...props.fields });
@@ -184,6 +189,11 @@ const statusLabels: Record<string, string> = {
                 <Badge v-if="pending_version" variant="outline">
                     {{ statusLabels[pending_version.status] }}
                 </Badge>
+                <a :href="preview_url" target="_blank" rel="noopener">
+                    <Button type="button" variant="outline">{{
+                        trans('Vorschau')
+                    }}</Button>
+                </a>
             </div>
         </div>
 
@@ -419,15 +429,15 @@ const statusLabels: Record<string, string> = {
                 }}</CardTitle>
             </CardHeader>
             <CardContent>
-                <textarea
-                    v-model="fields.body"
-                    rows="20"
-                    class="border-input bg-background w-full rounded-md border p-3 font-mono text-sm shadow-xs"
+                <RichContentEditor
+                    v-model="fields.rich_content"
+                    :glossary-terms="catalog.glossary"
+                    class="border-input bg-background min-h-40 w-full rounded-md border p-3 text-sm shadow-xs"
                 />
                 <p class="text-muted-foreground mt-2 text-xs">
                     {{
                         trans(
-                            'Der Quiz-Abschnitt am Ende der Lektion wird hier nicht angezeigt -- er bleibt beim Speichern unangetastet und wird im Quiz-Editor bearbeitet.',
+                            'Der Quiz-Abschnitt am Ende der Lektion wird hier nicht angezeigt -- er bleibt beim Speichern unangetastet und wird im Quiz-Editor bearbeitet. Ein Verweis auf die naechste Lektion ("Als Naechstes: ...") gehoert dagegen hierher, ganz am Ende.',
                         )
                     }}
                 </p>

@@ -9,14 +9,21 @@ use App\Models\Node;
  * Wendet einen freigegebenen Node-Entwurf direkt auf die DB an (ADR 0108,
  * CMS-6d Teil 2) -- Gegenstueck zu `LessonContentPublisher` fuer den
  * Node-Aktivitaetstyp. Anders als bei Lesson/Quiz gibt es keinen zweiten
- * Publisher fuer einen Teilbereich: Hints (nur id/cost, der Text steckt
- * bereits in `body`) sind Teil desselben Entwurfs wie jedes andere
- * Node-Feld, nicht an eine eigene content_versions-Zeile gekoppelt.
+ * Publisher fuer einen Teilbereich: Hints (id/cost, der Text steckt seit
+ * CMS-7d.3 in `rich_content.hints`) sind Teil desselben Entwurfs wie jedes
+ * andere Node-Feld, nicht an eine eigene content_versions-Zeile gekoppelt.
  *
  * Runtime-/Sicherheitsparameter (`environment`, `flag`) sind nie Teil des
  * Payloads (siehe `NodeActivity::authorView()`/`serialize()`) und werden
  * hier folgerichtig auch nicht angefasst -- sie bleiben datei-/system-
  * gefuehrt (ADR 0107).
+ *
+ * Seit CMS-7d.3 (ADR 0118) schreibt dieser Publisher `rich_content` (den
+ * `node_content`-Umschlag, ADR 0115), nicht mehr `body` -- der Aufrufer
+ * (`ContentPublishingService`) hat das Payload vorher immer schon
+ * normalisiert (`NodePayloadNormalizer`). `body` wird bewusst NICHT mehr
+ * aus dem Entwurf neu erzeugt, bleibt aber als Spalte unangetastet stehen
+ * (Legacy-Fallback, siehe `NodeController::show()`).
  */
 final class NodeContentPublisher
 {
@@ -45,7 +52,7 @@ final class NodeContentPublisher
             'skills' => $payload['skills'] ?? [],
             'related_lessons' => $payload['related_lessons'] ?? [],
             'hints' => $payload['hints'] ?? [],
-            'body' => rtrim((string) $payload['body'], "\r\n"),
+            'rich_content' => $payload['rich_content'],
         ]);
 
         // Haelt den activities-Verzeichniseintrag (Autoren-Panel,

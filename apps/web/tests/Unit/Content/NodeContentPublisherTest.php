@@ -10,11 +10,25 @@ use Tests\TestCase;
 
 /**
  * ADR 0108 (CMS-6d Teil 2): wendet einen Node-Entwurf direkt auf die DB an
- * -- kein Datei-Schreibvorgang, kein content:sync.
+ * -- kein Datei-Schreibvorgang, kein content:sync. Seit CMS-7d.3 (ADR 0118)
+ * schreibt der Publisher `rich_content` (den `node_content`-Umschlag), nicht
+ * mehr `body`.
  */
 class NodeContentPublisherTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function envelope(string $briefingText): array
+    {
+        return [
+            'type' => 'node_content', 'version' => 1,
+            'briefing' => ['type' => 'doc', 'version' => 1, 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $briefingText]]],
+            ]],
+            'hints' => ['h1' => ['type' => 'doc', 'version' => 1, 'content' => []]],
+            'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+        ];
+    }
 
     public function test_it_applies_every_field_directly_to_the_node_row(): void
     {
@@ -40,7 +54,7 @@ class NodeContentPublisherTest extends TestCase
             'skills' => ['netzwerk', 'sicherheit'],
             'related_lessons' => ['1.1'],
             'hints' => [['id' => 'h1', 'cost' => 1]],
-            'body' => 'Neuer Text.',
+            'rich_content' => $this->envelope('Neuer Text.'),
         ]);
 
         $node->refresh();
@@ -55,7 +69,26 @@ class NodeContentPublisherTest extends TestCase
         $this->assertSame(['netzwerk', 'sicherheit'], $node->skills);
         $this->assertSame(['1.1'], $node->related_lessons);
         $this->assertSame([['id' => 'h1', 'cost' => 1]], $node->hints);
-        $this->assertSame('Neuer Text.', $node->body);
+        $this->assertSame('Neuer Text.', $node->rich_content['briefing']['content'][0]['content'][0]['text']);
+    }
+
+    /**
+     * Betreiber-Vorgabe (CMS-7d.3): "keine zwei schreibenden Sources of
+     * Truth" -- der Publisher regeneriert `body` nicht mehr aus dem
+     * Entwurf, die Spalte bleibt exakt so stehen (Legacy-Fallback).
+     */
+    public function test_it_does_not_touch_the_legacy_body_column(): void
+    {
+        $node = Node::factory()->create(['slug' => 'test-node', 'body' => 'Alter Text.']);
+        $activity = Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+
+        (new NodeContentPublisher)->publish($activity, [
+            'title' => 'Neu', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
+            'points' => 10, 'category' => 'netzwerk', 'interaction' => 'terminal', 'estimated_minutes' => 15,
+            'skills' => [], 'related_lessons' => [], 'hints' => [], 'rich_content' => $this->envelope('Neuer Text.'),
+        ]);
+
+        $this->assertSame('Alter Text.', $node->fresh()->body);
     }
 
     public function test_it_does_not_unarchive_a_node_through_publishing(): void
@@ -66,7 +99,7 @@ class NodeContentPublisherTest extends TestCase
         (new NodeContentPublisher)->publish($activity, [
             'title' => 'Neu', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
             'points' => 10, 'category' => 'netzwerk', 'interaction' => 'terminal', 'estimated_minutes' => 15,
-            'skills' => [], 'related_lessons' => [], 'hints' => [], 'body' => 'Text.',
+            'skills' => [], 'related_lessons' => [], 'hints' => [], 'rich_content' => $this->envelope('Text.'),
         ]);
 
         $this->assertSame('archived', $node->fresh()->status);
@@ -85,7 +118,7 @@ class NodeContentPublisherTest extends TestCase
         (new NodeContentPublisher)->publish($activity, [
             'title' => 'Neuer Aktivitaetstitel', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
             'points' => 10, 'category' => 'netzwerk', 'interaction' => 'terminal', 'estimated_minutes' => 15,
-            'skills' => [], 'related_lessons' => [], 'hints' => [], 'body' => 'Text.',
+            'skills' => [], 'related_lessons' => [], 'hints' => [], 'rich_content' => $this->envelope('Text.'),
         ]);
 
         $activity->refresh();

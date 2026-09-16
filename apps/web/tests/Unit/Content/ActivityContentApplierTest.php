@@ -22,6 +22,12 @@ use Tests\TestCase;
  * auch fuer den neuen, DB-schreibenden Pfad noetig, damit die Freigabe
  * ueberhaupt die Validierung passiert (siehe LessonEditorControllerTest fuer
  * dasselbe Muster).
+ *
+ * Seit CMS-7d.3 (ADR 0118) traegt ein Payload `rich_content`, nicht mehr
+ * `body` -- `ActivityContentApplier::apply()` normalisiert selbst nicht
+ * (das macht ausschliesslich `ContentPublishingService`, der `apply()` in
+ * der Praxis immer vorschaltet), Tests, die `apply()` direkt aufrufen,
+ * muessen deshalb bereits ein normalisiertes Payload liefern.
  */
 class ActivityContentApplierTest extends TestCase
 {
@@ -60,7 +66,10 @@ class ActivityContentApplierTest extends TestCase
         $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'objectives' => ['Ziel'], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true], 'body' => "Neue Prosa.\n\n```\n\$ dcmdump datei.dcm\n```\n\n**Was du daran abliest:** Test.",
+            'lab' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent(
+                'Neue Prosa.',
+                '$ dcmdump datei.dcm',
+            ),
         ]);
 
         $this->assertSame([], $issues);
@@ -68,6 +77,24 @@ class ActivityContentApplierTest extends TestCase
         // content/ bleibt exakt wie in setUp() angelegt -- der Kernpunkt
         // dieses Pfads.
         $this->assertStringNotContainsString('Neue Prosa.', File::get($this->contentDir.'/lessons/1.0/de.md'));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function richContent(string $introText, string $commandLine): array
+    {
+        return [
+            'type' => 'doc', 'version' => 1,
+            'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => $introText]]],
+                ['type' => 'code_block', 'attrs' => ['variant' => 'terminal'], 'text' => $commandLine],
+                ['type' => 'paragraph', 'content' => [
+                    ['type' => 'text', 'text' => 'Was du daran abliest:', 'marks' => [['type' => 'bold']]],
+                    ['type' => 'text', 'text' => ' Test.'],
+                ]],
+            ],
+        ];
     }
 
     public function test_a_quiz_draft_for_the_same_lesson_type_is_also_applied_directly_to_the_db(): void
@@ -103,11 +130,15 @@ class ActivityContentApplierTest extends TestCase
         $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'title' => ['de' => 'Unveraendert']]);
         $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
 
-        // objectives darf laut ContentValidator nicht leer sein.
+        // ContentValidator verlangt mindestens einen Codeblock -- ein
+        // rich_content ohne jeden code_block-Knoten ist ein Verstoss.
         $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
-            'objectives' => [], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true], 'body' => 'Neue Prosa.',
+            'objectives' => ['Ziel'], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+            'lab' => ['node' => null, 'optional' => true],
+            'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Neue Prosa.']]],
+            ]],
         ]);
 
         $this->assertNotEmpty($issues);
@@ -123,7 +154,12 @@ class ActivityContentApplierTest extends TestCase
             'title' => 'Neu', 'scenario_title' => 'Neues Szenario', 'difficulty' => 'medium',
             'points' => 20, 'category' => 'netzwerk', 'interaction' => 'terminal', 'estimated_minutes' => 15,
             'skills' => ['netzwerk'], 'related_lessons' => [], 'hints' => [],
-            'body' => "## Briefing\n\nNeuer Text.\n\n```\n\$ echoscu foo\n```\n\n**Was du daran abliest:** Test.",
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => $this->richContent('Neuer Text.', '$ echoscu foo'),
+                'hints' => [],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
         ]);
 
         $this->assertSame([], $issues);

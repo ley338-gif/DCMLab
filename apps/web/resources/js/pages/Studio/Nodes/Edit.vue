@@ -10,8 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import RichContentEditor from '@/components/RichContent/RichContentEditor.vue';
 import { postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
+import type { GlossaryTermOption } from '@/lib/richContent/slashCommand';
+import type { RichContentDocument } from '@/types/richContent';
 import { index as nodesIndex } from '@/routes/studio/nodes';
 import { publish, submit } from '@/routes/author/quiz-versions';
 import {
@@ -29,6 +32,22 @@ type Status = 'draft' | 'published' | 'archived';
 
 type Hint = { id: string; cost: number };
 
+/**
+ * Der `node_content`-Umschlag (ADR 0115/0118) -- Briefing/jeder Hint/
+ * Write-up ist ein eigenstaendiges RichContentDocument, `hints` hier ist
+ * NICHT dasselbe wie `NodeFields.hints` oben (dort id/cost-Metadaten,
+ * hier der Text je Hint-Id). Beide Seiten muessen dieselben Ids tragen
+ * (NodeActivity::checkHintIdConsistency()) -- addHint()/removeHint()/
+ * renameHintId() halten sie synchron.
+ */
+type NodeContentEnvelope = {
+    type: 'node_content';
+    version: 1;
+    briefing: RichContentDocument;
+    hints: Record<string, RichContentDocument>;
+    write_up: RichContentDocument;
+};
+
 type NodeFields = {
     title: string;
     scenario_title: string;
@@ -40,8 +59,12 @@ type NodeFields = {
     skills: string[];
     related_lessons: string[];
     hints: Hint[];
-    body: string;
+    rich_content: NodeContentEnvelope;
 };
+
+function emptyDocument(): RichContentDocument {
+    return { type: 'doc', version: 1, content: [] };
+}
 
 type PendingVersion = {
     id: number;
@@ -67,6 +90,7 @@ const props = defineProps<{
     fields: NodeFields;
     themenfelder: { id: number; slug: string }[];
     skills_catalog: string[];
+    glossary: GlossaryTermOption[];
     pending_version: PendingVersion;
     versions: VersionRow[];
     can_manage: boolean;
@@ -118,14 +142,44 @@ const draggedHintIndex = ref<number | null>(null);
 
 function addHint() {
     const nextNumber = fields.value.hints.length + 1;
-    fields.value.hints = [
-        ...fields.value.hints,
-        { id: `h${nextNumber}`, cost: 1 },
-    ];
+    const id = `h${nextNumber}`;
+    fields.value.hints = [...fields.value.hints, { id, cost: 1 }];
+    fields.value.rich_content.hints[id] = emptyDocument();
 }
 
 function removeHint(index: number) {
+    const id = fields.value.hints[index]?.id;
     fields.value.hints = fields.value.hints.filter((_, i) => i !== index);
+
+    if (id !== undefined) {
+        delete fields.value.rich_content.hints[id];
+    }
+}
+
+/**
+ * Haelt `rich_content.hints` synchron, wenn eine Hint-Id im Textfeld
+ * umbenannt wird -- ohne das wuerde der bereits geschriebene Hint-Text
+ * unter der alten Id verwaist zurueckbleiben (NodeActivity meldet das
+ * zwar beim Pruefen, aber verlustfrei umbenennen ist die bessere UX).
+ */
+function renameHintId(index: number, newId: string) {
+    const oldId = fields.value.hints[index]?.id;
+
+    if (oldId === newId) {
+        return;
+    }
+
+    const document =
+        oldId !== undefined
+            ? (fields.value.rich_content.hints[oldId] ?? emptyDocument())
+            : emptyDocument();
+
+    if (oldId !== undefined) {
+        delete fields.value.rich_content.hints[oldId];
+    }
+
+    fields.value.rich_content.hints[newId] = document;
+    fields.value.hints[index].id = newId;
 }
 
 function onHintDragStart(index: number) {
@@ -481,19 +535,19 @@ function restore() {
                 <Card>
                     <CardHeader>
                         <CardTitle class="text-base">{{
-                            trans('Challenge')
+                            trans('Briefing')
                         }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <textarea
-                            v-model="fields.body"
-                            rows="20"
-                            class="border-input bg-background w-full rounded-md border p-3 font-mono text-sm shadow-xs"
+                        <RichContentEditor
+                            v-model="fields.rich_content.briefing"
+                            :glossary-terms="glossary"
+                            class="border-input bg-background min-h-32 w-full rounded-md border p-3 text-sm shadow-xs"
                         />
                         <p class="text-muted-foreground mt-2 text-xs">
                             {{
                                 trans(
-                                    'Vollständiger Markdown-Text mit ## Briefing, ## Hints (### h1, ### h2, …) und ## Write-up.',
+                                    'Wird angezeigt, bevor der Lernende die Challenge beginnt.',
                                 )
                             }}
                         </p>
@@ -506,53 +560,67 @@ function restore() {
                             trans('Hints')
                         }}</CardTitle>
                     </CardHeader>
-                    <CardContent class="space-y-2">
+                    <CardContent class="space-y-4">
                         <div
                             v-for="(hint, index) in fields.hints"
                             :key="index"
                             draggable="true"
-                            class="flex cursor-grab items-center gap-3 rounded-md border p-3"
+                            class="cursor-grab space-y-3 rounded-md border p-3"
                             @dragstart="onHintDragStart(index)"
                             @dragover.prevent
                             @drop="onHintDrop(index)"
                         >
-                            <GripVertical
-                                class="text-muted-foreground size-4 shrink-0"
-                                aria-hidden="true"
+                            <div class="flex items-center gap-3">
+                                <GripVertical
+                                    class="text-muted-foreground size-4 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <Badge variant="outline">{{ index + 1 }}</Badge>
+                                <div class="flex-1 space-y-1">
+                                    <Label
+                                        :for="`hint-id-${index}`"
+                                        class="text-xs"
+                                        >{{ trans('ID') }}</Label
+                                    >
+                                    <Input
+                                        :id="`hint-id-${index}`"
+                                        :model-value="hint.id"
+                                        @update:model-value="
+                                            (value) =>
+                                                renameHintId(
+                                                    index,
+                                                    String(value),
+                                                )
+                                        "
+                                    />
+                                </div>
+                                <div class="w-28 space-y-1">
+                                    <Label
+                                        :for="`hint-cost-${index}`"
+                                        class="text-xs"
+                                        >{{ trans('Kosten') }}</Label
+                                    >
+                                    <Input
+                                        :id="`hint-cost-${index}`"
+                                        v-model.number="hint.cost"
+                                        type="number"
+                                        min="0"
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    @click="removeHint(index)"
+                                >
+                                    {{ trans('Löschen') }}
+                                </Button>
+                            </div>
+                            <RichContentEditor
+                                v-model="fields.rich_content.hints[hint.id]"
+                                :glossary-terms="glossary"
+                                class="border-input bg-background min-h-24 w-full rounded-md border p-3 text-sm shadow-xs"
                             />
-                            <Badge variant="outline">{{ index + 1 }}</Badge>
-                            <div class="flex-1 space-y-1">
-                                <Label
-                                    :for="`hint-id-${index}`"
-                                    class="text-xs"
-                                    >{{ trans('ID (### h1 im Body)') }}</Label
-                                >
-                                <Input
-                                    :id="`hint-id-${index}`"
-                                    v-model="hint.id"
-                                />
-                            </div>
-                            <div class="w-28 space-y-1">
-                                <Label
-                                    :for="`hint-cost-${index}`"
-                                    class="text-xs"
-                                    >{{ trans('Kosten') }}</Label
-                                >
-                                <Input
-                                    :id="`hint-cost-${index}`"
-                                    v-model.number="hint.cost"
-                                    type="number"
-                                    min="0"
-                                />
-                            </div>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                @click="removeHint(index)"
-                            >
-                                {{ trans('Löschen') }}
-                            </Button>
                         </div>
                         <Button
                             type="button"
@@ -562,10 +630,25 @@ function restore() {
                         >
                             {{ trans('+ Hint hinzufügen') }}
                         </Button>
-                        <p class="text-muted-foreground text-xs">
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="text-base">{{
+                            trans('Write-up')
+                        }}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <RichContentEditor
+                            v-model="fields.rich_content.write_up"
+                            :glossary-terms="glossary"
+                            class="border-input bg-background min-h-32 w-full rounded-md border p-3 text-sm shadow-xs"
+                        />
+                        <p class="text-muted-foreground mt-2 text-xs">
                             {{
                                 trans(
-                                    'Der Hint-Text selbst steht im Body oben, im passenden ### h-ID-Abschnitt unter ## Hints.',
+                                    'Wird automatisch gezeigt, sobald die Challenge gelöst ist.',
                                 )
                             }}
                         </p>
