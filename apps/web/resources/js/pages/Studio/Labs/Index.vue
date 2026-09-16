@@ -197,16 +197,19 @@ function transition(lab: LabRow, action: 'archive' | 'restore') {
             <Card v-for="lab in filteredLabs" :key="lab.slug">
                 <CardHeader class="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle class="text-base">{{
-                            lab.title
-                        }}</CardTitle>
+                        <CardTitle class="text-base">{{ lab.title }}</CardTitle>
                         <p class="text-muted-foreground text-sm">
                             {{ lab.slug }} ·
                             {{ difficultyLabels[lab.difficulty] }} ·
                             {{
                                 trans(':points Punkte', { points: lab.points })
                             }}
-                            <template v-if="lab.runtime_template === null || lab.dataset === null">
+                            <template
+                                v-if="
+                                    lab.runtime_template === null ||
+                                    lab.dataset === null
+                                "
+                            >
                                 ·
                                 {{ trans('Runtime unvollständig') }}
                             </template>

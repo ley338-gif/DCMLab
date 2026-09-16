@@ -103,7 +103,9 @@ function addAssertion() {
 }
 
 function removeAssertion(index: number) {
-    fields.value.assertions = fields.value.assertions.filter((_, i) => i !== index);
+    fields.value.assertions = fields.value.assertions.filter(
+        (_, i) => i !== index,
+    );
 }
 
 async function runValidation() {
@@ -187,7 +189,9 @@ function restore() {
 
         <div class="mb-6 flex items-center gap-3">
             <h1 class="text-2xl font-semibold">{{ lab.title }}</h1>
-            <Badge :variant="lab.status === 'published' ? 'default' : 'outline'">
+            <Badge
+                :variant="lab.status === 'published' ? 'default' : 'outline'"
+            >
                 {{
                     lab.status === 'published'
                         ? trans('Veröffentlicht')
@@ -318,7 +322,8 @@ function restore() {
                                         :value="template.slug"
                                         :disabled="!template.available"
                                     >
-                                        {{ template.name }}{{
+                                        {{ template.name
+                                        }}{{
                                             template.available
                                                 ? ''
                                                 : ` (${trans('nicht mehr verfügbar')})`
@@ -344,7 +349,8 @@ function restore() {
                                         :value="dataset.slug"
                                         :disabled="!dataset.available"
                                     >
-                                        {{ dataset.slug }}{{
+                                        {{ dataset.slug
+                                        }}{{
                                             dataset.available
                                                 ? ''
                                                 : ` (${trans('nicht mehr verfügbar')})`
@@ -411,7 +417,11 @@ function restore() {
                                     <Input
                                         :id="`assertion-prefix-${index}`"
                                         v-model="assertion.prefix"
-                                        :placeholder="trans('z. B. echoscu 127.0.0.1 4242 -aec ORTHANC')"
+                                        :placeholder="
+                                            trans(
+                                                'z. B. echoscu 127.0.0.1 4242 -aec ORTHANC',
+                                            )
+                                        "
                                     />
                                 </div>
                                 <Button
