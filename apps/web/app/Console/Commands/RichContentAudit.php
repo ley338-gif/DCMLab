@@ -12,12 +12,16 @@ use App\Content\RichContent\RichContentValidator;
 use Illuminate\Console\Command;
 
 /**
- * CMS-7d.1 (ADR 0115): Dry-Run vor jeder Rich-Content-Migration. Prueft
- * jede Lektion und jede Node, ob ihr aktueller Markdown-Body verlustfrei
- * (ADR 0111/0112) zu einem Rich-Content-Dokument werden kann -- liest nur,
- * schreibt nichts, aendert keine Datenbank und keine content/-Datei.
- * Gegenstueck zu `content:validate` (dort das Schema fuer content/ selbst,
- * hier das Schema-Ziel fuer die Migration).
+ * CMS-7d.1 (ADR 0115/0116): Dry-Run vor jeder Rich-Content-Migration.
+ * Prueft jede Lektion und jede Node, ob ihr aktueller Markdown-Body
+ * verlustfrei (ADR 0111/0112/0116) zu einem Rich-Content-Dokument werden
+ * kann -- liest nur, schreibt nichts, aendert keine Datenbank und keine
+ * content/-Datei. Gegenstueck zu `content:validate` (dort das Schema fuer
+ * content/ selbst, hier das Schema-Ziel fuer die Migration).
+ *
+ * Seit ADR 0116 ist dieses Command auch das Gate vor dem eigentlichen
+ * Backfill (CMS-7d.2): `rich-content:migrate` darf erst laufen, wenn
+ * `rich-content:audit` 0 blockierende Funde meldet.
  *
  * Lektionen: nur der Prosa-Teil vor dem Quiz (`QuizContent::splitBody()
  * ['before']`) wird geprueft -- der Quiz-Abschnitt bleibt strukturierte
@@ -32,9 +36,10 @@ use Illuminate\Console\Command;
  * blockieren, bis das Konstrukt semantisch modelliert oder manuell
  * bereinigt wurde") sind: Validator-Verstoesse gegen das Rich-Content-
  * Schema, sowie alles, was `MarkdownToRichContentConverter::skippedNodes()`
- * nach dem Konvertieren meldet -- unbekanntes rohes HTML, horizontale
- * Trennlinien, Bilder, jeder sonst unbehandelte Knotentyp. Kein
- * `raw_html`-Fallback wird eingefuehrt, um das zu umgehen.
+ * nach dem Konvertieren meldet -- unbekanntes rohes HTML, Bilder, jeder
+ * sonst unbehandelte Knotentyp (horizontale Trennlinien zaehlen seit ADR
+ * 0116 nicht mehr dazu, die werden zu einem echten `horizontal_rule`-
+ * Block). Kein `raw_html`-Fallback wird eingefuehrt, um das zu umgehen.
  *
  * Nicht blockierend: eine Abweichung im reinen Textinhalt zwischen dem
  * bestehenden `MarkdownRenderer`-Rendering und dem `RichContentRenderer`-

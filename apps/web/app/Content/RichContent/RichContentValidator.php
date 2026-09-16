@@ -3,8 +3,8 @@
 namespace App\Content\RichContent;
 
 /**
- * Prueft ein Rich-Content-Dokument gegen das Schema aus ADR 0111/0112/0114
- * (CMS-7a/CMS-7c): ein strukturiertes JSON-Dokument (`{type: "doc", version,
+ * Prueft ein Rich-Content-Dokument gegen das Schema aus ADR 0111/0112/0114/
+ * 0116 (CMS-7a/CMS-7c/CMS-7d.1): ein strukturiertes JSON-Dokument (`{type: "doc", version,
  * content: [...]}`) ist Quelle der Wahrheit fuer Lesson-/Node-Fliesstext.
  * Das Schema ist bewusst DCMLab-eigen (snake_case, `code_block.text` statt
  * verschachteltem Text-Node) -- TipTap (CMS-7b) ist nur EIN Editor dafuer
@@ -23,7 +23,7 @@ namespace App\Content\RichContent;
  */
 final class RichContentValidator
 {
-    private const BLOCK_TYPES = ['paragraph', 'heading', 'bullet_list', 'ordered_list', 'blockquote', 'code_block', 'table', 'self_check', 'callout', 'dicom_tag_table'];
+    private const BLOCK_TYPES = ['paragraph', 'heading', 'bullet_list', 'ordered_list', 'blockquote', 'code_block', 'table', 'self_check', 'callout', 'dicom_tag_table', 'horizontal_rule'];
 
     private const INLINE_TYPES = ['text', 'glossary_term', 'hard_break'];
 
@@ -97,6 +97,7 @@ final class RichContentValidator
             'self_check' => $this->validateSelfCheck($node, $path),
             'callout' => $this->validateCallout($node, $path),
             'dicom_tag_table' => $this->validateDicomTagTable($node, $path),
+            'horizontal_rule' => [],
         };
     }
 

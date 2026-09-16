@@ -9,9 +9,10 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * rich-content:audit (ADR 0115, CMS-7d.1) -- Dry-Run vor jeder Migration.
- * `rich-content:audit` liest nur `ContentRepository::lessons()`/`nodes()`/
- * `glossary()`, deshalb reichen minimale Fixtures ohne meta.yml/node.yml.
+ * rich-content:audit (ADR 0115/0116, CMS-7d.1) -- Dry-Run vor jeder
+ * Migration. `rich-content:audit` liest nur `ContentRepository::lessons()`/
+ * `nodes()`/`glossary()`, deshalb reichen minimale Fixtures ohne
+ * meta.yml/node.yml.
  */
 class RichContentAuditTest extends TestCase
 {
@@ -39,7 +40,12 @@ class RichContentAuditTest extends TestCase
         $this->assertStringContainsString('keine blockierenden Funde', $result['output']);
     }
 
-    public function test_a_thematic_break_blocks_with_the_real_file_line(): void
+    /**
+     * ADR 0116 (Korrektur nach dem ersten Audit-Lauf gegen echten Bestand):
+     * horizontale Trennlinien sind seit `horizontal_rule` ein echter,
+     * unterstuetzter Block -- kein blockierender Fund mehr.
+     */
+    public function test_a_thematic_break_does_not_block(): void
     {
         $dir = $this->buildContentDir([
             'lessons/1.0/de.md' => $this->frontMatter()."## Intro\n\nDavor.\n\n---\n\nDanach.\n",
@@ -47,15 +53,7 @@ class RichContentAuditTest extends TestCase
 
         $result = $this->audit($dir);
 
-        $this->assertSame(1, $result['exitCode']);
-        $this->assertStringContainsString('Lektion 1.0 [prose]', $result['output']);
-        $this->assertStringContainsString('horizontale_trennlinie', $result['output']);
-
-        // Frontmatter ist 3 Zeilen (---/title/---), body beginnt also bei
-        // Datei-Zeile 4 -- "---" liegt danach auf Zeile 9. Der Offset aus
-        // body_start_line muss die reale Dateizeile treffen, nicht die
-        // Zeile relativ zum geprueften Markdown-Fragment.
-        $this->assertStringContainsString('Zeile 9,', $result['output']);
+        $this->assertSame(0, $result['exitCode'], $result['output']);
     }
 
     public function test_unknown_raw_html_blocks(): void

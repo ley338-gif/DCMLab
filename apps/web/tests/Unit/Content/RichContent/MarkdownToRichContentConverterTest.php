@@ -275,16 +275,25 @@ class MarkdownToRichContentConverterTest extends TestCase
         $this->assertSame([], $converter->skippedNodes());
     }
 
-    public function test_it_reports_a_skipped_thematic_break_with_its_line(): void
+    /**
+     * ADR 0116 (CMS-7d.1-Korrektur): horizontale Trennlinien werden NICHT
+     * mehr als Skip protokolliert, sondern zu einem echten `horizontal_rule`-
+     * Block -- `rich-content:audit` hatte gezeigt, dass sie im echten
+     * Bestand vorkommen (Lektion 1.0, neun Mal als Abschnittstrenner).
+     */
+    public function test_it_converts_a_thematic_break_to_a_horizontal_rule(): void
     {
+        $blocks = $this->blocks("Davor.\n\n---\n\nDanach.");
+
+        $this->assertSame([
+            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Davor.']]],
+            ['type' => 'horizontal_rule'],
+            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Danach.']]],
+        ], $blocks);
+
         $converter = new MarkdownToRichContentConverter;
         $converter->convert("Davor.\n\n---\n\nDanach.");
-
-        $skips = $converter->skippedNodes();
-
-        $this->assertCount(1, $skips);
-        $this->assertSame('horizontale_trennlinie', $skips[0]['type']);
-        $this->assertSame(3, $skips[0]['line']);
+        $this->assertSame([], $converter->skippedNodes());
     }
 
     public function test_it_reports_unknown_raw_html_but_not_the_kein_beispiel_marker(): void
@@ -323,7 +332,7 @@ class MarkdownToRichContentConverterTest extends TestCase
     public function test_skipped_nodes_reset_between_calls(): void
     {
         $converter = new MarkdownToRichContentConverter;
-        $converter->convert('---');
+        $converter->convert('![Alt](bild.png)');
         $this->assertCount(1, $converter->skippedNodes());
 
         $converter->convert('Ein sauberer Absatz.');

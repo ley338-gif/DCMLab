@@ -46,10 +46,15 @@ use League\CommonMark\Parser\MarkdownParser;
  * einem abschliessenden `</details>`-HtmlBlock wird zu einem `self_check`-
  * Knoten (ADR 0112) -- ein Lernbaustein, kein beliebiges `raw_html`.
  *
+ * Horizontale Trennlinien (`---`/`***`/`___` als eigener Block) werden zu
+ * `horizontal_rule` (ADR 0116, CMS-7d.1) -- `rich-content:audit` hat
+ * gezeigt, dass sie im echten Bestand durchaus vorkommen (Lektion 1.0,
+ * neun Mal, als visueller Abschnittstrenner), anders als in ADR
+ * 0111/0112 angenommen.
+ *
  * Bewusst (noch) nicht abgedeckt, weil im echten Bestand nicht vorkommend
- * (Stand ADR 0111/0112): Bilder, horizontale Trennlinien (`---` als
- * eigener Block, nicht am Dokumentende) und jedes andere eingebettete
- * rohe HTML -- ein solcher Knoten wird beim Konvertieren stillschweigend
+ * (Stand ADR 0111/0112/0116): Bilder und jedes andere eingebettete rohe
+ * HTML -- ein solcher Knoten wird beim Konvertieren stillschweigend
  * uebersprungen, nicht als Fehler gemeldet.
  *
  * `callout`, `dicom_tag_table` und `code_block.attrs.variant = dicom_dump`
@@ -98,11 +103,12 @@ final class MarkdownToRichContentConverter
 
     /**
      * Konstrukte, die der letzte `convert()`-Aufruf nicht abbilden konnte --
-     * unbekanntes/nicht modelliertes rohes HTML, horizontale Trennlinien,
-     * Bilder und jeder andere unbehandelte Knotentyp. Der Konverter selbst
-     * verwirft sie weiterhin (Verhalten unveraendert); dies ist nur die
-     * Sichtbarkeit dafuer, die `rich-content:audit` braucht, um mit exakter
-     * Fundstelle zu blockieren statt Inhalt unbemerkt zu verlieren.
+     * unbekanntes/nicht modelliertes rohes HTML, Bilder und jeder andere
+     * unbehandelte Knotentyp (horizontale Trennlinien zaehlen seit ADR 0116
+     * NICHT mehr dazu, die werden zu `horizontal_rule`). Der Konverter
+     * selbst verwirft sie weiterhin (Verhalten unveraendert); dies ist nur
+     * die Sichtbarkeit dafuer, die `rich-content:audit` braucht, um mit
+     * exakter Fundstelle zu blockieren statt Inhalt unbemerkt zu verlieren.
      *
      * @return list<array{type: string, line: int|null, snippet: string}>
      */
@@ -230,7 +236,7 @@ final class MarkdownToRichContentConverter
             $node instanceof HtmlBlock => $this->isKeinBeispielMarker($node)
                 ? null
                 : $this->recordBlockSkip('unbekanntes_html', $node, $node->getLiteral()),
-            $node instanceof ThematicBreak => $this->recordBlockSkip('horizontale_trennlinie', $node, '---'),
+            $node instanceof ThematicBreak => ['type' => 'horizontal_rule'],
             $node instanceof AbstractBlock => $this->recordBlockSkip('unbekannter_block', $node, $node::class),
             default => null,
         };

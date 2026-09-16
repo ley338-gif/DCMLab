@@ -31,6 +31,12 @@ describe('resolveSlashCommandItems', () => {
         ).toEqual(['dicomDump']);
     });
 
+    it('finds the horizontal_rule command by its German keyword "trenner"', () => {
+        expect(
+            resolveSlashCommandItems('trenner', []).map((item) => item.id),
+        ).toEqual(['horizontalRule']);
+    });
+
     it('returns no base commands for a query that matches nothing', () => {
         expect(resolveSlashCommandItems('xyzxyz', [])).toEqual([]);
     });
@@ -135,6 +141,14 @@ describe('slash command execution against a real editor', () => {
             type: 'dicom_tag_table',
             content: [{ tag: '', keyword: '', vr: '', value: '' }],
         });
+    });
+
+    it('inserts a horizontal_rule', () => {
+        const doc = runCommand('horizontalRule');
+
+        expect(
+            doc.content.some((node) => node.type === 'horizontal_rule'),
+        ).toBe(true);
     });
 
     it('inserts a dicom_dump code_block', () => {

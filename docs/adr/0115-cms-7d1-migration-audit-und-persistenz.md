@@ -2,7 +2,11 @@
 
 ## Status
 
-Angenommen, 30.09.2026.
+Angenommen, 30.09.2026. **Ergaenzt durch ADR 0116:** die dort unten unter
+"Bewusst nicht Teil dieser ADR" genannte Aussage, ein neuer
+`thematic_break`-Blocktyp sei eine spaetere CMS-7d.2-Entscheidung, wurde
+nach Betreiber-Review sofort entschieden -- `horizontal_rule` ist bereits
+ein echter v1-Block, das Audit meldet 0 statt 9 blockierende Funde.
 
 ## Kontext
 

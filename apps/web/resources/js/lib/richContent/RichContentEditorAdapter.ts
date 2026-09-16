@@ -53,6 +53,7 @@ const BLOCK_TYPE_TO_TIPTAP: Partial<
     code_block: 'codeBlock',
     self_check: 'selfCheck',
     callout: 'callout',
+    horizontal_rule: 'horizontalRule',
 };
 
 const MARK_TYPE_TO_TIPTAP: Record<'bold' | 'italic' | 'code', string> = {
@@ -121,6 +122,8 @@ function toTipTapBlock(node: RichContentBlockNode): TipTapNode {
                 type: 'dicomTagTable',
                 content: node.content.map((row) => toTipTapDicomTagRow(row)),
             };
+        case 'horizontal_rule':
+            return { type: 'horizontalRule' };
         case 'code_block': {
             const attrs: Record<string, unknown> = {
                 variant: node.attrs.variant,
@@ -267,6 +270,8 @@ function fromTipTapBlock(node: TipTapNode): RichContentBlockNode {
                 type: 'dicom_tag_table',
                 content: (node.content ?? []).map(fromTipTapDicomTagRow),
             };
+        case 'horizontalRule':
+            return { type: 'horizontal_rule' };
         case 'codeBlock': {
             const text = (node.content ?? [])
                 .map((child) => child.text ?? '')

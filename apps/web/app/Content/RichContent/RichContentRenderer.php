@@ -104,6 +104,7 @@ final class RichContentRenderer
             'self_check' => $this->renderSelfCheck($node),
             'callout' => $this->renderCallout($node),
             'dicom_tag_table' => $this->renderDicomTagTable($node),
+            'horizontal_rule' => '<hr>',
             default => '',
         };
     }

@@ -152,12 +152,40 @@ describe('richContentExtensions schema roundtrip', () => {
         expect(schema.nodes.table).toBeUndefined();
     });
 
-    it('does not register strike, underline or horizontalRule (not part of the DCMLab schema)', () => {
+    it('does not register strike or underline (not part of the DCMLab schema)', () => {
         const schema = getSchema(richContentExtensions());
 
         expect(schema.marks.strike).toBeUndefined();
         expect(schema.marks.underline).toBeUndefined();
-        expect(schema.nodes.horizontalRule).toBeUndefined();
+    });
+
+    /**
+     * ADR 0116 (CMS-7d.1-Korrektur): `horizontal_rule` ist seit
+     * `rich-content:audit` gegen echten Bestand ein echter Blocktyp --
+     * TipTaps eingebaute HorizontalRule-Extension aus `StarterKit` reicht
+     * dafuer aus, kein eigener Custom-Node.
+     */
+    it('registers horizontalRule and preserves it through the real schema', () => {
+        const schema = getSchema(richContentExtensions());
+        expect(schema.nodes.horizontalRule).toBeDefined();
+
+        const doc: RichContentDocument = {
+            type: 'doc',
+            version: 1,
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Davor.' }],
+                },
+                { type: 'horizontal_rule' },
+                {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Danach.' }],
+                },
+            ],
+        };
+
+        expect(roundtripThroughRealSchema(doc)).toEqual(doc);
     });
 
     it('preserves a self_check through the real ProseMirror schema', () => {
