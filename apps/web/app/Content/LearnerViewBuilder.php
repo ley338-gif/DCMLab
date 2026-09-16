@@ -10,6 +10,7 @@ use App\Models\QuizReview;
 use App\Models\User;
 use App\Services\LessonNavigationService;
 use App\Services\LessonPrerequisiteService;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Baut die Inertia-Props fuer die Lernenden-Seiten (`Lessons/Show`,
@@ -47,13 +48,31 @@ final readonly class LearnerViewBuilder
         $lessonContent = $this->content->lessons()[$lesson->lesson_id] ?? null;
         $body = $lesson->body ?? $lessonContent['body'] ?? null;
 
-        abort_unless($body !== null, 404);
+        // CMS-7d.4 (Betreiber-Review): eine reine Rich-Content-Ressource
+        // (rich_content gesetzt, body zufaellig null) ist genauso gueltig
+        // -- der Existenzcheck darf sich nicht mehr allein auf die
+        // (praktisch immer wahre, aber nicht erzwungene) Konvention
+        // verlassen, dass `body` nie null ist.
+        abort_unless($lesson->rich_content !== null || $body !== null, 404);
 
         $tools = $this->content->tools();
         $datasets = $this->content->datasets();
         $renderer = new MarkdownRenderer($this->content->glossary());
 
-        $split = QuizContent::splitBody($body);
+        // quiz_raw kommt unabhaengig von rich_content immer aus body (Quiz
+        // bleibt markdown-gefuehrt, siehe ADR 0118-Kontext) -- ein leerer
+        // String fuer eine reine Rich-Content-Lesson ohne body ergibt
+        // korrekt "kein Quiz", statt splitBody() mit null abstuerzen zu
+        // lassen.
+        $split = QuizContent::splitBody($body ?? '');
+
+        if ($lesson->rich_content === null) {
+            // CMS-7d.4 (Phase 3): messbares Signal fuer den verbleibenden
+            // Markdown-Fallback -- Ziel ist, dass dieser Log-Eintrag im
+            // produktiven Bestand nie feuert (siehe rich-content:coverage).
+            Log::warning('learner_view.legacy_body_fallback', ['activity_type' => 'lesson', 'lesson_id' => $lesson->lesson_id]);
+        }
+
         $contentHtml = $lesson->rich_content !== null
             ? (new RichContentRenderer($this->content->glossary()))->render($lesson->rich_content)
             : $renderer->render(trim($split['before']."\n\n".$split['after']));

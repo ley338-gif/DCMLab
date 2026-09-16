@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -107,7 +108,12 @@ class NodeController extends Controller
         $hintDefinitions = $node->hints ?? $nodeContent['def']['hints'] ?? [];
         $environment = $nodeContent['def']['environment'] ?? [];
 
-        abort_unless($body !== null, 404);
+        // CMS-7d.4 (Betreiber-Review): eine reine Rich-Content-Ressource
+        // (rich_content gesetzt, body zufaellig null) ist genauso gueltig
+        // -- der Existenzcheck darf sich nicht mehr allein auf die
+        // (praktisch immer wahre, aber nicht erzwungene) Konvention
+        // verlassen, dass `body` nie null ist.
+        abort_unless($node->rich_content !== null || $body !== null, 404);
 
         $sections = NodeSections::parse($this->bodyFor($node, $content));
 
@@ -387,6 +393,13 @@ class NodeController extends Controller
         if ($document !== null) {
             return (new RichContentRenderer($content->glossary()))->render($document);
         }
+
+        // CMS-7d.4 (Phase 3): messbares Signal fuer den verbleibenden
+        // Markdown-Fallback -- deckt sowohl "ganze Node ohne rich_content"
+        // als auch den selteneren "einzelnes Feld fehlt in rich_content"-
+        // Fall ab. Ziel ist, dass dieser Log-Eintrag im produktiven
+        // Bestand nie feuert (siehe rich-content:coverage).
+        Log::warning('learner_view.legacy_body_fallback', ['activity_type' => 'node', 'node_slug' => $node->slug, 'field' => $key, 'hint_id' => $hintId]);
 
         return (new MarkdownRenderer($content->glossary()))->render($legacyMarkdown);
     }

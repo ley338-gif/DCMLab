@@ -12,6 +12,7 @@ use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 /**
@@ -160,6 +161,67 @@ class LessonControllerTest extends TestCase
                 ->where('elements.0.body_html', fn (string $html) => str_contains($html, 'Aus rich_content gerendert.')
                     && ! str_contains($html, 'Veraltet')),
             );
+    }
+
+    /**
+     * CMS-7d.4 (Betreiber-Review): der 404-Existenzcheck durfte nicht
+     * mehr allein von `body !== null` abhaengen -- eine reine
+     * Rich-Content-Lesson (`body` zufaellig `null`) muss trotzdem
+     * sichtbar bleiben, und die Quiz-Aufteilung darf dabei nicht an
+     * einem `null`-body abstuerzen.
+     */
+    public function test_it_is_visible_when_rich_content_is_set_but_body_is_null(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.1',
+            'track_id' => $track->id,
+            'order' => 0,
+            'body' => null,
+            'rich_content' => [
+                'type' => 'doc', 'version' => 1,
+                'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Nur Rich Content, kein body.']]],
+                ],
+            ],
+        ]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('elements.0.type', 'content')
+                ->where('elements.0.body_html', fn (string $html) => str_contains($html, 'Nur Rich Content, kein body.')),
+            );
+    }
+
+    /**
+     * CMS-7d.4 Phase 3: der Markdown-Fallback (keine rich_content
+     * gesetzt) loggt ein messbares Signal -- Ziel ist, dass dieser
+     * Log-Eintrag im produktiven Bestand nie feuert
+     * (`rich-content:coverage`).
+     */
+    public function test_falling_back_to_markdown_logs_a_warning(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.1',
+            'track_id' => $track->id,
+            'order' => 0,
+            'body' => 'Nur Markdown, kein rich_content.',
+            'rich_content' => null,
+        ]);
+
+        $user = User::factory()->create();
+        Log::spy();
+
+        $this->actingAs($user)->get('/de/lessons/1.1')->assertOk();
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context) => $message === 'learner_view.legacy_body_fallback' && $context['lesson_id'] === '1.1')
+            ->once();
     }
 
     /**
