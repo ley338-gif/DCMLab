@@ -45,8 +45,12 @@ use RuntimeException;
  *   `--apply` -- und meldet alle Befunde.
  * - Erst wenn ALLE Ressourcen bereit sind, oeffnet `--apply` eine einzige
  *   DB-Transaktion und schreibt NUR Zeilen, deren `rich_content` zum
- *   Schreibzeitpunkt (per Row-Lock erneut geprueft) noch `NULL` ist. Kein
- *   `--force`, kein Weg, ein bestehendes `rich_content` zu ueberschreiben.
+ *   Schreibzeitpunkt (per Row-Lock erneut geprueft) noch `NULL` ist UND
+ *   deren `body` sich seit dem Preflight nicht veraendert hat (schliesst
+ *   die Race, in der eine Autoren-Freigabe zwischen Preflight und
+ *   Schreibvorgang `body` aendert, ohne `rich_content` anzufassen -- sonst
+ *   wuerde ein bereits veraltetes Dokument eingefroren). Kein `--force`,
+ *   kein Weg, ein bestehendes `rich_content` zu ueberschreiben.
  *
  * Node bekommt den in ADR 0115 festgezogenen `node_content`-Umschlag
  * (Briefing/jeder Hint/Write-up als eigenes RichContentDocument);
@@ -65,7 +69,7 @@ class RichContentMigrate extends Command
     private array $failures = [];
 
     /**
-     * @var list<array{model: Lesson|Node, document: array<string, mixed>}>
+     * @var list<array{model: Lesson|Node, document: array<string, mixed>, source_body: string|null}>
      */
     private array $pendingWrites = [];
 
@@ -127,7 +131,14 @@ class RichContentMigrate extends Command
             return self::SUCCESS;
         }
 
-        $written = $this->writePending();
+        try {
+            $written = $this->writePending();
+        } catch (RuntimeException $exception) {
+            $this->line('');
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->info("{$written} geschrieben.");
 
@@ -141,7 +152,8 @@ class RichContentMigrate extends Command
         RichContentValidator $validator,
     ): void {
         $resource = "Lektion {$lesson->lesson_id}";
-        $effectiveBody = $lesson->body ?? ($content->lessons()[$lesson->lesson_id]['body'] ?? null);
+        $dbBody = $lesson->body;
+        $effectiveBody = $dbBody ?? ($content->lessons()[$lesson->lesson_id]['body'] ?? null);
 
         if ($effectiveBody === null) {
             $this->recordFailure($resource, 'kein_body', 'weder Lesson.body (DB) noch content/ liefern einen Body');
@@ -160,6 +172,7 @@ class RichContentMigrate extends Command
             $resource,
             $lesson,
             $fresh,
+            $dbBody,
             fn (mixed $existing): array => $validator->validate($existing),
         );
     }
@@ -171,7 +184,8 @@ class RichContentMigrate extends Command
         RichContentValidator $validator,
     ): void {
         $resource = "Node {$node->slug}";
-        $effectiveBody = $node->body ?? ($content->nodes()[$node->slug]['body'] ?? null);
+        $dbBody = $node->body;
+        $effectiveBody = $dbBody ?? ($content->nodes()[$node->slug]['body'] ?? null);
 
         if ($effectiveBody === null) {
             $this->recordFailure($resource, 'kein_body', 'weder Node.body (DB) noch content/ liefern einen Body');
@@ -215,6 +229,7 @@ class RichContentMigrate extends Command
             $resource,
             $node,
             $envelope,
+            $dbBody,
             fn (mixed $existing): array => $this->validateNodeContentEnvelope($existing, $validator),
         );
     }
@@ -256,16 +271,27 @@ class RichContentMigrate extends Command
      * Gemeinsamer Abschluss fuer Lesson und Node: neu und bestehend
      * vergleichen (nicht ueberschreiben), oder als "zu migrieren" vormerken.
      *
+     * `$dbBody` ist der Preflight-Snapshot von `Lesson::body`/`Node::body`
+     * (nicht der effektive, ggf. aus `content/` nachgeladene Body) --
+     * `writePending()` prueft ihn unmittelbar vor dem Schreiben erneut, um
+     * eine Race zu schliessen: ein Autoren-Publish zwischen Preflight und
+     * Schreibvorgang aendert `body`, ohne `rich_content` anzufassen, und
+     * wuerde sonst unbemerkt ein bereits veraltetes Dokument einfrieren.
+     * Kam der effektive Body aus `content/` (DB-Body war `null`), ist
+     * `$dbBody` selbst `null` -- der erneute Vergleich verlangt dann, dass
+     * `body` immer noch `null` ist (kein Autor hat inzwischen einen
+     * DB-Body gesetzt), statt einer zweiten, eigenen Fallback-Fallunterscheidung.
+     *
      * @param  array<string, mixed>  $fresh
      * @param  callable(mixed): list<string>  $validateExisting
      */
-    private function finalize(string $resource, Lesson|Node $model, array $fresh, callable $validateExisting): void
+    private function finalize(string $resource, Lesson|Node $model, array $fresh, ?string $dbBody, callable $validateExisting): void
     {
         $existing = $model->rich_content;
 
         if ($existing === null) {
             $this->toMigrate++;
-            $this->pendingWrites[] = ['model' => $model, 'document' => $fresh];
+            $this->pendingWrites[] = ['model' => $model, 'document' => $fresh, 'source_body' => $dbBody];
 
             return;
         }
@@ -344,10 +370,18 @@ class RichContentMigrate extends Command
 
     /**
      * Eine einzige Transaktion fuer alle vorbereiteten Schreibvorgaenge --
-     * pro Zeile ein Row-Lock (`lockForUpdate()`) und ein erneuter
-     * NULL-Check unmittelbar vor dem Schreiben: der Preflight-Check
-     * (Sekunden zuvor) ist keine Garantie mehr, sobald ein anderer
-     * Prozess dieselbe Zeile in der Zwischenzeit befuellt haette.
+     * pro Zeile ein Row-Lock (`lockForUpdate()`) und zwei erneute Pruefungen
+     * unmittelbar vor dem Schreiben, weil der Preflight-Check (Sekunden
+     * zuvor) sonst keine Garantie mehr waere:
+     *
+     * 1. `rich_content` ist noch `NULL` (schuetzt vor einem konkurrierenden
+     *    Rich-Content-Backfill derselben Zeile).
+     * 2. `body` entspricht noch dem beim Preflight gelesenen Snapshot
+     *    (schuetzt vor einer Autoren-Freigabe zwischen Preflight und
+     *    Schreibvorgang, die `body` aendert, ohne `rich_content`
+     *    anzufassen -- ohne diese zweite Pruefung wuerde ein `--apply`-Lauf
+     *    sonst ein bereits veraltetes Dokument einfrieren und Lesson/Node
+     *    direkt vor CMS-7d.3 in einen divergierten Zustand bringen).
      */
     private function writePending(): int
     {
@@ -361,6 +395,12 @@ class RichContentMigrate extends Command
                 if ($locked === null || $locked->rich_content !== null) {
                     throw new RuntimeException(
                         "rich_content fuer {$model->getKeyName()}={$model->getKey()} war beim Schreiben nicht mehr NULL -- Migration abgebrochen, Transaktion zurueckgerollt.",
+                    );
+                }
+
+                if ($locked->body !== $pending['source_body']) {
+                    throw new RuntimeException(
+                        "body fuer {$model->getKeyName()}={$model->getKey()} hat sich seit dem Preflight veraendert -- Migration abgebrochen, Transaktion zurueckgerollt.",
                     );
                 }
 

@@ -8,6 +8,7 @@ use App\Models\Node;
 use App\Models\Track;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -118,6 +119,43 @@ class RichContentMigrateTest extends TestCase
         $this->assertSame(0, $exitCode, $output);
         $this->assertStringContainsString('0 zu migrieren, 2 bereits vorhanden', $output);
         $this->assertStringContainsString('0 geschrieben', $output);
+    }
+
+    /**
+     * Betreiber-Review von PR #125: der Row-Lock allein schuetzt nur davor,
+     * dass ein ZWEITER Migrationslauf dieselbe Zeile befuellt -- nicht
+     * davor, dass eine ganz normale Autoren-Freigabe `body` zwischen
+     * Preflight und Schreibvorgang aendert, waehrend `rich_content`
+     * `NULL` bleibt. Ohne den erneuten `body`-Abgleich in `writePending()`
+     * wuerde `--apply` in diesem Fall ein bereits veraltetes Rich-Content-
+     * Dokument einfrieren. Simuliert per `DB::listen()`: die Freigabe
+     * "passiert" exakt zwischen der `Lesson::all()`-Abfrage des Preflights
+     * und dem spaeteren Row-Lock in `writePending()`.
+     */
+    public function test_it_aborts_without_writing_when_body_changes_between_preflight_and_write(): void
+    {
+        $lesson = $this->lesson(['body' => "## Intro\n\nUrspruenglicher Text.\n"]);
+
+        $fired = false;
+        DB::listen(function ($query) use (&$fired, $lesson): void {
+            if ($fired || stripos($query->sql, 'select') !== 0 || ! str_contains($query->sql, 'lessons')) {
+                return;
+            }
+
+            $fired = true;
+            DB::table('lessons')->where('id', $lesson->getKey())->update([
+                'body' => "## Intro\n\nZwischenzeitlich veroeffentlichter Text.\n",
+            ]);
+        });
+
+        $exitCode = $this->migrate(['--apply' => true]);
+        $output = Artisan::output();
+
+        $this->assertTrue($fired, 'die simulierte Freigabe haette waehrend des Laufs feuern muessen');
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('hat sich seit dem Preflight veraendert', $output);
+        $this->assertNull($lesson->fresh()->rich_content);
+        $this->assertStringContainsString('Zwischenzeitlich veroeffentlichter Text.', (string) $lesson->fresh()->body);
     }
 
     public function test_it_prefers_the_db_body_over_a_stale_content_file(): void
