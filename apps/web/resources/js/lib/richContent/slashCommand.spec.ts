@@ -1,0 +1,162 @@
+import { Editor } from '@tiptap/core';
+import { describe, expect, it } from 'vitest';
+import { fromTipTap } from './RichContentEditorAdapter';
+import { resolveSlashCommandItems } from './slashCommand';
+import { richContentExtensions } from './tiptapExtensions';
+import type { GlossaryTermOption } from './slashCommand';
+
+const GLOSSARY: GlossaryTermOption[] = [
+    { slug: 'dicom', term: 'DICOM' },
+    { slug: 'scu', term: 'Service Class User' },
+    { slug: 'scp', term: 'Service Class Provider' },
+];
+
+describe('resolveSlashCommandItems', () => {
+    it('returns every base command for an empty query', () => {
+        const items = resolveSlashCommandItems('', []);
+
+        expect(items.length).toBeGreaterThan(0);
+        expect(items.some((item) => item.id === 'calloutInfo')).toBe(true);
+        expect(items.some((item) => item.id === 'dicomTagTable')).toBe(true);
+        expect(items.some((item) => item.id === 'dicomDump')).toBe(true);
+        expect(items.some((item) => item.id === 'selfCheck')).toBe(true);
+    });
+
+    it('filters base commands by title and by keyword', () => {
+        expect(
+            resolveSlashCommandItems('warn', []).map((item) => item.id),
+        ).toEqual(['calloutWarning']);
+        expect(
+            resolveSlashCommandItems('dump', []).map((item) => item.id),
+        ).toEqual(['dicomDump']);
+    });
+
+    it('returns no base commands for a query that matches nothing', () => {
+        expect(resolveSlashCommandItems('xyzxyz', [])).toEqual([]);
+    });
+
+    /**
+     * "glossary_term kann gesucht/eingefuegt werden" (Betreiber-Vorgabe,
+     * ADR 0114): "/glossary" schaltet auf eine Glossar-Suche um statt ein
+     * einzelner Menuepunkt zu sein.
+     */
+    it('switches to a glossary search when the query starts with "glossary"', () => {
+        const items = resolveSlashCommandItems('glossary', GLOSSARY);
+
+        expect(items.map((item) => item.title).sort()).toEqual(
+            ['DICOM', 'Service Class Provider', 'Service Class User'].sort(),
+        );
+    });
+
+    it('filters glossary results by the text after "glossary"', () => {
+        const items = resolveSlashCommandItems('glossary scu', GLOSSARY);
+
+        expect(items).toHaveLength(1);
+        expect(items[0].title).toBe('Service Class User');
+    });
+
+    it('matches a glossary search against the slug as well as the term', () => {
+        const items = resolveSlashCommandItems('glossary dicom', GLOSSARY);
+
+        expect(items.map((item) => item.title)).toEqual(['DICOM']);
+    });
+
+    it('returns no glossary results for a search that matches nothing', () => {
+        expect(resolveSlashCommandItems('glossary zzz', GLOSSARY)).toEqual([]);
+    });
+});
+
+/**
+ * Beweist, dass die Befehle tatsaechlich das richtige Dokument erzeugen --
+ * gegen einen echten Editor (derselbe Extension-Satz wie im Produkt),
+ * nicht nur gegen die Objektstruktur der Befehlsliste selbst.
+ */
+describe('slash command execution against a real editor', () => {
+    function editorWithEmptyParagraph(): Editor {
+        return new Editor({
+            extensions: richContentExtensions(GLOSSARY),
+            content: {
+                type: 'doc',
+                content: [{ type: 'paragraph', content: [] }],
+            },
+        });
+    }
+
+    function runCommand(
+        id: string,
+        glossaryTerms: GlossaryTermOption[] = GLOSSARY,
+    ) {
+        const editor = editorWithEmptyParagraph();
+        const range = { from: 0, to: editor.state.doc.content.size };
+        const item = resolveSlashCommandItems('', glossaryTerms).find(
+            (candidate) => candidate.id === id,
+        );
+
+        if (!item) {
+            throw new Error(`no such command: ${id}`);
+        }
+
+        item.command(editor, range);
+
+        return fromTipTap(editor.getJSON());
+    }
+
+    it('inserts a callout with an empty paragraph', () => {
+        const doc = runCommand('calloutInfo');
+
+        expect(doc.content[0]).toMatchObject({
+            type: 'callout',
+            attrs: { kind: 'info' },
+        });
+    });
+
+    it('inserts a warning callout', () => {
+        const doc = runCommand('calloutWarning');
+
+        expect(doc.content[0]).toMatchObject({
+            type: 'callout',
+            attrs: { kind: 'warning' },
+        });
+    });
+
+    it('inserts a self_check with a default summary', () => {
+        const doc = runCommand('selfCheck');
+
+        expect(doc.content[0]).toMatchObject({
+            type: 'self_check',
+            attrs: { summary: 'Antwort anzeigen' },
+        });
+    });
+
+    it('inserts a dicom_tag_table with one empty row', () => {
+        const doc = runCommand('dicomTagTable');
+
+        expect(doc.content[0]).toEqual({
+            type: 'dicom_tag_table',
+            content: [{ tag: '', keyword: '', vr: '', value: '' }],
+        });
+    });
+
+    it('inserts a dicom_dump code_block', () => {
+        const doc = runCommand('dicomDump');
+
+        expect(doc.content[0]).toMatchObject({
+            type: 'code_block',
+            attrs: { variant: 'dicom_dump' },
+        });
+    });
+
+    it('inserts a glossary_term chosen from the glossary search', () => {
+        const editor = editorWithEmptyParagraph();
+        const range = { from: 0, to: editor.state.doc.content.size };
+        const item = resolveSlashCommandItems('glossary scu', GLOSSARY)[0];
+
+        item.command(editor, range);
+
+        const doc = fromTipTap(editor.getJSON());
+        expect(doc.content[0]).toMatchObject({
+            type: 'paragraph',
+            content: [{ type: 'glossary_term', attrs: { slug: 'scu' } }],
+        });
+    });
+});

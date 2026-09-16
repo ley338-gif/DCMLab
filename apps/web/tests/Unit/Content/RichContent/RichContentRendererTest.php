@@ -187,4 +187,67 @@ class RichContentRendererTest extends TestCase
 
         $this->assertSame('<blockquote><p>Zitat.</p></blockquote>', $html);
     }
+
+    public function test_it_renders_a_callout_with_a_title(): void
+    {
+        $html = (new RichContentRenderer)->render($this->doc([
+            ['type' => 'callout', 'attrs' => ['kind' => 'warning', 'title' => 'Achtung'], 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Vorsicht.']]],
+            ]],
+        ]));
+
+        $this->assertSame(
+            '<div class="lesson-callout lesson-callout-warning"><p class="lesson-callout-title">Achtung</p><p>Vorsicht.</p></div>',
+            $html,
+        );
+    }
+
+    public function test_it_renders_a_callout_without_a_title(): void
+    {
+        $html = (new RichContentRenderer)->render($this->doc([
+            ['type' => 'callout', 'attrs' => ['kind' => 'info'], 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Hinweis.']]],
+            ]],
+        ]));
+
+        $this->assertSame('<div class="lesson-callout lesson-callout-info"><p>Hinweis.</p></div>', $html);
+    }
+
+    public function test_it_renders_a_dicom_tag_table(): void
+    {
+        $html = (new RichContentRenderer)->render($this->doc([
+            ['type' => 'dicom_tag_table', 'content' => [
+                ['tag' => '(0010,0010)', 'keyword' => 'PatientName', 'vr' => 'PN', 'value' => 'DOE^JOHN'],
+            ]],
+        ]));
+
+        $this->assertSame(
+            '<table class="dicom-tag-table"><thead><tr><th>Tag</th><th>Keyword</th><th>VR</th><th>Value</th></tr></thead>'
+            .'<tbody><tr><td>(0010,0010)</td><td>PatientName</td><td>PN</td><td>DOE^JOHN</td></tr></tbody></table>',
+            $html,
+        );
+    }
+
+    public function test_it_escapes_dicom_tag_table_values(): void
+    {
+        $html = (new RichContentRenderer)->render($this->doc([
+            ['type' => 'dicom_tag_table', 'content' => [
+                ['tag' => '<x>', 'keyword' => '', 'vr' => '', 'value' => ''],
+            ]],
+        ]));
+
+        $this->assertStringNotContainsString('<x>', $html);
+        $this->assertStringContainsString('&lt;x&gt;', $html);
+    }
+
+    public function test_it_renders_a_dicom_dump_code_block_like_terminal_output(): void
+    {
+        $html = (new RichContentRenderer)->render($this->doc([
+            ['type' => 'code_block', 'attrs' => ['variant' => 'dicom_dump'], 'text' => '(0010,0010) PN [DOE^JOHN]'],
+        ]));
+
+        $this->assertStringContainsString('lesson-dicom-dump', $html);
+        $this->assertStringContainsString('lesson-line-output', $html);
+        $this->assertStringContainsString('(0010,0010) PN [DOE^JOHN]', $html);
+    }
 }

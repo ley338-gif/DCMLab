@@ -48,6 +48,15 @@ use League\CommonMark\Parser\MarkdownParser;
  * eigener Block, nicht am Dokumentende) und jedes andere eingebettete
  * rohe HTML -- ein solcher Knoten wird beim Konvertieren stillschweigend
  * uebersprungen, nicht als Fehler gemeldet.
+ *
+ * `callout`, `dicom_tag_table` und `code_block.attrs.variant = dicom_dump`
+ * (ADR 0114, CMS-7c) erkennt dieser Konverter bewusst nicht aus
+ * bestehendem Markdown -- es gibt im echten Bestand kein zuverlaessiges
+ * Signal, das einen generischen Absatz/Codeblock/eine generische Tabelle
+ * von einem DCMLab-spezifischen Block unterscheidbar machen wuerde (anders
+ * als `<!-- kein-beispiel -->` oder eine Sprachannotation). Diese drei
+ * Typen sind reine Autoren-Konstrukte fuer den Editor (CMS-7c), keine
+ * Legacy-Migrationsziele.
  */
 final class MarkdownToRichContentConverter
 {

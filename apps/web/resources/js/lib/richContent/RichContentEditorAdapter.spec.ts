@@ -220,29 +220,112 @@ describe('RichContentEditorAdapter roundtrip', () => {
         expect(tiptapDoc.content?.[0].attrs?.variant).toBe('console');
         expect(fromTipTap(tiptapDoc).content[0]).toEqual(dcmlabDoc.content[0]);
     });
-});
 
-describe('RichContentEditorAdapter unsupported nodes', () => {
-    it('throws for a self_check block instead of dropping it', () => {
-        const dcmlabDoc = doc([
-            {
-                type: 'self_check',
-                attrs: { summary: 'Frage?' },
-                content: [
-                    {
-                        type: 'paragraph',
-                        content: [{ type: 'text', text: 'Antwort.' }],
-                    },
-                ],
-            },
-        ]);
-
-        expect(() => toTipTap(dcmlabDoc)).toThrow(UnsupportedEditorNodeError);
-        expect(() => toTipTap(dcmlabDoc)).toThrow(
-            'Unsupported editor node: self_check',
+    it('roundtrips a dicom_dump code_block', () => {
+        assertRoundtrips(
+            doc([
+                {
+                    type: 'code_block',
+                    attrs: { variant: 'dicom_dump' },
+                    text: '(0010,0010) PN [DOE^JOHN]',
+                },
+            ]),
         );
     });
 
+    it('roundtrips a self_check', () => {
+        assertRoundtrips(
+            doc([
+                {
+                    type: 'self_check',
+                    attrs: { summary: 'Frage?' },
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: 'Antwort.' }],
+                        },
+                    ],
+                },
+            ]),
+        );
+    });
+
+    it.each(['info', 'warning'] as const)(
+        'roundtrips a %s callout with a title',
+        (kind) => {
+            assertRoundtrips(
+                doc([
+                    {
+                        type: 'callout',
+                        attrs: { kind, title: 'Achtung' },
+                        content: [
+                            {
+                                type: 'paragraph',
+                                content: [{ type: 'text', text: 'Vorsicht.' }],
+                            },
+                        ],
+                    },
+                ]),
+            );
+        },
+    );
+
+    it('roundtrips a callout without a title', () => {
+        assertRoundtrips(
+            doc([
+                {
+                    type: 'callout',
+                    attrs: { kind: 'info' },
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: 'Hinweis.' }],
+                        },
+                    ],
+                },
+            ]),
+        );
+    });
+
+    it('roundtrips a dicom_tag_table', () => {
+        assertRoundtrips(
+            doc([
+                {
+                    type: 'dicom_tag_table',
+                    content: [
+                        {
+                            tag: '(0010,0010)',
+                            keyword: 'PatientName',
+                            vr: 'PN',
+                            value: 'DOE^JOHN',
+                        },
+                        {
+                            tag: '(0008,0060)',
+                            keyword: 'Modality',
+                            vr: 'CS',
+                            value: 'CT',
+                        },
+                    ],
+                },
+            ]),
+        );
+    });
+
+    it('roundtrips a glossary_term', () => {
+        assertRoundtrips(
+            doc([
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'glossary_term', attrs: { slug: 'dicom' } },
+                    ],
+                },
+            ]),
+        );
+    });
+});
+
+describe('RichContentEditorAdapter unsupported nodes', () => {
     it('throws for a table block instead of dropping it', () => {
         const dcmlabDoc = doc([
             {
@@ -270,19 +353,6 @@ describe('RichContentEditorAdapter unsupported nodes', () => {
         ]);
 
         expect(() => toTipTap(dcmlabDoc)).toThrow(UnsupportedEditorNodeError);
-    });
-
-    it('throws for a glossary_term inline node instead of dropping it', () => {
-        const dcmlabDoc = doc([
-            {
-                type: 'paragraph',
-                content: [{ type: 'glossary_term', attrs: { slug: 'dicom' } }],
-            },
-        ]);
-
-        expect(() => toTipTap(dcmlabDoc)).toThrow(
-            'Unsupported editor node: glossary_term',
-        );
     });
 
     it('throws for an unrecognized TipTap node when converting back', () => {

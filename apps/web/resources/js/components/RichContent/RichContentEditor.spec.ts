@@ -76,18 +76,36 @@ describe('RichContentEditor', () => {
         expect(JSON.stringify(lastEmitted)).not.toContain('"codeBlock"');
     });
 
+    /**
+     * `table` bleibt ausserhalb des CMS-7c-Editor-Scopes (generische
+     * Tabellen sind kein Ziel, siehe ADR 0114) -- damit weiterhin ein
+     * echtes Beispiel fuer einen unbekannten Knoten (anders als
+     * `self_check`/`glossary_term`, die CMS-7c editorfaehig gemacht hat).
+     */
     it('surfaces an unsupported node instead of silently dropping it', () => {
-        const docWithSelfCheck: RichContentDocument = {
+        const docWithTable: RichContentDocument = {
             type: 'doc',
             version: 1,
             content: [
                 {
-                    type: 'self_check',
-                    attrs: { summary: 'Frage?' },
+                    type: 'table',
                     content: [
                         {
-                            type: 'paragraph',
-                            content: [{ type: 'text', text: 'Antwort.' }],
+                            type: 'table_row',
+                            content: [
+                                {
+                                    type: 'table_cell',
+                                    attrs: { header: true },
+                                    content: [
+                                        {
+                                            type: 'paragraph',
+                                            content: [
+                                                { type: 'text', text: 'Tag' },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
                         },
                     ],
                 },
@@ -95,15 +113,15 @@ describe('RichContentEditor', () => {
         };
 
         const wrapper = mount(RichContentEditor, {
-            props: { modelValue: docWithSelfCheck },
+            props: { modelValue: docWithTable },
         });
 
         expect(wrapper.emitted('unsupported-node')).toBeTruthy();
         const [error] = wrapper.emitted('unsupported-node')![0] as [
             { nodeType: string },
         ];
-        expect(error.nodeType).toBe('self_check');
-        expect(wrapper.text()).toContain('self_check');
+        expect(error.nodeType).toBe('table');
+        expect(wrapper.text()).toContain('table');
         expect(wrapper.find('.ProseMirror').exists()).toBe(false);
     });
 
@@ -150,5 +168,64 @@ describe('RichContentEditor', () => {
         // Kein update:modelValue, weil sich am Dokument inhaltlich nichts
         // geaendert hat -- nur eine neue, aber gleichwertige Objektreferenz.
         expect(wrapper.emitted('update:modelValue')).toBeFalsy();
+    });
+
+    /**
+     * Beweist, dass `glossaryTerms` tatsaechlich bis zur Slash-Command-
+     * Extension durchgereicht wird (ADR 0114) -- nicht nur, dass das Modul
+     * `slashCommand.ts` fuer sich isoliert mit einer selbst uebergebenen
+     * Liste funktioniert.
+     */
+    it('passes the glossaryTerms prop through to the slash command extension', () => {
+        const glossaryTerms = [{ slug: 'dicom', term: 'DICOM' }];
+        const wrapper = mount(RichContentEditor, {
+            props: { modelValue: paragraphDoc(''), glossaryTerms },
+        });
+
+        const editor = (
+            wrapper.vm as unknown as {
+                editor: {
+                    extensionManager: {
+                        extensions: {
+                            name: string;
+                            options: { glossaryTerms?: unknown };
+                        }[];
+                    };
+                };
+            }
+        ).editor;
+
+        const slashCommandExtension = editor.extensionManager.extensions.find(
+            (extension) => extension.name === 'slashCommand',
+        );
+
+        expect(slashCommandExtension?.options.glossaryTerms).toEqual(
+            glossaryTerms,
+        );
+    });
+
+    it('defaults glossaryTerms to an empty list', () => {
+        const wrapper = mount(RichContentEditor, {
+            props: { modelValue: paragraphDoc('') },
+        });
+
+        const editor = (
+            wrapper.vm as unknown as {
+                editor: {
+                    extensionManager: {
+                        extensions: {
+                            name: string;
+                            options: { glossaryTerms?: unknown };
+                        }[];
+                    };
+                };
+            }
+        ).editor;
+
+        const slashCommandExtension = editor.extensionManager.extensions.find(
+            (extension) => extension.name === 'slashCommand',
+        );
+
+        expect(slashCommandExtension?.options.glossaryTerms).toEqual([]);
     });
 });

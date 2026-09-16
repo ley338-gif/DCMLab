@@ -141,12 +141,15 @@ describe('richContentExtensions schema roundtrip', () => {
         expect(roundtripThroughRealSchema(doc)).toEqual(doc);
     });
 
-    it('does not register self_check, table or glossary_term in the editor schema', () => {
+    it('registers selfCheck, callout, dicomTagTable and glossaryTerm (CMS-7c), but not generic tables', () => {
         const schema = getSchema(richContentExtensions());
 
-        expect(schema.nodes.self_check).toBeUndefined();
+        expect(schema.nodes.selfCheck).toBeDefined();
+        expect(schema.nodes.callout).toBeDefined();
+        expect(schema.nodes.dicomTagTable).toBeDefined();
+        expect(schema.nodes.dicomTagRow).toBeDefined();
+        expect(schema.nodes.glossaryTerm).toBeDefined();
         expect(schema.nodes.table).toBeUndefined();
-        expect(schema.nodes.glossary_term).toBeUndefined();
     });
 
     it('does not register strike, underline or horizontalRule (not part of the DCMLab schema)', () => {
@@ -155,5 +158,111 @@ describe('richContentExtensions schema roundtrip', () => {
         expect(schema.marks.strike).toBeUndefined();
         expect(schema.marks.underline).toBeUndefined();
         expect(schema.nodes.horizontalRule).toBeUndefined();
+    });
+
+    it('preserves a self_check through the real ProseMirror schema', () => {
+        const doc: RichContentDocument = {
+            type: 'doc',
+            version: 1,
+            content: [
+                {
+                    type: 'self_check',
+                    attrs: { summary: 'Frage?' },
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: 'Antwort.' }],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(roundtripThroughRealSchema(doc)).toEqual(doc);
+    });
+
+    it.each(['info', 'warning'] as const)(
+        'preserves a %s callout with a title through the real schema',
+        (kind) => {
+            const doc: RichContentDocument = {
+                type: 'doc',
+                version: 1,
+                content: [
+                    {
+                        type: 'callout',
+                        attrs: { kind, title: 'Achtung' },
+                        content: [
+                            {
+                                type: 'paragraph',
+                                content: [{ type: 'text', text: 'Vorsicht.' }],
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            expect(roundtripThroughRealSchema(doc)).toEqual(doc);
+        },
+    );
+
+    it('preserves a dicom_tag_table with multiple rows through the real schema', () => {
+        const doc: RichContentDocument = {
+            type: 'doc',
+            version: 1,
+            content: [
+                {
+                    type: 'dicom_tag_table',
+                    content: [
+                        {
+                            tag: '(0010,0010)',
+                            keyword: 'PatientName',
+                            vr: 'PN',
+                            value: 'DOE^JOHN',
+                        },
+                        {
+                            tag: '(0008,0060)',
+                            keyword: 'Modality',
+                            vr: 'CS',
+                            value: 'CT',
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(roundtripThroughRealSchema(doc)).toEqual(doc);
+    });
+
+    it('preserves a glossary_term through the real schema', () => {
+        const doc: RichContentDocument = {
+            type: 'doc',
+            version: 1,
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [
+                        { type: 'glossary_term', attrs: { slug: 'dicom' } },
+                    ],
+                },
+            ],
+        };
+
+        expect(roundtripThroughRealSchema(doc)).toEqual(doc);
+    });
+
+    it('preserves the dicom_dump code_block variant through the real schema', () => {
+        const doc: RichContentDocument = {
+            type: 'doc',
+            version: 1,
+            content: [
+                {
+                    type: 'code_block',
+                    attrs: { variant: 'dicom_dump' },
+                    text: '(0010,0010) PN [DOE^JOHN]',
+                },
+            ],
+        };
+
+        expect(roundtripThroughRealSchema(doc)).toEqual(doc);
     });
 });

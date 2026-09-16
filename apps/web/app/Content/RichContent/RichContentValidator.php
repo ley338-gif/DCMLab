@@ -3,8 +3,8 @@
 namespace App\Content\RichContent;
 
 /**
- * Prueft ein Rich-Content-Dokument gegen das Schema aus ADR 0111/0112
- * (CMS-7a): ein strukturiertes JSON-Dokument (`{type: "doc", version,
+ * Prueft ein Rich-Content-Dokument gegen das Schema aus ADR 0111/0112/0114
+ * (CMS-7a/CMS-7c): ein strukturiertes JSON-Dokument (`{type: "doc", version,
  * content: [...]}`) ist Quelle der Wahrheit fuer Lesson-/Node-Fliesstext.
  * Das Schema ist bewusst DCMLab-eigen (snake_case, `code_block.text` statt
  * verschachteltem Text-Node) -- TipTap (CMS-7b) ist nur EIN Editor dafuer
@@ -23,13 +23,17 @@ namespace App\Content\RichContent;
  */
 final class RichContentValidator
 {
-    private const BLOCK_TYPES = ['paragraph', 'heading', 'bullet_list', 'ordered_list', 'blockquote', 'code_block', 'table', 'self_check'];
+    private const BLOCK_TYPES = ['paragraph', 'heading', 'bullet_list', 'ordered_list', 'blockquote', 'code_block', 'table', 'self_check', 'callout', 'dicom_tag_table'];
 
     private const INLINE_TYPES = ['text', 'glossary_term', 'hard_break'];
 
     private const MARK_TYPES = ['bold', 'italic', 'code', 'link'];
 
-    private const CODE_BLOCK_VARIANTS = ['code', 'console', 'terminal', 'diagram', 'mermaid'];
+    private const CODE_BLOCK_VARIANTS = ['code', 'console', 'terminal', 'diagram', 'mermaid', 'dicom_dump'];
+
+    private const CALLOUT_KINDS = ['info', 'warning'];
+
+    private const DICOM_TAG_TABLE_ROW_FIELDS = ['tag', 'keyword', 'vr', 'value'];
 
     private const CURRENT_VERSION = 1;
 
@@ -91,7 +95,73 @@ final class RichContentValidator
             'code_block' => $this->validateCodeBlock($node, $path),
             'table' => $this->validateTable($node, $path),
             'self_check' => $this->validateSelfCheck($node, $path),
+            'callout' => $this->validateCallout($node, $path),
+            'dicom_tag_table' => $this->validateDicomTagTable($node, $path),
         };
+    }
+
+    /**
+     * `callout` (ADR 0114, CMS-7c): Info-/Warnkasten -- ein gemeinsamer
+     * Blocktyp fuer beide heutigen Arten statt je einem eigenen, damit
+     * spaetere Arten (`tip`, `note`, `success`, ...) nur `attrs.kind`
+     * erweitern, kein neues Schema brauchen.
+     *
+     * @param  array<string, mixed>  $node
+     * @return list<string>
+     */
+    private function validateCallout(array $node, string $path): array
+    {
+        $issues = [];
+        $kind = $node['attrs']['kind'] ?? null;
+
+        if (! in_array($kind, self::CALLOUT_KINDS, true)) {
+            $issues[] = "{$path}.attrs.kind: muss eine von \"".implode('", "', self::CALLOUT_KINDS).'" sein';
+        }
+
+        if (isset($node['attrs']['title']) && ! is_string($node['attrs']['title'])) {
+            $issues[] = "{$path}.attrs.title: muss ein String sein, wenn gesetzt";
+        }
+
+        return [...$issues, ...$this->validateBlockContent($node, $path)];
+    }
+
+    /**
+     * `dicom_tag_table` (ADR 0114, CMS-7c): fachlich strukturierte Zeilen
+     * (Tag/Keyword/VR/Value) statt eines generischen `table`-Blocks --
+     * jede Zeile ist bewusst ein reines Datenobjekt ohne eigenen `type`
+     * (anders als jeder andere Knoten in diesem Schema), weil sie kein
+     * Rich-Content-Block ist, sondern ein geschlossener, homogener
+     * Datensatz. Das schafft Raum fuer spaetere Dictionary-Validierung,
+     * ohne das Schema selbst nochmal aendern zu muessen.
+     *
+     * @param  array<string, mixed>  $node
+     * @return list<string>
+     */
+    private function validateDicomTagTable(array $node, string $path): array
+    {
+        if (! is_array($node['content'] ?? null) || ! array_is_list($node['content'])) {
+            return ["{$path}.content: muss eine Liste aus Tag-Zeilen sein"];
+        }
+
+        $issues = [];
+
+        foreach ($node['content'] as $index => $row) {
+            $rowPath = "{$path}.content[{$index}]";
+
+            if (! is_array($row)) {
+                $issues[] = "{$rowPath}: muss ein Objekt sein";
+
+                continue;
+            }
+
+            foreach (self::DICOM_TAG_TABLE_ROW_FIELDS as $field) {
+                if (! is_string($row[$field] ?? null)) {
+                    $issues[] = "{$rowPath}.{$field}: muss ein String sein";
+                }
+            }
+        }
+
+        return $issues;
     }
 
     /**
