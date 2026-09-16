@@ -88,6 +88,14 @@ const props = defineProps<{
     placeholders: string[];
     state: EngineState;
     attempt: { status: string };
+    // CMS-7d.3 Phase 6 (ADR 0118): gesetzt fuer die Draft-Vorschau eines
+    // Autors (`StudioNodeController::preview()`) -- es gibt dabei keinen
+    // echten `NodeAttempt`/keine echte Engine-Session (Betreiber-Vorgabe),
+    // deshalb wird der interaktive Sandbox-/Flag-Teil durch einen
+    // Platzhalter ersetzt. Briefing/Hinweise/Write-up sind in diesem Fall
+    // bereits vollstaendig aufgedeckt (siehe `LearnerViewBuilder::
+    // nodePreviewProps()`), brauchen also keine eigene Sonderbehandlung.
+    preview?: boolean;
 }>();
 
 function toNavNeighbor(neighbor: NodeNeighbor, label: string): NavNeighbor {
@@ -313,8 +321,18 @@ async function submitFlag() {
                     </h1>
                 </div>
 
+                <Card v-if="preview">
+                    <CardContent class="text-muted-foreground text-sm">
+                        {{
+                            trans(
+                                'Vorschau: Sandbox und Terminal sind hier nicht verfügbar.',
+                            )
+                        }}
+                    </CardContent>
+                </Card>
+
                 <ScenarioPlayer
-                    v-if="node.interaction === 'scenario'"
+                    v-else-if="node.interaction === 'scenario'"
                     :scenario="state.scenario!"
                     @choose="chooseOption"
                     @restart="restartScenario"
@@ -550,7 +568,7 @@ async function submitFlag() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card v-if="!preview">
                     <CardHeader>
                         <CardTitle class="text-sm">{{
                             trans('Flag')

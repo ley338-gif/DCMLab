@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Activities\ActivityRegistry;
 use App\Content\ContentRepository;
 use App\Content\ContentVersioningService;
+use App\Content\LearnerViewBuilder;
 use App\Content\QuizContent;
 use App\Content\RichContent\LessonPayloadNormalizer;
 use App\Models\Activity;
@@ -13,6 +14,7 @@ use App\Models\Node;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -73,6 +75,10 @@ class LessonEditorController extends Controller
                 'status' => $pendingVersion->status,
             ],
             'can_publish' => Gate::allows('publish', $activity),
+            // Echte Learner View des ungespeicherten Entwurfs (CMS-7d.3
+            // Phase 6, ADR 0118) statt eines Links auf die veroeffentlichte
+            // Lektion -- siehe preview() unten.
+            'preview_url' => route('author.lessons.edit.preview', $lesson),
         ]);
     }
 
@@ -96,6 +102,47 @@ class LessonEditorController extends Controller
         $versions->createDraft($activity, $this->validatedFields($request), $request->user());
 
         return back()->with('status', 'Entwurf gespeichert.');
+    }
+
+    /**
+     * Echte Learner View eines ungespeicherten Entwurfs (CMS-7d.3 Phase 6,
+     * ADR 0118): dieselbe `Lessons/Show`-Seite wie `LessonController::
+     * show()`, aber mit den entwurfsbetroffenen Feldern einer NIE
+     * gespeicherten Kopie ueberschrieben (`clone`, kein `save()`) --
+     * `body`, Track-Zugehoerigkeit, Quiz und `lesson_elements` bleiben
+     * unveraendert (der Rich-Content-Cutover fasst sie nicht an). Kein
+     * zweiter Renderer, `LearnerViewBuilder::lessonProps(...,
+     * trackProgress: false)` verhindert dabei, dass das blosse Ansehen
+     * eines Entwurfs echten Lernfortschritt fuer den Autor anlegt.
+     */
+    public function preview(Lesson $lesson, ContentRepository $content, LearnerViewBuilder $builder): Response
+    {
+        $activity = $this->activityFor($lesson);
+        Gate::authorize('update', $activity);
+
+        $pendingVersion = $activity->contentVersions()
+            ->whereIn('status', ['draft', 'review'])
+            ->latest()
+            ->first();
+
+        $draft = (new LessonPayloadNormalizer)->normalize(
+            $pendingVersion !== null ? $pendingVersion->payload : $this->currentFields($lesson, $content),
+        );
+
+        $previewLesson = clone $lesson;
+        $previewLesson->title = ['de' => $draft['title']];
+        $previewLesson->teaser = ['de' => $draft['teaser']];
+        $previewLesson->level = $draft['level'];
+        $previewLesson->duration_minutes = $draft['duration_minutes'];
+        $previewLesson->tools = $draft['tools'];
+        $previewLesson->requires = $draft['requires'];
+        $previewLesson->glossary_terms = $draft['glossary_terms'];
+        $previewLesson->objectives = $draft['objectives'];
+        $previewLesson->sandbox = $draft['sandbox'];
+        $previewLesson->lab = $draft['lab'];
+        $previewLesson->rich_content = $draft['rich_content'];
+
+        return Inertia::render('Lessons/Show', $builder->lessonProps($previewLesson, Auth::user(), trackProgress: false));
     }
 
     private function activityFor(Lesson $lesson): Activity

@@ -63,6 +63,7 @@ const props = defineProps<{
     };
     pending_version: PendingVersion;
     can_publish: boolean;
+    preview_url: string;
 }>();
 
 const fields = ref<LessonFields>({ ...props.fields });
@@ -188,6 +189,11 @@ const statusLabels: Record<string, string> = {
                 <Badge v-if="pending_version" variant="outline">
                     {{ statusLabels[pending_version.status] }}
                 </Badge>
+                <a :href="preview_url" target="_blank" rel="noopener">
+                    <Button type="button" variant="outline">{{
+                        trans('Vorschau')
+                    }}</Button>
+                </a>
             </div>
         </div>
 

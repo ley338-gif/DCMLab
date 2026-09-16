@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Activities\ActivityRegistry;
 use App\Content\ContentRepository;
 use App\Content\ContentVersioningService;
+use App\Content\LearnerViewBuilder;
+use App\Content\RichContent\NodePayloadNormalizer;
 use App\Models\Activity;
 use App\Models\ContentVersion;
 use App\Models\Node;
@@ -170,8 +172,40 @@ class StudioNodeController extends Controller
                 ]),
             'can_manage' => Gate::allows('manage', Node::class),
             'can_publish' => Gate::allows('publish', $activity),
-            'preview_url' => route('nodes.show', $node->slug),
+            // Echte Learner View des ungespeicherten Entwurfs (CMS-7d.3
+            // Phase 6, ADR 0118) statt eines Links auf die veroeffentlichte
+            // Node -- siehe preview() unten. Ein per Studio angelegter
+            // Entwurf hat noch keine `route('nodes.show', ...)`, die fuer
+            // Lernende sichtbar waere (ADR 0110), die alte Verlinkung war
+            // fuer diesen Fall ohnehin schon nicht brauchbar.
+            'preview_url' => route('studio.nodes.preview', $node),
         ]);
+    }
+
+    /**
+     * Echte Learner View eines ungespeicherten Node-Entwurfs (CMS-7d.3
+     * Phase 6, ADR 0118): dieselbe `Nodes/Show`-Seite wie
+     * `NodeController::show()`, aber ohne echten `NodeAttempt`/echte
+     * Engine-Session -- Briefing/Hinweise/Write-up werden VOLLSTAENDIG
+     * gezeigt (kein Punkt-/Klick-Gating), Sandbox/Terminal werden von
+     * `Nodes/Show.vue` hinter `preview: true` durch einen Platzhalter
+     * ersetzt (Betreiber-Vorgabe: "kein echter NodeAttempt").
+     */
+    public function preview(Node $node, ActivityRegistry $registry, LearnerViewBuilder $builder): Response
+    {
+        $activity = $this->activityFor($node);
+        Gate::authorize('update', $activity);
+
+        $pendingVersion = $activity->contentVersions()
+            ->whereIn('status', ['draft', 'review'])
+            ->latest()
+            ->first();
+
+        $draft = (new NodePayloadNormalizer)->normalize(
+            $pendingVersion !== null ? $pendingVersion->payload : $registry->resolve($activity)->deserialize(),
+        );
+
+        return Inertia::render('Nodes/Show', $builder->nodePreviewProps($node, $draft));
     }
 
     public function validateDraft(Request $request, Node $node, ActivityRegistry $registry): JsonResponse
