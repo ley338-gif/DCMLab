@@ -59,10 +59,94 @@ class LabControllerTest extends TestCase
                 ->where('lab.scenario_title', 'Verbindung pruefen')
                 ->where('attempt', null)
                 ->where('can_start', true)
+                ->where('runtime', null)
+                ->where('assertions', [])
+                ->where('runtime_error', null)
                 ->where('briefing_html', fn (string $html) => str_contains($html, 'Pruefe die Verbindung.')),
             );
 
         $this->assertDatabaseCount('lab_attempts', 0);
+    }
+
+    public function test_show_reports_the_live_runtime_status_and_assertion_checklist(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-echo-connectivity',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'assertions' => [
+                ['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1'],
+                ['type' => 'command_executed', 'prefix' => 'storescu 127.0.0.1'],
+            ],
+        ]);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'queued', 'sandbox_id' => 'sb-1', 'queue_position' => 2], 201),
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
+            '*/v1/sandboxes/sb-1/events' => Http::response([
+                'exec' => [['command' => 'echoscu 127.0.0.1 4242', 'exit_code' => 0, 'timestamp' => 't1', 'stdout_preview' => '']],
+                'orthanc' => ['new_instances' => []],
+            ]),
+        ]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+        $this->actingAs($user)->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu 127.0.0.1 4242']);
+
+        Http::fake(['*/v1/sandboxes/sb-1' => Http::response(['status' => 'running', 'queue_position' => null])]);
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('attempt.status', 'started')
+                ->where('runtime', ['status' => 'running', 'queue_position' => null])
+                ->where('assertions', [
+                    ['index' => 0, 'type' => 'command_executed', 'passed' => true],
+                    ['index' => 1, 'type' => 'command_executed', 'passed' => false],
+                ]),
+            );
+    }
+
+    public function test_show_reports_no_runtime_once_the_sandbox_is_gone(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        Http::fake(['*/v1/sandboxes/sb-1' => Http::response(['detail' => 'not_found'], 404)]);
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('runtime', null));
+    }
+
+    /**
+     * Betreiber-Korrektur: ein lokales Prop auf show() statt globalem
+     * Flash-Sharing -- start()s Redirect ist der einzige Rueckkanal, die
+     * Seite muss ihn nach dem naechsten Aufruf tatsaechlich zeigen.
+     */
+    public function test_show_surfaces_a_soft_runtime_error_as_a_local_prop(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['detail' => 'active_runtime_exists'], 409)]);
+
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start')->assertRedirect();
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('runtime_error', 'active_runtime_exists'));
     }
 
     public function test_starting_a_lab_creates_an_attempt(): void

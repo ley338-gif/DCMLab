@@ -26,13 +26,11 @@ use Inertia\Response;
 
 /**
  * Eigenstaendige Learner-Route fuer ein Lab (CMS-8a, Abschnitt H:
- * "Standalone-Entscheidung"). CMS-8d verdrahtet hier den Runtime-Lifecycle
- * (Start/Zustand/Exec/Beenden) inkl. Assertion-Auswertung und Progress-/
- * Profilpunkte-Verdrahtung -- alles auf derselben Route wie das Briefing,
- * keine zweite Seite (Betreiber-Vorgabe). `show()`s Runtime-/Assertion-
- * Anzeige und die Vue-Seite selbst bleiben bewusst einem eigenen,
- * spaeteren UI-Commit vorbehalten -- dieser Commit ist vollstaendig per
- * Backend-/Feature-Tests bewiesen.
+ * "Standalone-Entscheidung"). CMS-8d verdrahtet hier den kompletten
+ * Runtime-Lifecycle (Start/Zustand/Exec/Beenden) inkl. Assertion-
+ * Auswertung, Progress-/Profilpunkte-Verdrahtung und `show()`s Runtime-/
+ * Assertion-Anzeige fuer `Labs/Show.vue` -- alles auf derselben Route wie
+ * das Briefing, keine zweite Seite (Betreiber-Vorgabe).
  *
  * Betreiber-Review vor #128: Ansehen und Beginnen sind bewusst zwei
  * getrennte Aktionen (anders als bei Node, wo der reine Seitenaufruf schon
@@ -53,7 +51,7 @@ use Inertia\Response;
  */
 class LabController extends Controller
 {
-    public function show(Lab $lab, ContentRepository $content): Response
+    public function show(Request $request, Lab $lab, ContentRepository $content, RuntimeSessionService $sessions): Response
     {
         $this->assertVisible($lab);
         $activity = $this->activityFor($lab);
@@ -77,6 +75,15 @@ class LabController extends Controller
             // zeigen, sonst waere die 404-Sperre in start() die einzige
             // Verteidigungslinie.
             'can_start' => $lab->status === 'published',
+            // Betreiber-Vorgabe (CMS-8d): NIE eine sandbox_id an Vue --
+            // keine Lab-Route braucht sie vom Client, siehe Klassendoc.
+            'runtime' => $attempt === null ? null : $this->liveRuntimeStatus($attempt, $sessions),
+            'assertions' => $this->checklistFor($lab, $attempt !== null ? $attempt->assertions_passed : []),
+            // Betreiber-Korrektur: ein lokales Prop statt globalem
+            // Flash-Sharing -- start()s einziger Rueckkanal fuer einen
+            // weichen Runtime-Fehler ist dieser Redirect zurueck auf
+            // show(), kein anderer Ort braucht das.
+            'runtime_error' => $request->session()->get('runtime_error'),
         ]);
     }
 
@@ -323,6 +330,32 @@ class LabController extends Controller
             && is_string($lab->dataset) && $lab->dataset !== ''
             && SandboxTemplate::query()->where('slug', $lab->runtime_template)->where('status', 'published')->exists()
             && array_key_exists($lab->dataset, $content->datasets());
+    }
+
+    /**
+     * @return array{status: string, queue_position: int|null}|null
+     */
+    private function liveRuntimeStatus(LabAttempt $attempt, RuntimeSessionService $sessions): ?array
+    {
+        $sandboxId = $attempt->currentSandboxSession?->runtime_instance_id;
+
+        if ($sandboxId === null) {
+            return null;
+        }
+
+        try {
+            $state = $sessions->state($sandboxId);
+        } catch (RuntimeGoneException) {
+            // Bereits reconciled (RuntimeSessionService markiert die
+            // Sitzung selbst als 'reaped') -- fuer den Lernenden bedeutet
+            // das schlicht "keine aktive Runtime".
+            return null;
+        }
+
+        return [
+            'status' => $state['status'],
+            'queue_position' => $state['queue_position'] ?? null,
+        ];
     }
 
     /**
