@@ -25,6 +25,15 @@ class SandboxNotFoundError(Exception):
     pass
 
 
+class SandboxNotReadyError(Exception):
+    """CMS-8b, Betreiber-Review: die Sandbox existiert noch -- sie wartet in
+    der Warteschlange und ist noch nicht aktiv. `exec()`/`get_events()`
+    duerfen das nicht mit einer wirklich weggeraeumten Sitzung verwechseln
+    (`SandboxNotFoundError`), sonst reconciled Laravel eine bloss wartende
+    Sitzung faelschlich als 'reaped', obwohl sie spaeter noch unter
+    derselben ID starten kann."""
+
+
 class ActiveRuntimeConflictError(Exception):
     """CMS-8b, Betreiber-Review: ein anderer Zweck (anderer `runtime_key`)
     haelt bereits die einzige erlaubte Sitzung dieses Nutzers -- verhindert,
@@ -135,6 +144,23 @@ def _start_sandbox(
     return sandbox_id
 
 
+def _require_active(r: RedisLike, sandbox_id: str) -> ActiveSandbox:
+    """Gemeinsame Vorbedingung fuer `exec_command()`/`get_events()`
+    (Betreiber-Review): eine `sandbox_id`, die noch in der Warteschlange
+    steht, ist NICHT dasselbe wie eine unbekannte/weggeraeumte -- nur der
+    zweite Fall darf als 404 (und damit als Gone/Reaped-Reconciliation
+    Laravel-seitig) behandelt werden."""
+
+    sandbox = state.get_active(r, sandbox_id)
+    if sandbox is not None:
+        return sandbox
+
+    if state.queue_position(r, sandbox_id) is not None:
+        raise SandboxNotReadyError(sandbox_id)
+
+    raise SandboxNotFoundError(sandbox_id)
+
+
 def get_sandbox(r: RedisLike, sandbox_id: str) -> SandboxView:
     sandbox = state.get_active(r, sandbox_id)
     if sandbox is not None:
@@ -150,9 +176,7 @@ def get_sandbox(r: RedisLike, sandbox_id: str) -> SandboxView:
 def exec_command(
     r: RedisLike, docker_client: docker.DockerClient, *, sandbox_id: str, command: str,
 ) -> dict[str, object]:
-    sandbox = state.get_active(r, sandbox_id)
-    if sandbox is None:
-        raise SandboxNotFoundError(sandbox_id)
+    sandbox = _require_active(r, sandbox_id)
 
     result = docker_ops.exec_command(docker_client, sandbox.toolbox_container_id, command)
     state.touch_activity(r, sandbox_id)
@@ -182,9 +206,7 @@ def get_events(
     Befehle) aus Redis, Orthanc facts (neue Instanzen) on demand ueber die
     Toolbox erfragt -- niemals kontinuierlich mitgeschnitten."""
 
-    sandbox = state.get_active(r, sandbox_id)
-    if sandbox is None:
-        raise SandboxNotFoundError(sandbox_id)
+    sandbox = _require_active(r, sandbox_id)
 
     exec_events = state.list_exec_events(r, sandbox_id)
     new_instances = docker_ops.collect_orthanc_facts(docker_client, sandbox.toolbox_container_id)

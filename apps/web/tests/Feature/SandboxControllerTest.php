@@ -252,6 +252,44 @@ class SandboxControllerTest extends TestCase
         $this->assertNotNull($session->finished_at);
     }
 
+    /**
+     * CMS-8b, Betreiber-Review (drittes Review): eine wartende (queued)
+     * Sitzung ist NICHT dasselbe wie eine weggeraeumte -- ein verfrueher
+     * exec()-Aufruf darf sie nicht faelschlich als 'reaped' reconcilen.
+     */
+    public function test_exec_against_a_queued_sandbox_returns_409_without_reconciling(): void
+    {
+        $user = User::factory()->create();
+        $session = SandboxSession::factory()->create([
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+            'status' => 'queued',
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-1/exec' => Http::response(['detail' => 'sandbox_not_ready'], 409)]);
+
+        $this->actingAs($user)->postJson('/de/sandbox/sb-1/exec', ['command' => 'echo hi'])
+            ->assertStatus(409)
+            ->assertJson(['error' => 'sandbox_not_ready']);
+
+        $this->assertSame('queued', $session->fresh()->status);
+    }
+
+    /**
+     * Der Command wird seit den Exec-Facts dauerhaft in Redis gespeichert
+     * (CMS-8b, Betreiber-Review) -- die Laravel-Validierung muss dasselbe
+     * Limit wie services/sandbox's Pydantic-Modell durchsetzen.
+     */
+    public function test_exec_rejects_a_command_over_the_length_limit(): void
+    {
+        $user = User::factory()->create();
+        SandboxSession::factory()->create(['runtime_instance_id' => 'sb-1', 'runtime_provider' => 'docker']);
+
+        $this->actingAs($user)
+            ->postJson('/de/sandbox/sb-1/exec', ['command' => str_repeat('x', 4097)])
+            ->assertInvalid(['command']);
+    }
+
     public function test_destroy_proxies_to_the_sandbox(): void
     {
         $user = User::factory()->create();

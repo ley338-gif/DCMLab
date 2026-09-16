@@ -199,6 +199,24 @@ def test_exec_command_on_unknown_sandbox_raises(redis_client: fakeredis.FakeRedi
         orchestrator.exec_command(redis_client, None, sandbox_id="does-not-exist", command="ls")
 
 
+def test_exec_command_on_a_queued_sandbox_raises_not_ready(
+    redis_client: fakeredis.FakeRedis,
+) -> None:
+    """Betreiber-Review: eine wartende Anfrage ist NICHT dasselbe wie eine
+    weggeraeumte -- ein verfrueher exec()-Aufruf darf sie nicht aus der
+    Warteschlange werfen oder als 'gone' behandeln."""
+
+    _create(redis_client, user_id="u1")
+    _create(redis_client, user_id="u2")
+    queued = _create(redis_client, user_id="u3")
+    assert queued.sandbox_id is not None
+
+    with pytest.raises(orchestrator.SandboxNotReadyError):
+        orchestrator.exec_command(redis_client, None, sandbox_id=queued.sandbox_id, command="ls")
+
+    assert state.queue_position(redis_client, queued.sandbox_id) == 1
+
+
 def test_exec_command_records_an_exec_fact(redis_client: fakeredis.FakeRedis) -> None:
     view = _create(redis_client, user_id="u1")
     assert view.sandbox_id is not None
@@ -226,6 +244,18 @@ def test_get_events_combines_exec_and_orthanc_facts(redis_client: fakeredis.Fake
 def test_get_events_on_unknown_sandbox_raises(redis_client: fakeredis.FakeRedis) -> None:
     with pytest.raises(orchestrator.SandboxNotFoundError):
         orchestrator.get_events(redis_client, None, sandbox_id="does-not-exist")
+
+
+def test_get_events_on_a_queued_sandbox_raises_not_ready(redis_client: fakeredis.FakeRedis) -> None:
+    _create(redis_client, user_id="u1")
+    _create(redis_client, user_id="u2")
+    queued = _create(redis_client, user_id="u3")
+    assert queued.sandbox_id is not None
+
+    with pytest.raises(orchestrator.SandboxNotReadyError):
+        orchestrator.get_events(redis_client, None, sandbox_id=queued.sandbox_id)
+
+    assert state.queue_position(redis_client, queued.sandbox_id) == 1
 
 
 def test_cleanup_removes_idle_sandboxes_and_records_quota(

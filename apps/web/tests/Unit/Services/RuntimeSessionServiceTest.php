@@ -9,6 +9,7 @@ use App\Models\SandboxSession;
 use App\Models\SandboxTemplate;
 use App\Models\User;
 use App\Services\RuntimeGoneException;
+use App\Services\RuntimeNotReadyException;
 use App\Services\RuntimeRequest;
 use App\Services\RuntimeSessionOwnerMismatchException;
 use App\Services\RuntimeSessionService;
@@ -209,6 +210,47 @@ class RuntimeSessionServiceTest extends TestCase
 
         $this->assertSame($newerSession->id, $attempt->fresh()->current_sandbox_session_id);
         $this->assertSame('destroyed', $oldSession->fresh()->status);
+    }
+
+    public function test_exec_against_a_queued_sandbox_throws_without_reconciling(): void
+    {
+        // CMS-8b, Betreiber-Review (drittes Review): eine wartende Sitzung
+        // ist NICHT dasselbe wie eine weggeraeumte -- ein verfrueher exec()
+        // darf sie nicht faelschlich als 'reaped' markieren.
+        $session = SandboxSession::factory()->create([
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+            'status' => 'queued',
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-1/exec' => Http::response(['detail' => 'sandbox_not_ready'], 409)]);
+
+        $this->expectException(RuntimeNotReadyException::class);
+
+        try {
+            $this->service()->exec('sb-1', 'ls');
+        } finally {
+            $this->assertSame('queued', $session->fresh()->status);
+        }
+    }
+
+    public function test_events_against_a_queued_sandbox_throws_without_reconciling(): void
+    {
+        $session = SandboxSession::factory()->create([
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+            'status' => 'queued',
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-1/events' => Http::response(['detail' => 'sandbox_not_ready'], 409)]);
+
+        $this->expectException(RuntimeNotReadyException::class);
+
+        try {
+            $this->service()->events('sb-1');
+        } finally {
+            $this->assertSame('queued', $session->fresh()->status);
+        }
     }
 
     public function test_state_against_a_gone_session_reconciles_and_clears_the_attempts_current_session(): void

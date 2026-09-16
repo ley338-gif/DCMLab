@@ -25,6 +25,7 @@ interface SandboxClientContract
      * @return array<string, mixed>
      *
      * @throws RuntimeGoneException
+     * @throws RuntimeNotReadyException Sitzung wartet noch in der Warteschlange (409).
      */
     public function exec(string $sandboxId, string $command): array;
 
@@ -32,6 +33,7 @@ interface SandboxClientContract
      * @return array<string, mixed>
      *
      * @throws RuntimeGoneException
+     * @throws RuntimeNotReadyException Sitzung wartet noch in der Warteschlange (409).
      */
     public function events(string $sandboxId): array;
 

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import docker
 import redis
 from fastapi import Depends, FastAPI, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import datasets_yaml, docker_ops, orchestrator, worklists_yaml
 from app.config import settings
@@ -19,8 +19,17 @@ class CreateSandboxRequest(BaseModel):
     runtime_key: str
 
 
+# Betreiber-Review (CMS-8b, drittes Review): der Befehl wird seit den
+# Exec-Facts nicht mehr nur transient ausgefuehrt, sondern dauerhaft (bis zu
+# MAX_EXEC_EVENTS mal) in Redis gespeichert -- ein unbegrenzt langer
+# Command-String waere damit eine echte Speicherbegrenzungsluecke, nicht nur
+# ein kosmetisches Problem. 4096 Zeichen sind fuer eine Shell-Befehlszeile
+# grosszuegig bemessen (Laravel validiert denselben Wert serverseitig).
+MAX_COMMAND_LENGTH = 4096
+
+
 class ExecRequest(BaseModel):
-    command: str
+    command: str = Field(max_length=MAX_COMMAND_LENGTH)
 
 
 _redis_client: redis.Redis | None = None
@@ -135,6 +144,8 @@ async def exec_command(sandbox_id: str, body: ExecRequest) -> dict[str, object]:
         )
     except orchestrator.SandboxNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="sandbox not found") from exc
+    except orchestrator.SandboxNotReadyError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="sandbox_not_ready") from exc
 
     return result
 
@@ -147,6 +158,8 @@ async def get_events(sandbox_id: str) -> dict[str, object]:
         )
     except orchestrator.SandboxNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="sandbox not found") from exc
+    except orchestrator.SandboxNotReadyError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="sandbox_not_ready") from exc
 
 
 @app.delete(

@@ -63,7 +63,7 @@ final class SandboxClient implements SandboxClientContract
                 ->post("/v1/sandboxes/{$sandboxId}/exec", ['command' => $command])
                 ->throw()->json();
         } catch (RequestException $e) {
-            throw $this->goneOr404($e, $sandboxId);
+            throw $this->mapKnownFailure($e, $sandboxId);
         }
     }
 
@@ -92,15 +92,31 @@ final class SandboxClient implements SandboxClientContract
         try {
             return $this->client()->get($path)->throw()->json();
         } catch (RequestException $e) {
-            throw $this->goneOr404($e, $sandboxId);
+            throw $this->mapKnownFailure($e, $sandboxId);
         }
     }
 
-    private function goneOr404(RequestException $e, string $sandboxId): RequestException|RuntimeGoneException
-    {
-        return $e->response->status() === 404
-            ? new RuntimeGoneException($sandboxId)
-            : $e;
+    /**
+     * CMS-8b, Betreiber-Review: eine wartende (queued) Sitzung ist NICHT
+     * dasselbe wie eine weggeraeumte -- Python unterscheidet das bei
+     * `exec()`/`events()` explizit (409 `sandbox_not_ready` statt 404), und
+     * `RuntimeSessionService` darf eine wartende Sitzung nicht faelschlich
+     * als 'reaped' reconcilen (`RuntimeNotReadyException` ist bewusst KEINE
+     * Unterklasse von `RuntimeGoneException`).
+     */
+    private function mapKnownFailure(
+        RequestException $e,
+        string $sandboxId,
+    ): RequestException|RuntimeGoneException|RuntimeNotReadyException {
+        if ($e->response->status() === 404) {
+            return new RuntimeGoneException($sandboxId);
+        }
+
+        if ($e->response->status() === 409 && $e->response->json('detail') === 'sandbox_not_ready') {
+            return new RuntimeNotReadyException($sandboxId);
+        }
+
+        return $e;
     }
 
     private function client(): PendingRequest

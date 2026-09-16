@@ -46,6 +46,20 @@ def _seed_active_sandbox(r: fakeredis.FakeRedis, sandbox_id: str) -> None:
     )
 
 
+def _seed_queued_request(r: fakeredis.FakeRedis, request_id: str) -> None:
+    state.enqueue(
+        r,
+        state.QueuedRequest(
+            request_id=request_id,
+            user_id="u1",
+            dataset_slug="d",
+            queued_at=state.now_iso(),
+            template_slug="dicom-basic-tools",
+            runtime_key="sandbox:user:u1",
+        ),
+    )
+
+
 def test_events_requires_internal_key() -> None:
     response = client.get("/v1/sandboxes/sb-1/events")
     assert response.status_code == 401
@@ -54,6 +68,21 @@ def test_events_requires_internal_key() -> None:
 def test_events_returns_404_for_an_unknown_sandbox() -> None:
     response = client.get("/v1/sandboxes/does-not-exist/events", headers=HEADERS)
     assert response.status_code == 404
+
+
+def test_events_returns_409_for_a_queued_sandbox(
+    _fake_redis_and_docker: fakeredis.FakeRedis,
+) -> None:
+    """Betreiber-Review: eine wartende Anfrage ist nicht 'gone' -- sie muss
+    von einer echten 404 unterscheidbar sein, sonst wuerde Laravel sie
+    faelschlich als 'reaped' reconcilen."""
+
+    _seed_queued_request(_fake_redis_and_docker, "req-1")
+
+    response = client.get("/v1/sandboxes/req-1/events", headers=HEADERS)
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "sandbox_not_ready"
 
 
 def test_events_combines_exec_and_orthanc_facts(

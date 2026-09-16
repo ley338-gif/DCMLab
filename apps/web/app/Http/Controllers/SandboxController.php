@@ -7,6 +7,7 @@ use App\Models\Lesson;
 use App\Models\SandboxTemplate;
 use App\Services\AchievementService;
 use App\Services\RuntimeGoneException;
+use App\Services\RuntimeNotReadyException;
 use App\Services\RuntimeRequest;
 use App\Services\RuntimeSessionService;
 use Illuminate\Http\JsonResponse;
@@ -86,12 +87,18 @@ class SandboxController extends Controller
 
     public function exec(Request $request, string $sandboxId, RuntimeSessionService $sessions): JsonResponse
     {
-        $data = $request->validate(['command' => 'required|string']);
+        // 4096 Zeichen: identisch zu services/sandbox's Pydantic-Limit
+        // (CMS-8b, Betreiber-Review) -- der Befehl wird seit den Exec-Facts
+        // dauerhaft in Redis gespeichert, nicht mehr nur transient
+        // ausgefuehrt.
+        $data = $request->validate(['command' => 'required|string|max:4096']);
 
         try {
             return response()->json($sessions->exec($sandboxId, $data['command']));
         } catch (RuntimeGoneException) {
             return response()->json(['error' => 'sandbox_not_found'], 404);
+        } catch (RuntimeNotReadyException) {
+            return response()->json(['error' => 'sandbox_not_ready'], 409);
         }
     }
 
