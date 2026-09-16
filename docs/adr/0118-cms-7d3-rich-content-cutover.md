@@ -267,6 +267,56 @@ Versionswechsel vollstaendig innerhalb derselben Transaktion aus --
 sonst koennte ein nativer Publish genau zwischen einer fruehen Pruefung
 und dem tatsaechlichen Schreiben eines konkurrierenden Restores
 committen, und der Restore wuerde trotzdem ungeprueft ueberschreiben.
+Das waere dieselbe Fehlerklasse, die 7d.3 mit dem atomaren
+Publish/Apply (`ContentPublishingService`s Kern-Idee, siehe oben) fuer
+Live-Daten vs. Versionshistorie bereits geschlossen hat -- hier fuer die
+Legacy-Kompatibilitaetspruefung selbst.
 
 Siehe [`docs/offene-fragen.md`](../offene-fragen.md) fuer den damit
 erledigten Eintrag.
+
+**Weitere CMS-7d.4-Entscheidungen (derselbe PR, kleiner geschnitten):**
+
+- *404-Gates* (`NodeController::show()`, `LearnerViewBuilder::lessonProps()`):
+  der Existenzcheck haengt nicht mehr allein an `body !== null` --
+  `rich_content !== null || body !== null`. Eine reine Rich-Content-
+  Ressource (`body` zufaellig `null`) ist genauso gueltig; `body` bleibt
+  eine implizite Konvention (`StudioNodeController::store()` setzt es
+  immer auf `''`), keine erzwungene Invariante.
+- *Coverage-Healthcheck* (`php artisan rich-content:coverage`, neu):
+  zaehlt "present" (nicht `NULL`) und "valid" (besteht
+  `RichContentValidator`) bewusst GETRENNT, nicht nur `whereNotNull()->count()`
+  -- "alle produktiven Lessons/Nodes haben valides rich_content" ist
+  logisch staerker als "ist nicht NULL". Reine Schema-/Envelope-
+  Validierung gegen das bereits gespeicherte Dokument, keine erneute
+  Markdown-Konvertierung (kein Wiederverwenden von
+  `rich-content:migrate`s schwererer Preflight-Arbeit). Beispiel-Ausgabe:
+  ```
+  Lessons:
+  rich_content present: 42/42
+  rich_content valid:   42/42
+
+  Nodes:
+  rich_content present: 17/17
+  rich_content valid:   17/17
+  ```
+- *Fallback-Signal:* `Log::warning('learner_view.legacy_body_fallback', ...)`
+  an den beiden tatsaechlichen Learner-Fallback-Stellen
+  (`LearnerViewBuilder`, `NodeController::renderNodeSection()`) --
+  belegt "0 Fallbacks im produktiven Bestand" per Log-Suche, bevor eine
+  spaetere Iteration den Fallback-Pfad entfernt. Fallback-Entfernung
+  selbst ist NICHT Teil von 7d.4.
+- *Alte Infrastruktur:* `NodeSections`/`QuizContent::splitBody()` bleiben
+  unveraendert auf drei legitime Gruppen begrenzt (Migrations-/Audit-
+  Tooling; Quiz/Exam, dauerhaft ausserhalb des Scopes; die genannten
+  Lesson-/Node-Kompatibilitaets-Fallbacks) -- verifiziert, kein Umbau.
+  `rich-content:migrate` laeuft nirgends automatisiert (kein Scheduler-
+  Eintrag), bleibt ein manuell auszufuehrendes Migrationswerkzeug.
+- *Invarianten als Tests:* `RichContentCutoverInvariantsTest` friert die
+  volle Betreiber-Checkliste ein -- die meisten Punkte referenziert sie
+  nur (bereits durch bestehende Tests bewiesen, nicht dupliziert), zwei
+  echte Luecken schliesst sie neu: ein frischer Draft enthaelt nie
+  `body`; ein Quiz-Publish aendert `body` nur innerhalb des
+  `## Quiz`-Abschnitts (macht die "Quiz bleibt markdown-gefuehrt,
+  unveraendert"-Abgrenzung aus dem Kontext oben zu einer echten,
+  regressionsgeschuetzten Invariante statt nur dokumentierter Absicht).
