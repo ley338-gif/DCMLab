@@ -8,6 +8,7 @@ use App\Models\ContentVersion;
 use App\Models\Lab;
 use App\Models\Lesson;
 use App\Models\Node;
+use App\Models\SandboxTemplate;
 use App\Models\Themenfeld;
 use App\Models\Track;
 use App\Models\User;
@@ -745,6 +746,7 @@ class ContentPublishingServiceTest extends TestCase
      */
     public function test_publishing_a_lab_draft_writes_it_via_content_publishing_service_and_the_learner_sees_the_briefing(): void
     {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
         $lab = Lab::factory()->create(['slug' => 'c-echo-connectivity', 'status' => 'published']);
         $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
         $reviewer = User::factory()->reviewer()->create();
@@ -752,7 +754,7 @@ class ContentPublishingServiceTest extends TestCase
         $payload = [
             'title' => 'C-ECHO Connectivity Lab', 'scenario_title' => 'Verbindung pruefen',
             'difficulty' => 'easy', 'points' => 10, 'estimated_minutes' => 10,
-            'runtime_template' => 'dicom-basic-tools', 'dataset' => null,
+            'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60',
             'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
             'rich_content' => $this->richContent('Briefing-Text.'),
         ];
@@ -778,6 +780,39 @@ class ContentPublishingServiceTest extends TestCase
     }
 
     /**
+     * CMS-8c, Betreiber-Korrektur: ein Draft ohne runtime_template/dataset/
+     * assertions bleibt jederzeit speicherbar (ContentVersioningService::
+     * createDraft() validiert nicht), aber publish() liefert Issues zurueck
+     * und veroeffentlicht NICHTS -- die Publish-Domain-Grenze aus
+     * LabActivity::validate() gilt genauso wie fuer jeden anderen Fehler.
+     */
+    public function test_publishing_an_incomplete_lab_draft_returns_issues_and_changes_nothing(): void
+    {
+        $lab = Lab::factory()->create(['slug' => 'c-echo-connectivity', 'status' => 'published', 'title' => ['de' => 'Alt']]);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $reviewer = User::factory()->reviewer()->create();
+
+        $incompletePayload = [
+            'title' => 'Neu', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
+            'points' => 10, 'estimated_minutes' => 10,
+            'runtime_template' => null, 'dataset' => null, 'assertions' => [],
+            'rich_content' => $this->richContent('Text.'),
+        ];
+
+        $version = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review', 'payload' => $incompletePayload,
+            'is_current' => false, 'created_by' => $reviewer->id,
+        ]);
+
+        $issues = app(ContentPublishingService::class)->publish($version, $reviewer);
+
+        $this->assertNotEmpty($issues);
+        $this->assertSame('Alt', $lab->fresh()->title['de']);
+        $this->assertSame('review', $version->fresh()->status);
+        $this->assertFalse($version->fresh()->is_current);
+    }
+
+    /**
      * CMS-8a, Betreiber-Review vor #128: dieselbe Wiederherstellungs-Logik
      * wie fuer Lesson/Node -- restoreVersion() normalisiert (hier ein
      * No-Op, da Lab nichts normalisiert), validiert erneut gegen die
@@ -785,6 +820,7 @@ class ContentPublishingServiceTest extends TestCase
      */
     public function test_restoring_a_published_lab_version_reapplies_it_via_content_publishing_service(): void
     {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
         Lab::factory()->create(['slug' => 'c-echo-connectivity', 'status' => 'published']);
         $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
         $historicalAuthor = User::factory()->create();
@@ -792,12 +828,16 @@ class ContentPublishingServiceTest extends TestCase
 
         $currentPayload = [
             'title' => 'Aktuell', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
-            'points' => 10, 'estimated_minutes' => 10, 'assertions' => [],
+            'points' => 10, 'estimated_minutes' => 10,
+            'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60',
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
             'rich_content' => $this->richContent('Aktuell.'),
         ];
         $historicalPayload = [
             'title' => 'Historisch', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
-            'points' => 10, 'estimated_minutes' => 10, 'assertions' => [],
+            'points' => 10, 'estimated_minutes' => 10,
+            'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60',
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
             'rich_content' => $this->richContent('Historisch.'),
         ];
 

@@ -8,6 +8,7 @@ use App\Models\Activity;
 use App\Models\Lab;
 use App\Models\Lesson;
 use App\Models\Node;
+use App\Models\SandboxTemplate;
 use App\Models\Track;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -48,6 +49,7 @@ class ActivityContentApplierTest extends TestCase
         File::ensureDirectoryExists($this->contentDir.'/nodes/test-node');
         File::put($this->contentDir.'/nodes/test-node/node.yml', "slug: test-node\ndifficulty: easy\npoints: 10\ncategory: netzwerk\nskills: [netzwerk]\nrelated_lessons: []\nestimated_minutes: 15\nstatus: draft\n");
         File::put($this->contentDir.'/nodes/test-node/de.md', "---\ntitle: Alt\nscenario_title: Alt\n---\n\n## Briefing\n\nAlter Text.\n\n```\n\$ echoscu foo\n```\n\n**Was du daran abliest:** Test.\n");
+        File::put($this->contentDir.'/datasets.yml', "test-dataset:\n  patient: \"MUSTER^ERIKA\"\n  patient_id: \"1\"\n  study: \"Test\"\n  series: [\"A\"]\n  file_count: 1\n");
         $this->app->instance(ContentRepository::class, new ContentRepository($this->contentDir));
     }
 
@@ -176,12 +178,14 @@ class ActivityContentApplierTest extends TestCase
      */
     public function test_a_lab_draft_is_applied_directly_to_the_db(): void
     {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
         $lab = Lab::factory()->create(['slug' => 'test-lab', 'title' => ['de' => 'Alt']]);
         $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'test-lab']);
 
         $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
             'title' => 'Neu', 'scenario_title' => 'Neues Szenario', 'difficulty' => 'easy',
-            'points' => 10, 'estimated_minutes' => 10, 'runtime_template' => null, 'dataset' => null,
+            'points' => 10, 'estimated_minutes' => 10,
+            'runtime_template' => 'dicom-basic-tools', 'dataset' => 'test-dataset',
             'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
             'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
         ]);
