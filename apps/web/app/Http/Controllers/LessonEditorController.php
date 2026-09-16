@@ -6,6 +6,7 @@ use App\Activities\ActivityRegistry;
 use App\Content\ContentRepository;
 use App\Content\ContentVersioningService;
 use App\Content\QuizContent;
+use App\Content\RichContent\LessonPayloadNormalizer;
 use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
@@ -121,7 +122,16 @@ class LessonEditorController extends Controller
             'lab' => 'required|array',
             'lab.node' => 'nullable|string',
             'lab.optional' => 'required|boolean',
-            'body' => 'required|string',
+            // Nur die grobe Form (ein Objekt) wird hier erzwungen -- die
+            // eigentliche Schema-/Inhaltspruefung (RichContentValidator,
+            // Leseanleitung/Glossar/Werkzeug-Regeln) laeuft ueber
+            // activity->validate($draft), nicht ueber Formular-Regeln
+            // (CMS-7d.3, ADR 0118). Bewusst KEINE weiteren
+            // `rich_content.*`-Regeln: Laravels validate() liesse sonst nur
+            // die explizit benannten Unterschluessel durch und wuerde
+            // `content` (und alles andere) aus dem validierten Ergebnis
+            // stillschweigend herausfiltern.
+            'rich_content' => 'required|array',
         ]);
     }
 
@@ -139,7 +149,7 @@ class LessonEditorController extends Controller
      */
     private function currentFields(Lesson $lesson, ContentRepository $content): array
     {
-        if ($lesson->body !== null) {
+        if ($lesson->body !== null || $lesson->rich_content !== null) {
             return [
                 'title' => $lesson->title['de'] ?? '',
                 'teaser' => $lesson->teaser['de'] ?? '',
@@ -158,7 +168,13 @@ class LessonEditorController extends Controller
                     'node' => $lesson->lab['node'] ?? null,
                     'optional' => $lesson->lab['optional'] ?? true,
                 ],
-                'body' => QuizContent::splitBody($lesson->body)['before'],
+                // CMS-7d.3: rich_content ist die kanonische Prosa-Quelle.
+                // Ist die Spalte noch nicht befuellt, normalisiert derselbe
+                // Normalizer wie ueberall sonst den Legacy-Body -- nur die
+                // Prosa (before+after), nie den Quiz-Abschnitt selbst
+                // (der bleibt Sache des Quiz-Editors).
+                'rich_content' => $lesson->rich_content
+                    ?? (new LessonPayloadNormalizer)->normalize(['body' => $this->legacyProse($lesson->body ?? '')])['rich_content'],
             ];
         }
 
@@ -170,7 +186,7 @@ class LessonEditorController extends Controller
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => [],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
                 'lab' => ['node' => null, 'optional' => true],
-                'body' => '',
+                'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
             ];
         }
 
@@ -195,7 +211,20 @@ class LessonEditorController extends Controller
                 'node' => $meta['lab']['node'] ?? null,
                 'optional' => $meta['lab']['optional'] ?? true,
             ],
-            'body' => QuizContent::splitBody((string) ($entry['body'] ?? ''))['before'],
+            'rich_content' => (new LessonPayloadNormalizer)->normalize(['body' => $this->legacyProse((string) ($entry['body'] ?? ''))])['rich_content'],
         ];
+    }
+
+    /**
+     * `before` und `after` (`QuizContent::splitBody()`) zusammen, ohne den
+     * Quiz-Abschnitt selbst -- derselbe Ausschnitt, den `rich-content:
+     * migrate` (CMS-7d.2) und `LessonController::show()` als EIN
+     * Content-Element behandeln.
+     */
+    private function legacyProse(string $body): string
+    {
+        $split = QuizContent::splitBody($body);
+
+        return trim($split['before']."\n\n".$split['after']);
     }
 }

@@ -50,8 +50,18 @@ final class ContentValidator
 
         foreach ($lessons as $id => $lesson) {
             $this->checkLessonStructure($id, $lesson, $lessons);
-            $this->checkExampleRule($lesson['md_file'], $lesson['md_raw'], $lesson['body'], $lesson['body_start_line']);
-            $this->checkTerms($lesson['md_file'], $lesson['body'] ?? '', $lesson['body_start_line'], $glossary);
+
+            if (isset($lesson['rich_content'])) {
+                // CMS-7d.3: ein Entwurf/eine Node mit rich_content traegt
+                // keinen Markdown-Body mehr, gegen den die alten Regexe
+                // laufen koennten -- dieselben Regeln pruefen stattdessen
+                // direkt den RichContentDocument-Baum.
+                $this->checkRichContentExampleRule($lesson['md_file'], $lesson['rich_content']);
+                $this->checkRichContentTerms($lesson['md_file'], $lesson['rich_content'], $glossary);
+            } else {
+                $this->checkExampleRule($lesson['md_file'], $lesson['md_raw'], $lesson['body'], $lesson['body_start_line']);
+                $this->checkTerms($lesson['md_file'], $lesson['body'] ?? '', $lesson['body_start_line'], $glossary);
+            }
 
             if ($lesson['meta'] !== null) {
                 $this->checkLessonTools($lesson, $tools);
@@ -66,8 +76,15 @@ final class ContentValidator
 
         foreach ($nodes as $slug => $node) {
             $this->checkNodeStructure($slug, $node, $lessons);
-            $this->checkExampleRule($node['md_file'], $node['md_raw'], $node['body'], $node['body_start_line']);
-            $this->checkTerms($node['md_file'], $node['body'] ?? '', $node['body_start_line'], $glossary);
+
+            if (isset($node['rich_content'])) {
+                $pseudoDocument = ['type' => 'doc', 'version' => 1, 'content' => $this->mergedNodeContent($node['rich_content'])];
+                $this->checkRichContentExampleRule($node['md_file'], $pseudoDocument);
+                $this->checkRichContentTerms($node['md_file'], $pseudoDocument, $glossary);
+            } else {
+                $this->checkExampleRule($node['md_file'], $node['md_raw'], $node['body'], $node['body_start_line']);
+                $this->checkTerms($node['md_file'], $node['body'] ?? '', $node['body_start_line'], $glossary);
+            }
 
             if ($node['def'] !== null) {
                 $this->checkNodeTools($node, $tools);
@@ -1011,7 +1028,12 @@ final class ContentValidator
 
         $this->checkToolsDeclaration($lesson['meta_file'], $lesson['meta_raw'] ?? '', $declared, $tools, $exempt);
         $this->checkToolsChecked($lesson['meta_file'], $lesson['meta_raw'] ?? '', $lesson['meta'], $declared);
-        $this->checkToolInverse($lesson['md_file'], $lesson['body'] ?? '', $lesson['body_start_line'], $declared, $tools);
+
+        if (isset($lesson['rich_content'])) {
+            $this->checkRichContentToolInverse($lesson['md_file'], $lesson['rich_content'], $declared, $tools);
+        } else {
+            $this->checkToolInverse($lesson['md_file'], $lesson['body'] ?? '', $lesson['body_start_line'], $declared, $tools);
+        }
     }
 
     /**
@@ -1023,7 +1045,13 @@ final class ContentValidator
         $declared = data_get($node['def'], 'environment.tools', []);
 
         $this->checkToolsDeclaration($node['def_file'], $node['def_raw'] ?? '', $declared, $tools);
-        $this->checkToolInverse($node['md_file'], $node['body'] ?? '', $node['body_start_line'], $declared, $tools);
+
+        if (isset($node['rich_content'])) {
+            $pseudoDocument = ['type' => 'doc', 'version' => 1, 'content' => $this->mergedNodeContent($node['rich_content'])];
+            $this->checkRichContentToolInverse($node['md_file'], $pseudoDocument, $declared, $tools);
+        } else {
+            $this->checkToolInverse($node['md_file'], $node['body'] ?? '', $node['body_start_line'], $declared, $tools);
+        }
     }
 
     /**
@@ -1105,6 +1133,239 @@ final class ContentValidator
                 }
             }
         }
+    }
+
+    // ---------------------------------------------------------------
+    // Rich-Content-Fassung der drei Regeln oben (CMS-7d.3, ADR 0111ff)
+    //
+    // Ein Lesson-/Node-Entwurf mit `rich_content` traegt keinen
+    // Markdown-Body mehr, gegen den `checkExampleRule()`/`checkTerms()`/
+    // `checkToolInverse()` regex-scannen koennten -- dieselben drei
+    // Regeln laufen hier stattdessen direkt gegen den
+    // RichContentDocument-Knotenbaum. Keine Fundstellen-Zeilennummer
+    // (anders als oben): ein RichContentDocument hat keine Datei-Zeile,
+    // der Fundtext (Codeblock-Ausschnitt/Begriff/Werkzeugname) identifiziert
+    // die Stelle stattdessen.
+    // ---------------------------------------------------------------
+
+    /**
+     * @param  array<string, mixed>  $document
+     */
+    private function checkRichContentExampleRule(string $file, array $document): void
+    {
+        $blocks = [];
+
+        $this->walkRichContentBlocks(array_values(is_array($document['content'] ?? null) ? $document['content'] : []), function (array $siblings, int $index) use (&$blocks): void {
+            if (($siblings[$index]['type'] ?? null) === 'code_block') {
+                $blocks[] = [
+                    'siblings' => $siblings,
+                    'index' => $index,
+                    'excluded' => ($siblings[$index]['attrs']['variant'] ?? null) === 'diagram',
+                ];
+            }
+        });
+
+        if ($blocks === []) {
+            $this->issue($file, null, 'enthaelt keinen einzigen Codeblock');
+
+            return;
+        }
+
+        foreach ($blocks as $block) {
+            if ($block['excluded']) {
+                continue;
+            }
+
+            if (! $this->hasLeseanleitungNearby($block['siblings'], $block['index'])) {
+                $this->issue(
+                    $file,
+                    null,
+                    'Codeblock ohne "Was du daran abliest:"-Hinweis im naechsten Block (oder diagram-Variante vergessen)',
+                );
+            }
+        }
+    }
+
+    /**
+     * "Innerhalb von drei Zeilen" (Markdown-Fassung) wird hier zu "in einem
+     * der naechsten zwei Geschwister-Bloecke auf derselben Ebene" -- das
+     * Rich-Content-Aequivalent von raeumlicher Naehe, da es keine Zeilen
+     * mehr gibt.
+     *
+     * @param  list<array<string, mixed>>  $siblings
+     */
+    private function hasLeseanleitungNearby(array $siblings, int $index): bool
+    {
+        for ($i = $index + 1; $i <= min($index + 2, count($siblings) - 1); $i++) {
+            if ($this->isLeseanleitungParagraph($siblings[$i] ?? null)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isLeseanleitungParagraph(mixed $block): bool
+    {
+        if (! is_array($block) || ($block['type'] ?? null) !== 'paragraph') {
+            return false;
+        }
+
+        foreach (($block['content'] ?? []) as $inline) {
+            if (! is_array($inline) || ($inline['type'] ?? null) !== 'text') {
+                continue;
+            }
+
+            $hasBold = false;
+
+            foreach ((is_array($inline['marks'] ?? null) ? $inline['marks'] : []) as $mark) {
+                if (is_array($mark) && ($mark['type'] ?? null) === 'bold') {
+                    $hasBold = true;
+
+                    break;
+                }
+            }
+
+            if ($hasBold && str_starts_with((string) ($inline['text'] ?? ''), 'Was du daran abliest:')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @param  array<string, array<string, mixed>>  $glossary
+     */
+    private function checkRichContentTerms(string $file, array $document, array $glossary): void
+    {
+        $this->walkRichContentBlocks(array_values(is_array($document['content'] ?? null) ? $document['content'] : []), function (array $siblings, int $index) use ($file, $glossary): void {
+            foreach ($this->inlineNodesOf($siblings[$index]) as $inline) {
+                if (($inline['type'] ?? null) !== 'glossary_term') {
+                    continue;
+                }
+
+                $slug = is_string($inline['attrs']['slug'] ?? null) ? $inline['attrs']['slug'] : '';
+
+                if (! array_key_exists($slug, $glossary)) {
+                    $this->issue($file, null, "{{term:{$slug}}} existiert nicht in glossary/de.yml");
+                }
+            }
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @param  array<int, string>  $declared
+     * @param  array<string, array<string, mixed>>  $tools
+     */
+    private function checkRichContentToolInverse(string $file, array $document, array $declared, array $tools): void
+    {
+        $this->walkRichContentBlocks(array_values(is_array($document['content'] ?? null) ? $document['content'] : []), function (array $siblings, int $index) use ($file, $declared, $tools): void {
+            $block = $siblings[$index];
+
+            if (($block['type'] ?? null) !== 'code_block') {
+                return;
+            }
+
+            $lines = explode("\n", is_string($block['text'] ?? null) ? $block['text'] : '');
+
+            foreach ($lines as $line) {
+                if (! preg_match('/^\$\s+(\S+)/', $line, $match)) {
+                    continue;
+                }
+
+                $word = $match[1];
+
+                if (array_key_exists($word, $tools) && ! in_array($word, $declared, true)) {
+                    $this->issue($file, null, "Werkzeug \"{$word}\" wird benutzt, ist aber nicht in tools deklariert");
+                }
+            }
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $block
+     * @return list<array<string, mixed>>
+     */
+    private function inlineNodesOf(array $block): array
+    {
+        if (in_array($block['type'] ?? null, ['paragraph', 'heading'], true) && is_array($block['content'] ?? null)) {
+            return array_values($block['content']);
+        }
+
+        return [];
+    }
+
+    /**
+     * Besucht jeden Block im Baum genau einmal, inklusive verschachtelter
+     * Bloecke (Blockquote/Self-Check/Callout/Listen/Tabellen) -- derselbe
+     * Baum, den `App\Content\RichContent\RichContentValidator::validateBlock()`
+     * bereits kennt, hier nur zum Einsammeln statt zum Pruefen der Form.
+     * `$visit` bekommt die Geschwisterliste plus Index statt nur den Knoten,
+     * damit `checkRichContentExampleRule()` die naechsten Geschwister
+     * inspizieren kann.
+     *
+     * @param  list<array<string, mixed>>  $blocks
+     * @param  callable(list<array<string, mixed>>, int): void  $visit
+     */
+    private function walkRichContentBlocks(array $blocks, callable $visit): void
+    {
+        foreach ($blocks as $index => $block) {
+            $visit($blocks, $index);
+
+            match ($block['type'] ?? null) {
+                'blockquote', 'self_check', 'callout' => $this->walkRichContentBlocks(array_values(is_array($block['content'] ?? null) ? $block['content'] : []), $visit),
+                'bullet_list', 'ordered_list' => $this->walkRichContentListItems(array_values(is_array($block['content'] ?? null) ? $block['content'] : []), $visit),
+                'table' => $this->walkRichContentTableRows(array_values(is_array($block['content'] ?? null) ? $block['content'] : []), $visit),
+                default => null,
+            };
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     * @param  callable(list<array<string, mixed>>, int): void  $visit
+     */
+    private function walkRichContentListItems(array $items, callable $visit): void
+    {
+        foreach ($items as $item) {
+            $this->walkRichContentBlocks(array_values(is_array($item['content'] ?? null) ? $item['content'] : []), $visit);
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  callable(list<array<string, mixed>>, int): void  $visit
+     */
+    private function walkRichContentTableRows(array $rows, callable $visit): void
+    {
+        foreach ($rows as $row) {
+            foreach ((is_array($row['content'] ?? null) ? $row['content'] : []) as $cell) {
+                $this->walkRichContentBlocks(array_values(is_array($cell['content'] ?? null) ? $cell['content'] : []), $visit);
+            }
+        }
+    }
+
+    /**
+     * Fasst Briefing/jeden Hint/Write-up eines `node_content`-Umschlags
+     * (ADR 0115) zu EINER Blockliste zusammen -- die drei Regeln oben
+     * gelten fuer die Node als Ganzes (z. B. "mindestens ein Codebeispiel"),
+     * nicht je Abschnitt fuer sich.
+     *
+     * @param  array<string, mixed>  $envelope
+     * @return list<array<string, mixed>>
+     */
+    private function mergedNodeContent(array $envelope): array
+    {
+        $merged = is_array($envelope['briefing']['content'] ?? null) ? $envelope['briefing']['content'] : [];
+
+        foreach ((is_array($envelope['hints'] ?? null) ? $envelope['hints'] : []) as $hintDocument) {
+            $merged = [...$merged, ...(is_array($hintDocument['content'] ?? null) ? $hintDocument['content'] : [])];
+        }
+
+        return array_values([...$merged, ...(is_array($envelope['write_up']['content'] ?? null) ? $envelope['write_up']['content'] : [])]);
     }
 
     /**

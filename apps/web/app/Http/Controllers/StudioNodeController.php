@@ -315,7 +315,11 @@ class StudioNodeController extends Controller
             'hints' => 'array',
             'hints.*.id' => 'required|string',
             'hints.*.cost' => 'required|integer|min:0',
-            'body' => 'required|string',
+            // Nur die grobe Form -- die eigentliche Schema-/Inhaltspruefung
+            // (RichContentValidator, Hint-ID-Konsistenz) laeuft ueber
+            // activity->validate($draft) (CMS-7d.3, ADR 0118). Bewusst KEINE
+            // weiteren `rich_content.*`-Regeln, siehe LessonEditorController.
+            'rich_content' => 'required|array',
         ]);
     }
 }

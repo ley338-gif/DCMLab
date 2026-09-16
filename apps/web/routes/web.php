@@ -146,6 +146,7 @@ Route::prefix('de')->group(function () {
         Route::prefix('author/quiz-versions/{version}')->name('author.quiz-versions.')->group(function () {
             Route::post('submit', [ContentVersionController::class, 'submit'])->name('submit');
             Route::post('publish', [ContentVersionController::class, 'publish'])->name('publish');
+            Route::post('restore', [ContentVersionController::class, 'restore'])->name('restore');
         });
 
         Route::prefix('tracks/{track}/exam')->name('tracks.exam.')->middleware('throttle:60,1')->group(function () {

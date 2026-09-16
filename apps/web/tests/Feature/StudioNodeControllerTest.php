@@ -145,7 +145,7 @@ class StudioNodeControllerTest extends TestCase
             ->get("/de/studio/nodes/{$node->slug}")
             ->assertInertia(fn ($page) => $page
                 ->where('fields.title', 'Alt')
-                ->where('fields.body', 'Alter Text.')
+                ->where('fields.rich_content.type', 'node_content')
                 ->where('pending_version', null)
             );
     }
@@ -292,7 +292,15 @@ class StudioNodeControllerTest extends TestCase
             'title' => 'Titel', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
             'points' => 10, 'category' => 'netzwerk', 'interaction' => 'terminal',
             'estimated_minutes' => 15, 'skills' => [], 'related_lessons' => [],
-            'hints' => [], 'body' => 'Text.',
+            'hints' => [],
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Text.']]],
+                ]],
+                'hints' => [],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
         ], $overrides);
     }
 }

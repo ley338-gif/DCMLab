@@ -7,6 +7,7 @@ use App\Content\ContentRepository;
 use App\Content\ContentValidator;
 use App\Content\FrontMatter;
 use App\Content\NodeMetaGenerator;
+use App\Content\RichContent\NodePayloadNormalizer;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\User;
@@ -95,14 +96,16 @@ final readonly class NodeActivity implements ActivityContract
         // der Ist-Zustand geprueft, sondern das, was serialize($draft)
         // erzeugen wuerde (ADR 0108, analog zu LessonActivity::validate()).
         $nodes = $this->content->nodes();
+        $syntheticEntry = null;
 
         if ($draft !== null) {
-            $nodes[$this->node->slug] = $this->syntheticEntry($draft);
+            $syntheticEntry = $this->syntheticEntry($draft);
+            $nodes[$this->node->slug] = $syntheticEntry;
         }
 
         $prefix = "nodes/{$this->node->slug}/";
 
-        return array_values(array_filter(
+        $issues = array_values(array_filter(
             (new ContentValidator)->validate(
                 themenfelder: $this->content->themenfelder(),
                 tracks: $this->content->tracks(),
@@ -118,6 +121,40 @@ final readonly class NodeActivity implements ActivityContract
             ),
             fn (ContentIssue $issue): bool => str_starts_with($issue->file, $prefix),
         ));
+
+        if ($draft !== null && isset($draft['hints']) && isset($syntheticEntry['rich_content'])) {
+            $issues = [...$issues, ...$this->checkHintIdConsistency($draft['hints'], $syntheticEntry['rich_content'])];
+        }
+
+        return $issues;
+    }
+
+    /**
+     * CMS-7d.3 (Betreiber-Vorgabe): `Node.hints` (Metadaten, id/cost) und
+     * `rich_content.hints` (Text, je RichContentDocument) muessen exakt
+     * dieselben Ids tragen -- kein Hint-Text ohne Kosten-/ID-Metadaten,
+     * keine Hint-Metadaten ohne zugehoerigen Text.
+     *
+     * @param  list<array<string, mixed>>  $hintDefinitions
+     * @param  array<string, mixed>  $richContent
+     * @return list<ContentIssue>
+     */
+    private function checkHintIdConsistency(array $hintDefinitions, array $richContent): array
+    {
+        $metadataIds = array_map(fn (array $hint): string => (string) ($hint['id'] ?? ''), $hintDefinitions);
+        $richContentIds = array_keys(is_array($richContent['hints'] ?? null) ? $richContent['hints'] : []);
+        $file = "nodes/{$this->node->slug}/de.md";
+        $issues = [];
+
+        foreach (array_diff($metadataIds, $richContentIds) as $orphanId) {
+            $issues[] = new ContentIssue($file, null, "Hint \"{$orphanId}\" aus hints hat keinen zugehoerigen Text in rich_content.hints");
+        }
+
+        foreach (array_diff($richContentIds, $metadataIds) as $orphanId) {
+            $issues[] = new ContentIssue($file, null, "rich_content.hints enthaelt \"{$orphanId}\", aber kein Hint mit dieser Id in hints (Kosten fehlen)");
+        }
+
+        return $issues;
     }
 
     public function serialize(?array $draft = null): array
@@ -153,11 +190,11 @@ final readonly class NodeActivity implements ActivityContract
             $defRaw = NodeMetaGenerator::regenerateHints($defRaw, $draft['hints']);
         }
 
+        // Seit CMS-7d.3 ist `rich_content` die kanonische Quelle fuer
+        // Briefing/Hints/Write-up (DB), nicht mehr `content/**` -- der
+        // Body-Teil von `de.md` wird deshalb nicht mehr aus dem Entwurf
+        // regeneriert, nur noch Titel/Szenario-Titel in der Frontmatter.
         $mdRaw = NodeMetaGenerator::regenerateFrontMatter($mdRaw, $draft);
-
-        if (array_key_exists('body', $draft)) {
-            $mdRaw = $this->withNewBody($mdRaw, rtrim((string) $draft['body'], "\r\n"));
-        }
 
         return [
             ['path' => "nodes/{$this->node->slug}/node.yml", 'contents' => $defRaw],
@@ -166,23 +203,15 @@ final readonly class NodeActivity implements ActivityContract
     }
 
     /**
-     * Ersetzt nur den Body eines de.md, die Frontmatter (Titel,
-     * Szenario-Titel) bleibt Zeile fuer Zeile unangetastet.
-     */
-    private function withNewBody(string $mdRaw, string $newBody): string
-    {
-        $frontMatter = FrontMatter::parse($mdRaw);
-        $lines = preg_split('/\R/', $mdRaw) ?: [];
-        $frontMatterLines = array_slice($lines, 0, max(0, $frontMatter['bodyStartLine'] - 1));
-
-        return implode("\n", $frontMatterLines)."\n".$newBody;
-    }
-
-    /**
      * Baut denselben Eintrag, den ContentRepository::nodes() fuer diese Node
      * liefern wuerde, aber aus serialize($draft) statt von der Platte --
      * damit validate($draft) den Entwurf pruefen kann, bevor er
-     * (DB-direkt, ueber NodeContentPublisher) uebernommen wird.
+     * (DB-direkt, ueber NodeContentPublisher) uebernommen wird. Seit
+     * CMS-7d.3 zusaetzlich mit `rich_content` (der `node_content`-Umschlag,
+     * ADR 0115): ein Entwurf, der ihn schon traegt, wird unveraendert
+     * durchgereicht, ein alter `body`-tragender Entwurf ueber
+     * `NodePayloadNormalizer` konvertiert -- `ContentValidator` prueft dann
+     * gegen den Knotenbaum statt gegen Markdown-Text.
      *
      * @param  array<string, mixed>  $draft
      * @return array<string, mixed>
@@ -206,16 +235,18 @@ final readonly class NodeActivity implements ActivityContract
             'frontmatter' => $frontMatter['attributes'],
             'body' => $frontMatter['body'],
             'body_start_line' => $frontMatter['bodyStartLine'],
+            'rich_content' => (new NodePayloadNormalizer)->normalize($draft)['rich_content'] ?? null,
         ];
     }
 
     public function deserialize(): array
     {
-        // ADR 0107 (CMS-6d): bevorzugt aus der DB (von content:sync befuellt)
-        // -- ContentRepository bleibt nur noch Fallback fuer eine Node, deren
-        // naechster Sync-Lauf noch aussteht (derselbe Fallback-Mechanismus
-        // wie bei Lesson, ADR 0101).
-        $body = $this->node->body ?? $this->contentEntry()['body'] ?? null;
+        // CMS-7d.3: rich_content (der node_content-Umschlag) ist die
+        // kanonische Quelle. Ist die Spalte noch nicht befuellt, normalisiert
+        // derselbe Normalizer wie ueberall sonst den Legacy-Body --
+        // `NodeSections::parse()` wird dabei nicht mehr direkt hier
+        // aufgerufen, das uebernimmt der Normalizer.
+        $body = $this->node->body ?? $this->contentEntry()['body'] ?? '';
 
         return [
             'slug' => $this->node->slug,
@@ -229,7 +260,8 @@ final readonly class NodeActivity implements ActivityContract
             'skills' => $this->node->skills,
             'related_lessons' => $this->node->related_lessons,
             'hints' => $this->node->hints ?? [],
-            'body' => $body,
+            'rich_content' => $this->node->rich_content
+                ?? (new NodePayloadNormalizer)->normalize(['body' => $body])['rich_content'],
         ];
     }
 

@@ -5,7 +5,6 @@ namespace Tests\Unit\Activities;
 use App\Activities\LessonActivity;
 use App\Content\ContentRepository;
 use App\Content\FrontMatter;
-use App\Content\QuizContent;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Track;
@@ -169,19 +168,40 @@ class LessonActivityTest extends TestCase
         $this->assertSame('Neuer Teaser', $frontMatter['attributes']['teaser']);
     }
 
-    public function test_serialize_with_a_body_draft_preserves_the_existing_quiz_section(): void
+    /**
+     * CMS-7d.3: `rich_content` (DB) ist die kanonische Prosa-Quelle, nicht
+     * mehr `content/**` -- ein `rich_content`-Entwurf regeneriert deshalb
+     * keine Prosa mehr in `de.md` (weder vor noch nach dem Quiz-Abschnitt);
+     * die Datei bleibt insofern exakt so stehen, wie sie war.
+     */
+    public function test_serialize_with_a_rich_content_draft_does_not_touch_the_markdown_body(): void
     {
         $lesson = $this->makeLesson();
         $content = $this->fixtureContent();
         $activity = new LessonActivity($lesson, $content);
-        $originalBody = $content->lessons()['1.0']['body'];
-        $originalQuizRaw = QuizContent::splitBody($originalBody)['quiz_raw'];
+        $originalMdRaw = $content->lessons()['1.0']['md_raw'];
 
-        $files = $activity->serialize(['body' => '## Neue Einleitung'.PHP_EOL.PHP_EOL.'Neuer Text.']);
+        $files = $activity->serialize(['rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []]]);
 
-        $this->assertStringContainsString('Neue Einleitung', $files[1]['contents']);
-        $this->assertStringContainsString('Neuer Text.', $files[1]['contents']);
-        $this->assertStringContainsString(trim($originalQuizRaw), $files[1]['contents']);
+        $this->assertSame($originalMdRaw, $files[1]['contents']);
+    }
+
+    /**
+     * `syntheticEntry()` (intern von validate($draft) benutzt) muss den
+     * Entwurf trotzdem als `rich_content` sehen, damit ContentValidator die
+     * RichContentDocument-Fassung seiner Regeln pruefen kann.
+     */
+    public function test_validate_with_a_rich_content_draft_checks_the_rich_content_document(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate([
+            'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+        ]);
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'keinen einzigen Codeblock'),
+        ));
     }
 
     public function test_serialize_with_a_sandbox_draft_regenerates_only_the_sandbox_block(): void
@@ -243,7 +263,9 @@ class LessonActivityTest extends TestCase
 
         $this->assertSame('1.0', $draft['lesson_id']);
         $this->assertSame('fundamente', $draft['track']);
-        $this->assertIsString($draft['body']);
+        $this->assertSame('doc', $draft['rich_content']['type']);
+        $this->assertSame(1, $draft['rich_content']['version']);
+        $this->assertNotEmpty($draft['rich_content']['content']);
     }
 
     private function makeActivity(): LessonActivity

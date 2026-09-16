@@ -116,15 +116,20 @@ class LessonEditorControllerTest extends TestCase
             );
     }
 
-    public function test_the_editable_body_excludes_the_quiz_section(): void
+    public function test_the_editable_rich_content_excludes_the_quiz_section(): void
     {
         [$lesson, , $author] = $this->lessonAndActivity();
 
         $this->actingAs($author)
             ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
             ->assertInertia(fn ($page) => $page
-                ->where('fields.body', fn (string $body) => str_contains($body, 'Was du daran abliest')
-                    && ! str_contains($body, 'q1 — Frage'))
+                ->where('fields.rich_content', function ($document) {
+                    $texts = collect($document['content'])
+                        ->pluck('content')->flatten(1)->pluck('text')->filter()->implode(' ');
+
+                    return str_contains($texts, 'Was du daran abliest')
+                        && ! str_contains($texts, 'Frage?');
+                })
             );
     }
 
@@ -153,7 +158,17 @@ class LessonEditorControllerTest extends TestCase
             'objectives' => ['Neues Lernziel eins', 'Neues Lernziel zwei'],
             'sandbox' => ['required' => true, 'dataset' => 'ct-thorax-60', 'note' => null],
             'lab' => ['node' => 'silent-ct', 'optional' => false],
-            'body' => "## Neue Einleitung\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Neu.",
+            'rich_content' => [
+                'type' => 'doc', 'version' => 1,
+                'content' => [
+                    ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [['type' => 'text', 'text' => 'Neue Einleitung']]],
+                    ['type' => 'code_block', 'attrs' => ['variant' => 'terminal'], 'text' => "\$ dcmdump datei.dcm\n(0008,0060) CS [CT]"],
+                    ['type' => 'paragraph', 'content' => [
+                        ['type' => 'text', 'text' => 'Was du daran abliest:', 'marks' => [['type' => 'bold']]],
+                        ['type' => 'text', 'text' => ' Neu.'],
+                    ]],
+                ],
+            ],
         ];
 
         $this->actingAs($author)
@@ -190,9 +205,15 @@ class LessonEditorControllerTest extends TestCase
         $this->assertSame('ct-thorax-60', $lesson->sandbox['dataset']);
         $this->assertSame('silent-ct', $lesson->lab['node']);
         $this->assertFalse($lesson->lab['optional']);
-        $this->assertStringContainsString('Neue Einleitung', $lesson->body);
-        $this->assertStringContainsString('q1 — Frage?', $lesson->body, 'Der Quiz-Abschnitt muss erhalten bleiben.');
-        $this->assertStringContainsString('Als Nächstes', $lesson->body);
+        // Betreiber-Vorgabe (CMS-7d.3): "keine zwei schreibenden Sources of
+        // Truth" -- body bleibt exakt so stehen, wie es vor dem Publish war.
+        $this->assertSame($this->lessonBody(), $lesson->body);
+        $this->assertStringContainsString('q1 — Frage?', $lesson->body, 'Der Quiz-Abschnitt muss weiterhin in body stehen (Legacy-Fallback).');
+
+        $texts = collect($lesson->rich_content['content'])
+            ->pluck('content')->flatten(1)->pluck('text')->filter()->implode(' ');
+        $this->assertStringContainsString('Neue Einleitung', $texts);
+        $this->assertStringNotContainsString('Frage?', $texts, 'Der Quiz-Abschnitt gehoert nicht in rich_content.');
 
         $activity->refresh();
         $this->assertSame('Neuer Titel', $activity->title['de']);
@@ -207,9 +228,18 @@ class LessonEditorControllerTest extends TestCase
                 ->where('fields.title', 'Neuer Titel')
                 ->where('fields.level', 'aufbau')
                 ->where('fields.objectives', ['Neues Lernziel eins', 'Neues Lernziel zwei'])
-                ->where('fields.body', fn (string $body) => str_contains($body, 'Neue Einleitung')
-                    && ! str_contains($body, 'q1 — Frage')),
+                ->where('fields.rich_content', function ($document) {
+                    $texts = collect($document['content'])
+                        ->pluck('content')->flatten(1)->pluck('text')->filter()->implode(' ');
+
+                    return str_contains($texts, 'Neue Einleitung') && ! str_contains($texts, 'Frage?');
+                }),
             );
+    }
+
+    private function lessonBody(): string
+    {
+        return "## Intro\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Test.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.";
     }
 
     /**
@@ -235,7 +265,7 @@ class LessonEditorControllerTest extends TestCase
             'objectives' => ['Altes Lernziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
             'lab' => ['node' => null, 'optional' => true],
-            'body' => "## Intro\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Test.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.",
+            'body' => $this->lessonBody(),
         ]);
         $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
         $author = User::factory()->author()->create();

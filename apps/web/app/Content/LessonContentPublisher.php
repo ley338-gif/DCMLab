@@ -14,8 +14,16 @@ use App\Models\Lesson;
  * den Spalten, die `LessonController::show()` ohnehin schon bevorzugt liest.
  *
  * Nur fuer Lektionsfeld-Entwuerfe (kein `quiz`-Schluessel, siehe
- * ActivityContentApplier) -- Quiz-Entwuerfe bleiben bis CMS-6 datei-gefuehrt
- * (ADR 0097), weil Fragen-Metadaten noch keine eigene DB-Spalte haben.
+ * ActivityContentApplier) -- Quiz-Entwuerfe bleiben bei `QuizContentPublisher`
+ * (ADR 0104), weil Fragen-Metadaten weiterhin nur `lessons.quiz` betreffen.
+ *
+ * Seit CMS-7d.3 (ADR 0118) schreibt dieser Publisher `rich_content`, nicht
+ * mehr `body` -- der Aufrufer (`ContentPublishingService`) hat das Payload
+ * vorher immer schon normalisiert (`LessonPayloadNormalizer`), `body` wird
+ * hier bewusst NICHT mehr aus dem Entwurf neu erzeugt (Betreiber-Vorgabe:
+ * "keine zwei schreibenden Sources of Truth"). Die Spalte bleibt unangetastet
+ * stehen -- Legacy-Fallback fuer eine noch nicht migrierte Lektion, siehe
+ * `LessonController::show()`.
  */
 final class LessonContentPublisher
 {
@@ -25,15 +33,6 @@ final class LessonContentPublisher
     public function publish(Activity $activity, array $payload): void
     {
         $lesson = Lesson::where('lesson_id', $activity->key)->firstOrFail();
-
-        // Ein bestehender Quiz-Abschnitt (und die Fussnote danach) gehoert
-        // nicht diesem Editor -- wie zuvor bei LessonActivity::serialize()
-        // bleibt er unangetastet erhalten, nur die Prosa davor wird ersetzt.
-        $split = QuizContent::splitBody((string) ($lesson->body ?? ''));
-        $newBefore = rtrim((string) $payload['body'], "\r\n");
-        $body = $split['quiz_raw'] !== ''
-            ? $newBefore."\n\n".$split['quiz_raw']."\n\n".$split['after']
-            : $newBefore;
 
         $lesson->update([
             'title' => ['de' => $payload['title']],
@@ -47,7 +46,7 @@ final class LessonContentPublisher
             'objectives_count' => count($payload['objectives']),
             'sandbox' => $payload['sandbox'],
             'lab' => $payload['lab'],
-            'body' => $body,
+            'rich_content' => $payload['rich_content'],
         ]);
 
         // Haelt den activities-Verzeichniseintrag (Autoren-Panel,
@@ -56,7 +55,7 @@ final class LessonContentPublisher
         $activity->update([
             'title' => $lesson->title,
             'teaser' => $lesson->teaser,
-            'source_hash' => hash('sha256', json_encode(['payload' => $payload, 'body' => $body], JSON_THROW_ON_ERROR)),
+            'source_hash' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR)),
         ]);
     }
 }

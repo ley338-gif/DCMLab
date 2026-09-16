@@ -22,8 +22,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $created_by
  * @property int|null $reviewed_by
  * @property CarbonImmutable|null $published_at
+ * @property int|null $restored_from_version_id Gesetzt, wenn diese Version per `ContentPublishingService::restoreVersion()` entstanden ist (CMS-7d.3, ADR 0118)
  */
-#[Fillable(['activity_id', 'status', 'payload', 'is_current', 'created_by', 'reviewed_by', 'published_at'])]
+#[Fillable(['activity_id', 'status', 'payload', 'is_current', 'created_by', 'reviewed_by', 'published_at', 'restored_from_version_id'])]
 class ContentVersion extends Model
 {
     protected function casts(): array
@@ -57,5 +58,13 @@ class ContentVersion extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /**
+     * @return BelongsTo<ContentVersion, $this>
+     */
+    public function restoredFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'restored_from_version_id');
     }
 }
