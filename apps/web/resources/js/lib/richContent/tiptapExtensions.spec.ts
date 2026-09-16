@@ -141,7 +141,7 @@ describe('richContentExtensions schema roundtrip', () => {
         expect(roundtripThroughRealSchema(doc)).toEqual(doc);
     });
 
-    it('registers selfCheck, callout, dicomTagTable and glossaryTerm (CMS-7c), but not generic tables', () => {
+    it('registers selfCheck, callout, dicomTagTable and glossaryTerm (CMS-7c)', () => {
         const schema = getSchema(richContentExtensions());
 
         expect(schema.nodes.selfCheck).toBeDefined();
@@ -149,7 +149,21 @@ describe('richContentExtensions schema roundtrip', () => {
         expect(schema.nodes.dicomTagTable).toBeDefined();
         expect(schema.nodes.dicomTagRow).toBeDefined();
         expect(schema.nodes.glossaryTerm).toBeDefined();
-        expect(schema.nodes.table).toBeUndefined();
+    });
+
+    /**
+     * ADR 0118 (CMS-7d.3-Nachtrag): generische Tabellen wurden ergaenzt,
+     * nachdem der erste Editor-Test gegen echten Bestand zeigte, dass fast
+     * jede Lektion/Node mindestens eine hat (ADR 0114 hatte sie noch aus
+     * dem Editor-Scope ausgeschlossen).
+     */
+    it('registers table, tableRow, tableHeader and tableCell', () => {
+        const schema = getSchema(richContentExtensions());
+
+        expect(schema.nodes.table).toBeDefined();
+        expect(schema.nodes.tableRow).toBeDefined();
+        expect(schema.nodes.tableHeader).toBeDefined();
+        expect(schema.nodes.tableCell).toBeDefined();
     });
 
     it('does not register strike or underline (not part of the DCMLab schema)', () => {
@@ -252,6 +266,59 @@ describe('richContentExtensions schema roundtrip', () => {
                             keyword: 'Modality',
                             vr: 'CS',
                             value: 'CT',
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(roundtripThroughRealSchema(doc)).toEqual(doc);
+    });
+
+    it('preserves a table (header and body row) through the real schema', () => {
+        const doc: RichContentDocument = {
+            type: 'doc',
+            version: 1,
+            content: [
+                {
+                    type: 'table',
+                    content: [
+                        {
+                            type: 'table_row',
+                            content: [
+                                {
+                                    type: 'table_cell',
+                                    attrs: { header: true },
+                                    content: [
+                                        {
+                                            type: 'paragraph',
+                                            content: [
+                                                { type: 'text', text: 'Tag' },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: 'table_row',
+                            content: [
+                                {
+                                    type: 'table_cell',
+                                    attrs: { header: false },
+                                    content: [
+                                        {
+                                            type: 'paragraph',
+                                            content: [
+                                                {
+                                                    type: 'text',
+                                                    text: '(0008,0060)',
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
                         },
                     ],
                 },

@@ -117,6 +117,18 @@ function baseCommandDefinitions(): BaseCommandDefinition[] {
                     .run(),
         },
         {
+            id: 'table',
+            title: 'Tabelle',
+            keywords: ['table', 'tabelle'],
+            command: (editor, range) =>
+                editor
+                    .chain()
+                    .focus()
+                    .deleteRange(range)
+                    .insertTable({ rows: 2, cols: 2, withHeaderRow: true })
+                    .run(),
+        },
+        {
             id: 'code',
             title: 'Code',
             keywords: ['code'],

@@ -151,6 +151,24 @@ describe('slash command execution against a real editor', () => {
         ).toBe(true);
     });
 
+    it('inserts a table with a header row', () => {
+        const doc = runCommand('table');
+        const table = doc.content.find((node) => node.type === 'table');
+
+        expect(table).toBeDefined();
+        // 2x2 wie konfiguriert (insertTable({ rows: 2, cols: 2,
+        // withHeaderRow: true })): eine Kopfzeile, eine Datenzeile.
+        expect(table?.content).toHaveLength(2);
+        expect(table?.content[0].content[0]).toMatchObject({
+            type: 'table_cell',
+            attrs: { header: true },
+        });
+        expect(table?.content[1].content[0]).toMatchObject({
+            type: 'table_cell',
+            attrs: { header: false },
+        });
+    });
+
     it('inserts a dicom_dump code_block', () => {
         const doc = runCommand('dicomDump');
 

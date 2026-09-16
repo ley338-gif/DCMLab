@@ -1,4 +1,8 @@
 import { CodeBlock } from '@tiptap/extension-code-block';
+import { Table } from '@tiptap/extension-table';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import TableRow from '@tiptap/extension-table-row';
 import StarterKit from '@tiptap/starter-kit';
 import type { AnyExtension } from '@tiptap/core';
 import {
@@ -42,11 +46,18 @@ export const RichContentCodeBlock = CodeBlock.extend({
  * Schema-Zusatz, nur ein weiterer `attrs.variant`-Wert); CMS-7d.1 (ADR
  * 0116) ergaenzt `horizontal_rule` -- TipTaps eingebaute HorizontalRule-
  * Extension aus `StarterKit` reicht dafuer unveraendert aus, kein eigener
- * Custom-Node noetig. Bewusst weiterhin nicht: generische Tabellen
- * (`table`, kein Ziel von CMS-7c) und Strike/Underline (nicht Teil des
- * DCMLab-Schemas, ADR 0111). Jeder Knoten, den `RichContentEditorAdapter`
- * nicht kennt, wirft dort explizit statt hier still zu verschwinden --
- * dieser Extension-Satz ist deshalb absichtlich eng, nicht defensiv breit.
+ * Custom-Node noetig. CMS-7d.3 (ADR 0118, Nachtrag nach dem ersten
+ * Editor-Test gegen echten Bestand) ergaenzt generische Tabellen
+ * (`table`/`table_row`/`table_cell`) -- ADR 0114 hatte das noch aus dem
+ * Editor-Scope ausgeschlossen, in der Annahme, Tabellen seien selten;
+ * tatsaechlich haben 37 von 42 Lektionen und 16 von 17 Nodes mindestens
+ * eine. `table_cell.attrs.header` (DCMLab, ein Knotentyp) wird in TipTaps
+ * zwei getrennte Knotentypen (`tableHeader`/`tableCell`) uebersetzt, siehe
+ * `RichContentEditorAdapter`. Bewusst weiterhin nicht: Strike/Underline
+ * (nicht Teil des DCMLab-Schemas, ADR 0111). Jeder Knoten, den
+ * `RichContentEditorAdapter` nicht kennt, wirft dort explizit statt hier
+ * still zu verschwinden -- dieser Extension-Satz ist deshalb absichtlich
+ * eng, nicht defensiv breit.
  *
  * @param  glossaryTerms  fuer das `/glossary`-Slash-Kommando (Suche +
  *                        Einfuegen eines `glossary_term`-Knotens,
@@ -70,6 +81,13 @@ export function richContentExtensions(
         DicomTagRow,
         DicomTagTable,
         GlossaryTerm,
+        // `resizable: false` (Default): DCMLab-Tabellen haben keine
+        // interaktive Spaltenbreite -- weniger TipTap-interne Attribute,
+        // die der Adapter beim Rueckweg ignorieren muesste.
+        Table,
+        TableRow,
+        TableHeader,
+        TableCell,
         SlashCommand.configure({ glossaryTerms }),
     ];
 }

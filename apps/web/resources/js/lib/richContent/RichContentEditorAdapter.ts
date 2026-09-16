@@ -7,6 +7,8 @@ import type {
     RichContentInlineNode,
     RichContentListItemNode,
     RichContentMark,
+    RichContentTableCellNode,
+    RichContentTableRowNode,
     RichContentTextNode,
 } from '@/types/richContent';
 
@@ -29,11 +31,12 @@ export type TipTapNode = {
 /**
  * Ein DCMLab- oder TipTap-Knotentyp, den `RichContentEditorAdapter` (noch)
  * nicht kennt -- absichtlich eine Exception statt eines stillen
- * Uebergehens (Betreiber-Vorgabe fuer CMS-7b/7c): `table` bleibt im
- * Editor-Extension-Satz weiterhin nicht unterstuetzt (generische Tabellen
- * sind kein Ziel von CMS-7c, siehe ADR 0114 -- nur `dicom_tag_table`
- * wurde editorfaehig) -- ein Dokument mit einem dieser Knoten darf beim
- * Laden nicht kommentarlos seinen Inhalt verlieren.
+ * Uebergehens (Betreiber-Vorgabe fuer CMS-7b/7c). Seit CMS-7d.3 (ADR 0118)
+ * gibt es keinen unterstuetzten DCMLab-Blocktyp mehr, der hier absichtlich
+ * fehlt (`table` wurde ergaenzt, nachdem sich beim Editor-Test gegen
+ * echten Bestand zeigte, dass fast jede Lektion/Node mindestens eine
+ * Tabelle hat) -- dieser Fehler greift jetzt nur noch fuer einen
+ * kuenftigen, hier noch nicht nachgezogenen Schema-Zusatz.
  */
 export class UnsupportedEditorNodeError extends Error {
     constructor(public readonly nodeType: string) {
@@ -122,6 +125,11 @@ function toTipTapBlock(node: RichContentBlockNode): TipTapNode {
                 type: 'dicomTagTable',
                 content: node.content.map((row) => toTipTapDicomTagRow(row)),
             };
+        case 'table':
+            return {
+                type: 'table',
+                content: node.content.map((row) => toTipTapTableRow(row)),
+            };
         case 'horizontal_rule':
             return { type: 'horizontalRule' };
         case 'code_block': {
@@ -141,12 +149,35 @@ function toTipTapBlock(node: RichContentBlockNode): TipTapNode {
             };
         }
         default:
-            throw new UnsupportedEditorNodeError(node.type);
+            // Alle heutigen RichContentBlockNode-Varianten sind oben
+            // behandelt -- dieser Zweig ist nur eine Absicherung fuer eine
+            // kuenftige, hier noch nicht nachgezogene Schema-Erweiterung,
+            // TypeScript narrowt ihn deshalb auf `never`.
+            throw new UnsupportedEditorNodeError(
+                (node as { type: string }).type,
+            );
     }
 }
 
 function toTipTapListItem(item: RichContentListItemNode): TipTapNode {
     return { type: 'listItem', content: item.content.map(toTipTapBlock) };
+}
+
+function toTipTapTableRow(row: RichContentTableRowNode): TipTapNode {
+    return { type: 'tableRow', content: row.content.map(toTipTapTableCell) };
+}
+
+/**
+ * DCMLab hat einen Zellentyp mit `attrs.header` (ADR 0111); TipTaps
+ * eingebaute Table-Extension hat stattdessen zwei getrennte Knotentypen
+ * (`tableHeader`/`tableCell`, wie HTML `<th>`/`<td>`) -- die Uebersetzung
+ * passiert hier, nicht ueber ein Attribut.
+ */
+function toTipTapTableCell(cell: RichContentTableCellNode): TipTapNode {
+    return {
+        type: cell.attrs.header ? 'tableHeader' : 'tableCell',
+        content: cell.content.map(toTipTapBlock),
+    };
 }
 
 /**
@@ -270,6 +301,11 @@ function fromTipTapBlock(node: TipTapNode): RichContentBlockNode {
                 type: 'dicom_tag_table',
                 content: (node.content ?? []).map(fromTipTapDicomTagRow),
             };
+        case 'table':
+            return {
+                type: 'table',
+                content: (node.content ?? []).map(fromTipTapTableRow),
+            };
         case 'horizontalRule':
             return { type: 'horizontal_rule' };
         case 'codeBlock': {
@@ -296,6 +332,21 @@ function fromTipTapBlock(node: TipTapNode): RichContentBlockNode {
 function fromTipTapListItem(node: TipTapNode): RichContentListItemNode {
     return {
         type: 'list_item',
+        content: (node.content ?? []).map(fromTipTapBlock),
+    };
+}
+
+function fromTipTapTableRow(node: TipTapNode): RichContentTableRowNode {
+    return {
+        type: 'table_row',
+        content: (node.content ?? []).map(fromTipTapTableCell),
+    };
+}
+
+function fromTipTapTableCell(node: TipTapNode): RichContentTableCellNode {
+    return {
+        type: 'table_cell',
+        attrs: { header: node.type === 'tableHeader' },
         content: (node.content ?? []).map(fromTipTapBlock),
     };
 }

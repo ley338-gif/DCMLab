@@ -339,36 +339,61 @@ describe('RichContentEditorAdapter roundtrip', () => {
             ]),
         );
     });
-});
 
-describe('RichContentEditorAdapter unsupported nodes', () => {
-    it('throws for a table block instead of dropping it', () => {
-        const dcmlabDoc = doc([
-            {
-                type: 'table',
-                content: [
-                    {
-                        type: 'table_row',
-                        content: [
-                            {
-                                type: 'table_cell',
-                                attrs: { header: true },
-                                content: [
-                                    {
-                                        type: 'paragraph',
-                                        content: [
-                                            { type: 'text', text: 'Tag' },
-                                        ],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                ],
-            },
-        ]);
-
-        expect(() => toTipTap(dcmlabDoc)).toThrow(UnsupportedEditorNodeError);
+    /**
+     * ADR 0118 (CMS-7d.3-Nachtrag): generische Tabellen wurden ergaenzt,
+     * nachdem der erste Editor-Test gegen echten Bestand zeigte, dass 37
+     * von 42 Lektionen und 16 von 17 Nodes mindestens eine haben --
+     * `table` bleibt kein unterstuetzter Fall mehr, siehe ADR 0114 fuer
+     * die urspruengliche (inzwischen ueberholte) Entscheidung.
+     */
+    it('roundtrips a table with a header row', () => {
+        assertRoundtrips(
+            doc([
+                {
+                    type: 'table',
+                    content: [
+                        {
+                            type: 'table_row',
+                            content: [
+                                {
+                                    type: 'table_cell',
+                                    attrs: { header: true },
+                                    content: [
+                                        {
+                                            type: 'paragraph',
+                                            content: [
+                                                { type: 'text', text: 'Tag' },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: 'table_row',
+                            content: [
+                                {
+                                    type: 'table_cell',
+                                    attrs: { header: false },
+                                    content: [
+                                        {
+                                            type: 'paragraph',
+                                            content: [
+                                                {
+                                                    type: 'text',
+                                                    text: '(0008,0060)',
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ]),
+        );
     });
 
     it('throws for an unrecognized TipTap node when converting back', () => {
