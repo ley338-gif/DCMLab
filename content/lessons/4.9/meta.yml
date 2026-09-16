@@ -18,7 +18,7 @@ sandbox:
 # Testzertifikat (containers/toolbox/, /opt/tools/tls/) -- unabhaengig von
 # Orthanc, das nur einen einzigen, nicht-TLS-faehig zu haltenden DicomPort
 # fuer alle anderen Lektionen bereitstellt.
-lab:
+related_node:
   node: null
   optional: true
 

@@ -48,7 +48,7 @@ class LessonContentPublisherTest extends TestCase
             'glossary_terms' => ['dicom'],
             'objectives' => ['Ziel eins', 'Ziel zwei'],
             'sandbox' => ['required' => true, 'dataset' => 'ct-head-01', 'note' => null],
-            'lab' => ['node' => 'silent-ct', 'optional' => true],
+            'related_node' => ['node' => 'silent-ct', 'optional' => true],
             'rich_content' => $this->richContent('Neue Prosa.'),
         ]);
 
@@ -63,7 +63,7 @@ class LessonContentPublisherTest extends TestCase
         $this->assertSame(['Ziel eins', 'Ziel zwei'], $lesson->objectives);
         $this->assertSame(2, $lesson->objectives_count);
         $this->assertTrue($lesson->sandbox['required']);
-        $this->assertSame('silent-ct', $lesson->lab['node']);
+        $this->assertSame('silent-ct', $lesson->related_node['node']);
         $this->assertSame('Neue Prosa.', $lesson->rich_content['content'][0]['content'][0]['text']);
     }
 
@@ -83,7 +83,7 @@ class LessonContentPublisherTest extends TestCase
         (new LessonContentPublisher)->publish($activity, [
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'objectives' => ['Ziel'], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent('Neue Prosa.'),
+            'related_node' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent('Neue Prosa.'),
         ]);
 
         $lesson->refresh();
@@ -107,7 +107,7 @@ class LessonContentPublisherTest extends TestCase
             'title' => 'Neuer Aktivitaetstitel', 'teaser' => 'Neuer Aktivitaetsteaser',
             'level' => 'einsteiger', 'duration_minutes' => 5, 'objectives' => ['Ziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent('Prosa.'),
+            'related_node' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent('Prosa.'),
         ]);
 
         $activity->refresh();

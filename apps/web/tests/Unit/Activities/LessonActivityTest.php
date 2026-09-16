@@ -213,18 +213,18 @@ class LessonActivityTest extends TestCase
 
         $this->assertFalse($parsed['sandbox']['required']);
         $this->assertArrayNotHasKey('dataset', $parsed['sandbox']);
-        $this->assertSame(['node' => null, 'optional' => true], $parsed['lab'], 'lab darf unangetastet bleiben.');
+        $this->assertSame(['node' => null, 'optional' => true], $parsed['related_node'], 'lab darf unangetastet bleiben.');
     }
 
     public function test_serialize_with_a_lab_draft_regenerates_only_the_lab_block(): void
     {
         $activity = $this->makeActivity();
 
-        $files = $activity->serialize(['lab' => ['node' => 'silent-ct', 'optional' => false]]);
+        $files = $activity->serialize(['related_node' => ['node' => 'silent-ct', 'optional' => false]]);
         $parsed = Yaml::parse($files[0]['contents']);
 
-        $this->assertSame('silent-ct', $parsed['lab']['node']);
-        $this->assertFalse($parsed['lab']['optional']);
+        $this->assertSame('silent-ct', $parsed['related_node']['node']);
+        $this->assertFalse($parsed['related_node']['optional']);
         $this->assertTrue($parsed['sandbox']['required'], 'sandbox darf unangetastet bleiben.');
     }
 

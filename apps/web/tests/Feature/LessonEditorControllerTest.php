@@ -34,7 +34,7 @@ class LessonEditorControllerTest extends TestCase
         File::ensureDirectoryExists($this->contentDir.'/lessons/1.0');
         File::put(
             $this->contentDir.'/lessons/1.0/meta.yml',
-            "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: [dcmdump]\nglossary_terms: [dicom]\nobjectives_count: 1\nsandbox:\n  required: false\nlab:\n  node: null\n  optional: true\ntools_checked: \"".now()->toDateString()."\"\nstatus: draft\n",
+            "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: [dcmdump]\nglossary_terms: [dicom]\nobjectives_count: 1\nsandbox:\n  required: false\nrelated_node:\n  node: null\n  optional: true\ntools_checked: \"".now()->toDateString()."\"\nstatus: draft\n",
         );
         File::put(
             $this->contentDir.'/lessons/1.0/de.md',
@@ -79,7 +79,7 @@ class LessonEditorControllerTest extends TestCase
                 ->where('fields.level', 'einsteiger')
                 ->where('fields.objectives', ['Altes Lernziel'])
                 ->where('fields.sandbox.required', false)
-                ->where('fields.lab.optional', true)
+                ->where('fields.related_node.optional', true)
                 ->where('catalog.tools', ['dcmdump'])
                 ->where('catalog.datasets', ['ct-thorax-60'])
             );
@@ -88,9 +88,9 @@ class LessonEditorControllerTest extends TestCase
     /**
      * Seit CMS-6d Teil 3 (ADR 0109) kann eine Node rein in Studio angelegt
      * sein, ohne jemals eine content/nodes/**-Datei zu haben -- der
-     * Composer-Katalog muss sie trotzdem als Lab-Auswahl anbieten, nicht nur
-     * den datei-basierten Bestand. Seit ADR 0110 (CMS-6d Haertung) nur, wenn
-     * sie tatsaechlich "published" ist.
+     * Composer-Katalog muss sie trotzdem als Auswahl fuer die verknuepfte
+     * Node anbieten, nicht nur den datei-basierten Bestand. Seit ADR 0110
+     * (CMS-6d Haertung) nur, wenn sie tatsaechlich "published" ist.
      */
     public function test_the_node_catalog_includes_a_published_studio_only_node_without_a_content_file(): void
     {
@@ -157,7 +157,7 @@ class LessonEditorControllerTest extends TestCase
             'glossary_terms' => ['dicom'],
             'objectives' => ['Neues Lernziel eins', 'Neues Lernziel zwei'],
             'sandbox' => ['required' => true, 'dataset' => 'ct-thorax-60', 'note' => null],
-            'lab' => ['node' => 'silent-ct', 'optional' => false],
+            'related_node' => ['node' => 'silent-ct', 'optional' => false],
             'rich_content' => [
                 'type' => 'doc', 'version' => 1,
                 'content' => [
@@ -203,8 +203,8 @@ class LessonEditorControllerTest extends TestCase
         $this->assertSame(2, $lesson->objectives_count, 'objectives_count muss zur Listenlaenge passen.');
         $this->assertTrue($lesson->sandbox['required']);
         $this->assertSame('ct-thorax-60', $lesson->sandbox['dataset']);
-        $this->assertSame('silent-ct', $lesson->lab['node']);
-        $this->assertFalse($lesson->lab['optional']);
+        $this->assertSame('silent-ct', $lesson->related_node['node']);
+        $this->assertFalse($lesson->related_node['optional']);
         // Betreiber-Vorgabe (CMS-7d.3): "keine zwei schreibenden Sources of
         // Truth" -- body bleibt exakt so stehen, wie es vor dem Publish war.
         $this->assertSame($this->lessonBody(), $lesson->body);
@@ -259,7 +259,7 @@ class LessonEditorControllerTest extends TestCase
                 'duration_minutes' => 5, 'tools' => ['dcmdump'], 'requires' => [], 'glossary_terms' => ['dicom'],
                 'objectives' => ['Entwurfsziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Entwurfsprosa vor dem Quiz.\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Entwurf.",
             ],
             'is_current' => false, 'created_by' => $author->id,
@@ -307,7 +307,7 @@ class LessonEditorControllerTest extends TestCase
             'teaser' => ['de' => 'Alter Teaser'],
             'objectives' => ['Altes Lernziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true],
+            'related_node' => ['node' => null, 'optional' => true],
             'body' => $this->lessonBody(),
         ]);
         $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);

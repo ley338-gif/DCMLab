@@ -13,7 +13,7 @@ sandbox:
 
 # Lab laut Curriculum: "Studie anhand von Bruchstücken finden" -- noch
 # kein passender Node-Stub vorhanden.
-lab:
+related_node:
   node: null
   optional: true
 

@@ -18,7 +18,7 @@ sandbox:
 # Modality-Registrierung bei Orthanc (PUT /modalities/<name>, wie bei
 # Storage Commitment, ADR 0031) reichen fuer ein echtes
 # Drei-Parteien-C-MOVE.
-lab:
+related_node:
   node: null
   optional: true
 

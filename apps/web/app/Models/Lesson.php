@@ -25,7 +25,7 @@ use Illuminate\Support\Carbon;
  * @property array<int, string> $requires
  * @property array<int, string> $tools
  * @property array<string, mixed>|null $sandbox
- * @property array<string, mixed>|null $lab
+ * @property array<string, mixed>|null $related_node
  * @property array<int, string> $glossary_terms
  * @property Carbon|null $tools_checked
  * @property string $status
@@ -41,7 +41,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'lesson_id', 'track_id', 'order', 'level', 'duration_minutes', 'objectives_count',
-    'requires', 'tools', 'sandbox', 'lab', 'glossary_terms', 'tools_checked', 'status',
+    'requires', 'tools', 'sandbox', 'related_node', 'glossary_terms', 'tools_checked', 'status',
     'legacy_authors', 'content_updated_at', 'title', 'teaser', 'body', 'objectives', 'quiz',
     'rich_content', 'source_hash',
 ])]
@@ -61,7 +61,7 @@ class Lesson extends Model
             'requires' => 'array',
             'tools' => 'array',
             'sandbox' => 'array',
-            'lab' => 'array',
+            'related_node' => 'array',
             'glossary_terms' => 'array',
             'legacy_authors' => 'array',
             'title' => 'array',

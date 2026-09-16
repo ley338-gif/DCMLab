@@ -16,7 +16,7 @@ sandbox:
 # thematisch verwandt (zwei aehnliche Studies unterscheiden), aber eine
 # andere Fertigkeit (Accession-Number-Abgleich statt Split/Dublette-
 # Diagnose) -- deshalb nur unter "Verwandte Inhalte" verlinkt.
-lab:
+related_node:
   node: null
   optional: true
 

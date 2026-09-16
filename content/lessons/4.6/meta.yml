@@ -14,7 +14,7 @@ sandbox:
 # Node patient-merge-discovery deckt die Patient-ID-Doppelanlage ab (P10);
 # der zweite in dieser Lektion angedeutete Fall (Coercion/Merge, aktiv vom
 # Archiv durchgefuehrt) ist damit nicht abgedeckt. Deshalb weiterhin optional.
-lab:
+related_node:
   node: patient-merge-discovery
   optional: true
 

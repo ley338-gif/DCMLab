@@ -106,9 +106,11 @@ sandbox:
   dataset: ct-thorax-60        # Slug aus datasets.yml
   note: "Zwei Serien, absichtlich gemischt"   # optional, eine Zeile
 
-lab:
+related_node:                  # vor CMS-8a hiess dieses Feld `lab` --
+                                # umbenannt, um nicht mit dem CMS-8-
+                                # Lab-Activity-Typ zu kollidieren
   node: scu-scp-basics         # Slug aus content/nodes/, oder null
-  optional: false              # true = Lektion gilt auch ohne Lab als erledigt
+  optional: false              # true = Lektion gilt auch ohne die Node als erledigt
 
 glossary_terms:                # Begriffe, die hier zum ersten Mal fallen
   - scu

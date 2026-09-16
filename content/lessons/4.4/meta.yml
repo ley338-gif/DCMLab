@@ -14,7 +14,7 @@ sandbox:
 # Kein passender Node-Stub vorhanden (P10-Roadmap sieht keinen Timeout-
 # spezifischen Node vor) -- Fliesstext seit P10.17 vollstaendig ohne Lab
 # (ADR 0027). Sobald ein passender Node existiert, hier eintragen.
-lab:
+related_node:
   node: null
   optional: true
 

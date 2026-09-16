@@ -111,14 +111,14 @@ class LessonMetaGeneratorTest extends TestCase
 
     public function test_regenerate_sandbox_writes_dataset_only_when_required(): void
     {
-        $metaRaw = "id: \"1.0\"\nsandbox:\n  required: true\n  dataset: old-set\nlab:\n  node: null\n  optional: true\n";
+        $metaRaw = "id: \"1.0\"\nsandbox:\n  required: true\n  dataset: old-set\nrelated_node:\n  node: null\n  optional: true\n";
 
         $regenerated = LessonMetaGenerator::regenerateSandbox($metaRaw, ['required' => false]);
         $parsed = Yaml::parse($regenerated);
 
         $this->assertFalse($parsed['sandbox']['required']);
         $this->assertArrayNotHasKey('dataset', $parsed['sandbox']);
-        $this->assertSame(['node' => null, 'optional' => true], $parsed['lab'], 'lab darf unangetastet bleiben.');
+        $this->assertSame(['node' => null, 'optional' => true], $parsed['related_node'], 'related_node darf unangetastet bleiben.');
     }
 
     public function test_regenerate_sandbox_includes_dataset_and_note_when_present(): void
@@ -139,24 +139,24 @@ class LessonMetaGeneratorTest extends TestCase
 
     public function test_regenerate_lab_writes_node_as_literal_null_when_absent(): void
     {
-        $metaRaw = "id: \"1.0\"\nlab:\n  node: first-contact\n  optional: false\n";
+        $metaRaw = "id: \"1.0\"\nrelated_node:\n  node: first-contact\n  optional: false\n";
 
-        $regenerated = LessonMetaGenerator::regenerateLab($metaRaw, ['node' => null, 'optional' => true]);
+        $regenerated = LessonMetaGenerator::regenerateRelatedNode($metaRaw, ['node' => null, 'optional' => true]);
         $parsed = Yaml::parse($regenerated);
 
-        $this->assertNull($parsed['lab']['node']);
-        $this->assertTrue($parsed['lab']['optional']);
+        $this->assertNull($parsed['related_node']['node']);
+        $this->assertTrue($parsed['related_node']['optional']);
     }
 
     public function test_regenerate_lab_writes_a_new_node_slug(): void
     {
-        $metaRaw = "id: \"1.0\"\nlab:\n  node: null\n  optional: true\n";
+        $metaRaw = "id: \"1.0\"\nrelated_node:\n  node: null\n  optional: true\n";
 
-        $regenerated = LessonMetaGenerator::regenerateLab($metaRaw, ['node' => 'neue-node', 'optional' => false]);
+        $regenerated = LessonMetaGenerator::regenerateRelatedNode($metaRaw, ['node' => 'neue-node', 'optional' => false]);
         $parsed = Yaml::parse($regenerated);
 
-        $this->assertSame('neue-node', $parsed['lab']['node']);
-        $this->assertFalse($parsed['lab']['optional']);
+        $this->assertSame('neue-node', $parsed['related_node']['node']);
+        $this->assertFalse($parsed['related_node']['optional']);
     }
 
     public function test_regenerate_front_matter_replaces_the_objectives_list(): void
@@ -185,9 +185,9 @@ class LessonMetaGeneratorTest extends TestCase
         $meta = Yaml::parse($metaRaw);
         $frontMatter = FrontMatter::parse($mdRaw);
 
-        $regeneratedMeta = LessonMetaGenerator::regenerateLab(
+        $regeneratedMeta = LessonMetaGenerator::regenerateRelatedNode(
             LessonMetaGenerator::regenerateSandbox($metaRaw, $meta['sandbox']),
-            $meta['lab'],
+            $meta['related_node'],
         );
         $regeneratedMd = LessonMetaGenerator::regenerateFrontMatter($mdRaw, [
             'objectives' => $frontMatter['attributes']['objectives'],
@@ -197,7 +197,7 @@ class LessonMetaGeneratorTest extends TestCase
         $reparsedFrontMatter = FrontMatter::parse($regeneratedMd);
 
         $this->assertSame($meta['sandbox'], $reparsedMeta['sandbox']);
-        $this->assertSame($meta['lab'], $reparsedMeta['lab']);
+        $this->assertSame($meta['related_node'], $reparsedMeta['related_node']);
         $this->assertSame($frontMatter['attributes']['objectives'], $reparsedFrontMatter['attributes']['objectives']);
     }
 }

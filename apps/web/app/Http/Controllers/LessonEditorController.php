@@ -147,7 +147,7 @@ class LessonEditorController extends Controller
         $previewLesson->glossary_terms = $draft['glossary_terms'];
         $previewLesson->objectives = $draft['objectives'];
         $previewLesson->sandbox = $draft['sandbox'];
-        $previewLesson->lab = $draft['lab'];
+        $previewLesson->related_node = $draft['related_node'];
         $previewLesson->rich_content = $draft['rich_content'];
 
         return Inertia::render('Lessons/Show', $builder->lessonProps($previewLesson, Auth::user(), trackProgress: false));
@@ -180,9 +180,9 @@ class LessonEditorController extends Controller
             'sandbox.required' => 'required|boolean',
             'sandbox.dataset' => 'nullable|string',
             'sandbox.note' => 'nullable|string',
-            'lab' => 'required|array',
-            'lab.node' => 'nullable|string',
-            'lab.optional' => 'required|boolean',
+            'related_node' => 'required|array',
+            'related_node.node' => 'nullable|string',
+            'related_node.optional' => 'required|boolean',
             // Nur die grobe Form (ein Objekt) wird hier erzwungen -- die
             // eigentliche Schema-/Inhaltspruefung (RichContentValidator,
             // Leseanleitung/Glossar/Werkzeug-Regeln) laeuft ueber
@@ -225,9 +225,9 @@ class LessonEditorController extends Controller
                     'dataset' => $lesson->sandbox['dataset'] ?? null,
                     'note' => $lesson->sandbox['note'] ?? null,
                 ],
-                'lab' => [
-                    'node' => $lesson->lab['node'] ?? null,
-                    'optional' => $lesson->lab['optional'] ?? true,
+                'related_node' => [
+                    'node' => $lesson->related_node['node'] ?? null,
+                    'optional' => $lesson->related_node['optional'] ?? true,
                 ],
                 // CMS-7d.3: rich_content ist die kanonische Prosa-Quelle.
                 // Ist die Spalte noch nicht befuellt, normalisiert derselbe
@@ -246,7 +246,7 @@ class LessonEditorController extends Controller
                 'title' => '', 'teaser' => '', 'level' => 'einsteiger', 'duration_minutes' => 1,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => [],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
             ];
         }
@@ -268,9 +268,9 @@ class LessonEditorController extends Controller
                 'dataset' => $meta['sandbox']['dataset'] ?? null,
                 'note' => $meta['sandbox']['note'] ?? null,
             ],
-            'lab' => [
-                'node' => $meta['lab']['node'] ?? null,
-                'optional' => $meta['lab']['optional'] ?? true,
+            'related_node' => [
+                'node' => $meta['related_node']['node'] ?? null,
+                'optional' => $meta['related_node']['optional'] ?? true,
             ],
             'rich_content' => (new LessonPayloadNormalizer)->normalize(['body' => $this->legacyProse((string) ($entry['body'] ?? ''))])['rich_content'],
         ];

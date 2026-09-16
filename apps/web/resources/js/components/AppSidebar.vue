@@ -45,7 +45,7 @@ const mainNavItems = computed<NavItem[]>(() => {
             icon: LayoutGrid,
         },
         {
-            title: trans('Labs'),
+            title: trans('Herausforderungen'),
             href: nodesIndex(),
             icon: FlaskConical,
         },

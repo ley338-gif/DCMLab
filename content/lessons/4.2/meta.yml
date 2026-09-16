@@ -13,7 +13,7 @@ sandbox:
 
 # Node verbindung-ohne-bild ist seit P10.9 vollstaendig und live
 # verifiziert (Feature 4: Abstract-Syntax-Ablehnung, ADR 0019).
-lab:
+related_node:
   node: verbindung-ohne-bild
   optional: false
 

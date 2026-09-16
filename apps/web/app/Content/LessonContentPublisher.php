@@ -45,7 +45,7 @@ final class LessonContentPublisher
             'objectives' => $payload['objectives'],
             'objectives_count' => count($payload['objectives']),
             'sandbox' => $payload['sandbox'],
-            'lab' => $payload['lab'],
+            'related_node' => $payload['related_node'],
             'rich_content' => $payload['rich_content'],
         ]);
 

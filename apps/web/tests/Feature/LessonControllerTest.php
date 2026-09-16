@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Content\ContentRepository;
 use App\Models\Activity;
+use App\Models\Lab;
+use App\Models\LabAttempt;
 use App\Models\Lesson;
 use App\Models\LessonElement;
 use App\Models\LessonProgress;
@@ -87,14 +89,14 @@ class LessonControllerTest extends TestCase
         );
     }
 
-    public function test_it_shows_the_lab_node_when_it_exists(): void
+    public function test_it_shows_the_related_node_when_it_exists(): void
     {
         $track = Track::factory()->create();
         Lesson::factory()->create([
             'lesson_id' => '1.5',
             'track_id' => $track->id,
             'order' => 0,
-            'lab' => ['node' => 'silent-ct', 'optional' => false],
+            'related_node' => ['node' => 'silent-ct', 'optional' => false],
         ]);
         Node::factory()->create(['slug' => 'silent-ct', 'title' => ['de' => 'Silent CT']]);
 
@@ -105,20 +107,20 @@ class LessonControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->has('elements', 2)
                 ->where('elements.0.type', 'content')
-                ->where('elements.1.type', 'lab')
-                ->where('elements.1.lab_node.slug', 'silent-ct')
-                ->where('elements.1.lab_node.title', 'Silent CT'),
+                ->where('elements.1.type', 'related_node')
+                ->where('elements.1.related_node.slug', 'silent-ct')
+                ->where('elements.1.related_node.title', 'Silent CT'),
             );
     }
 
-    public function test_it_omits_the_lab_node_when_it_does_not_exist_yet(): void
+    public function test_it_omits_the_related_node_when_it_does_not_exist_yet(): void
     {
         $track = Track::factory()->create();
         Lesson::factory()->create([
             'lesson_id' => '1.1',
             'track_id' => $track->id,
             'order' => 0,
-            'lab' => ['node' => 'first-contact', 'optional' => false],
+            'related_node' => ['node' => 'first-contact', 'optional' => false],
         ]);
 
         $user = User::factory()->create();
@@ -293,7 +295,7 @@ class LessonControllerTest extends TestCase
             'track_id' => $track->id,
             'tools' => ['echoscu'], // needs_sandbox: true im echten Bestand
             'sandbox' => ['required' => true, 'dataset' => 'ct-head-01', 'note' => null],
-            'lab' => ['node' => 'silent-ct', 'optional' => false],
+            'related_node' => ['node' => 'silent-ct', 'optional' => false],
             'body' => "Prosa-Inhalt der Lektion.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B",
             'quiz' => [['id' => 'q1', 'type' => 'single', 'answer' => 0]],
         ]);
@@ -320,7 +322,7 @@ class LessonControllerTest extends TestCase
                 ->has('elements', 4)
                 ->where('elements.0.type', 'quiz')
                 ->where('elements.1.type', 'sandbox')
-                ->where('elements.2.type', 'lab')
+                ->where('elements.2.type', 'related_node')
                 ->where('elements.3.type', 'content'),
             );
 
@@ -335,8 +337,95 @@ class LessonControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('elements.0.type', 'content')
                 ->where('elements.1.type', 'sandbox')
-                ->where('elements.2.type', 'lab')
+                ->where('elements.2.type', 'related_node')
                 ->where('elements.3.type', 'quiz'),
+            );
+    }
+
+    /**
+     * CMS-8a, Abschnitt H: innerhalb einer Lesson zeigt ein Lab-Element nur
+     * eine schlanke Launch-/Status-Karte -- "offen" ohne Attempt, "solved"
+     * sobald ein LabAttempt fuer den Nutzer geloest ist.
+     */
+    public function test_it_shows_the_lab_card_open_without_an_attempt(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.6', 'track_id' => $track->id, 'body' => 'Prosa-Inhalt der Lektion.',
+        ]);
+        Lab::factory()->create(['slug' => 'c-echo-lab', 'title' => ['de' => 'C-ECHO Lab'], 'estimated_minutes' => 10]);
+        $labActivity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-lab']);
+
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'content', 'activity_id' => null, 'position' => 0]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $labActivity->id, 'position' => 1]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.6')
+            ->assertInertia(fn ($page) => $page
+                ->has('elements', 2)
+                ->where('elements.1.type', 'lab')
+                ->where('elements.1.lab.slug', 'c-echo-lab')
+                ->where('elements.1.lab.title', 'C-ECHO Lab')
+                ->where('elements.1.lab.estimated_minutes', 10)
+                ->where('elements.1.lab.status', 'not_started'),
+            );
+    }
+
+    public function test_it_shows_the_lab_card_as_solved_once_the_attempt_is_solved(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.7', 'track_id' => $track->id, 'body' => 'Prosa-Inhalt der Lektion.',
+        ]);
+        Lab::factory()->create(['slug' => 'c-echo-lab']);
+        $labActivity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-lab']);
+
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $labActivity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+        LabAttempt::create([
+            'user_id' => $user->id,
+            'activity_id' => $labActivity->id,
+            'status' => 'solved',
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.7')
+            ->assertInertia(fn ($page) => $page
+                ->where('elements.0.type', 'lab')
+                ->where('elements.0.lab.status', 'solved'),
+            );
+    }
+
+    /**
+     * Betreiber-Review (zweite Runde): ein Draft/archiviertes Lab darf einem
+     * normalen Lernenden nicht weiterhin als aktive Karte (Titel/Dauer)
+     * angezeigt werden -- der Klick wuerde ohnehin nur 404 liefern
+     * (LabController schuetzt den direkten Aufruf bereits). Das Element
+     * bleibt im Ergebnis (kein stilles Verschwinden), aber `lab` ist null.
+     */
+    public function test_it_hides_a_draft_labs_card_from_a_learner(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.8', 'track_id' => $track->id, 'body' => 'Prosa-Inhalt der Lektion.',
+        ]);
+        Lab::factory()->create(['slug' => 'draft-lab', 'status' => 'draft']);
+        $labActivity = Activity::factory()->create(['type' => 'lab', 'key' => 'draft-lab']);
+
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $labActivity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.8')
+            ->assertInertia(fn ($page) => $page
+                ->where('elements.0.type', 'lab')
+                ->where('elements.0.lab', null),
             );
     }
 

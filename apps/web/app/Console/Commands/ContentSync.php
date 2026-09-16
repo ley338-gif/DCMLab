@@ -151,7 +151,7 @@ class ContentSync extends Command
                     'requires' => $lesson['meta']['requires'] ?? [],
                     'tools' => $lesson['meta']['tools'] ?? [],
                     'sandbox' => $lesson['meta']['sandbox'] ?? null,
-                    'lab' => $lesson['meta']['lab'] ?? null,
+                    'related_node' => $lesson['meta']['related_node'] ?? null,
                     'glossary_terms' => $lesson['meta']['glossary_terms'] ?? [],
                     'tools_checked' => $lesson['meta']['tools_checked'] ?? null,
                     'status' => $status,
@@ -255,9 +255,9 @@ class ContentSync extends Command
                 $slots[] = ['type' => 'activity', 'activity_id' => $sandboxActivityId];
             }
 
-            $labNodeSlug = $lessonData['meta']['lab']['node'] ?? null;
-            if ($labNodeSlug !== null) {
-                $nodeActivityId = Activity::query()->where('type', 'node')->where('key', $labNodeSlug)->value('id');
+            $relatedNodeSlug = $lessonData['meta']['related_node']['node'] ?? null;
+            if ($relatedNodeSlug !== null) {
+                $nodeActivityId = Activity::query()->where('type', 'node')->where('key', $relatedNodeSlug)->value('id');
                 if ($nodeActivityId !== null) {
                     $slots[] = ['type' => 'activity', 'activity_id' => $nodeActivityId];
                 }

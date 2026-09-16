@@ -6,6 +6,7 @@ import LessonHero from '@/components/lesson/LessonHero.vue';
 import LessonSummary from '@/components/lesson/LessonSummary.vue';
 import LessonToc from '@/components/lesson/LessonToc.vue';
 import LearningObjectives from '@/components/lesson/LearningObjectives.vue';
+import LabCard from '@/components/lesson/LabCard.vue';
 import PracticeTask from '@/components/lesson/PracticeTask.vue';
 import ToolGrid from '@/components/lesson/ToolGrid.vue';
 import TrackSidebar, {
@@ -37,25 +38,33 @@ type ToolbarData = {
     tools: ToolbarTool[];
     requires: { lesson_id: string; title: string; completed: boolean }[];
     prerequisites_met: boolean;
-    lab_optional: boolean;
+    related_node_optional: boolean;
 };
 
-type LabNode = {
+type RelatedNode = {
     slug: string;
     title: string;
     difficulty: string;
     points: number;
 };
 
+type LabSummary = {
+    slug: string;
+    title: string;
+    estimated_minutes: number;
+    status: string;
+};
+
 type SandboxDataset = { note: string | null; file_count: number | null };
 
 // ADR 0105 (CMS-6b): die geordnete Elementsequenz einer Lektion -- WELCHE
 // Art Element es ist, steht in `type`, nicht mehr in einer fest
-// verdrahteten Body/Sandbox/Lab/Quiz-Abfolge im Template.
+// verdrahteten Body/Sandbox/RelatedNode/Quiz-Abfolge im Template.
 type LessonElement =
     | { type: 'content'; body_html: string }
     | { type: 'sandbox'; dataset: SandboxDataset | null }
-    | { type: 'lab'; lab_node: LabNode | null }
+    | { type: 'related_node'; related_node: RelatedNode | null }
+    | { type: 'lab'; lab: LabSummary | null }
     | { type: 'quiz'; questions: QuizQuestion[] };
 
 type NeighborLesson = { lesson_id: string; title: string } | null;
@@ -170,14 +179,18 @@ const nextNav = computed(() =>
                     :lesson-id="lesson.lesson_id"
                     :needs-sandbox="true"
                     :dataset="element.dataset"
-                    :lab-node="null"
+                    :related-node="null"
                 />
                 <PracticeTask
-                    v-else-if="element.type === 'lab'"
+                    v-else-if="element.type === 'related_node'"
                     :lesson-id="lesson.lesson_id"
                     :needs-sandbox="false"
                     :dataset="null"
-                    :lab-node="element.lab_node"
+                    :related-node="element.related_node"
+                />
+                <LabCard
+                    v-else-if="element.type === 'lab'"
+                    :lab="element.lab"
                 />
                 <QuizSection
                     v-else-if="element.type === 'quiz'"

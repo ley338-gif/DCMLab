@@ -5,6 +5,7 @@ namespace Tests\Unit\Content;
 use App\Content\ActivityContentApplier;
 use App\Content\ContentRepository;
 use App\Models\Activity;
+use App\Models\Lab;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\Track;
@@ -41,7 +42,7 @@ class ActivityContentApplierTest extends TestCase
 
         $this->contentDir = storage_path('framework/testing/applier-'.uniqid());
         File::ensureDirectoryExists($this->contentDir.'/lessons/1.0');
-        File::put($this->contentDir.'/lessons/1.0/meta.yml', "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: []\nglossary_terms: []\nobjectives_count: 1\nsandbox:\n  required: false\nlab:\n  node: null\n  optional: true\nstatus: draft\n");
+        File::put($this->contentDir.'/lessons/1.0/meta.yml', "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: []\nglossary_terms: []\nobjectives_count: 1\nsandbox:\n  required: false\nrelated_node:\n  node: null\n  optional: true\nstatus: draft\n");
         File::put($this->contentDir.'/lessons/1.0/de.md', "---\ntitle: Alt\nteaser: Alt\nobjectives:\n  - Altes Ziel\n---\n\nAlte Prosa.\n\n```\n\$ dcmdump datei.dcm\n```\n\n**Was du daran abliest:** Test.\n");
         File::put($this->contentDir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: themenfeld.dicom.title\n  status: published\n");
         File::ensureDirectoryExists($this->contentDir.'/nodes/test-node');
@@ -66,7 +67,7 @@ class ActivityContentApplierTest extends TestCase
         $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'objectives' => ['Ziel'], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent(
+            'related_node' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent(
                 'Neue Prosa.',
                 '$ dcmdump datei.dcm',
             ),
@@ -135,7 +136,7 @@ class ActivityContentApplierTest extends TestCase
         $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'objectives' => ['Ziel'], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true],
+            'related_node' => ['node' => null, 'optional' => true],
             'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => [
                 ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Neue Prosa.']]],
             ]],
@@ -167,5 +168,25 @@ class ActivityContentApplierTest extends TestCase
         // content/ bleibt exakt wie in setUp() angelegt -- der Kernpunkt
         // dieses Pfads.
         $this->assertStringNotContainsString('Neuer Text.', File::get($this->contentDir.'/nodes/test-node/de.md'));
+    }
+
+    /**
+     * Anders als bei Node/Lesson gibt es hier gar kein content/**-Verzeichnis
+     * zu verschonen -- ein Lab hatte nie ein Dateipendant (CMS-8a).
+     */
+    public function test_a_lab_draft_is_applied_directly_to_the_db(): void
+    {
+        $lab = Lab::factory()->create(['slug' => 'test-lab', 'title' => ['de' => 'Alt']]);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'test-lab']);
+
+        $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
+            'title' => 'Neu', 'scenario_title' => 'Neues Szenario', 'difficulty' => 'easy',
+            'points' => 10, 'estimated_minutes' => 10, 'runtime_template' => null, 'dataset' => null,
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
+            'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+        ]);
+
+        $this->assertSame([], $issues);
+        $this->assertSame('Neu', $lab->fresh()->title['de']);
     }
 }

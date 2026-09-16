@@ -3,6 +3,9 @@
 namespace App\Content;
 
 use App\Content\RichContent\RichContentRenderer;
+use App\Models\Activity;
+use App\Models\Lab;
+use App\Models\LabAttempt;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Node;
@@ -24,7 +27,7 @@ use Illuminate\Support\Facades\Log;
  * Array: der Live-Aufruf uebergibt die echte, aus der DB geladene Lektion;
  * die Vorschau uebergibt eine in-memory (nie gespeicherte) Kopie, deren
  * entwurfsbetroffene Felder (title/teaser/objectives/level/duration_minutes/
- * tools/requires/glossary_terms/sandbox/lab/rich_content) auf die
+ * tools/requires/glossary_terms/sandbox/related_node/rich_content) auf die
  * Entwurfswerte gesetzt sind -- `body`, Track-Zugehoerigkeit, Quiz und
  * `lesson_elements` bleiben unveraendert, weil der Rich-Content-Cutover
  * (ADR 0118) diese Bereiche nicht anfasst (Quiz bleibt Sache des separaten
@@ -141,12 +144,12 @@ final readonly class LearnerViewBuilder
                 'slug' => $lesson->track->slug,
                 'title_key' => $lesson->track->title_key,
             ],
-            'elements' => $this->elementsFor($lesson, $contentHtml, $quiz, $toolbar),
+            'elements' => $this->elementsFor($lesson, $user, $contentHtml, $quiz, $toolbar),
             'toolbar' => [
                 'tools' => $toolbar['tools'],
                 'requires' => $toolbar['requires'],
                 'prerequisites_met' => $toolbar['prerequisites_met'],
-                'lab_optional' => $toolbar['lab_optional'],
+                'related_node_optional' => $toolbar['related_node_optional'],
             ],
             'progress' => [
                 'status' => $progressStatus,
@@ -244,7 +247,7 @@ final readonly class LearnerViewBuilder
      * @param  array<string, mixed>  $toolbar
      * @return list<array<string, mixed>>
      */
-    private function elementsFor(Lesson $lesson, string $contentHtml, array $quiz, array $toolbar): array
+    private function elementsFor(Lesson $lesson, User $user, string $contentHtml, array $quiz, array $toolbar): array
     {
         $stored = $lesson->elements()->with('activity')->get();
 
@@ -255,8 +258,8 @@ final readonly class LearnerViewBuilder
                 $fallback[] = $this->sandboxElement($toolbar);
             }
 
-            if ($toolbar['lab_node'] !== null) {
-                $fallback[] = $this->labElement($toolbar);
+            if ($toolbar['related_node'] !== null) {
+                $fallback[] = $this->relatedNodeElement($toolbar);
             }
 
             if ($quiz !== []) {
@@ -277,8 +280,9 @@ final readonly class LearnerViewBuilder
 
             $rendered = match ($element->activity?->type) {
                 'sandbox' => $this->sandboxElement($toolbar),
-                'node' => $this->labElement($toolbar),
+                'node' => $this->relatedNodeElement($toolbar),
                 'quiz' => $this->quizElement($quiz),
+                'lab' => $this->labCardElement($element->activity, $user),
                 default => null,
             };
 
@@ -311,9 +315,9 @@ final readonly class LearnerViewBuilder
      * @param  array<string, mixed>  $toolbar
      * @return array<string, mixed>
      */
-    private function labElement(array $toolbar): array
+    private function relatedNodeElement(array $toolbar): array
     {
-        return ['type' => 'lab', 'lab_node' => $toolbar['lab_node']];
+        return ['type' => 'related_node', 'related_node' => $toolbar['related_node']];
     }
 
     /**
@@ -323,6 +327,55 @@ final readonly class LearnerViewBuilder
     private function quizElement(array $quiz): array
     {
         return ['type' => 'quiz', 'questions' => $quiz];
+    }
+
+    /**
+     * Lab (CMS-8a, Abschnitt H): innerhalb einer Lesson wird NUR eine
+     * schlanke Launch-/Status-Karte gezeigt, nie das Terminal -- das lebt
+     * ausschliesslich auf der eigenstaendigen Lab-Route. Kein Analogon zu
+     * `toolbar['related_node']`, weil ein Lab (anders als die Node-Referenz)
+     * kein eigenes Lesson-Spaltenfeld hat: es existiert nur ueber einen
+     * echten `lesson_elements`-Eintrag.
+     *
+     * Betreiber-Review (zweite Runde): loest bewusst NUR ein tatsaechlich
+     * veroeffentlichtes Lab auf -- `LabController` schuetzt einen
+     * Draft/ein archiviertes Lab bereits vor direktem Aufruf, die Karte
+     * selbst tat das bisher nicht und haette so weiterhin Titel/Dauer
+     * gezeigt, waehrend der Klick anschliessend 404 geliefert haette. Eine
+     * kuenftige Studio-Lesson-Vorschau kann CMS-8c bei Bedarf bewusst um
+     * eine Autoren-Ausnahme erweitern -- hier bewusst (noch) keine.
+     *
+     * @return array<string, mixed>
+     */
+    private function labCardElement(Activity $activity, User $user): array
+    {
+        $lab = Lab::where('slug', $activity->key)->where('status', 'published')->first();
+
+        if ($lab === null) {
+            // Kein veroeffentlichtes Lab (fehlt ganz, oder ist noch
+            // draft/bereits archiviert) -- das Element bleibt trotzdem im
+            // Ergebnis (kein stilles default => null wie bei einem echten
+            // unbekannten Typ), damit ein toter/verwaister Verweis
+            // sichtbar/debugbar bleibt, statt als aktive Karte zu leaken.
+            Log::warning('learner_view.lab_reference_unavailable', ['activity_key' => $activity->key]);
+
+            return ['type' => 'lab', 'lab' => null];
+        }
+
+        $attempt = LabAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('activity_id', $activity->id)
+            ->first();
+
+        return [
+            'type' => 'lab',
+            'lab' => [
+                'slug' => $lab->slug,
+                'title' => $lab->title['de'] ?? $lab->slug,
+                'estimated_minutes' => $lab->estimated_minutes,
+                'status' => $attempt === null ? 'not_started' : $attempt->status,
+            ],
+        ];
     }
 
     /**
@@ -370,14 +423,14 @@ final readonly class LearnerViewBuilder
             ])
             ->values();
 
-        $labNode = null;
-        $nodeSlug = $lesson->lab['node'] ?? null;
+        $relatedNode = null;
+        $nodeSlug = $lesson->related_node['node'] ?? null;
 
         if ($nodeSlug !== null) {
             $node = Node::where('slug', $nodeSlug)->first();
 
             if ($node !== null) {
-                $labNode = [
+                $relatedNode = [
                     'slug' => $node->slug,
                     'title' => $node->title['de'] ?? $node->slug,
                     'difficulty' => $node->difficulty,
@@ -395,8 +448,8 @@ final readonly class LearnerViewBuilder
             ] : null,
             'requires' => $requiresLessons,
             'prerequisites_met' => $unmetIds === [],
-            'lab_node' => $labNode,
-            'lab_optional' => (bool) ($lesson->lab['optional'] ?? false),
+            'related_node' => $relatedNode,
+            'related_node_optional' => (bool) ($lesson->related_node['optional'] ?? false),
         ];
     }
 }

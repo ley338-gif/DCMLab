@@ -16,7 +16,7 @@ sandbox:
 # Seit P10.21 (ADR 0031) hat die Spielwiese echte Gegenparts: Orthanc
 # beherrscht Storage Commitment nativ, MPPS beantwortet ein eigener,
 # echter pynetdicom-SCP (containers/toolbox/scripts/mppsscp.py).
-lab:
+related_node:
   node: null
   optional: true
 

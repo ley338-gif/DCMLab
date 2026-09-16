@@ -10,8 +10,10 @@ use Symfony\Component\Yaml\Yaml;
  * `LessonQuizGenerator`: nur die genannten Felder werden ersetzt, jede
  * andere Zeile (Kommentare eingeschlossen) bleibt unangetastet.
  * META_FIELDS/FRONT_MATTER_FIELDS decken einzeilige Felder ab (Skalar oder
- * Inline-Liste `[a, b]`); `regenerateSandbox()`/`regenerateLab()` (ADR 0089)
- * ersetzen die verschachtelten `sandbox:`/`lab:`-Bloecke nach demselben
+ * Inline-Liste `[a, b]`); `regenerateSandbox()`/`regenerateRelatedNode()`
+ * (ADR 0089, Feld umbenannt von `lab` auf `related_node` in CMS-8a, um die
+ * Kollision mit dem neuen Lab-Activity-Typ zu vermeiden) ersetzen die
+ * verschachtelten `sandbox:`/`related_node:`-Bloecke nach demselben
  * Block-Muster wie `LessonQuizGenerator`s `quiz:`-Block,
  * `regenerateFrontMatter()`s `objectives`-Zweig die mehrzeilige Liste in
  * der Frontmatter.
@@ -62,21 +64,23 @@ final class LessonMetaGenerator
     }
 
     /**
-     * `lab: {node, optional}` (ADR 0089) -- `node` steht im echten Bestand
-     * immer als Zeile da, auch wenn kein Lab zugeordnet ist (`node: null`).
+     * `related_node: {node, optional}` (ADR 0089; Feldname seit CMS-8a --
+     * vorher `lab`, umbenannt zur Vermeidung der Kollision mit dem neuen
+     * Lab-Activity-Typ) -- `node` steht im echten Bestand immer als Zeile
+     * da, auch wenn keine Node zugeordnet ist (`node: null`).
      *
-     * @param  array{node?: string|null, optional?: bool}  $lab
+     * @param  array{node?: string|null, optional?: bool}  $relatedNode
      */
-    public static function regenerateLab(string $metaRaw, array $lab): string
+    public static function regenerateRelatedNode(string $metaRaw, array $relatedNode): string
     {
-        $node = $lab['node'] ?? null;
+        $node = $relatedNode['node'] ?? null;
         $lines = [
-            'lab:',
+            'related_node:',
             '  node: '.($node === null || $node === '' ? 'null' : self::dumpValue($node)),
-            '  optional: '.self::dumpValue((bool) ($lab['optional'] ?? true)),
+            '  optional: '.self::dumpValue((bool) ($relatedNode['optional'] ?? true)),
         ];
 
-        return self::replaceBlock($metaRaw, 'lab', implode("\n", $lines)."\n");
+        return self::replaceBlock($metaRaw, 'related_node', implode("\n", $lines)."\n");
     }
 
     /**

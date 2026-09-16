@@ -16,7 +16,7 @@ sandbox:
 # Spielwiese selbst einen echten Worklist-Dienst (Orthancs Worklists-Plugin,
 # siehe ADR 0030) -- der eigene Fliesstext dieser Lektion ist damit
 # vollstaendig geschrieben.
-lab:
+related_node:
   node: worklist-query-empty
   optional: false
 

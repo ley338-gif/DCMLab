@@ -17,9 +17,10 @@ use App\Models\Activity;
  * Quiz-Entwurf (`quiz`-Schluessel -- weiterhin an seine Lektion gebunden,
  * ADR 0097) seit ADR 0104 ueber `QuizContentPublisher`, ein Node-Entwurf seit
  * ADR 0108 (CMS-6d Teil 2) ueber `NodeContentPublisher` -- `content/` wird in
- * allen drei Faellen nicht mehr angefasst. Jeder andere Fall (Pruefung,
- * Achievement) nutzt weiterhin `ContentWriter`, bis auch deren Fliesstext
- * DB-gefuehrt ist (CMS-8).
+ * allen drei Faellen nicht mehr angefasst. Ein Lab-Entwurf (CMS-8a,
+ * Entscheidung C) geht seit Anfang an ueber `LabContentPublisher`, hat nie
+ * ein content/**-Pendant gehabt. Jeder andere Fall (Pruefung, Achievement)
+ * nutzt weiterhin `ContentWriter`, bis auch deren Fliesstext DB-gefuehrt ist.
  */
 final readonly class ActivityContentApplier
 {
@@ -29,6 +30,7 @@ final readonly class ActivityContentApplier
         private LessonContentPublisher $lessonPublisher,
         private QuizContentPublisher $quizPublisher,
         private NodeContentPublisher $nodePublisher,
+        private LabContentPublisher $labPublisher,
     ) {}
 
     /**
@@ -56,6 +58,12 @@ final readonly class ActivityContentApplier
 
         if ($activityModel->type === ActivityType::Node->value) {
             $this->nodePublisher->publish($activityModel, $payload);
+
+            return [];
+        }
+
+        if ($activityModel->type === ActivityType::Lab->value) {
+            $this->labPublisher->publish($activityModel, $payload);
 
             return [];
         }

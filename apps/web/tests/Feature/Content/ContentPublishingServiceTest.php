@@ -5,6 +5,7 @@ namespace Tests\Feature\Content;
 use App\Content\ContentPublishingService;
 use App\Models\Activity;
 use App\Models\ContentVersion;
+use App\Models\Lab;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\Themenfeld;
@@ -73,7 +74,7 @@ class ContentPublishingServiceTest extends TestCase
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true],
+            'related_node' => ['node' => null, 'optional' => true],
             'rich_content' => $this->validRichContent($text),
         ];
     }
@@ -229,7 +230,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Wiederhergestellt', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 // Kein rich_content-Schluessel -- eine echte Vor-Cutover-Revision.
                 // Codeblock + Leseanleitung noetig, damit die HEUTIGE
                 // Validierung (checkRichContentExampleRule(), nach der
@@ -290,7 +291,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Alt', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 // Historisches Legacy-Payload: NUR `before`, wie der
                 // Vor-7d.3-Editor es tatsaechlich gespeichert hat.
                 'body' => "Historische Vor-Quiz-Prosa.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
@@ -399,7 +400,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Legacy-Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
@@ -444,7 +445,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Alter Entwurf', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Alter Entwurfstext.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id,
@@ -478,7 +479,7 @@ class ContentPublishingServiceTest extends TestCase
             'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true],
+            'related_node' => ['node' => null, 'optional' => true],
             'body' => "{$text}\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
         ];
 
@@ -522,7 +523,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Nachtraeglich veroeffentlicht', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Alter Entwurfstext.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id,
@@ -541,7 +542,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Noch aelter', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Noch aelterer Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
@@ -574,7 +575,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Legacy-Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
@@ -735,6 +736,86 @@ class ContentPublishingServiceTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('briefing_html', fn (string $html) => str_contains($html, 'Briefing-Text.')),
             );
+    }
+
+    /**
+     * CMS-8a, Betreiber-Review vor #128: ein Lab-Entwurf laeuft durch
+     * denselben atomaren Publish-Pfad wie Lesson/Node -- LabContentPublisher
+     * wird ueber ActivityContentApplier erreicht, nicht direkt aufgerufen.
+     */
+    public function test_publishing_a_lab_draft_writes_it_via_content_publishing_service_and_the_learner_sees_the_briefing(): void
+    {
+        $lab = Lab::factory()->create(['slug' => 'c-echo-connectivity', 'status' => 'published']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $reviewer = User::factory()->reviewer()->create();
+
+        $payload = [
+            'title' => 'C-ECHO Connectivity Lab', 'scenario_title' => 'Verbindung pruefen',
+            'difficulty' => 'easy', 'points' => 10, 'estimated_minutes' => 10,
+            'runtime_template' => 'dicom-basic-tools', 'dataset' => null,
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
+            'rich_content' => $this->richContent('Briefing-Text.'),
+        ];
+
+        $version = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review', 'payload' => $payload,
+            'is_current' => false, 'created_by' => $reviewer->id,
+        ]);
+
+        $issues = app(ContentPublishingService::class)->publish($version, $reviewer);
+        $this->assertSame([], $issues);
+
+        $lab->refresh();
+        $this->assertSame('C-ECHO Connectivity Lab', $lab->title['de']);
+        $this->assertSame('Briefing-Text.', $lab->rich_content['content'][0]['content'][0]['text']);
+
+        $learner = User::factory()->create();
+        $this->actingAs($learner)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertInertia(fn ($page) => $page
+                ->where('briefing_html', fn (string $html) => str_contains($html, 'Briefing-Text.')),
+            );
+    }
+
+    /**
+     * CMS-8a, Betreiber-Review vor #128: dieselbe Wiederherstellungs-Logik
+     * wie fuer Lesson/Node -- restoreVersion() normalisiert (hier ein
+     * No-Op, da Lab nichts normalisiert), validiert erneut gegen die
+     * heutigen Regeln und wendet ueber denselben ActivityContentApplier an.
+     */
+    public function test_restoring_a_published_lab_version_reapplies_it_via_content_publishing_service(): void
+    {
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'status' => 'published']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $historicalAuthor = User::factory()->create();
+        $performer = User::factory()->reviewer()->create();
+
+        $currentPayload = [
+            'title' => 'Aktuell', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
+            'points' => 10, 'estimated_minutes' => 10, 'assertions' => [],
+            'rich_content' => $this->richContent('Aktuell.'),
+        ];
+        $historicalPayload = [
+            'title' => 'Historisch', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
+            'points' => 10, 'estimated_minutes' => 10, 'assertions' => [],
+            'rich_content' => $this->richContent('Historisch.'),
+        ];
+
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published', 'payload' => $currentPayload,
+            'is_current' => true, 'created_by' => $historicalAuthor->id, 'reviewed_by' => $historicalAuthor->id,
+        ]);
+        $historical = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published', 'payload' => $historicalPayload,
+            'is_current' => false, 'created_by' => $historicalAuthor->id, 'reviewed_by' => $historicalAuthor->id,
+        ]);
+
+        $restored = app(ContentPublishingService::class)->restoreVersion($historical, $performer);
+
+        $this->assertTrue($restored->is_current);
+        $this->assertSame($performer->id, $restored->created_by);
+        $this->assertSame($performer->id, $restored->reviewed_by);
+        $this->assertSame('Historisch', Lab::where('slug', 'c-echo-connectivity')->value('title')['de'] ?? null);
     }
 
     private function engineState(): array

@@ -16,7 +16,7 @@ tools: [orthanc, dcmdump, echoscu, storescu, storescp, findscu, tshark, pydicom]
 sandbox:
   required: true
   dataset: ct-thorax-60
-lab:
+related_node:
   node: null
   optional: true
 glossary_terms: [scu, scp]

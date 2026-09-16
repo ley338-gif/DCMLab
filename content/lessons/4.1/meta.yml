@@ -11,7 +11,7 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-lab:
+related_node:
   node: silent-ct
   optional: false
 

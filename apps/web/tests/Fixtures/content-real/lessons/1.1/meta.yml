@@ -9,7 +9,7 @@ tools: [dcmftest, dcmdump]
 sandbox:
   required: true
   dataset: ct-thorax-60
-lab:
+related_node:
   node: first-contact
   optional: false
 glossary_terms: [dicom, instance, tag, c-store, dimse]

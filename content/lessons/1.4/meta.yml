@@ -10,7 +10,7 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-lab:
+related_node:
   node: zwillinge
   optional: false
 glossary_terms: [uid, sop-class, study-instance-uid]

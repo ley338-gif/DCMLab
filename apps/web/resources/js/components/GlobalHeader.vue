@@ -109,7 +109,9 @@ function isActive(prefix: string): boolean {
                                         class="size-4"
                                         aria-hidden="true"
                                     />
-                                    <span>{{ trans('Labs') }}</span>
+                                    <span>{{
+                                        trans('Herausforderungen')
+                                    }}</span>
                                 </Link>
                                 <Link
                                     v-if="user"
@@ -196,7 +198,7 @@ function isActive(prefix: string): boolean {
                     :class="{ 'is-active': isActive('/de/nodes') }"
                 >
                     <FlaskConical class="size-4" aria-hidden="true" />
-                    {{ trans('Labs') }}
+                    {{ trans('Herausforderungen') }}
                 </Link>
                 <Link
                     v-if="user"

@@ -583,7 +583,7 @@
     margin-bottom: 14px;
 }
 
-.practice-task-lab {
+.practice-task-related-node {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -595,12 +595,35 @@
     font-weight: 500;
 }
 
-.practice-task-lab:hover {
+.practice-task-related-node:hover {
     background: var(--accent);
 }
 
-.practice-task-lab span {
+.practice-task-related-node span {
     margin-right: auto;
+}
+
+.practice-task-lab-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.practice-task-lab-card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.practice-task-lab-card-cta:hover {
+    text-decoration: underline;
 }
 
 .knowledge-check-questions {

@@ -6,6 +6,7 @@ use App\Activities\AchievementCatalogActivity;
 use App\Activities\ActivityRegistry;
 use App\Activities\ActivityType;
 use App\Activities\ExamActivity;
+use App\Activities\LabActivity;
 use App\Activities\LessonActivity;
 use App\Activities\NodeActivity;
 use App\Activities\QuizActivity;
@@ -15,6 +16,7 @@ use App\Content\ContentRepository;
 use App\Content\HttpCacheInvalidator;
 use App\Content\NullCacheInvalidator;
 use App\Models\Activity;
+use App\Models\Lab;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\Track;
@@ -102,6 +104,17 @@ class AppServiceProvider extends ServiceProvider
                 ActivityType::Achievement,
                 fn (Activity $activity) => new AchievementCatalogActivity(
                     $app->make(ContentRepository::class),
+                ),
+            );
+            // Lab (CMS-8a, Entscheidung C) hat kein content/**-Dateipendant
+            // -- braucht deshalb, anders als die anderen Typen hier, die
+            // Activity-Zeile selbst (fuer LabAttempt::activity_id), nicht nur
+            // ihren `key`.
+            $registry->register(
+                ActivityType::Lab,
+                fn (Activity $activity) => new LabActivity(
+                    $activity,
+                    Lab::where('slug', $activity->key)->firstOrFail(),
                 ),
             );
 

@@ -14,7 +14,7 @@ sandbox:
 # Kein passender Node-Stub vorhanden -- Fliesstext seit P10.19
 # vollstaendig ohne Lab (ADR 0029). Erstmals mit echtem tshark-Mitschnitt:
 # Feature "tshark im Toolbox-Image" (services/sandbox NET_RAW/NET_ADMIN).
-lab:
+related_node:
   node: null
   optional: true
 
