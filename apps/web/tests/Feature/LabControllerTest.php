@@ -43,6 +43,7 @@ class LabControllerTest extends TestCase
                 ->where('lab.title', 'C-ECHO Connectivity Lab')
                 ->where('lab.scenario_title', 'Verbindung pruefen')
                 ->where('attempt', null)
+                ->where('can_start', true)
                 ->where('briefing_html', fn (string $html) => str_contains($html, 'Pruefe die Verbindung.')),
             );
 
@@ -134,6 +135,30 @@ class LabControllerTest extends TestCase
         $author = User::factory()->author()->create();
         $activity->authorUsers()->attach($author);
 
+        $this->actingAs($author)
+            ->get('/de/labs/draft-lab')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('can_start', false));
+    }
+
+    /**
+     * Betreiber-Review (zweite Runde): der Blocker aus der ersten
+     * #128-Review -- show() erlaubt einem Autor bewusst eine Vorschau
+     * eines Drafts, start() darf diese Ausnahme aber NIE teilen, sonst
+     * wuerde eine reine Vorschau (ab CMS-8d) eine echte SandboxSession/
+     * Quota/TTL ausloesen koennen. Ansehen und Beginnen sind deshalb
+     * absichtlich unterschiedlich streng gegatet.
+     */
+    public function test_an_author_can_preview_a_draft_lab_but_cannot_start_it(): void
+    {
+        Lab::factory()->create(['slug' => 'draft-lab', 'status' => 'draft']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'draft-lab']);
+        $author = User::factory()->author()->create();
+        $activity->authorUsers()->attach($author);
+
         $this->actingAs($author)->get('/de/labs/draft-lab')->assertOk();
+        $this->actingAs($author)->post('/de/labs/draft-lab/start')->assertNotFound();
+
+        $this->assertDatabaseCount('lab_attempts', 0);
     }
 }

@@ -16,6 +16,12 @@ return new class extends Migration
      * sie ist reine, mit dem Rest der Lab-Felder gemeinsam versionierte
      * Autorenkonfiguration (CMS-8c), keine Laufzeit- oder Lernfortschritts-
      * Buchfuehrung (die lebt in `lab_attempts`/`sandbox_sessions`).
+     *
+     * Betreiber-Review vor #128: bewusst KEIN eigenes `source_hash` (anders
+     * als `nodes`) -- `activities.source_hash` deckt bereits ab, ob sich der
+     * zuletzt veroeffentlichte Payload geaendert hat; ein zweiter Hash ohne
+     * eigene, definierte Semantik waere nur Ballast, den `LabContentPublisher`
+     * ohnehin nie pflegen wuerde.
      */
     public function up(): void
     {
@@ -32,7 +38,6 @@ return new class extends Migration
             $table->json('title'); // {"de": "..."}
             $table->json('scenario_title');
             $table->json('rich_content')->nullable();
-            $table->string('source_hash', 64);
             $table->timestamps();
         });
     }

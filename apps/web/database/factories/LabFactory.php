@@ -28,7 +28,6 @@ class LabFactory extends Factory
             'title' => ['de' => fake()->words(2, true)],
             'scenario_title' => ['de' => fake()->sentence()],
             'rich_content' => null,
-            'source_hash' => fake()->sha256(),
         ];
     }
 }

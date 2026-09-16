@@ -337,18 +337,27 @@ final readonly class LearnerViewBuilder
      * kein eigenes Lesson-Spaltenfeld hat: es existiert nur ueber einen
      * echten `lesson_elements`-Eintrag.
      *
+     * Betreiber-Review (zweite Runde): loest bewusst NUR ein tatsaechlich
+     * veroeffentlichtes Lab auf -- `LabController` schuetzt einen
+     * Draft/ein archiviertes Lab bereits vor direktem Aufruf, die Karte
+     * selbst tat das bisher nicht und haette so weiterhin Titel/Dauer
+     * gezeigt, waehrend der Klick anschliessend 404 geliefert haette. Eine
+     * kuenftige Studio-Lesson-Vorschau kann CMS-8c bei Bedarf bewusst um
+     * eine Autoren-Ausnahme erweitern -- hier bewusst (noch) keine.
+     *
      * @return array<string, mixed>
      */
     private function labCardElement(Activity $activity, User $user): array
     {
-        $lab = Lab::where('slug', $activity->key)->first();
+        $lab = Lab::where('slug', $activity->key)->where('status', 'published')->first();
 
         if ($lab === null) {
-            // Inkonsistenter Zustand (Activity zeigt auf kein existierendes
-            // Lab mehr) -- das Element bleibt trotzdem im Ergebnis (kein
-            // stilles default => null wie bei einem echten unbekannten Typ),
-            // damit ein verwaister Verweis sichtbar/debugbar bleibt.
-            Log::warning('learner_view.lab_reference_missing', ['activity_key' => $activity->key]);
+            // Kein veroeffentlichtes Lab (fehlt ganz, oder ist noch
+            // draft/bereits archiviert) -- das Element bleibt trotzdem im
+            // Ergebnis (kein stilles default => null wie bei einem echten
+            // unbekannten Typ), damit ein toter/verwaister Verweis
+            // sichtbar/debugbar bleibt, statt als aktive Karte zu leaken.
+            Log::warning('learner_view.lab_reference_unavailable', ['activity_key' => $activity->key]);
 
             return ['type' => 'lab', 'lab' => null];
         }

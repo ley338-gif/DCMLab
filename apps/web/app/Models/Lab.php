@@ -26,11 +26,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property array<string, string> $title
  * @property array<string, string> $scenario_title
  * @property array<string, mixed>|null $rich_content
- * @property string $source_hash
  */
 #[Fillable([
     'slug', 'difficulty', 'points', 'estimated_minutes', 'runtime_template', 'dataset',
-    'assertions', 'status', 'title', 'scenario_title', 'rich_content', 'source_hash',
+    'assertions', 'status', 'title', 'scenario_title', 'rich_content',
 ])]
 class Lab extends Model
 {

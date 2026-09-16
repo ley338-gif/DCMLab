@@ -401,6 +401,34 @@ class LessonControllerTest extends TestCase
             );
     }
 
+    /**
+     * Betreiber-Review (zweite Runde): ein Draft/archiviertes Lab darf einem
+     * normalen Lernenden nicht weiterhin als aktive Karte (Titel/Dauer)
+     * angezeigt werden -- der Klick wuerde ohnehin nur 404 liefern
+     * (LabController schuetzt den direkten Aufruf bereits). Das Element
+     * bleibt im Ergebnis (kein stilles Verschwinden), aber `lab` ist null.
+     */
+    public function test_it_hides_a_draft_labs_card_from_a_learner(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.8', 'track_id' => $track->id, 'body' => 'Prosa-Inhalt der Lektion.',
+        ]);
+        Lab::factory()->create(['slug' => 'draft-lab', 'status' => 'draft']);
+        $labActivity = Activity::factory()->create(['type' => 'lab', 'key' => 'draft-lab']);
+
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $labActivity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.8')
+            ->assertInertia(fn ($page) => $page
+                ->where('elements.0.type', 'lab')
+                ->where('elements.0.lab', null),
+            );
+    }
+
     public function test_visiting_creates_progress_and_second_visit_is_detected(): void
     {
         $track = Track::factory()->create();

@@ -31,7 +31,17 @@ final readonly class ActivitySupports
         public bool $previewable = false,
         /** Kann eine Instanz dieses Typs dupliziert werden? Noch nicht gebaut (CMS-4). */
         public bool $duplicatable = false,
-        /** Nimmt eine eigene Instanz tatsaechlich am content_versions-Entwurfszyklus teil, d. h. wertet ihr eigenes serialize($draft) den Entwurf aus? */
+        /**
+         * Nimmt eine eigene Instanz mit einem eigenen content_versions-
+         * Datensatz am Draft/Review/Publish/Restore-Lebenszyklus teil?
+         * Sagt NICHTS darueber aus, WIE ein freigegebener Entwurf wirksam
+         * wird -- ein dateibasierter Typ (Node) laesst serialize($draft)
+         * echte content/**-Dateien regenerieren, ein DB-nativer Typ ohne
+         * Dateipendant (Lab, CMS-8a) ist genauso versionable, obwohl
+         * serialize() dort immer [] liefert (ActivityContentApplier
+         * dispatcht ihn direkt an einen eigenen ContentPublisher statt an
+         * ContentWriter).
+         */
         public bool $versionable = false,
         /** Kann dieselbe Instanz von mehreren anderen Aktivitaeten/Kontexten referenziert werden? */
         public bool $reusable = false,

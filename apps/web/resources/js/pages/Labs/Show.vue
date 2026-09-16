@@ -18,6 +18,7 @@ const props = defineProps<{
     lab: LabProps;
     briefing_html: string | null;
     attempt: { status: string } | null;
+    can_start: boolean;
 }>();
 
 const statusLabels: Record<string, string> = {
@@ -56,7 +57,7 @@ const statusLabels: Record<string, string> = {
         </p>
 
         <Form
-            v-if="!attempt"
+            v-if="!attempt && can_start"
             v-bind="startLab.form(lab.slug)"
             v-slot="{ processing }"
             class="mt-6"

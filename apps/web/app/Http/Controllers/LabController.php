@@ -25,14 +25,19 @@ use Inertia\Response;
  * einen Attempt anlegt) -- sobald ein Attempt ab CMS-8b/8d an eine echte
  * SandboxSession/TTL/Quota/`activity_progress` gekoppelt ist, soll "started"
  * eindeutig heissen "der Nutzer hat die praktische Uebung begonnen", nicht
- * nur "das Briefing angesehen".
+ * nur "das Briefing angesehen". Betreiber-Review (zweite Runde): show() und
+ * start() pruefen deshalb bewusst UNTERSCHIEDLICH streng -- ein Autor darf
+ * einen Draft ansehen (Vorschau), aber NIE darueber einen echten Attempt
+ * anlegen. Sonst wuerde eine reine Vorschau ab CMS-8d eine echte
+ * SandboxSession/Quota/TTL ausloesen koennen.
  */
 class LabController extends Controller
 {
     public function show(Lab $lab, ContentRepository $content): Response
     {
-        $activity = $this->publishedOrPreviewableActivity($lab);
-        $attempt = $this->attemptFor($activity);
+        $this->assertVisible($lab);
+        $activity = $this->activityFor($lab);
+        $attempt = $activity === null ? null : $this->attemptFor($activity);
 
         return Inertia::render('Labs/Show', [
             'lab' => [
@@ -47,6 +52,11 @@ class LabController extends Controller
                 ? (new RichContentRenderer($content->glossary()))->render($lab->rich_content)
                 : null,
             'attempt' => $attempt === null ? null : ['status' => $attempt->status],
+            // Steuert den "Lab starten"-Button in Labs/Show.vue -- eine
+            // Autoren-Vorschau eines Drafts darf den Button gar nicht erst
+            // zeigen, sonst waere die 404-Sperre in start() die einzige
+            // Verteidigungslinie.
+            'can_start' => $lab->status === 'published',
         ]);
     }
 
@@ -54,10 +64,16 @@ class LabController extends Controller
      * Legt den Attempt erst hier an, nicht beim reinen Ansehen -- ein
      * bereits bestehender Attempt (insbesondere ein bereits geloester) wird
      * dabei nie zurueckgesetzt, ein zweiter Klick ist deshalb folgenlos.
+     *
+     * Betreiber-Review (zweite Runde): NUR fuer ein tatsaechlich
+     * veroeffentlichtes Lab -- anders als show() gilt hier keine
+     * Autoren-Ausnahme. Eine Draft-Vorschau darf niemals einen echten
+     * LabAttempt erzeugen.
      */
     public function start(Request $request, Lab $lab): RedirectResponse
     {
-        $activity = $this->publishedOrPreviewableActivity($lab);
+        abort_unless($lab->status === 'published', 404);
+        $activity = Activity::query()->where('type', 'lab')->where('key', $lab->slug)->firstOrFail();
 
         LabAttempt::firstOrCreate(
             ['user_id' => $request->user()->id, 'activity_id' => $activity->id],
@@ -70,21 +86,24 @@ class LabController extends Controller
     /**
      * Wie bei Node (ADR 0110-Muster): ein nicht veroeffentlichtes Lab ist
      * fuer normale Lernende gesperrt, ausser fuer wen die zugehoerige
-     * Activity bearbeiten darf (Vorschau aus dem Studio-Editor, CMS-8c) --
-     * dieselbe Pruefung gilt fuer start(), sonst koennte ein Lernender einen
-     * Attempt auf einem noch gar nicht freigegebenen Lab anlegen.
+     * Activity bearbeiten darf (Vorschau aus dem Studio-Editor, CMS-8c).
      */
-    private function publishedOrPreviewableActivity(Lab $lab): Activity
+    private function assertVisible(Lab $lab): void
     {
-        $activity = Activity::query()->where('type', 'lab')->where('key', $lab->slug)->first();
+        $activity = $this->activityFor($lab);
 
-        if ($lab->status !== 'published') {
-            abort_unless($activity !== null && Gate::allows('update', $activity), 404);
+        if ($lab->status === 'published') {
+            abort_if($activity === null, 404);
+
+            return;
         }
 
-        abort_if($activity === null, 404);
+        abort_unless($activity !== null && Gate::allows('update', $activity), 404);
+    }
 
-        return $activity;
+    private function activityFor(Lab $lab): ?Activity
+    {
+        return Activity::query()->where('type', 'lab')->where('key', $lab->slug)->first();
     }
 
     private function attemptFor(Activity $activity): ?LabAttempt
