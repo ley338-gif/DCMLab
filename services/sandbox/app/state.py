@@ -22,6 +22,13 @@ ACTIVE_KEY = "sandbox:active"
 QUEUE_KEY = "sandbox:queue"
 USER_ACTIVE_PREFIX = "sandbox:user_active:"
 QUOTA_PREFIX = "sandbox:quota:"
+EVENTS_PREFIX = "sandbox:events:"
+
+# Deckel gegen unbegrenztes Redis-Wachstum bei langen Sitzungen (CMS-8b,
+# Betreiber-Review) -- fuer den C-ECHO-Nachweis (ein einzelner Befehl)
+# voellig ausreichend, gross genug fuer eine realistische Autoren-/
+# Debug-Sitzung.
+MAX_EXEC_EVENTS = 200
 
 
 def _decode(value: Any) -> str:
@@ -39,6 +46,13 @@ class ActiveSandbox:
     toolbox_container_id: str
     started_at: str
     last_activity_at: str
+    # CMS-8b, Betreiber-Review: opaker Eigentuemer-/Idempotenz-Schluessel
+    # vom Aufrufer (z. B. "sandbox:user:42" oder "lab-attempt:123") --
+    # entscheidet, ob eine bestehende Sitzung fuer denselben Nutzer
+    # wiederverwendet werden darf, oder ob es ein Konflikt ist (siehe
+    # orchestrator.create_sandbox()). Default "" fuer Abwaertskompatibilitaet
+    # mit vor CMS-8b geschriebenem Redis-Zustand.
+    runtime_key: str = ""
 
     def to_json(self) -> str:
         return json.dumps(asdict(self))
@@ -54,6 +68,8 @@ class QueuedRequest:
     user_id: str
     dataset_slug: str
     queued_at: str
+    template_slug: str = ""
+    runtime_key: str = ""
 
     def to_json(self) -> str:
         return json.dumps(asdict(self))
@@ -109,7 +125,25 @@ def remove_active(r: RedisLike, sandbox_id: str) -> ActiveSandbox | None:
         return None
     r.hdel(ACTIVE_KEY, sandbox_id)
     r.delete(USER_ACTIVE_PREFIX + sandbox.user_id)
+    # Kein verwaister Redis-Key nach Sitzungsende (CMS-8b, Betreiber-Review).
+    r.delete(EVENTS_PREFIX + sandbox_id)
     return sandbox
+
+
+def append_exec_event(r: RedisLike, sandbox_id: str, event: dict[str, object]) -> None:
+    """Exec facts (CMS-8b): haengt einen ausgefuehrten Befehl an die
+    Redis-Liste dieser Sitzung an, gedeckelt auf die letzten
+    `MAX_EXEC_EVENTS` Eintraege (LTRIM), damit eine lange Sitzung nicht
+    unbegrenzt waechst."""
+
+    key = EVENTS_PREFIX + sandbox_id
+    r.rpush(key, json.dumps(event))
+    r.ltrim(key, -MAX_EXEC_EVENTS, -1)
+
+
+def list_exec_events(r: RedisLike, sandbox_id: str) -> list[dict[str, object]]:
+    raw_entries = cast("list[Any]", r.lrange(EVENTS_PREFIX + sandbox_id, 0, -1))
+    return [json.loads(_decode(v)) for v in raw_entries]
 
 
 def quota_used_seconds(r: RedisLike, user_id: str, day: str) -> int:
@@ -132,6 +166,40 @@ def queue_position(r: RedisLike, request_id: str) -> int | None:
     for index, entry in enumerate(entries):
         if entry.request_id == request_id:
             return index + 1
+    return None
+
+
+def queued_request_for_user(r: RedisLike, user_id: str) -> QueuedRequest | None:
+    """CMS-8b, Betreiber-Review (viertes Review): die `runtime_key`-
+    Idempotenz in `orchestrator.create_sandbox()` griff bisher nur fuer
+    AKTIVE Runtimes -- ein bereits wartender Nutzer hat noch keinen
+    `user_active`-Eintrag und konnte so einen zweiten (oder
+    widerspruechlichen) Request in dieselbe Warteschlange stellen. Liefert
+    die aelteste wartende Anfrage dieses Nutzers, falls vorhanden."""
+
+    raw_entries = cast("list[Any]", r.lrange(QUEUE_KEY, 0, -1))
+    for raw in raw_entries:
+        entry = QueuedRequest.from_json(_decode(raw))
+        if entry.user_id == user_id:
+            return entry
+    return None
+
+
+def remove_queued(r: RedisLike, request_id: str) -> QueuedRequest | None:
+    """Gegenstueck zu `remove_active()` fuer eine noch wartende Anfrage
+    (CMS-8b, Betreiber-Review, viertes Review) -- ohne das konnte
+    `delete_sandbox()` einen queued Request gar nicht entfernen: er blieb
+    in der Warteschlange stehen und wurde spaeter trotzdem promoted, obwohl
+    die zugehoerige SandboxSession laengst 'destroyed' war (Zombie-Runtime,
+    CMS-8d-relevant)."""
+
+    raw_entries = cast("list[Any]", r.lrange(QUEUE_KEY, 0, -1))
+    for raw in raw_entries:
+        decoded = _decode(raw)
+        entry = QueuedRequest.from_json(decoded)
+        if entry.request_id == request_id:
+            r.lrem(QUEUE_KEY, 1, decoded)
+            return entry
     return None
 
 

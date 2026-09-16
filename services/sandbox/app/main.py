@@ -5,10 +5,32 @@ from contextlib import asynccontextmanager
 import docker
 import redis
 from fastapi import Depends, FastAPI, HTTPException, status
+from pydantic import BaseModel, Field
 
-from app import datasets_yaml, orchestrator, worklists_yaml
+from app import datasets_yaml, docker_ops, orchestrator, worklists_yaml
 from app.config import settings
 from app.security import require_internal_key
+
+
+class CreateSandboxRequest(BaseModel):
+    user_id: str
+    dataset_slug: str
+    template_slug: str
+    runtime_key: str
+
+
+# Betreiber-Review (CMS-8b, drittes Review): der Befehl wird seit den
+# Exec-Facts nicht mehr nur transient ausgefuehrt, sondern dauerhaft (bis zu
+# MAX_EXEC_EVENTS mal) in Redis gespeichert -- ein unbegrenzt langer
+# Command-String waere damit eine echte Speicherbegrenzungsluecke, nicht nur
+# ein kosmetisches Problem. 4096 Zeichen sind fuer eine Shell-Befehlszeile
+# grosszuegig bemessen (Laravel validiert denselben Wert serverseitig).
+MAX_COMMAND_LENGTH = 4096
+
+
+class ExecRequest(BaseModel):
+    command: str = Field(max_length=MAX_COMMAND_LENGTH)
+
 
 _redis_client: redis.Redis | None = None
 _docker_client: docker.DockerClient | None = None
@@ -65,21 +87,28 @@ router_dependencies = [Depends(require_internal_key)]
 
 
 @app.post("/v1/sandboxes", dependencies=router_dependencies, status_code=status.HTTP_201_CREATED)
-async def create_sandbox(body: dict[str, str]) -> dict[str, object]:
-    user_id = body["user_id"]
-    dataset_slug = body["dataset_slug"]
-
+async def create_sandbox(body: CreateSandboxRequest) -> dict[str, object]:
     try:
         view = await asyncio.to_thread(
             orchestrator.create_sandbox,
             get_redis(),
             get_docker(),
-            user_id=user_id,
-            dataset_slug=dataset_slug,
+            user_id=body.user_id,
+            dataset_slug=body.dataset_slug,
+            template_slug=body.template_slug,
+            runtime_key=body.runtime_key,
         )
     except orchestrator.QuotaExceededError as exc:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, detail="daily quota exceeded",
+        ) from exc
+    except orchestrator.ActiveRuntimeConflictError as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="active_runtime_exists",
+        ) from exc
+    except docker_ops.UnknownTemplateError as exc:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="unknown template_slug",
         ) from exc
 
     return _view_response(view)
@@ -104,19 +133,33 @@ async def get_sandbox(sandbox_id: str) -> dict[str, object]:
 
 
 @app.post("/v1/sandboxes/{sandbox_id}/exec", dependencies=router_dependencies)
-async def exec_command(sandbox_id: str, body: dict[str, str]) -> dict[str, object]:
+async def exec_command(sandbox_id: str, body: ExecRequest) -> dict[str, object]:
     try:
         result = await asyncio.to_thread(
             orchestrator.exec_command,
             get_redis(),
             get_docker(),
             sandbox_id=sandbox_id,
-            command=body["command"],
+            command=body.command,
         )
     except orchestrator.SandboxNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="sandbox not found") from exc
+    except orchestrator.SandboxNotReadyError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="sandbox_not_ready") from exc
 
     return result
+
+
+@app.get("/v1/sandboxes/{sandbox_id}/events", dependencies=router_dependencies)
+async def get_events(sandbox_id: str) -> dict[str, object]:
+    try:
+        return await asyncio.to_thread(
+            orchestrator.get_events, get_redis(), get_docker(), sandbox_id=sandbox_id,
+        )
+    except orchestrator.SandboxNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="sandbox not found") from exc
+    except orchestrator.SandboxNotReadyError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="sandbox_not_ready") from exc
 
 
 @app.delete(

@@ -7,6 +7,7 @@ container:<orthanc>`) -- deshalb erreicht die Toolbox Orthanc unter
 
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from dataclasses import dataclass
@@ -19,6 +20,44 @@ from docker.models.containers import Container
 from app.config import settings
 from app.datasets_yaml import DatasetParams
 from app.worklists_yaml import WorklistParams, load_worklist_params
+
+
+class UnknownTemplateError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class RuntimeTemplateConfig:
+    """CMS-8b: bewusst ein simples Python-Verzeichnis statt einer YAML-Datei
+    -- Runtime-Templates sind Betreiber-/Deployment-Konfiguration (welches
+    Container-Image-Paar), kein Autoreninhalt wie datasets.yml/worklists.yml.
+    Fuer den einen heutigen Eintrag ist der Effekt identisch zum Status quo
+    vor CMS-8b; RESOURCE_LIMITS/TOOLBOX_RESOURCE_LIMITS bleiben bewusst
+    GLOBALE Konstanten, nicht Teil dieser Config (Sicherheitsgrenzen duerfen
+    nicht pro Vorlage variieren, ADR 0096)."""
+
+    orthanc_image: str
+    toolbox_image: str
+
+
+def _runtime_templates() -> dict[str, RuntimeTemplateConfig]:
+    # Als Funktion statt Modulkonstante, damit sie `settings.orthanc_image`/
+    # `settings.toolbox_image` zur Aufrufzeit liest (Tests ueberschreiben
+    # diese per monkeypatch) statt beim Modul-Import einzufrieren.
+    return {
+        "dicom-basic-tools": RuntimeTemplateConfig(
+            orthanc_image=settings.orthanc_image,
+            toolbox_image=settings.toolbox_image,
+        ),
+    }
+
+
+def resolve_template(template_slug: str) -> RuntimeTemplateConfig:
+    template = _runtime_templates().get(template_slug)
+    if template is None:
+        raise UnknownTemplateError(template_slug)
+    return template
+
 
 RESOURCE_LIMITS = {
     "mem_limit": "256m",
@@ -68,7 +107,10 @@ def build_session(
     sandbox_id: str,
     dataset_slug: str,
     dataset_params: DatasetParams,
+    template_slug: str,
 ) -> SessionContainers:
+    template = resolve_template(template_slug)
+
     network_name = f"dcmlab-sandbox-{sandbox_id}"
     volume_name = f"dcmlab-sandbox-{sandbox_id}-data"
     worklist_volume_name = f"{network_name}-worklists"
@@ -87,7 +129,7 @@ def build_session(
     )
 
     orthanc = docker_client.containers.run(
-        settings.orthanc_image,
+        template.orthanc_image,
         detach=True,
         name=f"{network_name}-orthanc",
         network=network_name,
@@ -98,7 +140,7 @@ def build_session(
     _wait_until_running(orthanc)
 
     toolbox = docker_client.containers.run(
-        settings.toolbox_image,
+        template.toolbox_image,
         detach=True,
         name=f"{network_name}-toolbox",
         network_mode=f"container:{orthanc.id}",
@@ -246,6 +288,93 @@ def exec_command(
         "stdout": (stdout or b"").decode("utf-8", errors="replace"),
         "stderr": (stderr or b"").decode("utf-8", errors="replace"),
     }
+
+
+def collect_orthanc_facts(
+    docker_client: docker.DockerClient, toolbox_container_id: str,
+) -> list[dict[str, str]]:
+    """Beobachtungsschicht (CMS-8b): der Orchestrator-Prozess selbst kann
+    Orthancs REST-API (Port 8042) nicht erreichen -- der Orthanc-Container
+    liegt auf einem `internal=True`-Netz ohne Host-Port-Publikation. Der
+    einzige erreichbare Weg ist derselbe wie fuer Lernenden-Befehle: `curl`
+    IN der Toolbox ausgefuehrt, die ohnehin per `network_mode:
+    container:<orthanc>` in Orthancs Netzwerk-Namespace sitzt.
+
+    ZWEISTUFIG, Betreiber-Review: `/changes` ist nur eine Neue-Instanzen-
+    ID-Liste (Discovery), KEIN vollstaendiges DICOM-Metadatenobjekt -- SOP-
+    Klasse/Transfer-Syntax kommen erst aus fest verdrahteten Folgeabfragen
+    je gefundener Instanz: `simplified-tags` fuer SOPClassUID (Hauptdatenset),
+    `header?simplify` fuer TransferSyntaxUID (File Meta Information, Gruppe
+    0002 -- steckt live nachweislich NICHT in `simplified-tags`). Der
+    curl-Aufruf selbst ist serverseitig fest verdrahtet (kein
+    Nutzereingabe-Pfad dorthin) -- sonst waere das ein Command-Injection-
+    Vektor in einer sonst harmlosen internen Beobachtungsfunktion.
+
+    Betreiber-Review (drittes Review): Discovery (`/changes` hat die
+    Instanz gemeldet) ist selbst schon ein Fact -- ein Ausfall einer der
+    beiden Anreicherungsabfragen darf ihn nicht vernichten, sondern laesst
+    nur das betroffene Feld leer. Vorher wurde eine Instanz komplett
+    uebersprungen, wenn ausgerechnet `simplified-tags` fehlschlug, obwohl
+    `header?simplify` (Transfer-Syntax) durchaus verfuegbar gewesen waere.
+    """
+
+    changes = _orthanc_get(docker_client, toolbox_container_id, "/changes")
+    if changes is None:
+        return []
+
+    raw_changes = changes.get("Changes")
+    if not isinstance(raw_changes, list):
+        return []
+
+    instances: list[dict[str, str]] = []
+
+    for change in raw_changes:
+        if not isinstance(change, dict):
+            continue
+        if change.get("ChangeType") != "NewInstance" or change.get("ResourceType") != "Instance":
+            continue
+
+        instance_id = change.get("ID")
+        if instance_id is None:
+            continue
+
+        tags = _orthanc_get(
+            docker_client, toolbox_container_id, f"/instances/{instance_id}/simplified-tags",
+        )
+        # `simplified-tags` deckt nur das Hauptdatenset ab, NICHT die File
+        # Meta Information (Gruppe 0002) -- TransferSyntaxUID liegt dort und
+        # fehlt in `simplified-tags` deshalb immer (live gegen echtes Orthanc
+        # verifiziert). `header?simplify` liefert genau diese Gruppe.
+        header = _orthanc_get(
+            docker_client, toolbox_container_id, f"/instances/{instance_id}/header?simplify",
+        )
+
+        sop_class = tags.get("SOPClassUID", "") if tags is not None else ""
+        transfer_syntax = header.get("TransferSyntaxUID", "") if header is not None else ""
+
+        instances.append({
+            "instance_id": instance_id,
+            "sop_class": str(sop_class),
+            "transfer_syntax": str(transfer_syntax),
+        })
+
+    return instances
+
+
+def _orthanc_get(
+    docker_client: docker.DockerClient, toolbox_container_id: str, path: str,
+) -> dict[str, object] | None:
+    result = exec_command(docker_client, toolbox_container_id, f"curl -s http://127.0.0.1:8042{path}")
+
+    if result["exit_code"] != 0:
+        return None
+
+    try:
+        parsed = json.loads(str(result["stdout"]))
+    except json.JSONDecodeError:
+        return None
+
+    return parsed if isinstance(parsed, dict) else None
 
 
 def teardown_session(

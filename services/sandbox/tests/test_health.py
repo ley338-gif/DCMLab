@@ -12,5 +12,11 @@ def test_health_ok() -> None:
 
 
 def test_sandboxes_requires_internal_key() -> None:
-    response = client.post("/v1/sandboxes", json={"user_id": "u1", "dataset_slug": "test-set"})
+    response = client.post(
+        "/v1/sandboxes",
+        json={
+            "user_id": "u1", "dataset_slug": "test-set",
+            "template_slug": "dicom-basic-tools", "runtime_key": "sandbox:user:u1",
+        },
+    )
     assert response.status_code == 401

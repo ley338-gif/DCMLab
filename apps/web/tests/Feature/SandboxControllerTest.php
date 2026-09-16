@@ -52,7 +52,9 @@ class SandboxControllerTest extends TestCase
 
         Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/sandboxes')
             && $request['user_id'] === (string) $user->id
-            && $request['dataset_slug'] === 'ct-thorax-3-slices');
+            && $request['dataset_slug'] === 'ct-thorax-3-slices'
+            && $request['template_slug'] === SandboxTemplate::query()->value('slug')
+            && $request['runtime_key'] === 'sandbox:user:'.$user->id);
     }
 
     public function test_it_creates_a_durable_sandbox_session_record_on_success(): void
@@ -191,6 +193,26 @@ class SandboxControllerTest extends TestCase
             ->assertJson(['error' => 'quota_exceeded']);
     }
 
+    /**
+     * CMS-8b, Betreiber-Review: der neue runtime_key-Konflikt (ein anderer
+     * Zweck haelt bereits die einzige erlaubte Sitzung des Nutzers) ist ein
+     * eigener, vom Kontingent-429 unterscheidbarer Fehlerfall -- 409, keine
+     * SandboxSession.
+     */
+    public function test_active_runtime_conflict_returns_409_and_creates_no_session(): void
+    {
+        $lesson = $this->lessonWithSandbox();
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['detail' => 'active_runtime_exists'], 409)]);
+
+        $this->actingAs($user)->postJson("/de/lessons/{$lesson->lesson_id}/sandbox")
+            ->assertStatus(409)
+            ->assertJson(['error' => 'active_runtime_exists']);
+
+        $this->assertSame(0, SandboxSession::query()->count());
+    }
+
     public function test_exec_proxies_to_the_sandbox(): void
     {
         $user = User::factory()->create();
@@ -204,6 +226,68 @@ class SandboxControllerTest extends TestCase
 
         Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/sandboxes/sb-1/exec')
             && $request['command'] === 'echo hi');
+    }
+
+    /**
+     * CMS-8b, Betreiber-Review: der 404-Fehlerpfad (Runtime-Seite kennt die
+     * Sitzung nicht mehr, z. B. vom Idle-Cleanup-Loop weggeraeumt) muss
+     * `sandbox_sessions.status` reconcilen, nicht nur eine 500/Exception
+     * nach aussen durchreichen.
+     */
+    public function test_exec_against_a_gone_sandbox_marks_the_session_reaped_and_returns_404(): void
+    {
+        $user = User::factory()->create();
+        $session = SandboxSession::factory()->create([
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-1/exec' => Http::response(['detail' => 'sandbox not found'], 404)]);
+
+        $this->actingAs($user)->postJson('/de/sandbox/sb-1/exec', ['command' => 'echo hi'])
+            ->assertStatus(404);
+
+        $session->refresh();
+        $this->assertSame('reaped', $session->status);
+        $this->assertNotNull($session->finished_at);
+    }
+
+    /**
+     * CMS-8b, Betreiber-Review (drittes Review): eine wartende (queued)
+     * Sitzung ist NICHT dasselbe wie eine weggeraeumte -- ein verfrueher
+     * exec()-Aufruf darf sie nicht faelschlich als 'reaped' reconcilen.
+     */
+    public function test_exec_against_a_queued_sandbox_returns_409_without_reconciling(): void
+    {
+        $user = User::factory()->create();
+        $session = SandboxSession::factory()->create([
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+            'status' => 'queued',
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-1/exec' => Http::response(['detail' => 'sandbox_not_ready'], 409)]);
+
+        $this->actingAs($user)->postJson('/de/sandbox/sb-1/exec', ['command' => 'echo hi'])
+            ->assertStatus(409)
+            ->assertJson(['error' => 'sandbox_not_ready']);
+
+        $this->assertSame('queued', $session->fresh()->status);
+    }
+
+    /**
+     * Der Command wird seit den Exec-Facts dauerhaft in Redis gespeichert
+     * (CMS-8b, Betreiber-Review) -- die Laravel-Validierung muss dasselbe
+     * Limit wie services/sandbox's Pydantic-Modell durchsetzen.
+     */
+    public function test_exec_rejects_a_command_over_the_length_limit(): void
+    {
+        $user = User::factory()->create();
+        SandboxSession::factory()->create(['runtime_instance_id' => 'sb-1', 'runtime_provider' => 'docker']);
+
+        $this->actingAs($user)
+            ->postJson('/de/sandbox/sb-1/exec', ['command' => str_repeat('x', 4097)])
+            ->assertInvalid(['command']);
     }
 
     public function test_destroy_proxies_to_the_sandbox(): void

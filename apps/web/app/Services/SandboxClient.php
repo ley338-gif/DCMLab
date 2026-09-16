@@ -7,24 +7,38 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Duenner HTTP-Client fuer den Spielwiese-Orchestrator (Abschnitt 3.3, 6).
- * Der Orchestrator ist der einzige Dienst mit Docker-Socket-Zugriff --
- * Laravel spricht ihn nur ueber HTTP an.
+ * Duenner HTTP-Client fuer den Spielwiese-Orchestrator (Abschnitt 3.3, 6;
+ * erweitert CMS-8b). Der Orchestrator ist der einzige Dienst mit
+ * Docker-Socket-Zugriff -- Laravel spricht ihn nur ueber HTTP an.
  */
 final class SandboxClient implements SandboxClientContract
 {
     /**
      * @return array<string, mixed>
      */
-    public function create(string $userId, string $datasetSlug): array
+    public function create(RuntimeRequest $request): array
     {
         try {
             return $this->client()
-                ->post('/v1/sandboxes', ['user_id' => $userId, 'dataset_slug' => $datasetSlug])
+                ->post('/v1/sandboxes', [
+                    'user_id' => $request->userId,
+                    'dataset_slug' => $request->datasetSlug,
+                    'template_slug' => $request->templateSlug,
+                    'runtime_key' => $request->runtimeKey,
+                ])
                 ->throw()->json();
         } catch (RequestException $e) {
+            // Quota (429, ADR 0096) und Runtime-Konflikt (409, CMS-8b,
+            // Betreiber-Review: ein anderer runtime_key haelt bereits die
+            // einzige erlaubte Sitzung dieses Nutzers) sind beides normale,
+            // erwartete Ausgaenge -- keine Exception, derselbe weiche
+            // ['error' => ...]-Rueckgabepfad fuer beide.
             if ($e->response->status() === 429) {
                 return ['error' => 'quota_exceeded'];
+            }
+
+            if ($e->response->status() === 409) {
+                return ['error' => 'active_runtime_exists'];
             }
 
             throw $e;
@@ -36,7 +50,7 @@ final class SandboxClient implements SandboxClientContract
      */
     public function state(string $sandboxId): array
     {
-        return $this->client()->get("/v1/sandboxes/{$sandboxId}")->throw()->json();
+        return $this->getOrGone("/v1/sandboxes/{$sandboxId}", $sandboxId);
     }
 
     /**
@@ -44,14 +58,65 @@ final class SandboxClient implements SandboxClientContract
      */
     public function exec(string $sandboxId, string $command): array
     {
-        return $this->client()
-            ->post("/v1/sandboxes/{$sandboxId}/exec", ['command' => $command])
-            ->throw()->json();
+        try {
+            return $this->client()
+                ->post("/v1/sandboxes/{$sandboxId}/exec", ['command' => $command])
+                ->throw()->json();
+        } catch (RequestException $e) {
+            throw $this->mapKnownFailure($e, $sandboxId);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function events(string $sandboxId): array
+    {
+        return $this->getOrGone("/v1/sandboxes/{$sandboxId}/events", $sandboxId);
     }
 
     public function delete(string $sandboxId): void
     {
+        // Bewusst KEINE RuntimeGoneException hier -- Pythons DELETE ist
+        // bereits idempotent (204 auch fuer eine unbekannte sandbox_id,
+        // orchestrator.delete_sandbox()), ein "loeschen, was schon weg
+        // ist" ist kein Fehlerfall.
         $this->client()->delete("/v1/sandboxes/{$sandboxId}")->throw();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getOrGone(string $path, string $sandboxId): array
+    {
+        try {
+            return $this->client()->get($path)->throw()->json();
+        } catch (RequestException $e) {
+            throw $this->mapKnownFailure($e, $sandboxId);
+        }
+    }
+
+    /**
+     * CMS-8b, Betreiber-Review: eine wartende (queued) Sitzung ist NICHT
+     * dasselbe wie eine weggeraeumte -- Python unterscheidet das bei
+     * `exec()`/`events()` explizit (409 `sandbox_not_ready` statt 404), und
+     * `RuntimeSessionService` darf eine wartende Sitzung nicht faelschlich
+     * als 'reaped' reconcilen (`RuntimeNotReadyException` ist bewusst KEINE
+     * Unterklasse von `RuntimeGoneException`).
+     */
+    private function mapKnownFailure(
+        RequestException $e,
+        string $sandboxId,
+    ): RequestException|RuntimeGoneException|RuntimeNotReadyException {
+        if ($e->response->status() === 404) {
+            return new RuntimeGoneException($sandboxId);
+        }
+
+        if ($e->response->status() === 409 && $e->response->json('detail') === 'sandbox_not_ready') {
+            return new RuntimeNotReadyException($sandboxId);
+        }
+
+        return $e;
     }
 
     private function client(): PendingRequest
