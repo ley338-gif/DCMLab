@@ -609,7 +609,17 @@ final class ContentValidator
             }
         }
 
-        // Jede Hint-ID aus node.yml braucht einen ### h<n>-Abschnitt in de.md.
+        // Jede Hint-ID aus node.yml braucht einen ### h<n>-Abschnitt in
+        // de.md -- gilt nur fuer eine Node OHNE rich_content: seit CMS-7d.3
+        // (ADR 0118) lebt der Hint-Text in `rich_content.hints`, nicht mehr
+        // in ueberschriebenen Markdown-Abschnitten, und `de.md` kann fuer
+        // eine rein per Studio angelegte Node (ADR 0109) komplett leer
+        // bleiben. `NodeActivity::checkHintIdConsistency()` ist dafuer die
+        // zeitgemaesse Entsprechung (hints[].id gegen rich_content.hints).
+        if (isset($node['rich_content'])) {
+            return;
+        }
+
         $definedHintIds = array_map(fn (array $hint) => (string) $hint['id'], $def['hints'] ?? []);
         $mdRaw = $node['md_raw'] ?? '';
         preg_match_all('/^###\s+(h\d+)\s*$/mi', $mdRaw, $matches);
