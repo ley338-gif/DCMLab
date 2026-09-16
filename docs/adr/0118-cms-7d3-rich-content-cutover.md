@@ -231,3 +231,42 @@ Planung, aber direkte Konsequenz des Cutovers):
   (`1.4`) im Browser gepruft -- Tabellen rendern/editieren korrekt,
   Draft-Vorschau zeigt denselben Inhalt wie die Learner-Seite, ohne einen
   `lesson_progress`-Eintrag fuer den vorschauenden Autor anzulegen.
+
+## Nachtrag (CMS-7d.4, Betreiber-Review)
+
+Die urspruengliche Restore-Kompatibilitaet fuer eine Legacy-Lesson-
+Revision (`payload.body` ohne `payload.rich_content`) ergaenzte das nie
+separat versionierte `after` (den Nach-Quiz-Fusstext) aus der LIVE
+`Lesson::body`-Spalte. Betreiber-Fund vor CMS-7d.4: das ist nur so lange
+korrekt, wie sich die Lektion seit dem Cutover nicht veraendert hat --
+sobald ein Autor den ehemaligen Nach-Quiz-Bereich ueber den
+vereinheitlichten `RichContentEditor` bearbeitet, gibt es keine
+belastbare Grenze zwischen "before" und "after" mehr. Ein Blockindex
+oder eine persistierte Grenze waere kuenstliche Archaeologie fuer eine
+Unterscheidung, die fachlich nicht mehr existiert.
+
+**Entscheidung:** Legacy-Restore/-Publish (ein Payload ohne
+`rich_content`) bleibt fuer eine Lesson nur erlaubt, solange diese
+Lesson-Activity seit dem Cutover noch nie eine ECHTE, im
+Rich-Content-Editor gespeicherte Autorenrevision veroeffentlicht hat
+(`ContentPublishingService::hasNativeRichContentAuthoringPublish()` --
+eine veroeffentlichte Version mit `rich_content` im Payload UND ohne
+`restored_from_version_id`; ein Legacy-Restore selbst zaehlt also
+bewusst nicht mit). Sobald das der Fall ist, lehnt der Service den
+Legacy-Restore/-Publish serverseitig ab (`restoreVersion()` wirft,
+`publish()` gibt eine `ContentIssue` zurueck) statt zu raten, welchen
+Teil des heutigen Dokuments er ueberschreiben darf. Node bekommt keine
+analoge Sperre (`NodeSections::parse()` rekonstruiert alle drei
+Abschnitte immer vollstaendig aus `body`, kein "nie separat
+versioniertes" Segment).
+
+**Race-Sicherheit:** `publish()` und `restoreVersion()` sperren dafuer
+jetzt beide zuerst die betroffene `Activity`-Zeile (`lockForUpdate()`)
+und fuehren Legacy-Pruefung, `normalize()`, `validate()`, Apply und
+Versionswechsel vollstaendig innerhalb derselben Transaktion aus --
+sonst koennte ein nativer Publish genau zwischen einer fruehen Pruefung
+und dem tatsaechlichen Schreiben eines konkurrierenden Restores
+committen, und der Restore wuerde trotzdem ungeprueft ueberschreiben.
+
+Siehe [`docs/offene-fragen.md`](../offene-fragen.md) fuer den damit
+erledigten Eintrag.
