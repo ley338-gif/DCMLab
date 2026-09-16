@@ -240,6 +240,17 @@ class RichContentRendererTest extends TestCase
         $this->assertStringContainsString('&lt;x&gt;', $html);
     }
 
+    public function test_it_renders_a_horizontal_rule(): void
+    {
+        $html = (new RichContentRenderer)->render($this->doc([
+            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Davor.']]],
+            ['type' => 'horizontal_rule'],
+            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Danach.']]],
+        ]));
+
+        $this->assertSame('<p>Davor.</p><hr><p>Danach.</p>', $html);
+    }
+
     public function test_it_renders_a_dicom_dump_code_block_like_terminal_output(): void
     {
         $html = (new RichContentRenderer)->render($this->doc([

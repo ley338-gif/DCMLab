@@ -105,6 +105,18 @@ function baseCommandDefinitions(): BaseCommandDefinition[] {
                     .run(),
         },
         {
+            id: 'horizontalRule',
+            title: 'Trennlinie',
+            keywords: ['divider', 'trenner', 'trennlinie', 'hr', 'horizontal'],
+            command: (editor, range) =>
+                editor
+                    .chain()
+                    .focus()
+                    .deleteRange(range)
+                    .setHorizontalRule()
+                    .run(),
+        },
+        {
             id: 'code',
             title: 'Code',
             keywords: ['code'],

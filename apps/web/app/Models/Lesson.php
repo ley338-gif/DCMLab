@@ -36,12 +36,14 @@ use Illuminate\Support\Carbon;
  * @property string|null $body Seit ADR 0101 (CMS-5a) von content:sync aus de.md befuellt
  * @property array<int, string>|null $objectives Seit ADR 0101 (CMS-5a) von content:sync aus der Frontmatter befuellt
  * @property list<array{id: string, type: string, answer: mixed}>|null $quiz Seit ADR 0104 (CMS-6a) von content:sync aus meta.yml befuellt
+ * @property array<string, mixed>|null $rich_content Seit ADR 0115 (CMS-7d.1) -- RichContentDocument (ADR 0111), bis zum Backfill (CMS-7d.2) durchgehend null; `body` bleibt bis zum Cutover (CMS-7d.3) die Rendering-Quelle
  * @property string $source_hash
  */
 #[Fillable([
     'lesson_id', 'track_id', 'order', 'level', 'duration_minutes', 'objectives_count',
     'requires', 'tools', 'sandbox', 'lab', 'glossary_terms', 'tools_checked', 'status',
-    'legacy_authors', 'content_updated_at', 'title', 'teaser', 'body', 'objectives', 'quiz', 'source_hash',
+    'legacy_authors', 'content_updated_at', 'title', 'teaser', 'body', 'objectives', 'quiz',
+    'rich_content', 'source_hash',
 ])]
 class Lesson extends Model
 {
@@ -66,6 +68,7 @@ class Lesson extends Model
             'teaser' => 'array',
             'objectives' => 'array',
             'quiz' => 'array',
+            'rich_content' => 'array',
             'tools_checked' => 'date',
             'content_updated_at' => 'date',
         ];

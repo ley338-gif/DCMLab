@@ -281,6 +281,16 @@ class RichContentValidatorTest extends TestCase
         $this->assertSame([], (new RichContentValidator)->validate($doc));
     }
 
+    public function test_it_accepts_a_horizontal_rule(): void
+    {
+        $doc = [
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'horizontal_rule']],
+        ];
+
+        $this->assertSame([], (new RichContentValidator)->validate($doc));
+    }
+
     /**
      * Additive Schema-Erweiterung (ADR 0114, CMS-7c): ein Dokument, das
      * nur die bisherigen CMS-7a/7b-Typen nutzt, muss unveraendert valide

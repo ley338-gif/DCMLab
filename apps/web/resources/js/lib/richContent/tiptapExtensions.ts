@@ -39,12 +39,14 @@ export const RichContentCodeBlock = CodeBlock.extend({
  * Undo/Redo; CMS-7c (ADR 0114) ergaenzt `callout`, `self_check`,
  * `dicom_tag_table` und `glossary_term` (jetzt durchsuchbar/einfuegbar
  * ueber das Slash-Menue) sowie die `dicom_dump`-Code-Block-Variante (kein
- * Schema-Zusatz, nur ein weiterer `attrs.variant`-Wert). Bewusst weiterhin
- * nicht: generische Tabellen (`table`, kein Ziel von CMS-7c) und Strike/
- * Underline/HorizontalRule (nicht Teil des DCMLab-Schemas, ADR 0111).
- * Jeder Knoten, den `RichContentEditorAdapter` nicht kennt, wirft dort
- * explizit statt hier still zu verschwinden -- dieser Extension-Satz ist
- * deshalb absichtlich eng, nicht defensiv breit.
+ * Schema-Zusatz, nur ein weiterer `attrs.variant`-Wert); CMS-7d.1 (ADR
+ * 0116) ergaenzt `horizontal_rule` -- TipTaps eingebaute HorizontalRule-
+ * Extension aus `StarterKit` reicht dafuer unveraendert aus, kein eigener
+ * Custom-Node noetig. Bewusst weiterhin nicht: generische Tabellen
+ * (`table`, kein Ziel von CMS-7c) und Strike/Underline (nicht Teil des
+ * DCMLab-Schemas, ADR 0111). Jeder Knoten, den `RichContentEditorAdapter`
+ * nicht kennt, wirft dort explizit statt hier still zu verschwinden --
+ * dieser Extension-Satz ist deshalb absichtlich eng, nicht defensiv breit.
  *
  * @param  glossaryTerms  fuer das `/glossary`-Slash-Kommando (Suche +
  *                        Einfuegen eines `glossary_term`-Knotens,
@@ -59,7 +61,6 @@ export function richContentExtensions(
             codeBlock: false,
             strike: false,
             underline: false,
-            horizontalRule: false,
             heading: { levels: [2, 3, 4] },
             link: { openOnClick: false, autolink: false },
         }),

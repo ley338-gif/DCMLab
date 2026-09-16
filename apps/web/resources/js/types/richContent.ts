@@ -125,6 +125,16 @@ export type RichContentDicomTagTableNode = {
     content: RichContentDicomTagRow[];
 };
 
+/**
+ * ADR 0116 (CMS-7d.1-Korrektur): `rich-content:audit` hat gezeigt, dass
+ * horizontale Trennlinien im echten Bestand vorkommen (Lektion 1.0, als
+ * visueller Abschnittstrenner) -- ein echter, minimaler Blocktyp ohne
+ * `attrs`/`content`, kein `raw_html`-Workaround.
+ */
+export type RichContentHorizontalRuleNode = {
+    type: 'horizontal_rule';
+};
+
 export type RichContentBlockNode =
     | RichContentParagraphNode
     | RichContentHeadingNode
@@ -135,7 +145,8 @@ export type RichContentBlockNode =
     | RichContentTableNode
     | RichContentSelfCheckNode
     | RichContentCalloutNode
-    | RichContentDicomTagTableNode;
+    | RichContentDicomTagTableNode
+    | RichContentHorizontalRuleNode;
 
 export type RichContentDocument = {
     type: 'doc';
@@ -160,4 +171,5 @@ export const RICH_CONTENT_BLOCK_TYPES = [
     'self_check',
     'callout',
     'dicom_tag_table',
+    'horizontal_rule',
 ] as const;

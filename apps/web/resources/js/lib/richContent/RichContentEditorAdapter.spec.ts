@@ -311,6 +311,22 @@ describe('RichContentEditorAdapter roundtrip', () => {
         );
     });
 
+    it('roundtrips a horizontal_rule', () => {
+        assertRoundtrips(
+            doc([
+                {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Davor.' }],
+                },
+                { type: 'horizontal_rule' },
+                {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Danach.' }],
+                },
+            ]),
+        );
+    });
+
     it('roundtrips a glossary_term', () => {
         assertRoundtrips(
             doc([

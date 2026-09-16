@@ -4,6 +4,22 @@ Entscheidungen aus dem Ausbau zum Lightweight LMS (`dcm-lab-lms-agent-prompt.md`
 die der Betreiber trifft, nicht der Code-Agent. Format: Frage, Kontext,
 Empfehlung. Erledigte Punkte werden hier durchgestrichen, nicht geloescht.
 
+## ~~Neun `---`-Trenner in Lektion 1.0 -- Schema-Erweiterung oder manuelle Bereinigung vor CMS-7d.2?~~ Umgesetzt
+
+~~**Frage:** Werden horizontale Trennlinien (`---` als eigener Block vor
+`##`-Ueberschriften) ein echter Rich-Content-Blocktyp, oder werden sie
+vor dem Backfill (CMS-7d.2) manuell aus Lektion 1.0 entfernt?~~
+
+**Umgesetzt (30.09.2026, ADR 0116):** `horizontal_rule` wurde ein
+echter, minimaler DCMLab-v1-Blocktyp (`{"type": "horizontal_rule"}`,
+`<hr>`, `/trenner` im Slash-Menue) statt die neun Trenner aus Lektion
+1.0 zu entfernen -- sie sind ein legitimer visueller Abschnittstrenner,
+kein Artefakt. `rich-content:audit` meldet danach 0 statt 9
+blockierende Funde (42 Lektionen, 17 Nodes). Gleichzeitig wurde
+festgehalten: Schema v1 gilt ab jetzt als eingefroren (der letzte
+guenstige Zeitpunkt dafuer, vor dem CMS-7d.2-Backfill), und
+`rich-content:audit` wird zum Gate vor jedem Backfill-Lauf.
+
 ## `content:export` fehlt noch -- `content/` ist nur noch Import-Format, kein deterministischer Export
 
 **Frage:** Wann bekommt `content/` ein echtes Gegenstueck zu
