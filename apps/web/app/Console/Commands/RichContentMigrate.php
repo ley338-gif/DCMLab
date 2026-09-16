@@ -53,9 +53,13 @@ use RuntimeException;
  *   kein Weg, ein bestehendes `rich_content` zu ueberschreiben.
  *
  * Node bekommt den in ADR 0115 festgezogenen `node_content`-Umschlag
- * (Briefing/jeder Hint/Write-up als eigenes RichContentDocument);
- * Lesson bekommt ein einzelnes RichContentDocument (nur der Prosa-Teil
- * vor dem Quiz, wie in `rich-content:audit`).
+ * (Briefing/jeder Hint/Write-up als eigenes RichContentDocument); Lesson
+ * bekommt ein einzelnes RichContentDocument aus `before` UND `after`
+ * zusammen (`QuizContent::splitBody()`) -- deckungsgleich mit
+ * `LessonController::show()`, das beide Teile ebenfalls zu einem
+ * Content-Block zusammenfuegt. Nur der Quiz-Abschnitt selbst
+ * (`quiz_raw`) bleibt aussen vor, der bleibt strukturierte
+ * Markdown-Syntax, kein Rich-Content-Ziel.
  */
 class RichContentMigrate extends Command
 {
@@ -161,12 +165,25 @@ class RichContentMigrate extends Command
             return;
         }
 
-        $prose = QuizContent::splitBody($effectiveBody)['before'];
-        $fresh = $this->convertSection($resource, 'prose', $prose, $converter, $validator);
+        $split = QuizContent::splitBody($effectiveBody);
+        $before = $this->convertSection($resource, 'prose', $split['before'], $converter, $validator);
+        $after = trim($split['after']) === ''
+            ? ['type' => 'doc', 'version' => 1, 'content' => []]
+            : $this->convertSection($resource, 'prose_nach_quiz', $split['after'], $converter, $validator);
 
-        if ($fresh === null) {
+        if ($before === null || $after === null) {
             return;
         }
+
+        // Deckungsgleich mit LessonController::show(): Lernende sehen
+        // "before" und "after" (die kurze Fussnote/Navigation NACH dem
+        // Quiz-Abschnitt, z. B. "**Als Naechstes:** ...") als EINEN
+        // zusammenhaengenden Inhaltsblock, der Quiz-Abschnitt selbst ist
+        // ein eigenes, separat gerendertes Element. Ein rich_content, das
+        // nur "before" enthaelt, wuerde diese Fussnote unbemerkt verlieren
+        // -- real in 9 von 42 Lektionen nicht leer (z. B. "Als Naechstes"-
+        // Verweise auf die Folgelektion).
+        $fresh = ['type' => 'doc', 'version' => 1, 'content' => [...$before['content'], ...$after['content']]];
 
         $this->finalize(
             $resource,

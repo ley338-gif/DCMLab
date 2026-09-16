@@ -23,8 +23,12 @@ use Illuminate\Console\Command;
  * Backfill (CMS-7d.2): `rich-content:migrate` darf erst laufen, wenn
  * `rich-content:audit` 0 blockierende Funde meldet.
  *
- * Lektionen: nur der Prosa-Teil vor dem Quiz (`QuizContent::splitBody()
- * ['before']`) wird geprueft -- der Quiz-Abschnitt bleibt strukturierte
+ * Lektionen: `before` UND `after` (`QuizContent::splitBody()`) werden
+ * geprueft, je als eigener Abschnitt -- `LessonController::show()` fuegt
+ * beide zu einem gemeinsamen Content-Block zusammen (`after` ist die
+ * kurze Fussnote/Navigation nach dem Quiz, z. B. "**Als Naechstes:**
+ * ...", real in 9 von 42 Lektionen nicht leer). Nur der Quiz-Abschnitt
+ * selbst (`quiz_raw`) bleibt aussen vor, der bleibt strukturierte
  * Markdown-Syntax, kein Rich-Content-Ziel (CMS-7d Betreiberauftrag).
  *
  * Nodes: `NodeSections::parse()` zerlegt den Body zuerst in Briefing/
@@ -86,14 +90,22 @@ class RichContentAudit extends Command
 
         foreach ($lessons as $id => $lesson) {
             $body = is_string($lesson['body'] ?? null) ? $lesson['body'] : '';
-            $prose = QuizContent::splitBody($body)['before'];
+            $split = QuizContent::splitBody($body);
             $bodyStartLine = is_int($lesson['body_start_line'] ?? null) ? $lesson['body_start_line'] : 1;
 
-            // "prose" ist ein reiner Praefix von body (QuizContent::splitBody()
+            // "before" ist ein reiner Praefix von body (QuizContent::splitBody()
             // schneidet nur ab dem Quiz weg), Zeilennummern relativ zu ihm
             // sind deshalb auch relativ zum ganzen body -- der Offset macht
             // daraus die echte Zeile in der Quelldatei (siehe FrontMatter).
-            $this->auditSection("Lektion {$id}", 'prose', $prose, $converter, $validator, $legacyRenderer, $richRenderer, $bodyStartLine - 1);
+            $this->auditSection("Lektion {$id}", 'prose', $split['before'], $converter, $validator, $legacyRenderer, $richRenderer, $bodyStartLine - 1);
+
+            if (trim($split['after']) !== '') {
+                // "after" beginnt erst nach "before" UND dem Quiz-Block --
+                // beide zusammen ergeben den Zeilenoffset, den "after"
+                // gegenueber dem Dateianfang hat.
+                $afterOffset = ($bodyStartLine - 1) + $this->lineCount($split['before']) + $this->lineCount($split['quiz_raw']);
+                $this->auditSection("Lektion {$id}", 'prose_nach_quiz', $split['after'], $converter, $validator, $legacyRenderer, $richRenderer, $afterOffset);
+            }
         }
 
         foreach ($nodes as $slug => $node) {
@@ -182,6 +194,17 @@ class RichContentAudit extends Command
         $text = html_entity_decode(preg_replace('/<[^>]+>/', ' ', $html) ?? $html, ENT_QUOTES | ENT_HTML5);
 
         return trim(preg_replace('/\s+/', ' ', $text) ?? $text);
+    }
+
+    /**
+     * Anzahl Zeilen, die `$text` in der Datei belegt hat, bevor
+     * `QuizContent::splitBody()` ihn per `implode("\n", ...)` wieder zu
+     * einem String zusammengesetzt hat -- "" bedeutet 0 Zeilen (nicht 1,
+     * wie `count(explode("\n", ''))` liefern wuerde).
+     */
+    private function lineCount(string $text): int
+    {
+        return $text === '' ? 0 : count(explode("\n", $text));
     }
 
     private function report(int $lessonCount, int $nodeCount): int

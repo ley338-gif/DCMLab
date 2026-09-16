@@ -271,6 +271,36 @@ class RichContentMigrateTest extends TestCase
         $this->assertNotNull($lesson->fresh()->rich_content);
     }
 
+    /**
+     * Fund aus dem echten CMS-7d.2-Betrieb: `LessonController::show()`
+     * fuegt "before" und "after" (die Fussnote/Navigation NACH dem
+     * Quiz-Abschnitt, z. B. "**Als Naechstes:**...") zu einem gemeinsamen
+     * Content-Block zusammen. Ein `rich_content`, das nur "before"
+     * enthaelt, wuerde diese Fussnote unbemerkt verlieren -- real in 9 von
+     * 42 Lektionen nicht leer.
+     */
+    public function test_the_document_contains_both_before_and_after_the_quiz(): void
+    {
+        $lesson = $this->lesson([
+            'body' => "## Intro\n\nText vor dem Quiz.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** [1.6](../1.6/) geht weiter.\n",
+        ]);
+
+        $exitCode = $this->migrate(['--apply' => true]);
+        $this->assertSame(0, $exitCode, Artisan::output());
+
+        $blocks = $lesson->fresh()->rich_content['content'];
+        $texts = collect($blocks)
+            ->pluck('content')
+            ->flatten(1)
+            ->pluck('text')
+            ->filter()
+            ->implode(' ');
+
+        $this->assertStringContainsString('Text vor dem Quiz.', $texts);
+        $this->assertStringContainsString('geht weiter.', $texts);
+        $this->assertStringNotContainsString('Frage?', $texts, 'der Quiz-Abschnitt selbst darf nicht im Dokument landen');
+    }
+
     private function buildContentDir(array $files): string
     {
         $dir = storage_path('framework/testing/rich-content-migrate-'.Str::random(12));

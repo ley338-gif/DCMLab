@@ -81,10 +81,15 @@ zusammen mit dem Editor-/Publisher-Wechsel (atomar, nicht vorgezogen):
   `rich-content:audit`), nicht nur der erste.
 - Erst wenn ALLE Ressourcen bereit sind, oeffnet `--apply` eine
   einzige DB-Transaktion. Jede Zeile wird per `lockForUpdate()`
-  erneut auf `rich_content IS NULL` geprueft, unmittelbar vor dem
-  Schreiben (Schutz gegen eine Aenderung durch einen anderen Prozess
-  zwischen Praeflug und Schreibvorgang) -- eine unerwartet nicht mehr
-  `NULL`e Zeile rollt die gesamte Transaktion zurueck.
+  unmittelbar vor dem Schreiben ZWEIFACH erneut geprueft: `rich_content`
+  ist noch `NULL` (Schutz vor einem konkurrierenden Rich-Content-
+  Backfill derselben Zeile), UND `body` entspricht noch dem beim
+  Preflight gelesenen Snapshot (Schutz vor einer ganz normalen
+  Autoren-Freigabe zwischen Preflight und Schreibvorgang, die `body`
+  aendert, ohne `rich_content` anzufassen -- ohne diesen zweiten Check
+  wuerde `--apply` sonst ein bereits veraltetes Dokument einfrieren,
+  siehe "Nachtrag" unten). Jede Abweichung rollt die gesamte Transaktion
+  zurueck.
 - **Kein `--force`.** Es gibt keinen Weg, ein bestehendes `rich_content`
   per Flag zu ueberschreiben.
 
@@ -127,6 +132,41 @@ jede Aenderung an `LessonContentPublisher`/`NodeContentPublisher`
 (schreiben weiterhin nur `body`, CMS-7d.3); ein `--force`-Flag; ein
 Dual-Write-Mechanismus in den Publishern.
 
+## Nachtrag (Betreiber-Review vor dem Merge)
+
+Zwei Korrekturen, bevor dieser PR gemerged wurde:
+
+1. **body-Race geschlossen.** Der urspruengliche Row-Lock pruefte nur
+   `rich_content IS NULL` -- das schuetzt vor einem zweiten
+   Migrationslauf derselben Zeile, nicht vor einer ganz normalen
+   Autoren-Freigabe zwischen Preflight und Schreibvorgang, die `body`
+   aendert, ohne `rich_content` anzufassen. `finalize()` nimmt seitdem
+   den beim Preflight gelesenen `body`-Snapshot mit in
+   `pendingWrites`; `writePending()` gleicht ihn nach dem Row-Lock
+   erneut ab (auch beim `content/`-Fallback: dann muss `body`
+   weiterhin `NULL` sein) und bricht sonst die gesamte Transaktion ab.
+   Mit `DB::listen()` regressionsgetestet (simuliert eine Freigabe
+   exakt zwischen Preflight-Abfrage und Row-Lock). Dabei ausserdem eine
+   echte Luecke behoben: eine daraus resultierende `RuntimeException`
+   waere zuvor unbehandelt aus `handle()` entkommen statt als
+   kontrollierter Command-Fehlschlag gemeldet zu werden.
+2. **`before` UND `after` gehoeren beide ins Lesson-Dokument.** Die
+   urspruengliche Umsetzung (wie `rich-content:audit`, ADR 0115) nutzte
+   nur `QuizContent::splitBody()['before']` -- `LessonController::show()`
+   fuegt aber `before` UND `after` (die Fussnote/Navigation NACH dem
+   Quiz-Abschnitt, z. B. "**Als Naechstes:** ...") zu EINEM
+   zusammenhaengenden Content-Block zusammen, `after` ist real in 9 von
+   42 Lektionen nicht leer. Ein `rich_content`, das nur `before`
+   enthaelt, haette diesen Teil unbemerkt verloren -- genau das, was
+   das gesamte CMS-7d-Audit-Konzept verhindern soll. Sowohl
+   `rich-content:audit` als auch `rich-content:migrate` pruefen/
+   konvertieren `before` und `after` jetzt separat (mit korrektem
+   Datei-Zeilen-Offset im Audit) und fuegen ihre `content`-Arrays im
+   fertigen Lesson-Dokument zusammen. Der Datei-Bestand blieb dabei
+   weiterhin audit-rein (0 blockierende Funde); der bereits gegen die
+   Dev-Datenbank gelaufene Backfill wurde zurueckgesetzt und mit der
+   Korrektur neu ausgefuehrt (59/59, danach wieder idempotent).
+
 ## Konsequenzen
 
 - Ein erster `--apply`-Lauf gegen den echten Bestand befuellt alle 59
@@ -148,9 +188,17 @@ Dual-Write-Mechanismus in den Publishern.
 
 ## Verifikation
 
-- PHP: 621/621 Tests gruen (11 neu fuer `rich-content:migrate`:
-  Dry-Run/Apply, Idempotenz, DB-vor-Datei-Praezedenz, Datei-Fallback
-  nur bei `body === null`, Abbruch ohne Schreibvorgang bei fehlendem
-  Body/unbekanntem Konstrukt/ungueltigem oder abweichendem
-  bestehenden `rich_content`, Quiz-Ausschluss wie beim Audit,
-  Envelope-Struktur), PHPStan Level 7 und `pint --test` gruen.
+- PHP: 624/624 Tests gruen (14 neu fuer `rich-content:migrate`,
+  2 neu fuer `rich-content:audit`: Dry-Run/Apply, Idempotenz,
+  DB-vor-Datei-Praezedenz, Datei-Fallback nur bei `body === null`,
+  Abbruch ohne Schreibvorgang bei fehlendem Body/unbekanntem
+  Konstrukt/ungueltigem oder abweichendem bestehenden `rich_content`/
+  geaendertem `body` zwischen Preflight und Schreibvorgang,
+  Quiz-Ausschluss, `before`+`after`-Zusammenfuehrung, Envelope-Struktur),
+  PHPStan Level 7 und `pint --test` gruen.
+- Gegen den echten Dev-Bestand (Docker, Postgres) verifiziert: nach der
+  `before`+`after`-Korrektur zurueckgesetzt und neu migriert -- 59/59
+  geschrieben, danach wieder idempotent (0/59/0). Stichprobe Lektion
+  1.0 bestaetigt, dass der komplette Nach-Quiz-Abschnitt (inklusive
+  eines eigenen `horizontal_rule` und Folgeabsatzes, nicht nur der
+  "Als Naechstes"-Zeile) jetzt im Dokument steckt.
