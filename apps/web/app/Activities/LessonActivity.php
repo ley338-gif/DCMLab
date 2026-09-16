@@ -138,9 +138,10 @@ final readonly class LessonActivity implements ActivityContract
         }
 
         // Skalar-/Listenfelder in meta.yml und Titel/Teaser in der
-        // Frontmatter (ADR 0080/0081, W6.1/W6.2); sandbox/lab (verschachtelte
-        // Bloecke) und objectives (mehrzeilige Liste, ADR 0089) folgen
-        // demselben chirurgischen Muster, je ihrem eigenen Block-Ersatz.
+        // Frontmatter (ADR 0080/0081, W6.1/W6.2); sandbox/related_node
+        // (verschachtelte Bloecke) und objectives (mehrzeilige Liste, ADR
+        // 0089) folgen demselben chirurgischen Muster, je ihrem eigenen
+        // Block-Ersatz.
         $metaRaw = LessonMetaGenerator::regenerateMeta($metaRaw, $draft);
         $mdRaw = LessonMetaGenerator::regenerateFrontMatter($mdRaw, $draft);
 
@@ -148,8 +149,8 @@ final readonly class LessonActivity implements ActivityContract
             $metaRaw = LessonMetaGenerator::regenerateSandbox($metaRaw, $draft['sandbox']);
         }
 
-        if (isset($draft['lab'])) {
-            $metaRaw = LessonMetaGenerator::regenerateLab($metaRaw, $draft['lab']);
+        if (isset($draft['related_node'])) {
+            $metaRaw = LessonMetaGenerator::regenerateRelatedNode($metaRaw, $draft['related_node']);
         }
 
         if (isset($draft['objectives'])) {
@@ -250,7 +251,7 @@ final readonly class LessonActivity implements ActivityContract
             'requires' => $this->lesson->requires,
             'glossary_terms' => $this->lesson->glossary_terms,
             'sandbox' => $this->lesson->sandbox,
-            'lab' => $this->lesson->lab,
+            'related_node' => $this->lesson->related_node,
             // CMS-7d.3: rich_content ist die kanonische Prosa-Quelle. Ist
             // die Spalte noch nicht befuellt (nicht migrierte/sehr neue
             // Lektion), normalisiert derselbe Normalizer wie ueberall sonst

@@ -255,7 +255,7 @@ async function submitFlag() {
         <Breadcrumbs
             class="mb-3"
             :breadcrumbs="[
-                { title: trans('Labs'), href: nodesIndex() },
+                { title: trans('Herausforderungen'), href: nodesIndex() },
                 {
                     title: categoryLabels[node.category] ?? node.category,
                     href: nodesIndex(),

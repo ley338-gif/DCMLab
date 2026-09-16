@@ -25,7 +25,7 @@ class LessonFactory extends Factory
             'requires' => [],
             'tools' => [],
             'sandbox' => null,
-            'lab' => null,
+            'related_node' => null,
             'glossary_terms' => [],
             'tools_checked' => now(),
             'status' => 'draft',

@@ -25,7 +25,7 @@ type NodeSummary = {
 
 const props = defineProps<{ nodes: NodeSummary[] }>();
 
-// Zweistufig gruppiert (Abschnitt 13): Themenfeld zuerst, weil Labs aus
+// Zweistufig gruppiert (Abschnitt 13): Themenfeld zuerst, weil Nodes aus
 // unterschiedlichen Themenfeldern fachlich nichts miteinander zu tun haben
 // -- category bleibt die Feingruppierung *innerhalb* eines Themenfelds.
 const groups = computed(() => {
@@ -54,10 +54,12 @@ const groups = computed(() => {
 </script>
 
 <template>
-    <Head :title="trans('Labs')" />
+    <Head :title="trans('Herausforderungen')" />
 
     <PageContainer>
-        <h1 class="mb-2 text-2xl font-semibold">{{ trans('Labs') }}</h1>
+        <h1 class="mb-2 text-2xl font-semibold">
+            {{ trans('Herausforderungen') }}
+        </h1>
         <p class="text-muted-foreground mb-8">
             {{
                 trans(

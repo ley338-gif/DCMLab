@@ -87,14 +87,14 @@ class LessonControllerTest extends TestCase
         );
     }
 
-    public function test_it_shows_the_lab_node_when_it_exists(): void
+    public function test_it_shows_the_related_node_when_it_exists(): void
     {
         $track = Track::factory()->create();
         Lesson::factory()->create([
             'lesson_id' => '1.5',
             'track_id' => $track->id,
             'order' => 0,
-            'lab' => ['node' => 'silent-ct', 'optional' => false],
+            'related_node' => ['node' => 'silent-ct', 'optional' => false],
         ]);
         Node::factory()->create(['slug' => 'silent-ct', 'title' => ['de' => 'Silent CT']]);
 
@@ -105,20 +105,20 @@ class LessonControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->has('elements', 2)
                 ->where('elements.0.type', 'content')
-                ->where('elements.1.type', 'lab')
-                ->where('elements.1.lab_node.slug', 'silent-ct')
-                ->where('elements.1.lab_node.title', 'Silent CT'),
+                ->where('elements.1.type', 'related_node')
+                ->where('elements.1.related_node.slug', 'silent-ct')
+                ->where('elements.1.related_node.title', 'Silent CT'),
             );
     }
 
-    public function test_it_omits_the_lab_node_when_it_does_not_exist_yet(): void
+    public function test_it_omits_the_related_node_when_it_does_not_exist_yet(): void
     {
         $track = Track::factory()->create();
         Lesson::factory()->create([
             'lesson_id' => '1.1',
             'track_id' => $track->id,
             'order' => 0,
-            'lab' => ['node' => 'first-contact', 'optional' => false],
+            'related_node' => ['node' => 'first-contact', 'optional' => false],
         ]);
 
         $user = User::factory()->create();
@@ -293,7 +293,7 @@ class LessonControllerTest extends TestCase
             'track_id' => $track->id,
             'tools' => ['echoscu'], // needs_sandbox: true im echten Bestand
             'sandbox' => ['required' => true, 'dataset' => 'ct-head-01', 'note' => null],
-            'lab' => ['node' => 'silent-ct', 'optional' => false],
+            'related_node' => ['node' => 'silent-ct', 'optional' => false],
             'body' => "Prosa-Inhalt der Lektion.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B",
             'quiz' => [['id' => 'q1', 'type' => 'single', 'answer' => 0]],
         ]);
@@ -320,7 +320,7 @@ class LessonControllerTest extends TestCase
                 ->has('elements', 4)
                 ->where('elements.0.type', 'quiz')
                 ->where('elements.1.type', 'sandbox')
-                ->where('elements.2.type', 'lab')
+                ->where('elements.2.type', 'related_node')
                 ->where('elements.3.type', 'content'),
             );
 
@@ -335,7 +335,7 @@ class LessonControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('elements.0.type', 'content')
                 ->where('elements.1.type', 'sandbox')
-                ->where('elements.2.type', 'lab')
+                ->where('elements.2.type', 'related_node')
                 ->where('elements.3.type', 'quiz'),
             );
     }

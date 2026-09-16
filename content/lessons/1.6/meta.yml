@@ -9,7 +9,7 @@ tools: [echoscu, storescp, storescu]
 sandbox:
   required: true
   dataset: ct-thorax-60
-lab:
+related_node:
   node: neue-node
   optional: false
 glossary_terms: [ae-title, called-ae-title, calling-ae-title]

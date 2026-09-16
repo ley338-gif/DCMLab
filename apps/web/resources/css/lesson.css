@@ -583,7 +583,7 @@
     margin-bottom: 14px;
 }
 
-.practice-task-lab {
+.practice-task-related-node {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -595,11 +595,11 @@
     font-weight: 500;
 }
 
-.practice-task-lab:hover {
+.practice-task-related-node:hover {
     background: var(--accent);
 }
 
-.practice-task-lab span {
+.practice-task-related-node span {
     margin-right: auto;
 }
 

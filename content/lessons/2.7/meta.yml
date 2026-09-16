@@ -15,7 +15,7 @@ sandbox:
 # passender Node-Stub vorhanden. Orthanc beherrscht Storage Commitment
 # seit P10.21 (ADR 0031) nativ ueber die REST-API -- dieselbe
 # Infrastruktur, die Lektion 4.8 nutzt.
-lab:
+related_node:
   node: null
   optional: true
 

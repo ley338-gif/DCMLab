@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { trans } from '@/lib/trans';
 import { show as showNode } from '@/routes/nodes';
 
-type LabNode = {
+type RelatedNode = {
     slug: string;
     title: string;
     difficulty: string;
@@ -17,13 +17,13 @@ defineProps<{
     lessonId: string;
     needsSandbox: boolean;
     dataset: { note: string | null; file_count: number | null } | null;
-    labNode: LabNode | null;
+    relatedNode: RelatedNode | null;
 }>();
 </script>
 
 <template>
     <section
-        v-if="needsSandbox || labNode"
+        v-if="needsSandbox || relatedNode"
         class="practice-task"
         aria-label="Praxis"
     >
@@ -47,16 +47,20 @@ defineProps<{
         <SandboxPanel v-if="needsSandbox" :lesson-id="lessonId" />
 
         <Link
-            v-if="labNode"
-            :href="showNode(labNode.slug)"
-            class="practice-task-lab"
+            v-if="relatedNode"
+            :href="showNode(relatedNode.slug)"
+            class="practice-task-related-node"
         >
             <span>
-                {{ trans('Lab: „:title"', { title: labNode.title }) }}
+                {{
+                    trans('Verknüpfte Node: „:title"', {
+                        title: relatedNode.title,
+                    })
+                }}
             </span>
-            <Badge variant="outline">{{ labNode.difficulty }}</Badge>
+            <Badge variant="outline">{{ relatedNode.difficulty }}</Badge>
             <Badge variant="outline">{{
-                trans(':points Pkt.', { points: labNode.points })
+                trans(':points Pkt.', { points: relatedNode.points })
             }}</Badge>
             <ArrowRight class="size-4" aria-hidden="true" />
         </Link>

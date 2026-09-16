@@ -27,7 +27,7 @@ type SandboxFields = {
     note: string | null;
 };
 
-type LabFields = {
+type RelatedNodeFields = {
     node: string | null;
     optional: boolean;
 };
@@ -42,7 +42,7 @@ type LessonFields = {
     glossary_terms: string[];
     objectives: string[];
     sandbox: SandboxFields;
-    lab: LabFields;
+    related_node: RelatedNodeFields;
     rich_content: RichContentDocument;
 };
 
@@ -325,7 +325,7 @@ const statusLabels: Record<string, string> = {
         <Card class="mt-4">
             <CardHeader>
                 <CardTitle class="text-base">{{
-                    trans('Spielwiese und Lab')
+                    trans('Spielwiese und verknüpfte Node')
                 }}</CardTitle>
             </CardHeader>
             <CardContent class="space-y-4">
@@ -385,14 +385,16 @@ const statusLabels: Record<string, string> = {
 
                 <div class="grid gap-4 border-t pt-4 sm:grid-cols-2">
                     <div class="space-y-1.5">
-                        <Label for="lab_node">{{ trans('Lab-Node') }}</Label>
+                        <Label for="related_node">{{
+                            trans('Verknüpfte Node')
+                        }}</Label>
                         <select
-                            id="lab_node"
-                            v-model="fields.lab.node"
+                            id="related_node"
+                            v-model="fields.related_node.node"
                             class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
                         >
                             <option :value="null">
-                                {{ trans('(kein Lab)') }}
+                                {{ trans('(keine Node)') }}
                             </option>
                             <option
                                 v-for="node in catalog.nodes"
@@ -405,16 +407,17 @@ const statusLabels: Record<string, string> = {
                     </div>
                     <div class="flex items-center gap-2 self-end">
                         <Checkbox
-                            id="lab_optional"
-                            :model-value="fields.lab.optional"
+                            id="related_node_optional"
+                            :model-value="fields.related_node.optional"
                             @update:model-value="
                                 (value) =>
-                                    (fields.lab.optional = value === true)
+                                    (fields.related_node.optional =
+                                        value === true)
                             "
                         />
-                        <Label for="lab_optional">{{
+                        <Label for="related_node_optional">{{
                             trans(
-                                'Lektion gilt auch ohne Lab als abgeschlossen',
+                                'Lektion gilt auch ohne die verknüpfte Node als abgeschlossen',
                             )
                         }}</Label>
                     </div>

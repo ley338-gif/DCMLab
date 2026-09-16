@@ -17,7 +17,7 @@ sandbox:
 # siehe docs/content-todo.md. teiltransfer wird deshalb im Fliesstext
 # genannt, ohne toolbar-seitige Verknuepfung. Fliesstext ist seit P10.16
 # vollstaendig (ADR 0026).
-lab:
+related_node:
   node: oversized-image
   optional: true
 

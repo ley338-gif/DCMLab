@@ -13,7 +13,7 @@ sandbox:
 
 # Node zwei-ebenen-tiefer ist seit P10.14 vollstaendig und live verifiziert
 # (Feature 9: dcmdump-Hierarchiefelder, ADR 0024).
-lab:
+related_node:
   node: zwei-ebenen-tiefer
   optional: false
 glossary_terms: [study, series, instance, patient-id, sop-instance-uid]

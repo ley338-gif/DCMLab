@@ -78,7 +78,7 @@ class RichContentCutoverInvariantsTest extends TestCase
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true],
+            'related_node' => ['node' => null, 'optional' => true],
             'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => [
                 ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Text.']]],
             ]],

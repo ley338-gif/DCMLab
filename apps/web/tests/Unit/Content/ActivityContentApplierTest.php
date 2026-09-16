@@ -41,7 +41,7 @@ class ActivityContentApplierTest extends TestCase
 
         $this->contentDir = storage_path('framework/testing/applier-'.uniqid());
         File::ensureDirectoryExists($this->contentDir.'/lessons/1.0');
-        File::put($this->contentDir.'/lessons/1.0/meta.yml', "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: []\nglossary_terms: []\nobjectives_count: 1\nsandbox:\n  required: false\nlab:\n  node: null\n  optional: true\nstatus: draft\n");
+        File::put($this->contentDir.'/lessons/1.0/meta.yml', "id: \"1.0\"\ntrack: fundamente\nlevel: einsteiger\nduration_minutes: 5\nrequires: []\ntools: []\nglossary_terms: []\nobjectives_count: 1\nsandbox:\n  required: false\nrelated_node:\n  node: null\n  optional: true\nstatus: draft\n");
         File::put($this->contentDir.'/lessons/1.0/de.md', "---\ntitle: Alt\nteaser: Alt\nobjectives:\n  - Altes Ziel\n---\n\nAlte Prosa.\n\n```\n\$ dcmdump datei.dcm\n```\n\n**Was du daran abliest:** Test.\n");
         File::put($this->contentDir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: themenfeld.dicom.title\n  status: published\n");
         File::ensureDirectoryExists($this->contentDir.'/nodes/test-node');
@@ -66,7 +66,7 @@ class ActivityContentApplierTest extends TestCase
         $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'objectives' => ['Ziel'], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent(
+            'related_node' => ['node' => null, 'optional' => true], 'rich_content' => $this->richContent(
                 'Neue Prosa.',
                 '$ dcmdump datei.dcm',
             ),
@@ -135,7 +135,7 @@ class ActivityContentApplierTest extends TestCase
         $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'objectives' => ['Ziel'], 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true],
+            'related_node' => ['node' => null, 'optional' => true],
             'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => [
                 ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Neue Prosa.']]],
             ]],

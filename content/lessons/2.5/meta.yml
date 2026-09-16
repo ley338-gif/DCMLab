@@ -16,7 +16,7 @@ sandbox:
 # (ADR 0030) einen echten Worklist-Dienst (Orthancs Worklists-Plugin,
 # per Sitzung frisch generierter Auftrag aus content/worklists.yml) --
 # dieselbe Infrastruktur, die Lektion 4.7 bereits nutzt.
-lab:
+related_node:
   node: null
   optional: true
 

@@ -7,7 +7,7 @@ objectives_count: 3
 requires: []
 tools: []
 
-lab:
+related_node:
   node: anruf-am-empfang
   optional: true
 

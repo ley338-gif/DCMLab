@@ -12,7 +12,7 @@ sandbox:
 
 # Node first-contact ist seit P10.13 vollstaendig und live verifiziert
 # (Feature 8: dcmftest + generalisiertes dcmdump, ADR 0023).
-lab:
+related_node:
   node: first-contact
   optional: false
 glossary_terms: [dicom, instance, tag, c-store, dimse]

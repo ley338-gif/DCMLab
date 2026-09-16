@@ -15,7 +15,7 @@ sandbox:
 # der Lab-Spalte. C-ECHO selbst wird bereits in Lektion 1.0 angerissen;
 # diese Lektion vertieft den Dienst als solchen (Verification SOP Class,
 # was er beweist und was nicht), nicht nur den Befehlsaufruf.
-lab:
+related_node:
   node: null
   optional: true
 

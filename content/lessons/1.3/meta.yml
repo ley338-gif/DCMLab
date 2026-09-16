@@ -12,7 +12,7 @@ sandbox:
 
 # Node wo-steht-das ist seit P10.13 vollstaendig und live verifiziert
 # (Feature 8: generalisiertes dcmdump, ADR 0023).
-lab:
+related_node:
   node: wo-steht-das
   optional: false
 glossary_terms: [tag, vr, value-multiplicity, private-creator]

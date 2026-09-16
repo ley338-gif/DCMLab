@@ -10,7 +10,7 @@ sandbox:
   required: true
   dataset: ct-thorax-60
 
-lab:
+related_node:
   node: mitgehoert
   optional: false
 glossary_terms: [association, presentation-context, abstract-syntax, max-pdu]

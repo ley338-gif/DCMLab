@@ -82,3 +82,16 @@ Dropdown fuer `lab.node` (aus `content->nodes()`) und Checkbox fuer
   Verstoessen (42 Lektionen, 17 Nodes, 5 Pruefungen).
 - Alle 379 Tests, `phpstan analyse` (Level 7), `pint --test`,
   `npm run check` und `npm run build` sind gruen.
+
+## Nachtrag (CMS-8a)
+
+Das hier eingefuehrte Feld `lab: {node, optional}` (Spalte `lessons.lab`,
+`LessonMetaGenerator::regenerateLab()`, `LearnerViewBuilder::labElement()`,
+Vue-Typ `LabNode`) wurde umbenannt zu `related_node: {node, optional}`
+(Spalte `lessons.related_node`, `regenerateRelatedNode()`,
+`relatedNodeElement()`, Vue-Typ `RelatedNode`) -- CMS-8 fuehrt einen
+neuen, generischen `Lab`-Activity-Typ ein (`type=lab`, echte DICOM-Labs),
+der denselben Bezeichner "Lab" bereits fachlich beansprucht. Die
+Umbenennung ist rein technisch (Spalten-/Bezeichnernamen, per Migration
+`rename_lab_to_related_node_on_lessons_table`), das Verhalten und der
+Inhalt (`{node, optional}`) sind unveraendert.

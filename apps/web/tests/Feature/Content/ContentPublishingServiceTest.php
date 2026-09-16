@@ -73,7 +73,7 @@ class ContentPublishingServiceTest extends TestCase
             'title' => 'Neu', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true],
+            'related_node' => ['node' => null, 'optional' => true],
             'rich_content' => $this->validRichContent($text),
         ];
     }
@@ -229,7 +229,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Wiederhergestellt', 'teaser' => 'Neu', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 // Kein rich_content-Schluessel -- eine echte Vor-Cutover-Revision.
                 // Codeblock + Leseanleitung noetig, damit die HEUTIGE
                 // Validierung (checkRichContentExampleRule(), nach der
@@ -290,7 +290,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Alt', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 // Historisches Legacy-Payload: NUR `before`, wie der
                 // Vor-7d.3-Editor es tatsaechlich gespeichert hat.
                 'body' => "Historische Vor-Quiz-Prosa.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
@@ -399,7 +399,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Legacy-Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
@@ -444,7 +444,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Alter Entwurf', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Alter Entwurfstext.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id,
@@ -478,7 +478,7 @@ class ContentPublishingServiceTest extends TestCase
             'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
             'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
             'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-            'lab' => ['node' => null, 'optional' => true],
+            'related_node' => ['node' => null, 'optional' => true],
             'body' => "{$text}\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
         ];
 
@@ -522,7 +522,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Nachtraeglich veroeffentlicht', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Alter Entwurfstext.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id,
@@ -541,7 +541,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Noch aelter', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Noch aelterer Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
@@ -574,7 +574,7 @@ class ContentPublishingServiceTest extends TestCase
                 'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
                 'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
                 'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
-                'lab' => ['node' => null, 'optional' => true],
+                'related_node' => ['node' => null, 'optional' => true],
                 'body' => "Legacy-Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
             ],
             'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,

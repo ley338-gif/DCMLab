@@ -10,7 +10,7 @@ tools: [storescu, dcmdump]
 sandbox:
   required: false
 
-lab:
+related_node:
   node: null
   optional: true
 

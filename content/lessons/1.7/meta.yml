@@ -12,7 +12,7 @@ sandbox:
 
 # Node halbe-sache ist seit P10.12 vollstaendig und live verifiziert
 # (Feature 7: LossyImageCompression-Pruefung via dcmdump, ADR 0022).
-lab:
+related_node:
   node: halbe-sache
   optional: false
 glossary_terms: [transfer-syntax, implicit-vr, explicit-vr]
