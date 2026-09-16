@@ -169,6 +169,40 @@ def queue_position(r: RedisLike, request_id: str) -> int | None:
     return None
 
 
+def queued_request_for_user(r: RedisLike, user_id: str) -> QueuedRequest | None:
+    """CMS-8b, Betreiber-Review (viertes Review): die `runtime_key`-
+    Idempotenz in `orchestrator.create_sandbox()` griff bisher nur fuer
+    AKTIVE Runtimes -- ein bereits wartender Nutzer hat noch keinen
+    `user_active`-Eintrag und konnte so einen zweiten (oder
+    widerspruechlichen) Request in dieselbe Warteschlange stellen. Liefert
+    die aelteste wartende Anfrage dieses Nutzers, falls vorhanden."""
+
+    raw_entries = cast("list[Any]", r.lrange(QUEUE_KEY, 0, -1))
+    for raw in raw_entries:
+        entry = QueuedRequest.from_json(_decode(raw))
+        if entry.user_id == user_id:
+            return entry
+    return None
+
+
+def remove_queued(r: RedisLike, request_id: str) -> QueuedRequest | None:
+    """Gegenstueck zu `remove_active()` fuer eine noch wartende Anfrage
+    (CMS-8b, Betreiber-Review, viertes Review) -- ohne das konnte
+    `delete_sandbox()` einen queued Request gar nicht entfernen: er blieb
+    in der Warteschlange stehen und wurde spaeter trotzdem promoted, obwohl
+    die zugehoerige SandboxSession laengst 'destroyed' war (Zombie-Runtime,
+    CMS-8d-relevant)."""
+
+    raw_entries = cast("list[Any]", r.lrange(QUEUE_KEY, 0, -1))
+    for raw in raw_entries:
+        decoded = _decode(raw)
+        entry = QueuedRequest.from_json(decoded)
+        if entry.request_id == request_id:
+            r.lrem(QUEUE_KEY, 1, decoded)
+            return entry
+    return None
+
+
 def dequeue_next(r: RedisLike) -> QueuedRequest | None:
     raw = r.lpop(QUEUE_KEY)
     return QueuedRequest.from_json(_decode(raw)) if raw is not None else None

@@ -71,6 +71,23 @@ def create_sandbox(
 
             raise ActiveRuntimeConflictError(user_id)
 
+    # CMS-8b, Betreiber-Review (viertes Review): dieselbe Owner-Match-Pruefung
+    # wie oben, aber fuer einen Nutzer, der noch GAR keinen `user_active`-
+    # Eintrag hat, weil sein voriger Request noch in der Warteschlange
+    # wartet -- sonst koennte er (oder ein widerspruechlicher zweiter
+    # Aufruf) einen weiteren Queue-Eintrag anlegen, obwohl die "eine Runtime
+    # pro User/runtime_key"-Garantie das gerade verhindern soll.
+    queued = state.queued_request_for_user(r, user_id)
+    if queued is not None:
+        if queued.runtime_key == runtime_key:
+            return SandboxView(
+                status="queued",
+                sandbox_id=queued.request_id,
+                queue_position=state.queue_position(r, queued.request_id),
+            )
+
+        raise ActiveRuntimeConflictError(user_id)
+
     used = state.quota_used_seconds(r, user_id, state.today())
     if used >= settings.daily_quota_minutes * 60:
         raise QuotaExceededError(user_id)
@@ -219,19 +236,25 @@ def get_events(
 
 def delete_sandbox(r: RedisLike, docker_client: docker.DockerClient, *, sandbox_id: str) -> None:
     sandbox = state.remove_active(r, sandbox_id)
-    if sandbox is None:
+    if sandbox is not None:
+        docker_ops.teardown_session(
+            docker_client, network_name=sandbox.network_name, volume_name=sandbox.volume_name,
+        )
+
+        elapsed = int(
+            (datetime.now(UTC) - datetime.fromisoformat(sandbox.started_at)).total_seconds(),
+        )
+        state.add_quota_usage(r, sandbox.user_id, state.today(), elapsed)
+
+        _promote_next(r, docker_client)
         return
 
-    docker_ops.teardown_session(
-        docker_client, network_name=sandbox.network_name, volume_name=sandbox.volume_name,
-    )
-
-    elapsed = int(
-        (datetime.now(UTC) - datetime.fromisoformat(sandbox.started_at)).total_seconds(),
-    )
-    state.add_quota_usage(r, sandbox.user_id, state.today(), elapsed)
-
-    _promote_next(r, docker_client)
+    # CMS-8b, Betreiber-Review (viertes Review): eine noch wartende Anfrage
+    # hat keine Container zum Abbauen, muss aber trotzdem aus der
+    # Warteschlange verschwinden -- sonst wuerde `_promote_next()` sie
+    # spaeter noch starten, obwohl die zugehoerige SandboxSession
+    # Laravel-seitig laengst 'destroyed' ist (Zombie-Runtime, CMS-8d-relevant).
+    state.remove_queued(r, sandbox_id)
 
 
 def _promote_next(r: RedisLike, docker_client: docker.DockerClient) -> None:

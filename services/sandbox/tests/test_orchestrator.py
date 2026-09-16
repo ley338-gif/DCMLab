@@ -151,6 +151,71 @@ def test_create_sandbox_queues_when_at_capacity(redis_client: fakeredis.FakeRedi
     assert state.active_count(redis_client) == 2
 
 
+def test_create_sandbox_is_idempotent_for_the_same_queued_runtime_key(
+    redis_client: fakeredis.FakeRedis,
+) -> None:
+    """CMS-8b, Betreiber-Review (viertes Review): die runtime_key-Idempotenz
+    griff bisher nur fuer AKTIVE Runtimes -- ein bereits wartender Nutzer
+    hatte noch keinen user_active-Eintrag und konnte so einen zweiten
+    Queue-Eintrag fuer dieselbe Runtime anlegen."""
+
+    _create(redis_client, user_id="u1")
+    _create(redis_client, user_id="u2")
+
+    first = _create(redis_client, user_id="u3", runtime_key="sandbox:user:u3")
+    second = _create(redis_client, user_id="u3", runtime_key="sandbox:user:u3")
+
+    assert first.sandbox_id == second.sandbox_id
+    assert state.queue_position(redis_client, first.sandbox_id) == 1
+    # Nur EIN Eintrag in der Warteschlange, nicht zwei.
+    assert redis_client.llen(state.QUEUE_KEY) == 1
+
+
+def test_create_sandbox_conflicts_when_a_different_runtime_key_queues_for_the_same_user(
+    redis_client: fakeredis.FakeRedis,
+) -> None:
+    _create(redis_client, user_id="u1")
+    _create(redis_client, user_id="u2")
+    queued = _create(redis_client, user_id="u3", runtime_key="sandbox:user:u3")
+    assert queued.sandbox_id is not None
+
+    with pytest.raises(orchestrator.ActiveRuntimeConflictError):
+        _create(redis_client, user_id="u3", runtime_key="lab-attempt:999")
+
+    # Der urspruengliche Queue-Eintrag ist unveraendert, kein zweiter wurde
+    # angelegt.
+    assert state.queue_position(redis_client, queued.sandbox_id) == 1
+    assert redis_client.llen(state.QUEUE_KEY) == 1
+
+
+def test_deleting_a_queued_sandbox_removes_it_and_it_is_never_promoted(
+    redis_client: fakeredis.FakeRedis, _fake_docker_ops: list[str],
+) -> None:
+    """CMS-8b, Betreiber-Review (viertes Review): vorher konnte
+    delete_sandbox() einen queued Request gar nicht entfernen -- er blieb
+    in der Warteschlange und wurde spaeter trotzdem promoted, obwohl die
+    zugehoerige SandboxSession Laravel-seitig laengst 'destroyed' war
+    (Zombie-Runtime, CMS-8d-relevant)."""
+
+    a = _create(redis_client, user_id="u1")
+    _create(redis_client, user_id="u2")
+    queued = _create(redis_client, user_id="u3")
+    assert a.sandbox_id is not None
+    assert queued.sandbox_id is not None
+
+    orchestrator.delete_sandbox(redis_client, None, sandbox_id=queued.sandbox_id)
+
+    assert state.queue_position(redis_client, queued.sandbox_id) is None
+
+    # Ein Slot wird frei -- die geloeschte Anfrage darf NICHT befoerdert
+    # werden, weil sie gar nicht mehr in der Warteschlange steht.
+    orchestrator.delete_sandbox(redis_client, None, sandbox_id=a.sandbox_id)
+
+    assert len(_fake_docker_ops) == 2  # nur u1 und u2 haben je einen Container gebaut
+    with pytest.raises(orchestrator.SandboxNotFoundError):
+        orchestrator.get_sandbox(redis_client, queued.sandbox_id)
+
+
 def test_deleting_a_sandbox_promotes_the_next_queued_request(
     redis_client: fakeredis.FakeRedis, _fake_docker_ops: list[str],
 ) -> None:

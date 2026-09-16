@@ -10,7 +10,9 @@ from app.state import (
     list_exec_events,
     put_active,
     queue_position,
+    queued_request_for_user,
     remove_active,
+    remove_queued,
 )
 
 
@@ -38,6 +40,33 @@ def test_dequeue_next_returns_fifo() -> None:
     assert second.request_id == "b"
 
     assert dequeue_next(r) is None
+
+
+def test_queued_request_for_user_finds_the_oldest_matching_entry() -> None:
+    r = fakeredis.FakeRedis()
+    enqueue(r, QueuedRequest("a", "u1", "d", "t1"))
+    enqueue(r, QueuedRequest("b", "u2", "d", "t2"))
+    enqueue(r, QueuedRequest("c", "u1", "d", "t3"))
+
+    found = queued_request_for_user(r, "u1")
+
+    assert found is not None
+    assert found.request_id == "a"
+    assert queued_request_for_user(r, "does-not-exist") is None
+
+
+def test_remove_queued_removes_the_matching_entry_only() -> None:
+    r = fakeredis.FakeRedis()
+    enqueue(r, QueuedRequest("a", "u1", "d", "t1"))
+    enqueue(r, QueuedRequest("b", "u2", "d", "t2"))
+
+    removed = remove_queued(r, "a")
+
+    assert removed is not None
+    assert removed.request_id == "a"
+    assert queue_position(r, "a") is None
+    assert queue_position(r, "b") == 1
+    assert remove_queued(r, "does-not-exist") is None
 
 
 def test_active_sandbox_roundtrips_through_json() -> None:
