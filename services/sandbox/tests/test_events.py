@@ -24,6 +24,7 @@ def _fake_redis_and_docker(monkeypatch: pytest.MonkeyPatch) -> fakeredis.FakeRed
     r = fakeredis.FakeRedis()
     monkeypatch.setattr("app.main.get_redis", lambda: r)
     monkeypatch.setattr("app.main.get_docker", lambda: None)
+    monkeypatch.setattr("app.orchestrator.docker_ops.collect_orthanc_facts", lambda *_a, **_kw: [])
     return r
 
 

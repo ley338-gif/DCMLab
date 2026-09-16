@@ -7,6 +7,7 @@ container:<orthanc>`) -- deshalb erreicht die Toolbox Orthanc unter
 
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from dataclasses import dataclass
@@ -287,6 +288,87 @@ def exec_command(
         "stdout": (stdout or b"").decode("utf-8", errors="replace"),
         "stderr": (stderr or b"").decode("utf-8", errors="replace"),
     }
+
+
+def collect_orthanc_facts(
+    docker_client: docker.DockerClient, toolbox_container_id: str,
+) -> list[dict[str, str]]:
+    """Beobachtungsschicht (CMS-8b): der Orchestrator-Prozess selbst kann
+    Orthancs REST-API (Port 8042) nicht erreichen -- der Orthanc-Container
+    liegt auf einem `internal=True`-Netz ohne Host-Port-Publikation. Der
+    einzige erreichbare Weg ist derselbe wie fuer Lernenden-Befehle: `curl`
+    IN der Toolbox ausgefuehrt, die ohnehin per `network_mode:
+    container:<orthanc>` in Orthancs Netzwerk-Namespace sitzt.
+
+    ZWEISTUFIG, Betreiber-Review: `/changes` ist nur eine Neue-Instanzen-
+    ID-Liste (Discovery), KEIN vollstaendiges DICOM-Metadatenobjekt -- SOP-
+    Klasse/Transfer-Syntax kommen erst aus fest verdrahteten Folgeabfragen
+    je gefundener Instanz: `simplified-tags` fuer SOPClassUID (Hauptdatenset),
+    `header?simplify` fuer TransferSyntaxUID (File Meta Information, Gruppe
+    0002 -- steckt live nachweislich NICHT in `simplified-tags`). Der
+    curl-Aufruf selbst ist serverseitig fest verdrahtet (kein
+    Nutzereingabe-Pfad dorthin) -- sonst waere das ein Command-Injection-
+    Vektor in einer sonst harmlosen internen Beobachtungsfunktion.
+    """
+
+    changes = _orthanc_get(docker_client, toolbox_container_id, "/changes")
+    if changes is None:
+        return []
+
+    raw_changes = changes.get("Changes")
+    if not isinstance(raw_changes, list):
+        return []
+
+    instances: list[dict[str, str]] = []
+
+    for change in raw_changes:
+        if not isinstance(change, dict):
+            continue
+        if change.get("ChangeType") != "NewInstance" or change.get("ResourceType") != "Instance":
+            continue
+
+        instance_id = change.get("ID")
+        if instance_id is None:
+            continue
+
+        tags = _orthanc_get(
+            docker_client, toolbox_container_id, f"/instances/{instance_id}/simplified-tags",
+        )
+        if tags is None:
+            continue
+
+        # `simplified-tags` deckt nur das Hauptdatenset ab, NICHT die File
+        # Meta Information (Gruppe 0002) -- TransferSyntaxUID liegt dort und
+        # fehlt in `simplified-tags` deshalb immer (live gegen echtes Orthanc
+        # verifiziert). `header?simplify` liefert genau diese Gruppe.
+        header = _orthanc_get(
+            docker_client, toolbox_container_id, f"/instances/{instance_id}/header?simplify",
+        )
+        transfer_syntax = header.get("TransferSyntaxUID", "") if header is not None else ""
+
+        instances.append({
+            "instance_id": instance_id,
+            "sop_class": str(tags.get("SOPClassUID", "")),
+            "transfer_syntax": str(transfer_syntax),
+        })
+
+    return instances
+
+
+def _orthanc_get(
+    docker_client: docker.DockerClient, toolbox_container_id: str, path: str,
+) -> dict[str, object] | None:
+    result = exec_command(docker_client, toolbox_container_id, f"curl -s http://127.0.0.1:8042{path}")
+
+    if result["exit_code"] != 0:
+        return None
+
+    try:
+        parsed = json.loads(str(result["stdout"]))
+    except json.JSONDecodeError:
+        return None
+
+    return parsed if isinstance(parsed, dict) else None
 
 
 def teardown_session(

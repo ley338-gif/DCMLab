@@ -65,9 +65,15 @@ def _fake_docker_ops(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     def fake_teardown_session(_client: Any, *, network_name: str, volume_name: str) -> None:
         pass
 
+    def fake_collect_orthanc_facts(_client: Any, toolbox_container_id: str) -> list[dict[str, str]]:
+        return []
+
     monkeypatch.setattr("app.orchestrator.docker_ops.build_session", fake_build_session)
     monkeypatch.setattr("app.orchestrator.docker_ops.exec_command", fake_exec_command)
     monkeypatch.setattr("app.orchestrator.docker_ops.teardown_session", fake_teardown_session)
+    monkeypatch.setattr(
+        "app.orchestrator.docker_ops.collect_orthanc_facts", fake_collect_orthanc_facts,
+    )
     fake_params = {
         "patient": "X", "patient_id": "1", "study": "S", "series": ["A"], "file_count": 1,
     }

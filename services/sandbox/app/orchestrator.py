@@ -179,20 +179,19 @@ def get_events(
     r: RedisLike, docker_client: docker.DockerClient, *, sandbox_id: str,
 ) -> dict[str, object]:
     """Observation-API (CMS-8b): Exec facts (tatsaechlich ausgefuehrte
-    Befehle) aus Redis. Orthanc facts (neue Instanzen) folgen in einem
-    eigenen Schritt (naechster Commit) -- die Antwortform steht aber
-    bereits fest, damit Laravel/Client-seitig nichts mehr angepasst
-    werden muss."""
+    Befehle) aus Redis, Orthanc facts (neue Instanzen) on demand ueber die
+    Toolbox erfragt -- niemals kontinuierlich mitgeschnitten."""
 
     sandbox = state.get_active(r, sandbox_id)
     if sandbox is None:
         raise SandboxNotFoundError(sandbox_id)
 
     exec_events = state.list_exec_events(r, sandbox_id)
+    new_instances = docker_ops.collect_orthanc_facts(docker_client, sandbox.toolbox_container_id)
 
     return {
         "exec": exec_events,
-        "orthanc": {"new_instances": []},
+        "orthanc": {"new_instances": new_instances},
     }
 
 
