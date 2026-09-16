@@ -197,6 +197,28 @@ class LabActivityTest extends TestCase
         ));
     }
 
+    /**
+     * CMS-8d, Betreiber-Review: zwei Assertions mit identischem type+prefix
+     * sind ein Autorenfehler -- derselbe Identifier, den
+     * LabAssertionEvaluator zur Laufzeit fuer assertions_passed verwendet.
+     */
+    public function test_validate_rejects_duplicate_assertions(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [
+                ['type' => 'command_executed', 'prefix' => 'echoscu'],
+                ['type' => 'command_executed', 'prefix' => 'echoscu'],
+            ],
+        ]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'doppelte Erfolgskriterien'),
+        ));
+    }
+
     public function test_validate_rejects_an_unknown_assertion_type(): void
     {
         SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
