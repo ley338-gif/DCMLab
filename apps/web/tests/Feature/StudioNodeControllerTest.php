@@ -166,6 +166,86 @@ class StudioNodeControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('fields.title', 'Entwurfstitel'));
     }
 
+    /**
+     * Betreiber-Review vor #126: analog zum Lesson-Fall -- ein VOR dem
+     * Cutover angelegter Node-Entwurf traegt noch `payload.body`
+     * (NodeSections-Markdown) statt `rich_content`. `edit()` muss ihn
+     * ueber denselben Normalizer wie Publish/Restore/Preview uebersetzen,
+     * sonst bekaemen die drei neuen Editoren (Briefing/Hints/Write-up)
+     * ein Feld, das sie nicht verstehen.
+     */
+    public function test_a_pre_cutover_draft_with_legacy_body_opens_in_the_new_editor(): void
+    {
+        Node::factory()->create(['slug' => 'test-node']);
+        $activity = Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'draft',
+            'payload' => [
+                'title' => 'Entwurfstitel', 'scenario_title' => 'Entwurf', 'difficulty' => 'easy',
+                'points' => 10, 'category' => 'netzwerk', 'interaction' => 'terminal',
+                'estimated_minutes' => 15, 'skills' => [], 'related_lessons' => [],
+                'hints' => [['id' => 'h1', 'cost' => 1]],
+                'body' => "## Briefing\n\nEntwurfs-Briefing.\n\n## Hints\n\n### h1\n\nEntwurfs-Hinweis.\n\n## Write-up\n\nEntwurfs-Loesung.\n",
+            ],
+            'is_current' => false, 'created_by' => User::factory()->create()->id,
+        ]);
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($reviewer)
+            ->get('/de/studio/nodes/test-node')
+            ->assertInertia(fn ($page) => $page
+                ->where('fields.title', 'Entwurfstitel')
+                ->where('fields.rich_content.type', 'node_content')
+                ->where('fields.rich_content.briefing', function ($document) {
+                    $texts = collect($document['content'])->pluck('content')->flatten(1)->pluck('text')->filter()->implode(' ');
+
+                    return str_contains($texts, 'Entwurfs-Briefing.');
+                })
+                ->where('fields.rich_content.hints.h1', function ($document) {
+                    $texts = collect($document['content'])->pluck('content')->flatten(1)->pluck('text')->filter()->implode(' ');
+
+                    return str_contains($texts, 'Entwurfs-Hinweis.');
+                }),
+            );
+    }
+
+    /**
+     * Betreiber-Review vor #126: nach dem ersten Rich-Content-Publish ist
+     * `body` absichtlich stale (ADR 0118, "keine zwei schreibenden
+     * Sources of Truth") -- `rich_content` ist die aktuelle Quelle.
+     * `duplicate()` kopierte bisher nur `body`, eine danach duplizierte
+     * Node haette deshalb veraltete Inhalte bekommen.
+     */
+    public function test_duplicating_a_node_after_a_rich_content_publish_copies_the_current_rich_content(): void
+    {
+        Node::factory()->create([
+            'slug' => 'silent-ct',
+            'body' => 'Veralteter Legacy-Text (vor dem ersten Rich-Content-Publish).',
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Aktueller Rich-Content-Text.']]],
+                ]],
+                'hints' => [],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
+        ]);
+        Activity::factory()->create(['type' => 'node', 'key' => 'silent-ct']);
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($reviewer)
+            ->post('/de/studio/nodes/silent-ct/duplicate')
+            ->assertRedirect('/de/studio/nodes/silent-ct-kopie');
+
+        $copy = Node::query()->where('slug', 'silent-ct-kopie')->firstOrFail();
+        $this->assertSame(
+            'Aktueller Rich-Content-Text.',
+            $copy->rich_content['briefing']['content'][0]['content'][0]['text'],
+        );
+        // body bleibt zusaetzlich als Legacy-Fallback kopiert.
+        $this->assertSame('Veralteter Legacy-Text (vor dem ersten Rich-Content-Publish).', $copy->body);
+    }
+
     public function test_saving_a_draft_creates_a_content_version_without_touching_the_node_row(): void
     {
         $node = Node::factory()->create(['slug' => 'test-node', 'title' => ['de' => 'Alt']]);

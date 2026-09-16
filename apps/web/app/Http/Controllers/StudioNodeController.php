@@ -147,7 +147,14 @@ class StudioNodeController extends Controller
                 // gegen keine echte Engine-Konfiguration (ADR 0107/0109).
                 'has_runtime_config' => ($content->nodes()[$node->slug] ?? null) !== null,
             ],
-            'fields' => $pendingVersion !== null ? $pendingVersion->payload : $registry->resolve($activity)->deserialize(),
+            // Betreiber-Review vor #126: ein VOR dem Cutover angelegter
+            // Entwurf traegt noch `payload.body` (Legacy-Shape) statt
+            // `rich_content` -- ohne Normalisierung bekaeme der neue Editor
+            // ein Feld, das er nicht versteht. Derselbe Normalizer wie bei
+            // Publish/Restore/Preview.
+            'fields' => $pendingVersion !== null
+                ? (new NodePayloadNormalizer)->normalize($pendingVersion->payload)
+                : $registry->resolve($activity)->deserialize(),
             'themenfelder' => $themenfelder,
             'skills_catalog' => ProfileService::SKILL_CATEGORIES,
             // Fuer das Slash-Menue des RichContentEditor ("/glossary", ADR
@@ -280,7 +287,15 @@ class StudioNodeController extends Controller
                 'status' => 'draft',
                 'title' => ['de' => $title],
                 'scenario_title' => $node->scenario_title,
+                // Betreiber-Review vor #126: `rich_content` ist seit dem
+                // Cutover die kanonische Quelle -- `body` bleibt nach dem
+                // ersten Rich-Content-Publish absichtlich stale (ADR 0118,
+                // "keine zwei schreibenden Sources of Truth"). Ohne diese
+                // Zeile haette eine danach duplizierte Node veraltete
+                // Inhalte bekommen. `body` bleibt zusaetzlich als
+                // Legacy-Fallback stehen.
                 'body' => $node->body,
+                'rich_content' => $node->rich_content,
                 'hints' => $node->hints,
                 'source_hash' => $sourceHash,
             ]);

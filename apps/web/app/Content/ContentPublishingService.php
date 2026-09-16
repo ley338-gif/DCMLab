@@ -8,6 +8,7 @@ use App\Content\RichContent\LessonPayloadNormalizer;
 use App\Content\RichContent\NodePayloadNormalizer;
 use App\Models\Activity;
 use App\Models\ContentVersion;
+use App\Models\Lesson;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -90,6 +91,26 @@ final readonly class ContentPublishingService
      */
     public function restoreVersion(ContentVersion $source, User $performedBy): ContentVersion
     {
+        // Betreiber-Review vor #126: die Route ist generisch und das
+        // `publish`-Gate allein erzwingt nicht, WELCHEN Status `source`
+        // hat -- ohne diese Pruefung koennte ein Reviewer ueber denselben
+        // Endpunkt einen `draft`/`review` direkt als neue veroeffentlichte
+        // Version "wiederherstellen" und damit den normalen
+        // draft -> review -> publish-Pfad umgehen. `is_current` bereits
+        // wiederherzustellen waere ausserdem wirkungslos (dieselbe Version
+        // ist schon aktuell) und deshalb kein sinnvoller Aufruf.
+        if ($source->status !== 'published') {
+            throw new RuntimeException(
+                'Wiederherstellung abgebrochen -- nur eine bereits veroeffentlichte Version kann wiederhergestellt werden.',
+            );
+        }
+
+        if ($source->is_current) {
+            throw new RuntimeException(
+                'Wiederherstellung abgebrochen -- diese Version ist bereits die aktuelle.',
+            );
+        }
+
         $activity = $source->activity;
         $normalized = $this->normalize($activity, $source->payload);
         $issues = $this->registry->resolve($activity)->validate($normalized);
@@ -147,8 +168,18 @@ final readonly class ContentPublishingService
      */
     private function normalize(Activity $activity, array $payload): array
     {
+        if ($activity->type === ActivityType::Lesson->value) {
+            // Betreiber-Review vor #126: ein Legacy-`payload['body']` ist
+            // nur `before` (siehe LessonPayloadNormalizer-Klassendoc) --
+            // die LIVE Lesson->body liefert das fehlende `after` nach,
+            // sonst wuerde ein Restore/Publish einer alten Revision diesen
+            // Teil unbemerkt verlieren.
+            $currentBody = Lesson::query()->where('lesson_id', $activity->key)->value('body');
+
+            return (new LessonPayloadNormalizer)->normalize($payload, is_string($currentBody) ? $currentBody : null);
+        }
+
         return match ($activity->type) {
-            ActivityType::Lesson->value => (new LessonPayloadNormalizer)->normalize($payload),
             ActivityType::Node->value => (new NodePayloadNormalizer)->normalize($payload),
             default => $payload,
         };

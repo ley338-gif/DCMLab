@@ -49,7 +49,15 @@ class LessonEditorController extends Controller
                 'lesson_id' => $lesson->lesson_id,
                 'title' => $lesson->title['de'] ?? $lesson->lesson_id,
             ],
-            'fields' => $pendingVersion !== null ? $pendingVersion->payload : $this->currentFields($lesson, $content),
+            // Betreiber-Review vor #126: ein VOR dem Cutover angelegter
+            // Entwurf traegt noch `payload.body` (Legacy-Shape) statt
+            // `rich_content` -- ohne Normalisierung bekaeme der neue Editor
+            // ein Feld, das er nicht versteht. Derselbe Normalizer wie bei
+            // Publish/Restore/Preview, damit alle vier Wege dasselbe
+            // Ergebnis zeigen.
+            'fields' => $pendingVersion !== null
+                ? (new LessonPayloadNormalizer)->normalize($pendingVersion->payload, $lesson->body)
+                : $this->currentFields($lesson, $content),
             'catalog' => [
                 'tools' => array_keys($content->tools()),
                 'glossary_terms' => array_keys($content->glossary()),
@@ -125,9 +133,9 @@ class LessonEditorController extends Controller
             ->latest()
             ->first();
 
-        $draft = (new LessonPayloadNormalizer)->normalize(
-            $pendingVersion !== null ? $pendingVersion->payload : $this->currentFields($lesson, $content),
-        );
+        $draft = $pendingVersion !== null
+            ? (new LessonPayloadNormalizer)->normalize($pendingVersion->payload, $lesson->body)
+            : (new LessonPayloadNormalizer)->normalize($this->currentFields($lesson, $content));
 
         $previewLesson = clone $lesson;
         $previewLesson->title = ['de' => $draft['title']];

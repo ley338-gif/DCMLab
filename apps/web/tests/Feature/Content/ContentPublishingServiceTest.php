@@ -257,6 +257,118 @@ class ContentPublishingServiceTest extends TestCase
     }
 
     /**
+     * Betreiber-Review vor #126: der VOR 7d.3 gueltige `LessonEditorController`
+     * speicherte in `payload.body` ausdruecklich nur `QuizContent::
+     * splitBody(...)['before']` -- der Nach-Quiz-Fusstext (`after`, z. B.
+     * "Als Naechstes: ...") war ueber KEINE UI editierbar und kam beim
+     * Rendern immer LIVE aus `Lesson::body` dazu. Ein Restore, das das
+     * historische `body` als komplettes Dokument interpretiert, wuerde
+     * `after` deshalb unbemerkt verlieren -- `LessonPayloadNormalizer`
+     * muss stattdessen das historische `body` als `before` behandeln und
+     * das LIVE `after` (aus der aktuellen `Lesson::body`-Spalte) anhaengen.
+     */
+    public function test_restoring_a_legacy_lesson_revision_with_nonempty_after_keeps_the_after_text(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create([
+            'track_id' => $track->id,
+            'lesson_id' => '9.4',
+            // Die LIVE Prosa vor dem Quiz ist irrelevant fuer den Restore
+            // (die kommt aus der historischen Version) -- nur `after`
+            // (nach dem abschliessenden "---") muss erhalten bleiben.
+            'body' => "Aktuelle Vor-Quiz-Prosa (wird beim Restore NICHT verwendet).\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** Lektion 2 wartet.",
+            'rich_content' => null,
+        ]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $historicalAuthor = User::factory()->create();
+        $performer = User::factory()->reviewer()->create();
+
+        $legacyVersion = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published',
+            'payload' => [
+                'title' => 'Alt', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
+                'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'lab' => ['node' => null, 'optional' => true],
+                // Historisches Legacy-Payload: NUR `before`, wie der
+                // Vor-7d.3-Editor es tatsaechlich gespeichert hat.
+                'body' => "Historische Vor-Quiz-Prosa.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
+            ],
+            'is_current' => false, 'created_by' => $historicalAuthor->id, 'reviewed_by' => $historicalAuthor->id,
+        ]);
+
+        $restored = app(ContentPublishingService::class)->restoreVersion($legacyVersion, $performer);
+
+        $restoredText = json_encode($restored->payload['rich_content'], JSON_UNESCAPED_UNICODE);
+        $this->assertStringContainsString('Historische Vor-Quiz-Prosa.', $restoredText);
+        $this->assertStringContainsString('Als Nächstes', $restoredText);
+        $this->assertStringContainsString('Lektion 2 wartet.', $restoredText);
+
+        $lesson->refresh();
+        $liveText = json_encode($lesson->rich_content);
+        $this->assertStringContainsString('Historische Vor-Quiz-Prosa.', $liveText);
+        $this->assertStringContainsString('Lektion 2 wartet.', $liveText);
+    }
+
+    /**
+     * Betreiber-Review vor #126: die Route ist generisch, das `publish`-
+     * Gate allein erzwingt nicht, welchen Status `source` hat -- ohne
+     * serverseitige Pruefung koennte ein Reviewer einen `draft`/`review`
+     * direkt als neue veroeffentlichte Version "wiederherstellen" und den
+     * normalen draft -> review -> publish-Pfad umgehen.
+     */
+    public function test_restore_of_a_non_published_version_is_rejected(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'title' => ['de' => 'Alt']]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $performer = User::factory()->reviewer()->create();
+
+        $draftVersion = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review', 'payload' => $this->lessonDraftPayload(),
+            'is_current' => false, 'created_by' => $performer->id,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
+        try {
+            app(ContentPublishingService::class)->restoreVersion($draftVersion, $performer);
+        } finally {
+            $this->assertSame('Alt', $lesson->fresh()->title['de']);
+            $this->assertSame('review', $draftVersion->fresh()->status);
+            $this->assertSame(1, ContentVersion::where('activity_id', $activity->id)->count());
+        }
+    }
+
+    /**
+     * Kehrseite von oben: eine echte, veroeffentlichte historische Version
+     * laesst sich weiterhin normal wiederherstellen -- die neue Pruefung
+     * blockiert nur `draft`/`review`, nicht den eigentlichen Restore-Zweck.
+     */
+    public function test_restore_of_a_published_historical_version_still_succeeds(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'rich_content' => $this->richContent('Aktuell.')]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $historicalAuthor = User::factory()->create();
+        $performer = User::factory()->reviewer()->create();
+
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published', 'payload' => $this->lessonDraftPayload('Aktuell.'),
+            'is_current' => true, 'created_by' => $historicalAuthor->id, 'reviewed_by' => $historicalAuthor->id,
+        ]);
+        $historical = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published', 'payload' => $this->lessonDraftPayload('Historisch.'),
+            'is_current' => false, 'created_by' => $historicalAuthor->id, 'reviewed_by' => $historicalAuthor->id,
+        ]);
+
+        $restored = app(ContentPublishingService::class)->restoreVersion($historical, $performer);
+
+        $this->assertTrue($restored->is_current);
+        $this->assertSame('Historisch.', $lesson->fresh()->rich_content['content'][0]['content'][0]['text']);
+    }
+
+    /**
      * `restoreVersion()` wirft statt still zu ueberspringen, wenn die
      * historische Fassung gegen die HEUTIGEN Regeln nicht mehr gueltig ist
      * (Betreiber-Vorgabe: "kein normaler, still abzufangender Ausgang") --

@@ -237,6 +237,49 @@ class LessonEditorControllerTest extends TestCase
             );
     }
 
+    /**
+     * Betreiber-Review vor #126: ein VOR dem Cutover angelegter Entwurf
+     * traegt noch `payload.body` (Legacy-Shape, nur `before` --
+     * `QuizContent::splitBody()['before']`, wie der alte Editor es
+     * gespeichert hat) statt `rich_content`. `edit()` muss ihn ueber
+     * denselben Normalizer wie Publish/Restore/Preview uebersetzen, sonst
+     * bekaeme der neue `RichContentEditor` ein Feld, das er nicht
+     * versteht -- UND das LIVE `after` (aus der aktuellen `Lesson::body`,
+     * "Als Naechstes: weiter.") muss dabei ergaenzt werden, nicht nur
+     * `before`.
+     */
+    public function test_a_pre_cutover_draft_with_legacy_body_opens_in_the_new_editor(): void
+    {
+        [$lesson, $activity, $author] = $this->lessonAndActivity();
+
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'draft',
+            'payload' => [
+                'title' => 'Entwurfstitel', 'teaser' => 'Entwurfsteaser', 'level' => 'einsteiger',
+                'duration_minutes' => 5, 'tools' => ['dcmdump'], 'requires' => [], 'glossary_terms' => ['dicom'],
+                'objectives' => ['Entwurfsziel'],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'lab' => ['node' => null, 'optional' => true],
+                'body' => "Entwurfsprosa vor dem Quiz.\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Entwurf.",
+            ],
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+
+        $this->actingAs($author)
+            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->assertInertia(fn ($page) => $page
+                ->where('fields.title', 'Entwurfstitel')
+                ->where('fields.rich_content', function ($document) {
+                    $texts = collect($document['content'])
+                        ->pluck('content')->flatten(1)->pluck('text')->filter()->implode(' ');
+
+                    return str_contains($texts, 'Entwurfsprosa vor dem Quiz.')
+                        && str_contains($texts, 'weiter.')
+                        && ! str_contains($texts, 'Frage?');
+                }),
+            );
+    }
+
     private function lessonBody(): string
     {
         return "## Intro\n\n```\n\$ dcmdump datei.dcm\n(0008,0060) CS [CT]\n```\n\n**Was du daran abliest:** Test.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** weiter.";
