@@ -603,6 +603,29 @@
     margin-right: auto;
 }
 
+.practice-task-lab-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.practice-task-lab-card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.practice-task-lab-card-cta:hover {
+    text-decoration: underline;
+}
+
 .knowledge-check-questions {
     display: grid;
     gap: 22px;

@@ -5,6 +5,7 @@ namespace Tests\Unit\Content;
 use App\Content\ActivityContentApplier;
 use App\Content\ContentRepository;
 use App\Models\Activity;
+use App\Models\Lab;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\Track;
@@ -167,5 +168,25 @@ class ActivityContentApplierTest extends TestCase
         // content/ bleibt exakt wie in setUp() angelegt -- der Kernpunkt
         // dieses Pfads.
         $this->assertStringNotContainsString('Neuer Text.', File::get($this->contentDir.'/nodes/test-node/de.md'));
+    }
+
+    /**
+     * Anders als bei Node/Lesson gibt es hier gar kein content/**-Verzeichnis
+     * zu verschonen -- ein Lab hatte nie ein Dateipendant (CMS-8a).
+     */
+    public function test_a_lab_draft_is_applied_directly_to_the_db(): void
+    {
+        $lab = Lab::factory()->create(['slug' => 'test-lab', 'title' => ['de' => 'Alt']]);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'test-lab']);
+
+        $issues = $this->app->make(ActivityContentApplier::class)->apply($activity, [
+            'title' => 'Neu', 'scenario_title' => 'Neues Szenario', 'difficulty' => 'easy',
+            'points' => 10, 'estimated_minutes' => 10, 'runtime_template' => null, 'dataset' => null,
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
+            'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+        ]);
+
+        $this->assertSame([], $issues);
+        $this->assertSame('Neu', $lab->fresh()->title['de']);
     }
 }

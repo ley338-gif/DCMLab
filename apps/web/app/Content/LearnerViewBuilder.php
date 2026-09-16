@@ -3,6 +3,9 @@
 namespace App\Content;
 
 use App\Content\RichContent\RichContentRenderer;
+use App\Models\Activity;
+use App\Models\Lab;
+use App\Models\LabAttempt;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Node;
@@ -141,7 +144,7 @@ final readonly class LearnerViewBuilder
                 'slug' => $lesson->track->slug,
                 'title_key' => $lesson->track->title_key,
             ],
-            'elements' => $this->elementsFor($lesson, $contentHtml, $quiz, $toolbar),
+            'elements' => $this->elementsFor($lesson, $user, $contentHtml, $quiz, $toolbar),
             'toolbar' => [
                 'tools' => $toolbar['tools'],
                 'requires' => $toolbar['requires'],
@@ -244,7 +247,7 @@ final readonly class LearnerViewBuilder
      * @param  array<string, mixed>  $toolbar
      * @return list<array<string, mixed>>
      */
-    private function elementsFor(Lesson $lesson, string $contentHtml, array $quiz, array $toolbar): array
+    private function elementsFor(Lesson $lesson, User $user, string $contentHtml, array $quiz, array $toolbar): array
     {
         $stored = $lesson->elements()->with('activity')->get();
 
@@ -279,6 +282,7 @@ final readonly class LearnerViewBuilder
                 'sandbox' => $this->sandboxElement($toolbar),
                 'node' => $this->relatedNodeElement($toolbar),
                 'quiz' => $this->quizElement($quiz),
+                'lab' => $this->labCardElement($element->activity, $user),
                 default => null,
             };
 
@@ -323,6 +327,46 @@ final readonly class LearnerViewBuilder
     private function quizElement(array $quiz): array
     {
         return ['type' => 'quiz', 'questions' => $quiz];
+    }
+
+    /**
+     * Lab (CMS-8a, Abschnitt H): innerhalb einer Lesson wird NUR eine
+     * schlanke Launch-/Status-Karte gezeigt, nie das Terminal -- das lebt
+     * ausschliesslich auf der eigenstaendigen Lab-Route. Kein Analogon zu
+     * `toolbar['related_node']`, weil ein Lab (anders als die Node-Referenz)
+     * kein eigenes Lesson-Spaltenfeld hat: es existiert nur ueber einen
+     * echten `lesson_elements`-Eintrag.
+     *
+     * @return array<string, mixed>
+     */
+    private function labCardElement(Activity $activity, User $user): array
+    {
+        $lab = Lab::where('slug', $activity->key)->first();
+
+        if ($lab === null) {
+            // Inkonsistenter Zustand (Activity zeigt auf kein existierendes
+            // Lab mehr) -- das Element bleibt trotzdem im Ergebnis (kein
+            // stilles default => null wie bei einem echten unbekannten Typ),
+            // damit ein verwaister Verweis sichtbar/debugbar bleibt.
+            Log::warning('learner_view.lab_reference_missing', ['activity_key' => $activity->key]);
+
+            return ['type' => 'lab', 'lab' => null];
+        }
+
+        $attempt = LabAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('activity_id', $activity->id)
+            ->first();
+
+        return [
+            'type' => 'lab',
+            'lab' => [
+                'slug' => $lab->slug,
+                'title' => $lab->title['de'] ?? $lab->slug,
+                'estimated_minutes' => $lab->estimated_minutes,
+                'status' => $attempt === null ? 'not_started' : $attempt->status,
+            ],
+        ];
     }
 
     /**

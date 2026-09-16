@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExamController;
 use App\Http\Controllers\ExamEditorController;
 use App\Http\Controllers\GlossaryController;
+use App\Http\Controllers\LabController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\LessonEditorController;
@@ -178,6 +179,14 @@ Route::prefix('de')->group(function () {
             Route::post('write-up', [NodeController::class, 'viewWriteUp'])->name('write-up');
             Route::post('flag', [NodeController::class, 'submitFlag'])->name('flag');
         });
+
+        // Eigenstaendige Lab-Route (CMS-8a, Abschnitt H) -- innerhalb einer
+        // Lesson zeigt lesson_elements nur eine Launch-/Status-Karte, das
+        // eigentliche Lab-Erlebnis lebt hier. Noch ohne Terminal/Exec-
+        // Endpunkte (CMS-8b/8d). Ansehen und Beginnen sind bewusst getrennt
+        // (Betreiber-Review vor #128, siehe LabController-Klassendoc).
+        Route::get('labs/{lab}', [LabController::class, 'show'])->name('labs.show');
+        Route::post('labs/{lab}/start', [LabController::class, 'start'])->name('labs.start');
     });
 
     require __DIR__.'/settings.php';
