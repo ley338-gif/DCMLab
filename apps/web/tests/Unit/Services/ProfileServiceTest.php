@@ -2,7 +2,10 @@
 
 namespace Tests\Unit\Services;
 
+use App\Models\Activity;
+use App\Models\ActivityProgress;
 use App\Models\ExamAttempt;
+use App\Models\Lab;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\Track;
@@ -102,6 +105,55 @@ class ProfileServiceTest extends TestCase
         $this->assertSame(30 + ProfileService::TRACK_PASS_POINTS, (new ProfileService)->totalPoints($user));
     }
 
+    /**
+     * CMS-8d: Labs sind eine dritte Punktequelle, gelesen aus
+     * activity_progress (nicht live aus Lab::points).
+     */
+    public function test_total_points_includes_completed_lab_activity_progress(): void
+    {
+        $user = User::factory()->create();
+        $this->recordLabProgress($user, score: 20, completed: true);
+
+        $this->assertSame(20, (new ProfileService)->totalPoints($user));
+    }
+
+    public function test_total_points_ignores_incomplete_lab_activity_progress(): void
+    {
+        $user = User::factory()->create();
+        $this->recordLabProgress($user, score: 20, completed: false);
+
+        $this->assertSame(0, (new ProfileService)->totalPoints($user));
+    }
+
+    /**
+     * Betreiber-Korrektur (CMS-8d): activity_progress.score ist ein
+     * einmalig zum Abschlusszeitpunkt eingefrorener Wert -- eine spaetere
+     * Punkte-Aenderung am Lab im Studio-Editor darf einen bereits erzielten
+     * Erfolg nicht rueckwirkend umwerten.
+     */
+    public function test_total_points_for_a_solved_lab_is_unaffected_by_a_later_points_change_on_the_lab(): void
+    {
+        $user = User::factory()->create();
+        $lab = Lab::factory()->create(['points' => 20]);
+        $this->recordLabProgress($user, score: 20, completed: true, labSlug: $lab->slug);
+
+        $lab->update(['points' => 999]);
+
+        $this->assertSame(20, (new ProfileService)->totalPoints($user));
+    }
+
+    public function test_recompute_after_lab_solve_updates_points_and_rank(): void
+    {
+        $user = User::factory()->create();
+        $this->recordLabProgress($user, score: 60, completed: true);
+
+        (new ProfileService)->recomputeAfterLabSolve($user);
+
+        $profile = $user->profile()->firstOrFail();
+        $this->assertSame(60, $profile->points);
+        $this->assertSame('operator', $profile->rank);
+    }
+
     public function test_leaderboard_only_returns_opted_in_profiles_sorted_by_points(): void
     {
         $service = new ProfileService;
@@ -132,6 +184,21 @@ class ProfileServiceTest extends TestCase
             'points' => $points,
             'started_at' => now(),
             'flag_submitted_at' => now(),
+        ]);
+    }
+
+    private function recordLabProgress(User $user, int $score, bool $completed, ?string $labSlug = null): void
+    {
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => $labSlug ?? fake()->unique()->slug(2)]);
+
+        ActivityProgress::create([
+            'user_id' => $user->id,
+            'activity_id' => $activity->id,
+            'completed' => $completed,
+            'score' => $score,
+            'max_score' => $score,
+            'skills' => [],
+            'completed_at' => $completed ? now() : null,
         ]);
     }
 

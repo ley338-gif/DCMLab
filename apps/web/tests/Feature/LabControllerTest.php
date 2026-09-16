@@ -2,25 +2,31 @@
 
 namespace Tests\Feature;
 
+use App\Models\AchievementDefinition;
+use App\Models\AchievementUnlock;
 use App\Models\Activity;
+use App\Models\ActivityProgress;
 use App\Models\Lab;
 use App\Models\LabAttempt;
 use App\Models\SandboxSession;
 use App\Models\SandboxTemplate;
 use App\Models\User;
+use App\Services\AchievementService;
+use App\Services\ProfileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
  * CMS-8a, Abschnitt H: eigenstaendige Learner-Route fuer ein Lab. CMS-8d
- * (dieser Commit) verdrahtet den Runtime-Lifecycle -- Start, Zustand,
- * ein duenner Exec-Proxy, Beenden -- ausschliesslich ownership-sicher ueber
- * den eigenen `LabAttempt` des anfragenden Nutzers, nie ueber eine vom
- * Client mitgegebene Sitzungs-ID. Assertion-Auswertung/Progress-/
- * Profilpunkte-Verdrahtung (in `exec()`) und `show()`s Runtime-/
- * Assertion-Anzeige sind bewusst NICHT Teil dieses Commits, siehe
- * LabController-Klassendoc -- das kommt im naechsten Progress-Commit.
+ * verdrahtet den Runtime-Lifecycle -- Start, Zustand, Exec, Beenden --
+ * ausschliesslich ownership-sicher ueber den eigenen `LabAttempt` des
+ * anfragenden Nutzers, nie ueber eine vom Client mitgegebene Sitzungs-ID.
+ * Dieser Commit schliesst die Solve-Kette in `exec()` (Assertion-
+ * Auswertung, atomarer Abschluss, Progress-/Profilpunkte) vollstaendig
+ * ueber Backend-/Feature-Tests bewiesen -- `show()`s Runtime-/Assertion-
+ * Anzeige und `Labs/Show.vue` bleiben bewusst einem eigenen, spaeteren
+ * UI-Commit vorbehalten.
  *
  * Betreiber-Review vor #128: Ansehen (show) und Beginnen (start) sind
  * bewusst getrennte Aktionen -- anders als bei Node legt der reine
@@ -382,27 +388,85 @@ class LabControllerTest extends TestCase
     }
 
     /**
-     * `exec()` ist in diesem Commit ein duenner Proxy -- reicht die
-     * Sandbox-Antwort unveraendert durch, wertet noch nichts aus (das
-     * kommt im naechsten Progress-Commit).
+     * Checkliste "Exec erfuellt noch nichts": ein Befehl, der keine der
+     * konfigurierten Assertions erfuellt, aendert nichts am Attempt-Status.
      */
-    public function test_exec_proxies_the_raw_sandbox_response(): void
+    public function test_exec_that_satisfies_no_assertion_leaves_the_attempt_started(): void
     {
         SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
-        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Lab::factory()->create([
+            'slug' => 'c-echo-connectivity',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1']],
+        ]);
         Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
         $user = User::factory()->create();
 
         Http::fake([
             '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201),
-            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'pong', 'stderr' => '', 'exit_code' => 0]),
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => '', 'stderr' => 'not found', 'exit_code' => 127]),
+            '*/v1/sandboxes/sb-1/events' => Http::response([
+                'exec' => [['command' => 'dcmdump foo.dcm', 'exit_code' => 0, 'timestamp' => 't1', 'stdout_preview' => '']],
+                'orthanc' => ['new_instances' => []],
+            ]),
         ]);
         $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
 
         $this->actingAs($user)
-            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu 127.0.0.1'])
+            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'dcmdump foo.dcm'])
             ->assertOk()
-            ->assertExactJson(['stdout' => 'pong', 'stderr' => '', 'exit_code' => 0]);
+            ->assertJson(['all_satisfied' => false, 'assertions' => [['index' => 0, 'type' => 'command_executed', 'passed' => false]]]);
+
+        $this->assertSame('started', LabAttempt::where('user_id', $user->id)->value('status'));
+        $this->assertSame(0, ActivityProgress::count());
+    }
+
+    /**
+     * Checkliste "Exec erfuellt Assertion -> assertions_passed wird
+     * geschrieben": zwei Assertions, nur die erste wird erfuellt -- der
+     * Attempt bleibt `started` (noch nicht ALLE erfuellt), aber der
+     * Fortschritt wird bereits persistiert.
+     */
+    public function test_exec_that_satisfies_one_of_several_assertions_persists_progress_without_solving(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-echo-connectivity',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'assertions' => [
+                ['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1'],
+                ['type' => 'command_executed', 'prefix' => 'storescu 127.0.0.1'],
+            ],
+        ]);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201),
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
+            '*/v1/sandboxes/sb-1/events' => Http::response([
+                'exec' => [['command' => 'echoscu 127.0.0.1 4242', 'exit_code' => 0, 'timestamp' => 't1', 'stdout_preview' => '']],
+                'orthanc' => ['new_instances' => []],
+            ]),
+        ]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        $response = $this->actingAs($user)
+            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu 127.0.0.1 4242'])
+            ->assertOk();
+
+        $response->assertJson(['all_satisfied' => false]);
+        $response->assertJson(['assertions' => [
+            ['index' => 0, 'type' => 'command_executed', 'passed' => true],
+            ['index' => 1, 'type' => 'command_executed', 'passed' => false],
+        ]]);
+
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('started', $attempt->status);
+        $this->assertSame(['command_executed:echoscu 127.0.0.1'], $attempt->assertions_passed);
+        $this->assertSame(0, ActivityProgress::count());
     }
 
     public function test_exec_maps_a_not_ready_sandbox_to_a_409(): void
@@ -421,6 +485,207 @@ class LabControllerTest extends TestCase
             ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu'])
             ->assertStatus(409)
             ->assertJson(['error' => 'sandbox_not_ready']);
+    }
+
+    /**
+     * Der komplette CMS-8d-Weg: Runtime starten, einen Befehl ausfuehren,
+     * der die letzte konfigurierte Assertion erfuellt, automatisch geloest
+     * werden, denselben Progress-/Achievement-/Punkte-Mechanismus wie
+     * Node/Exam auslösen -- und die Antwort darf weder den rohen Prefix
+     * noch den internen `type:prefix`-Identifier verraten, nur Typ+Index+
+     * erfuellt.
+     */
+    public function test_exec_that_satisfies_every_assertion_solves_the_attempt_and_records_progress(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-echo-connectivity',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'points' => 20,
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1']],
+        ]);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        AchievementDefinition::create([
+            'slug' => 'c-echo-badge', 'name' => 'C-ECHO', 'description' => 'Test',
+            'image' => 'c-echo-badge.png', 'category' => 'test', 'points' => 0,
+            'is_hidden' => false, 'sort_order' => 100,
+            'unlock_when' => ['type' => 'activity_completed', 'activity_type' => 'lab', 'key' => 'c-echo-connectivity'],
+        ]);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201),
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
+            '*/v1/sandboxes/sb-1/events' => Http::response([
+                'exec' => [['command' => 'echoscu 127.0.0.1 4242 -aec ORTHANC', 'exit_code' => 0, 'timestamp' => 't1', 'stdout_preview' => '']],
+                'orthanc' => ['new_instances' => []],
+            ]),
+        ]);
+
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        $response = $this->actingAs($user)
+            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu 127.0.0.1 4242 -aec ORTHANC'])
+            ->assertOk();
+
+        $response->assertJson(['all_satisfied' => true]);
+        $response->assertJson(['assertions' => [['index' => 0, 'type' => 'command_executed', 'passed' => true]]]);
+        $this->assertSame(['c-echo-badge'], array_column($response->json('unlocked_achievements'), 'slug'));
+        // Betreiber-Vorgabe: weder der rohe Prefix noch der interne
+        // "type:prefix"-Identifier duerfen jemals im Response-Body stehen.
+        $this->assertStringNotContainsString('127.0.0.1', (string) $response->getContent());
+        $this->assertStringNotContainsString('command_executed:', (string) $response->getContent());
+
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('solved', $attempt->status);
+        $this->assertNotNull($attempt->completed_at);
+
+        $progress = ActivityProgress::where('user_id', $user->id)->firstOrFail();
+        $this->assertTrue($progress->completed);
+        $this->assertSame(20, $progress->score);
+        $this->assertSame(20, $progress->max_score);
+
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()->where('user_id', $user->id)->whereRelation('definition', 'slug', 'c-echo-badge')->count(),
+        );
+
+        $this->assertSame(20, (new ProfileService)->totalPoints($user));
+
+        // Ein zweiter exec()-Aufruf nach dem Loesen wertet nicht erneut aus
+        // und vergibt das Achievement nicht ein zweites Mal.
+        $second = $this->actingAs($user)
+            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu 127.0.0.1 4242 -aec ORTHANC'])
+            ->assertOk();
+
+        $this->assertSame([], $second->json('unlocked_achievements'));
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()->where('user_id', $user->id)->whereRelation('definition', 'slug', 'c-echo-badge')->count(),
+        );
+        $this->assertSame(1, ActivityProgress::where('user_id', $user->id)->count());
+    }
+
+    /**
+     * Checkliste "Runtime events() Fehler -> kein teilweise gespeicherter
+     * Solve": events() wird bewusst AUSSERHALB der Transaktion aufgerufen
+     * (siehe exec()-Klassendoc) -- ein Fehler dort darf die Transaktion
+     * also gar nicht erst eroeffnen, kein halb geschriebener Attempt, kein
+     * verwaister ActivityProgress-Datensatz.
+     */
+    public function test_a_gone_sandbox_during_events_leaves_no_partially_saved_solve(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-echo-connectivity',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1']],
+        ]);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201),
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
+        ]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+
+        // Die Sitzung verschwindet erst zwischen exec() (oben bereits
+        // erfolgreich gefaked) und dem nachfolgenden events()-Aufruf.
+        Http::fake(['*/v1/sandboxes/sb-1/events' => Http::response(['detail' => 'not_found'], 404)]);
+
+        $this->actingAs($user)
+            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu 127.0.0.1 4242 -aec ORTHANC'])
+            ->assertStatus(404)
+            ->assertJson(['error' => 'sandbox_not_found']);
+
+        $attempt->refresh();
+        $this->assertSame('started', $attempt->status);
+        $this->assertSame([], $attempt->assertions_passed);
+        $this->assertSame(0, ActivityProgress::count());
+    }
+
+    /**
+     * Checkliste "zwei konkurrierende Solve-Pfade koennen nur einen
+     * First-Solve erzeugen": `events()` ist ein externer Aufruf AUSSERHALB
+     * der Transaktion (siehe exec()-Klassendoc) -- genau in diesem Fenster
+     * simuliert dieser Test einen zweiten, "gleichzeitigen" Request, der
+     * bereits fertig geloest hat, BEVOR dieser Request seine eigene
+     * lockForUpdate()-Transaktion eroeffnet. Der `lockForUpdate()`-
+     * Wiederholungscheck muss das erkennen und darf Progress/Achievement
+     * kein zweites Mal buchen.
+     */
+    public function test_a_concurrent_solve_between_events_and_the_lock_is_not_recorded_twice(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-echo-connectivity',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'points' => 20,
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1']],
+        ]);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        AchievementDefinition::create([
+            'slug' => 'c-echo-badge', 'name' => 'C-ECHO', 'description' => 'Test',
+            'image' => 'c-echo-badge.png', 'category' => 'test', 'points' => 0,
+            'is_hidden' => false, 'sort_order' => 100,
+            'unlock_when' => ['type' => 'activity_completed', 'activity_type' => 'lab', 'key' => 'c-echo-connectivity'],
+        ]);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201),
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
+        ]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+
+        Http::fake(['*/v1/sandboxes/sb-1/events' => function () use ($attempt, $activity, $user) {
+            // Simuliert einen zweiten Request, der zwischen DIESEM
+            // events()-Aufruf (ausserhalb der Transaktion) und dessen
+            // eigenem lockForUpdate() bereits vollstaendig fertig geloest
+            // hat -- inklusive Progress und Achievement, exakt das, was
+            // dessen eigene Transaktion+Nachlauf getan haetten.
+            $attempt->forceFill([
+                'status' => 'solved',
+                'completed_at' => now(),
+                'assertions_passed' => ['command_executed:echoscu 127.0.0.1'],
+            ])->save();
+
+            ActivityProgress::create([
+                'user_id' => $user->id,
+                'activity_id' => $activity->id,
+                'completed' => true,
+                'score' => 20,
+                'max_score' => 20,
+                'skills' => [],
+                'completed_at' => now(),
+            ]);
+
+            (new AchievementService)->unlock($user, 'c-echo-badge', [], $activity);
+
+            return Http::response([
+                'exec' => [['command' => 'echoscu 127.0.0.1 4242 -aec ORTHANC', 'exit_code' => 0, 'timestamp' => 't1', 'stdout_preview' => '']],
+                'orthanc' => ['new_instances' => []],
+            ]);
+        }]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu 127.0.0.1 4242 -aec ORTHANC'])
+            ->assertOk();
+
+        // Dieser Request sieht den Attempt bereits als geloest und bucht
+        // deshalb selbst kein zweites Mal Progress/Achievement.
+        $response->assertJson(['all_satisfied' => true, 'unlocked_achievements' => []]);
+        $this->assertSame(1, ActivityProgress::where('user_id', $user->id)->count());
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()->where('user_id', $user->id)->whereRelation('definition', 'slug', 'c-echo-badge')->count(),
+        );
     }
 
     public function test_destroy_runtime_ends_the_own_active_session(): void

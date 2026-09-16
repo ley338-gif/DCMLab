@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Activities\ActivityProgressRecorder;
 use App\Content\ContentRepository;
+use App\Content\LabAssertionEvaluator;
 use App\Content\RichContent\RichContentRenderer;
 use App\Models\Activity;
 use App\Models\Lab;
 use App\Models\LabAttempt;
 use App\Models\SandboxTemplate;
+use App\Services\ProfileService;
 use App\Services\RuntimeGoneException;
 use App\Services\RuntimeNotReadyException;
 use App\Services\RuntimeRequest;
@@ -16,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,12 +27,12 @@ use Inertia\Response;
 /**
  * Eigenstaendige Learner-Route fuer ein Lab (CMS-8a, Abschnitt H:
  * "Standalone-Entscheidung"). CMS-8d verdrahtet hier den Runtime-Lifecycle
- * (Start/Zustand/Exec-Proxy/Beenden) -- alles auf derselben Route wie das
- * Briefing, keine zweite Seite (Betreiber-Vorgabe). Assertion-Auswertung
- * und Progress-/Profilpunkte-Verdrahtung sind bewusst NICHT Teil dieses
- * Commits (siehe `exec()`-Klassendoc) -- das kommt sauber im naechsten
- * Progress-Commit, ebenso wie `show()`s Runtime-/Assertion-Anzeige und die
- * Vue-Seite selbst.
+ * (Start/Zustand/Exec/Beenden) inkl. Assertion-Auswertung und Progress-/
+ * Profilpunkte-Verdrahtung -- alles auf derselben Route wie das Briefing,
+ * keine zweite Seite (Betreiber-Vorgabe). `show()`s Runtime-/Assertion-
+ * Anzeige und die Vue-Seite selbst bleiben bewusst einem eigenen,
+ * spaeteren UI-Commit vorbehalten -- dieser Commit ist vollstaendig per
+ * Backend-/Feature-Tests bewiesen.
  *
  * Betreiber-Review vor #128: Ansehen und Beginnen sind bewusst zwei
  * getrennte Aktionen (anders als bei Node, wo der reine Seitenaufruf schon
@@ -156,16 +160,23 @@ class LabController extends Controller
     }
 
     /**
-     * Duenner Runtime-Proxy (dieser Commit) -- reicht den Befehl an die
-     * Sandbox weiter und liefert deren Antwort unveraendert zurueck.
-     * Bewusst OHNE `events()`/`LabAssertionEvaluator`/solved-Logik: die
-     * Auswertungs-/Abschluss-Verdrahtung (`exec -> events -> evaluate ->
-     * atomic solve -> activity_progress -> profile points`) gehoert in den
-     * naechsten, eigenen Progress-Commit, nicht hierher.
+     * `exec -> events -> evaluate -> atomic solve -> activity_progress ->
+     * profile points` (CMS-8d): `events()` wird bewusst NACH jedem exec()
+     * gegen die VOLLE Exec-Historie ausgewertet, nicht nur gegen den
+     * zuletzt ausgefuehrten Befehl -- das ist zugleich die einzige Stelle,
+     * die fuer einen spaeteren `c_store_received`-Typ (nicht an den
+     * letzten Befehl gebunden) schon richtig ist, ohne diesen Pfad nochmal
+     * anzufassen.
      */
-    public function exec(Request $request, Lab $lab, RuntimeSessionService $sessions): JsonResponse
-    {
+    public function exec(
+        Request $request,
+        Lab $lab,
+        RuntimeSessionService $sessions,
+        ActivityProgressRecorder $progressRecorder,
+        ProfileService $profiles,
+    ): JsonResponse {
         $data = $request->validate(['command' => 'required|string|max:4096']);
+        $user = $request->user();
 
         $attempt = $this->ownAttemptOrFail($lab);
         $sandboxId = $this->activeSandboxIdOrFail($attempt);
@@ -178,7 +189,90 @@ class LabController extends Controller
             return response()->json(['error' => 'sandbox_not_ready'], 409);
         }
 
-        return response()->json($result);
+        $assertionsPassed = $attempt->assertions_passed;
+        $allSatisfied = false;
+        $progressContext = null;
+
+        // Schon geloest: nicht mehr neu auswerten (kein wiederholtes
+        // persistProgress(), keine doppelten Achievement-Toasts) -- spart
+        // in diesem Fall sogar den events()-Aufruf selbst.
+        if ($attempt->status === 'started') {
+            // events() ist ein externer Aufruf (Redis + curl in der
+            // Toolbox, CMS-8b) -- bewusst AUSSERHALB der Transaktion, damit
+            // die Datenbank-Sperre unten nicht auf einen Netzwerk-
+            // Roundtrip wartet. Faengt dieselben Fehler wie exec() oben ab
+            // -- ein zwischen exec() und events() weggeraeumter/noch nicht
+            // bereiter Sandbox darf keinen teilweise gespeicherten Solve
+            // erzeugen, sondern bricht sauber ab, BEVOR die Transaktion
+            // ueberhaupt beginnt.
+            try {
+                $events = $sessions->events($sandboxId);
+            } catch (RuntimeGoneException) {
+                return response()->json(['error' => 'sandbox_not_found'], 404);
+            } catch (RuntimeNotReadyException) {
+                return response()->json(['error' => 'sandbox_not_ready'], 409);
+            }
+
+            [$assertionsPassed, $allSatisfied, $progressContext] = DB::transaction(function () use ($lab, $attempt, $events, $progressRecorder, $user) {
+                // Betreiber-Korrektur: lockForUpdate() schliesst die Race
+                // zwischen zwei fast gleichzeitigen Terminal-Requests UND
+                // stellt sicher, dass ein Fehler zwischen "solved
+                // speichern" und "Progress buchen" nie einen Attempt
+                // zuruecklaesst, der bereits solved ist, aber nie
+                // ActivityProgressRecorder::persistProgress() sah (sonst
+                // wuerde die naechste exec() wegen status==='solved' nicht
+                // mehr neu auswerten -- der Progress waere dauerhaft
+                // verloren).
+                $locked = LabAttempt::query()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+
+                if ($locked->status !== 'started') {
+                    return [$locked->assertions_passed, $locked->status === 'solved', null];
+                }
+
+                $eval = (new LabAssertionEvaluator)->evaluate($lab, $events, $locked->assertions_passed);
+                $locked->assertions_passed = $eval->passed;
+
+                $context = null;
+
+                if ($eval->allSatisfied) {
+                    $locked->status = 'solved';
+                    $locked->completed_at = now();
+                }
+
+                $locked->save();
+
+                if ($eval->allSatisfied) {
+                    // Betreiber-Korrektur: NUR persistProgress() hier drin,
+                    // NICHT evaluateAchievements() -- AchievementService::
+                    // unlock() faengt einen Unique-Constraint-Verstoss zwar
+                    // per PHP-catch ab, aber unter PostgreSQL bleibt diese
+                    // Transaktion danach ohne SAVEPOINT "aborted" und wuerde
+                    // beim COMMIT auch den gerade gespeicherten Attempt
+                    // wieder verwerfen. Siehe ActivityProgressContext.
+                    $context = $progressRecorder->persistProgress('lab', $lab->slug, $user);
+                }
+
+                return [$eval->passed, $eval->allSatisfied, $context];
+            });
+        }
+
+        $unlocked = [];
+
+        if ($progressContext !== null) {
+            // Erst NACH dem Commit: eine Achievement-Race kann die
+            // Attempt-/Progress-Transaktion so nicht mehr vergiften, und
+            // ProfileService liest bereits den committeten
+            // activity_progress.score.
+            $unlocked = $progressRecorder->evaluateAchievements($progressContext);
+            $profiles->recomputeAfterLabSolve($user);
+        }
+
+        return response()->json([
+            ...$result,
+            'assertions' => $this->checklistFor($lab, $assertionsPassed),
+            'all_satisfied' => $allSatisfied,
+            'unlocked_achievements' => $unlocked,
+        ]);
     }
 
     /**
@@ -229,6 +323,31 @@ class LabController extends Controller
             && is_string($lab->dataset) && $lab->dataset !== ''
             && SandboxTemplate::query()->where('slug', $lab->runtime_template)->where('status', 'published')->exists()
             && array_key_exists($lab->dataset, $content->datasets());
+    }
+
+    /**
+     * Betreiber-Vorgabe: keine rohen prefix-Werte und keine internen
+     * `type:prefix`-Identifier an den Client -- nur Typ + erfuellt/nicht
+     * erfuellt. Der Autoren-Index (nicht geheim, entspricht einfach der
+     * Reihenfolge im Editor) gibt Vue bei mehreren gleichartigen
+     * Assertions trotzdem eine stabile Zeilen-Identitaet.
+     *
+     * @param  list<string>  $assertionsPassed
+     * @return list<array{index: int, type: string, passed: bool}>
+     */
+    private function checklistFor(Lab $lab, array $assertionsPassed): array
+    {
+        $checklist = [];
+
+        foreach ($lab->assertions as $index => $assertion) {
+            $checklist[] = [
+                'index' => $index,
+                'type' => (string) $assertion['type'],
+                'passed' => in_array(LabAssertionEvaluator::identifierFor($assertion), $assertionsPassed, true),
+            ];
+        }
+
+        return $checklist;
     }
 
     private function activityFor(Lab $lab): ?Activity

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ActivityProgress;
 use App\Models\ExamAttempt;
 use App\Models\Node;
 use App\Models\NodeAttempt;
@@ -12,10 +13,11 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
 /**
- * Punkte, Rang und Skill-Radar (Abschnitt 7). Node-Punkte und bestandene
- * Track-Pruefungen sind die beiden Punktequellen (seit P10.60 bewusst um
- * Track-Bestehen erweitert -- vorher galten nur Node-Punkte, siehe ADR
- * 0009; Lektionen selbst geben weiterhin keine Punkte).
+ * Punkte, Rang und Skill-Radar (Abschnitt 7). Node-Punkte, bestandene
+ * Track-Pruefungen und geloeste Labs (CMS-8d) sind die drei Punktequellen
+ * (seit P10.60 bewusst um Track-Bestehen erweitert -- vorher galten nur
+ * Node-Punkte, siehe ADR 0009; Lektionen selbst geben weiterhin keine
+ * Punkte).
  */
 final class ProfileService
 {
@@ -73,7 +75,18 @@ final class ProfileService
             ->distinct('track_id')
             ->count('track_id');
 
-        return $nodePoints + $passedTracks * self::TRACK_PASS_POINTS;
+        // CMS-8d: aus activity_progress gelesen, NICHT live aus Lab::points
+        // summiert -- activity_progress.score ist ein einmalig zum
+        // Abschlusszeitpunkt eingefrorener Wert (wie bei Node/Exam), eine
+        // spaetere Punkte-Aenderung am Lab im Studio-Editor darf bereits
+        // erzielte Erfolge nicht rueckwirkend umwerten.
+        $labPoints = (int) ActivityProgress::query()
+            ->whereHas('activity', fn ($query) => $query->where('type', 'lab'))
+            ->where('user_id', $user->id)
+            ->where('completed', true)
+            ->sum('score');
+
+        return $nodePoints + $passedTracks * self::TRACK_PASS_POINTS + $labPoints;
     }
 
     /**
@@ -146,6 +159,23 @@ final class ProfileService
         }
 
         $profile->skill_vector = $skillVector;
+        $profile->points = $this->totalPoints($user);
+        $profile->rank = $this->rankFor($profile->points);
+        $profile->save();
+    }
+
+    /**
+     * Nach dem Loesen eines Labs aufgerufen (CMS-8d) -- analog
+     * recomputeAfterSolve(), aber ohne Skill-Vektor (Lab hat kein
+     * Node-artiges Skill-Konzept). MUSS NACH `ActivityProgressRecorder::
+     * record('lab', ...)` aufgerufen werden, nicht davor: anders als bei
+     * Node liest `totalPoints()` den Lab-Anteil aus `activity_progress`
+     * (siehe oben), das `record()` erst gerade schreibt -- die umgekehrte
+     * Reihenfolge wuerde hier einen veralteten Punktestand berechnen.
+     */
+    public function recomputeAfterLabSolve(User $user): void
+    {
+        $profile = $this->profileFor($user);
         $profile->points = $this->totalPoints($user);
         $profile->rank = $this->rankFor($profile->points);
         $profile->save();
