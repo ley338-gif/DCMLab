@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Lab;
 use App\Models\Node;
 use App\Models\SandboxTemplate;
 use App\Models\Track;
@@ -32,6 +33,8 @@ class StudioController extends Controller
             'track_count' => Track::query()->count(),
             'can_manage_nodes' => Gate::allows('manage', Node::class),
             'node_count' => Node::query()->count(),
+            'can_manage_labs' => Gate::allows('manage', Lab::class),
+            'lab_count' => Lab::query()->count(),
         ]);
     }
 }
