@@ -115,6 +115,7 @@ class AppServiceProvider extends ServiceProvider
                 fn (Activity $activity) => new LabActivity(
                     $activity,
                     Lab::where('slug', $activity->key)->firstOrFail(),
+                    $app->make(ContentRepository::class),
                 ),
             );
 

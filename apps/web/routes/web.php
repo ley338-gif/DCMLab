@@ -20,6 +20,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ReviewQueueController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\StudioController;
+use App\Http\Controllers\StudioLabController;
 use App\Http\Controllers\StudioLessonController;
 use App\Http\Controllers\StudioNodeController;
 use App\Http\Controllers\StudioSandboxTemplateController;
@@ -111,6 +112,21 @@ Route::prefix('de')->group(function () {
             Route::post('{node}/archive', [StudioNodeController::class, 'archive'])->name('archive');
             Route::post('{node}/restore', [StudioNodeController::class, 'restore'])->name('restore');
             Route::get('{node}/preview', [StudioNodeController::class, 'preview'])->name('preview');
+        });
+
+        // Lab-Editor (CMS-8c, nach Node-Vorbild): store/archive/restore
+        // sind strukturelle Eingriffe (LabPolicy), update() speichert einen
+        // Content-Entwurf (ActivityPolicy) -- einreichen/freigeben laufen
+        // ueber denselben generischen author.quiz-versions-Kreislauf weiter
+        // unten. Kein Themenfeld-Aequivalent, kein duplicate()/preview().
+        Route::prefix('studio/labs')->name('studio.labs.')->group(function () {
+            Route::get('/', [StudioLabController::class, 'index'])->name('index');
+            Route::post('/', [StudioLabController::class, 'store'])->name('store');
+            Route::get('{lab}', [StudioLabController::class, 'edit'])->name('edit');
+            Route::post('{lab}/validate', [StudioLabController::class, 'validateDraft'])->name('validate');
+            Route::patch('{lab}', [StudioLabController::class, 'update'])->name('update');
+            Route::post('{lab}/archive', [StudioLabController::class, 'archive'])->name('archive');
+            Route::post('{lab}/restore', [StudioLabController::class, 'restore'])->name('restore');
         });
 
         // Autoren-Editoren (ADR 0071/0080/0081, W6) -- Policy-gepruefte

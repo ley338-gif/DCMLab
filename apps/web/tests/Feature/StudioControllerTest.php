@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Lab;
 use App\Models\SandboxTemplate;
 use App\Models\Track;
 use App\Models\User;
@@ -92,5 +93,22 @@ class StudioControllerTest extends TestCase
         $this->actingAs($reviewer)
             ->get('/de/studio')
             ->assertInertia(fn ($page) => $page->where('can_manage_tracks', true));
+    }
+
+    public function test_it_reports_the_lab_count_and_manage_rights(): void
+    {
+        Lab::factory()->count(2)->create();
+        $author = User::factory()->author()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($author)
+            ->get('/de/studio')
+            ->assertInertia(fn ($page) => $page
+                ->where('lab_count', 2)
+                ->where('can_manage_labs', false));
+
+        $this->actingAs($reviewer)
+            ->get('/de/studio')
+            ->assertInertia(fn ($page) => $page->where('can_manage_labs', true));
     }
 }

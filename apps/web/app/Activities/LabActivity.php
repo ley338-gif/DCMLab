@@ -3,10 +3,12 @@
 namespace App\Activities;
 
 use App\Content\ContentIssue;
+use App\Content\ContentRepository;
 use App\Content\RichContent\RichContentValidator;
 use App\Models\Activity;
 use App\Models\Lab;
 use App\Models\LabAttempt;
+use App\Models\SandboxTemplate;
 use App\Models\User;
 
 /**
@@ -29,6 +31,7 @@ final readonly class LabActivity implements ActivityContract
     public function __construct(
         private Activity $activity,
         private Lab $lab,
+        private ContentRepository $content,
     ) {}
 
     public function activityType(): string
@@ -90,12 +93,43 @@ final readonly class LabActivity implements ActivityContract
     }
 
     /**
+     * Erlaubte `difficulty`-Werte (CMS-8c) -- dieselben vier Stufen wie bei
+     * Node, hier aber zusaetzlich an der Publish-Domain-Grenze selbst
+     * erzwungen: Node schliesst sie bislang NUR in
+     * `StudioNodeController::validatedFields()` (Controller-Ebene), nicht
+     * in `NodeActivity::validate()`/`ContentValidator` -- ein Payload, das
+     * am Vue-`<select>` vorbeigeschrieben wird, darf hier nicht allein
+     * dadurch gueltig sein.
+     */
+    private const DIFFICULTIES = ['easy', 'medium', 'hard', 'insane'];
+
+    /**
+     * Geschlossener Assertion-Typ-Katalog (CMS-8c, Betreiber-Korrektur):
+     * nur `command_executed` ist heute authoringfaehig -- ein zweiter Typ
+     * (z. B. `c_store_received`) ist bewusst "spaeter" (CMS-8d/8e). Neue
+     * Typen kommen als weiterer `match()`-Zweig in `checkAssertion()` dazu,
+     * kein Umbau der Liste selbst.
+     */
+    private const ASSERTION_TYPES = ['command_executed'];
+
+    /**
      * Kein Dateibestand, gegen den geprueft werden koennte -- die Pruefung
      * ist deshalb eine kleine, in sich geschlossene Schema-Kontrolle
-     * (Pflichtfelder, Assertion-Grundform, RichContentValidator fuer die
-     * Anleitung), keine Teilnahme an ContentValidator::validate() wie bei
-     * Node/Lesson (das ist auf den content/**-Baum zugeschnitten). Ohne
-     * $draft wird der aktuelle DB-Zustand geprueft.
+     * (Pflichtfelder, Runtime-/Dataset-Kataloge, Assertion-Vertrag,
+     * RichContentValidator fuer die Anleitung), keine Teilnahme an
+     * ContentValidator::validate() wie bei Node/Lesson (das ist auf den
+     * content/**-Baum zugeschnitten). Ohne $draft wird der aktuelle
+     * DB-Zustand geprueft.
+     *
+     * CMS-8c, Betreiber-Korrektur: `runtime_template`/`dataset`/
+     * `assertions` sind jetzt Pflichtfelder -- `RuntimeRequest` (CMS-8b)
+     * verlangt `datasetSlug`/`templateSlug` als nicht-nullbare Strings,
+     * ein veroeffentlichtes Lab ohne diese Werte koennte CMS-8d technisch
+     * nie an `RuntimeSessionService::start()` uebergeben. Diese Methode
+     * wirkt an der Publish-Domain-Grenze (`ContentPublishingService::
+     * publish()` ruft sie unmittelbar vor dem atomaren Apply auf) --
+     * ein Draft bleibt trotzdem jederzeit unfertig speicherbar, da
+     * `StudioLabController::update()` sie NICHT aufruft.
      */
     public function validate(?array $draft = null): array
     {
@@ -103,10 +137,17 @@ final readonly class LabActivity implements ActivityContract
         $file = "labs/{$this->lab->slug}";
         $issues = [];
 
-        foreach (['title', 'scenario_title', 'difficulty'] as $key) {
+        foreach (['title', 'scenario_title'] as $key) {
             if (! is_string($fields[$key] ?? null) || $fields[$key] === '') {
                 $issues[] = new ContentIssue($file, null, "{$key}: muss ein nicht-leerer String sein");
             }
+        }
+
+        if (! in_array($fields['difficulty'] ?? null, self::DIFFICULTIES, true)) {
+            $issues[] = new ContentIssue(
+                $file, null,
+                'difficulty: muss eine von '.implode(', ', self::DIFFICULTIES).' sein',
+            );
         }
 
         foreach (['points', 'estimated_minutes'] as $key) {
@@ -115,15 +156,31 @@ final readonly class LabActivity implements ActivityContract
             }
         }
 
+        $runtimeTemplate = $fields['runtime_template'] ?? null;
+
+        if (! is_string($runtimeTemplate) || $runtimeTemplate === '') {
+            $issues[] = new ContentIssue($file, null, 'runtime_template: darf nicht leer sein');
+        } elseif (! SandboxTemplate::query()->where('slug', $runtimeTemplate)->where('status', 'published')->exists()) {
+            $issues[] = new ContentIssue($file, null, "runtime_template: keine veroeffentlichte Vorlage mit Slug \"{$runtimeTemplate}\"");
+        }
+
+        $dataset = $fields['dataset'] ?? null;
+
+        if (! is_string($dataset) || $dataset === '') {
+            $issues[] = new ContentIssue($file, null, 'dataset: darf nicht leer sein');
+        } elseif (! array_key_exists($dataset, $this->content->datasets())) {
+            $issues[] = new ContentIssue($file, null, "dataset: kein Datensatz mit Slug \"{$dataset}\"");
+        }
+
         $assertions = $fields['assertions'] ?? [];
 
         if (! is_array($assertions) || ! array_is_list($assertions)) {
             $issues[] = new ContentIssue($file, null, 'assertions: muss eine Liste sein');
+        } elseif ($assertions === []) {
+            $issues[] = new ContentIssue($file, null, 'assertions: muss mindestens einen Eintrag haben');
         } else {
             foreach ($assertions as $index => $assertion) {
-                if (! is_array($assertion) || ! is_string($assertion['type'] ?? null) || $assertion['type'] === '') {
-                    $issues[] = new ContentIssue($file, null, "assertions[{$index}].type: muss ein nicht-leerer String sein");
-                }
+                array_push($issues, ...$this->checkAssertion($file, $index, $assertion));
             }
         }
 
@@ -138,6 +195,42 @@ final readonly class LabActivity implements ActivityContract
         }
 
         return $issues;
+    }
+
+    /**
+     * Dispatcher-Stil wie `ContentValidator::checkAchievementUnlockWhen()`
+     * -- ein geschlossener Typ-Katalog (`self::ASSERTION_TYPES`), pro Typ
+     * seine eigenen Pflichtfelder. Ein zweiter Typ kommt hier als weiterer
+     * Zweig dazu, keine Neuarchitektur.
+     *
+     * @return list<ContentIssue>
+     */
+    private function checkAssertion(string $file, int $index, mixed $assertion): array
+    {
+        if (! is_array($assertion) || ! is_string($assertion['type'] ?? null) || $assertion['type'] === '') {
+            return [new ContentIssue($file, null, "assertions[{$index}].type: muss ein nicht-leerer String sein")];
+        }
+
+        $type = $assertion['type'];
+
+        if (! in_array($type, self::ASSERTION_TYPES, true)) {
+            return [new ContentIssue(
+                $file, null,
+                "assertions[{$index}].type: \"{$type}\" ist unbekannt (erlaubt: ".implode(', ', self::ASSERTION_TYPES).')',
+            )];
+        }
+
+        // Nur EIN Typ heute (self::ASSERTION_TYPES) -- der in_array()-Check
+        // oben hat $type bereits auf genau diesen Wert eingegrenzt, ein
+        // erneuter Typ-Vergleich waere PHPStan-seitig ein toter Zweig
+        // (identical.alwaysTrue). Ein zweiter Typ (CMS-8d/8e) macht daraus
+        // wieder einen echten `match($type)`-Dispatcher, ohne diese Methode
+        // umzubauen -- die if/elseif-Kette unten waechst dann einfach.
+        if (! is_string($assertion['prefix'] ?? null) || $assertion['prefix'] === '') {
+            return [new ContentIssue($file, null, "assertions[{$index}].prefix: muss ein nicht-leerer String sein")];
+        }
+
+        return [];
     }
 
     /**

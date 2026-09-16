@@ -3,9 +3,11 @@
 namespace Tests\Unit\Activities;
 
 use App\Activities\LabActivity;
+use App\Content\ContentRepository;
 use App\Models\Activity;
 use App\Models\Lab;
 use App\Models\LabAttempt;
+use App\Models\SandboxTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -100,17 +102,141 @@ class LabActivityTest extends TestCase
 
     public function test_validate_passes_a_well_formed_draft(): void
     {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
         $activity = $this->makeActivity();
 
         $issues = $activity->validate([
             'title' => 'C-ECHO Connectivity Lab', 'scenario_title' => 'Verbindung pruefen',
             'difficulty' => 'easy', 'points' => 10, 'estimated_minutes' => 10,
-            'runtime_template' => 'dicom-basic-tools', 'dataset' => null,
+            'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60',
             'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
             'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
         ]);
 
         $this->assertSame([], $issues);
+    }
+
+    public function test_validate_rejects_a_difficulty_outside_the_closed_catalog(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload(['difficulty' => 'nightmare']));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'difficulty'),
+        ));
+    }
+
+    public function test_validate_rejects_a_missing_runtime_template(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload(['runtime_template' => null]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'runtime_template'),
+        ));
+    }
+
+    public function test_validate_rejects_an_unknown_runtime_template_slug(): void
+    {
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload(['runtime_template' => 'does-not-exist']));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'runtime_template'),
+        ));
+    }
+
+    public function test_validate_rejects_an_unpublished_runtime_template_slug(): void
+    {
+        SandboxTemplate::factory()->create(['slug' => 'draft-template', 'status' => 'draft']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload(['runtime_template' => 'draft-template']));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'runtime_template'),
+        ));
+    }
+
+    public function test_validate_rejects_a_missing_dataset(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload(['dataset' => null]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'dataset'),
+        ));
+    }
+
+    public function test_validate_rejects_an_unknown_dataset_slug(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload(['dataset' => 'does-not-exist']));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'dataset'),
+        ));
+    }
+
+    public function test_validate_rejects_an_empty_assertions_list(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload(['assertions' => []]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'assertions: muss mindestens einen Eintrag'),
+        ));
+    }
+
+    public function test_validate_rejects_an_unknown_assertion_type(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'c_store_received', 'sop_class' => 'CTImageStorage']],
+        ]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'assertions[0].type') && str_contains($issue->message, 'unbekannt'),
+        ));
+    }
+
+    public function test_validate_rejects_a_command_executed_assertion_without_a_prefix(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'command_executed']],
+        ]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'assertions[0].prefix'),
+        ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validPayload(array $overrides = []): array
+    {
+        return array_replace([
+            'title' => 'C-ECHO Connectivity Lab', 'scenario_title' => 'Verbindung pruefen',
+            'difficulty' => 'easy', 'points' => 10, 'estimated_minutes' => 10,
+            'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60',
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu']],
+            'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+        ], $overrides);
     }
 
     public function test_serialize_never_writes_files(): void
@@ -181,6 +307,6 @@ class LabActivityTest extends TestCase
         $lab = Lab::factory()->create($labAttributes);
         $activityModel = Activity::factory()->create(['type' => 'lab', 'key' => $lab->slug]);
 
-        return [new LabActivity($activityModel, $lab), $lab, $activityModel];
+        return [new LabActivity($activityModel, $lab, app(ContentRepository::class)), $lab, $activityModel];
     }
 }

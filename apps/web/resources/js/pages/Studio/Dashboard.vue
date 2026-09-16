@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { index as authorPanelIndex } from '@/routes/author';
+import { index as studioLabsIndex } from '@/routes/studio/labs';
 import { index as studioNodesIndex } from '@/routes/studio/nodes';
 import { index as sandboxTemplatesIndex } from '@/routes/studio/sandbox-templates';
 import { index as studioTracksIndex } from '@/routes/studio/tracks';
@@ -19,6 +20,8 @@ const props = defineProps<{
     track_count: number;
     can_manage_nodes: boolean;
     node_count: number;
+    can_manage_labs: boolean;
+    lab_count: number;
 }>();
 
 const roleLabels: Record<string, string> = {
@@ -93,6 +96,28 @@ const roleLabels: Record<string, string> = {
                             props.can_manage_nodes
                                 ? trans('Nodes verwalten')
                                 : trans('Nodes ansehen')
+                        }}</Button>
+                    </Link>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ trans('Labs') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="flex flex-col gap-3">
+                    <p class="text-muted-foreground text-sm">
+                        {{
+                            trans(':count Labs insgesamt.', {
+                                count: props.lab_count,
+                            })
+                        }}
+                    </p>
+                    <Link :href="studioLabsIndex()">
+                        <Button variant="outline">{{
+                            props.can_manage_labs
+                                ? trans('Labs verwalten')
+                                : trans('Labs ansehen')
                         }}</Button>
                     </Link>
                 </CardContent>
