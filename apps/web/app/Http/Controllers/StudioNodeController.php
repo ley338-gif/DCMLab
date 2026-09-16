@@ -148,6 +148,11 @@ class StudioNodeController extends Controller
             'fields' => $pendingVersion !== null ? $pendingVersion->payload : $registry->resolve($activity)->deserialize(),
             'themenfelder' => $themenfelder,
             'skills_catalog' => ProfileService::SKILL_CATEGORIES,
+            // Fuer das Slash-Menue des RichContentEditor ("/glossary", ADR
+            // 0114/0118), analog LessonEditorController.
+            'glossary' => collect($content->glossary())
+                ->map(fn (array $entry, string $slug): array => ['slug' => $slug, 'term' => $entry['term'] ?? $slug])
+                ->values(),
             'pending_version' => $pendingVersion === null ? null : [
                 'id' => $pendingVersion->id,
                 'status' => $pendingVersion->status,

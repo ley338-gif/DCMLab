@@ -51,6 +51,12 @@ class LessonEditorController extends Controller
             'catalog' => [
                 'tools' => array_keys($content->tools()),
                 'glossary_terms' => array_keys($content->glossary()),
+                // Fuer das Slash-Menue des RichContentEditor ("/glossary",
+                // ADR 0114/0118) -- {slug, term}-Paare statt nur Slugs,
+                // damit die Suche nach dem lesbaren Begriff funktioniert.
+                'glossary' => collect($content->glossary())
+                    ->map(fn (array $entry, string $slug): array => ['slug' => $slug, 'term' => $entry['term'] ?? $slug])
+                    ->values(),
                 'datasets' => array_keys($content->datasets()),
                 // Seit CMS-6d Teil 3 (ADR 0109) aus der DB statt aus
                 // ContentRepository -- damit sieht der Composer auch eine
