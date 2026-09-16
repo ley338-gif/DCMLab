@@ -4,6 +4,30 @@ Entscheidungen aus dem Ausbau zum Lightweight LMS (`dcm-lab-lms-agent-prompt.md`
 die der Betreiber trifft, nicht der Code-Agent. Format: Frage, Kontext,
 Empfehlung. Erledigte Punkte werden hier durchgestrichen, nicht geloescht.
 
+## Neun `---`-Trenner in Lektion 1.0 -- Schema-Erweiterung oder manuelle Bereinigung vor CMS-7d.2?
+
+**Frage:** Werden horizontale Trennlinien (`---` als eigener Block vor
+`##`-Ueberschriften) ein echter Rich-Content-Blocktyp, oder werden sie
+vor dem Backfill (CMS-7d.2) manuell aus Lektion 1.0 entfernt?
+
+**Kontext:** ADR 0111/0112 gingen davon aus, dass horizontale
+Trennlinien "im echten Bestand nicht vorkommen" -- `rich-content:audit`
+(ADR 0115, CMS-7d.1) hat das widerlegt: Lektion 1.0 verwendet `---`
+neun Mal als rein visuellen Abschnittstrenner vor `##`-Ueberschriften
+(Zeilen 39/60/124/212/235/264/272/282/316 in `content/lessons/1.0/de.md`).
+`rich-content:audit` blockiert deshalb aktuell genau bei dieser Lektion
+-- alle anderen 41 Lektionen und alle 17 Nodes sind bereits audit-rein.
+
+**Empfehlung:** Kein Vorschlag des Code-Agenten an dieser Stelle bewusst
+-- das ist die Art Entscheidung, die laut Kontext dieser Datei der
+Betreiber trifft. Zwei Optionen liegen auf dem Tisch: (a) ein neuer
+`thematic_break`-Blocktyp im Schema (ADR 0111), rendert eine `<hr>` oder
+aehnliches; (b) die neun Trenner werden vor dem Backfill von Hand aus
+`de.md` entfernt, weil Ueberschriften allein schon die Abschnitte
+trennen. CMS-7d.2 kann erst starten, wenn diese Frage beantwortet ist,
+da sonst genau dieser eine blockierende Audit-Fund den Backfill fuer
+Lektion 1.0 verhindert.
+
 ## `content:export` fehlt noch -- `content/` ist nur noch Import-Format, kein deterministischer Export
 
 **Frage:** Wann bekommt `content/` ein echtes Gegenstueck zu

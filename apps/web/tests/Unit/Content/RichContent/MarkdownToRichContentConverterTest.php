@@ -146,6 +146,35 @@ class MarkdownToRichContentConverterTest extends TestCase
         $this->assertSame('scp', $blocks[0]['content'][3]['attrs']['slug']);
     }
 
+    /**
+     * Regression (gefunden von `rich-content:audit`/CMS-7d.1 gegen den
+     * echten Bestand, Lektion 1.5): eine Tabellenzelle, deren gesamter
+     * Inhalt aus genau einem `{{term:x}}` besteht -- ohne umgebenden Text --
+     * wurde vorher NICHT aufgeloest, weil `preg_split()` in diesem Fall nur
+     * ein Element liefert und der alte Kurzschluss das faelschlich als
+     * "kein Treffer" gewertet hat.
+     */
+    public function test_it_splits_a_glossary_term_that_is_the_entire_text(): void
+    {
+        $blocks = $this->blocks('{{term:ae-title}}');
+
+        $this->assertSame([
+            ['type' => 'paragraph', 'content' => [
+                ['type' => 'glossary_term', 'attrs' => ['slug' => 'ae-title']],
+            ]],
+        ], $blocks);
+    }
+
+    public function test_it_splits_a_glossary_term_inside_a_table_cell_with_no_other_text(): void
+    {
+        $blocks = $this->blocks("| A | B |\n|---|---|\n| {{term:ae-title}} | Text |");
+
+        $cell = $blocks[0]['content'][1]['content'][0];
+        $this->assertSame([
+            ['type' => 'glossary_term', 'attrs' => ['slug' => 'ae-title']],
+        ], $cell['content'][0]['content']);
+    }
+
     public function test_it_converts_a_details_block_to_a_self_check(): void
     {
         $blocks = $this->blocks("<details>\n<summary>Frage?</summary>\n\nAntwort.\n</details>");
@@ -236,5 +265,68 @@ class MarkdownToRichContentConverterTest extends TestCase
             ->pluck('attrs.slug');
         $this->assertTrue($glossaryTerms->contains('scu'));
         $this->assertTrue($glossaryTerms->contains('scp'));
+    }
+
+    public function test_it_reports_no_skips_for_a_fully_covered_document(): void
+    {
+        $converter = new MarkdownToRichContentConverter;
+        $converter->convert("## Titel\n\nEin Absatz mit **fett**.");
+
+        $this->assertSame([], $converter->skippedNodes());
+    }
+
+    public function test_it_reports_a_skipped_thematic_break_with_its_line(): void
+    {
+        $converter = new MarkdownToRichContentConverter;
+        $converter->convert("Davor.\n\n---\n\nDanach.");
+
+        $skips = $converter->skippedNodes();
+
+        $this->assertCount(1, $skips);
+        $this->assertSame('horizontale_trennlinie', $skips[0]['type']);
+        $this->assertSame(3, $skips[0]['line']);
+    }
+
+    public function test_it_reports_unknown_raw_html_but_not_the_kein_beispiel_marker(): void
+    {
+        $converter = new MarkdownToRichContentConverter;
+        $converter->convert("<!-- kein-beispiel -->\n```\nA -> B\n```\n\n<div>Fremdes HTML</div>");
+
+        $skips = $converter->skippedNodes();
+
+        $this->assertCount(1, $skips);
+        $this->assertSame('unbekanntes_html', $skips[0]['type']);
+        $this->assertStringContainsString('Fremdes HTML', $skips[0]['snippet']);
+    }
+
+    public function test_it_does_not_report_a_self_check_as_a_skip(): void
+    {
+        $converter = new MarkdownToRichContentConverter;
+        $converter->convert("<details>\n<summary>Frage?</summary>\n\nAntwort.\n</details>");
+
+        $this->assertSame([], $converter->skippedNodes());
+    }
+
+    public function test_it_reports_a_skipped_inline_image_with_the_enclosing_line(): void
+    {
+        $converter = new MarkdownToRichContentConverter;
+        $converter->convert("Text davor.\n\n![Alt-Text](bild.png)");
+
+        $skips = $converter->skippedNodes();
+
+        $this->assertCount(1, $skips);
+        $this->assertSame('bild', $skips[0]['type']);
+        $this->assertSame('bild.png', $skips[0]['snippet']);
+        $this->assertSame(3, $skips[0]['line']);
+    }
+
+    public function test_skipped_nodes_reset_between_calls(): void
+    {
+        $converter = new MarkdownToRichContentConverter;
+        $converter->convert('---');
+        $this->assertCount(1, $converter->skippedNodes());
+
+        $converter->convert('Ein sauberer Absatz.');
+        $this->assertSame([], $converter->skippedNodes());
     }
 }

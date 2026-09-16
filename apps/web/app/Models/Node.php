@@ -33,13 +33,14 @@ use Illuminate\Support\Carbon;
  * @property array<string, string> $scenario_title
  * @property string|null $body Seit ADR 0107 (CMS-6d) von content:sync aus de.md befuellt
  * @property list<array{id: string, cost: int}>|null $hints Seit ADR 0107 (CMS-6d) von content:sync aus node.yml befuellt
+ * @property array<string, mixed>|null $rich_content Seit ADR 0115 (CMS-7d.1) -- der node_content-Umschlag (Briefing/Hints je Id/Write-up einzeln, ADR 0115), bis zum Backfill (CMS-7d.2) durchgehend null; `body` bleibt bis zum Cutover (CMS-7d.3) die Rendering-Quelle
  * @property string $source_hash
  * @property-read Themenfeld|null $themenfeld
  */
 #[Fillable([
     'slug', 'difficulty', 'points', 'category', 'themenfeld_id', 'interaction', 'skills',
     'related_lessons', 'estimated_minutes', 'status', 'content_updated_at', 'title',
-    'scenario_title', 'body', 'hints', 'source_hash',
+    'scenario_title', 'body', 'hints', 'rich_content', 'source_hash',
 ])]
 class Node extends Model
 {
@@ -59,6 +60,7 @@ class Node extends Model
             'title' => 'array',
             'scenario_title' => 'array',
             'hints' => 'array',
+            'rich_content' => 'array',
             'content_updated_at' => 'date',
         ];
     }

@@ -9,15 +9,18 @@ use League\CommonMark\Extension\CommonMark\Node\Block\HtmlBlock;
 use League\CommonMark\Extension\CommonMark\Node\Block\IndentedCode;
 use League\CommonMark\Extension\CommonMark\Node\Block\ListBlock;
 use League\CommonMark\Extension\CommonMark\Node\Block\ListItem;
+use League\CommonMark\Extension\CommonMark\Node\Block\ThematicBreak;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Code;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Emphasis;
 use League\CommonMark\Extension\CommonMark\Node\Inline\HtmlInline;
+use League\CommonMark\Extension\CommonMark\Node\Inline\Image;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Strong;
 use League\CommonMark\Extension\Table\Table;
 use League\CommonMark\Extension\Table\TableCell;
 use League\CommonMark\Extension\Table\TableRow;
 use League\CommonMark\Extension\Table\TableSection;
+use League\CommonMark\Node\Block\AbstractBlock;
 use League\CommonMark\Node\Block\Paragraph;
 use League\CommonMark\Node\Inline\Newline;
 use League\CommonMark\Node\Inline\Text;
@@ -57,10 +60,21 @@ use League\CommonMark\Parser\MarkdownParser;
  * als `<!-- kein-beispiel -->` oder eine Sprachannotation). Diese drei
  * Typen sind reine Autoren-Konstrukte fuer den Editor (CMS-7c), keine
  * Legacy-Migrationsziele.
+ *
+ * Was hier "stillschweigend uebersprungen" heisst, verwirft `convert()`
+ * nach wie vor -- fuer `rich-content:audit` (CMS-7d.1), das genau diese
+ * Faelle blockierend statt still melden muss, protokolliert die Instanz
+ * jeden uebersprungenen Knoten zusaetzlich, abrufbar ueber
+ * `skippedNodes()` nach dem `convert()`-Aufruf.
  */
 final class MarkdownToRichContentConverter
 {
     private readonly MarkdownParser $parser;
+
+    /**
+     * @var list<array{type: string, line: int|null, snippet: string}>
+     */
+    private array $skips = [];
 
     public function __construct()
     {
@@ -72,6 +86,7 @@ final class MarkdownToRichContentConverter
      */
     public function convert(string $markdown): array
     {
+        $this->skips = [];
         $document = $this->parser->parse($markdown);
 
         return [
@@ -79,6 +94,21 @@ final class MarkdownToRichContentConverter
             'version' => 1,
             'content' => $this->convertBlocks($document->children()),
         ];
+    }
+
+    /**
+     * Konstrukte, die der letzte `convert()`-Aufruf nicht abbilden konnte --
+     * unbekanntes/nicht modelliertes rohes HTML, horizontale Trennlinien,
+     * Bilder und jeder andere unbehandelte Knotentyp. Der Konverter selbst
+     * verwirft sie weiterhin (Verhalten unveraendert); dies ist nur die
+     * Sichtbarkeit dafuer, die `rich-content:audit` braucht, um mit exakter
+     * Fundstelle zu blockieren statt Inhalt unbemerkt zu verlieren.
+     *
+     * @return list<array{type: string, line: int|null, snippet: string}>
+     */
+    public function skippedNodes(): array
+    {
+        return $this->skips;
     }
 
     /**
@@ -193,13 +223,62 @@ final class MarkdownToRichContentConverter
             $node instanceof Table => $this->convertTable($node),
             // HtmlBlock ist an dieser Stelle entweder der "kein-beispiel"-
             // Marker (von convertFencedCode() der folgenden FencedCode
-            // zugeordnet), ein self_check-Start/-Ende (von convertBlocks()
-            // bereits konsumiert, bevor convertBlock() ueberhaupt aufgerufen
-            // wird) oder anderes rohes HTML (siehe Klassendoc) -- in jedem
-            // Fall hier nichts mehr zu tun.
-            $node instanceof HtmlBlock => null,
+            // zugeordnet -- kein Verlust, kein Skip) oder anderes rohes HTML
+            // (ein self_check-Start/-Ende ist von convertBlocks() bereits
+            // konsumiert, bevor convertBlock() ueberhaupt aufgerufen wird,
+            // taucht also hier nie auf).
+            $node instanceof HtmlBlock => $this->isKeinBeispielMarker($node)
+                ? null
+                : $this->recordBlockSkip('unbekanntes_html', $node, $node->getLiteral()),
+            $node instanceof ThematicBreak => $this->recordBlockSkip('horizontale_trennlinie', $node, '---'),
+            $node instanceof AbstractBlock => $this->recordBlockSkip('unbekannter_block', $node, $node::class),
             default => null,
         };
+    }
+
+    /**
+     * Hilfsfunktion fuer die `match`-Zweige oben, die einen Knoten
+     * uebergehen (Rueckgabe `null`, unveraendertes Konverter-Verhalten),
+     * aber zusaetzlich protokollieren, *was* uebergangen wurde.
+     */
+    private function recordBlockSkip(string $type, AbstractBlock $node, string $snippet): null
+    {
+        $this->skips[] = [
+            'type' => $type,
+            'line' => $node->getStartLine(),
+            'snippet' => mb_substr(trim($snippet), 0, 200),
+        ];
+
+        return null;
+    }
+
+    /**
+     * @return list<array<string, mixed>> immer leer -- Hilfsfunktion fuer
+     *                                    `convertInline()`s uebersprungene Faelle (z. B. Bilder),
+     *                                    die anders als Bloecke keine eigene Zeilennummer tragen;
+     *                                    die Zeile des naechsten umschliessenden Blocks dient als
+     *                                    Naeherung.
+     */
+    private function recordInlineSkip(string $type, Node $node, string $snippet): array
+    {
+        $this->skips[] = [
+            'type' => $type,
+            'line' => $this->enclosingBlockLine($node),
+            'snippet' => mb_substr(trim($snippet), 0, 200),
+        ];
+
+        return [];
+    }
+
+    private function enclosingBlockLine(Node $node): ?int
+    {
+        $current = $node->parent();
+
+        while ($current !== null && ! $current instanceof AbstractBlock) {
+            $current = $current->parent();
+        }
+
+        return $current?->getStartLine();
     }
 
     /**
@@ -331,7 +410,8 @@ final class MarkdownToRichContentConverter
             $node instanceof Link => $this->convertInlines($node->children(), [...$marks, ['type' => 'link', 'attrs' => ['href' => $node->getUrl()]]]),
             $node instanceof Newline => [['type' => 'hard_break']],
             $node instanceof HtmlInline => $this->convertText($node->getLiteral(), $marks),
-            default => [],
+            $node instanceof Image => $this->recordInlineSkip('bild', $node, $node->getUrl()),
+            default => $this->recordInlineSkip('unbekannter_inline_knoten', $node, $node::class),
         };
     }
 
@@ -342,15 +422,28 @@ final class MarkdownToRichContentConverter
      * lassen -- der einzige Fall, in dem ein einzelner Text-Knoten in
      * mehrere Inline-Knoten aufgespalten wird.
      *
+     * Frueher gab es hier eine `count($parts) === 1`-Abkuerzung, die "kein
+     * Treffer" annahm, sobald nur ein Teil zurueckkam -- das gilt aber auch,
+     * wenn der GESAMTE Literal-Text aus genau einem Glossarbegriff besteht
+     * (z. B. eine Tabellenzelle, deren Inhalt nur `{{term:x}}` ist, siehe
+     * `rich-content:audit`/CMS-7d.1, das dies gegen echten Bestand aufgedeckt
+     * hat). Die Schleife unten behandelt beide Faelle einheitlich: jeder Teil
+     * wird einzeln gegen das Glossar-Muster geprueft, unabhaengig davon, wie
+     * viele Teile `preg_split()` geliefert hat.
+     *
      * @param  list<array<string, mixed>>  $marks
      * @return list<array<string, mixed>>
      */
     private function convertText(string $literal, array $marks): array
     {
+        if ($literal === '') {
+            return [];
+        }
+
         $parts = preg_split('/(\{\{term:[a-z0-9\-]+\}\})/', $literal, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
 
-        if ($parts === false || count($parts) === 1) {
-            return $literal === '' ? [] : [['type' => 'text', 'text' => $literal, ...($marks !== [] ? ['marks' => $marks] : [])]];
+        if ($parts === false) {
+            return [['type' => 'text', 'text' => $literal, ...($marks !== [] ? ['marks' => $marks] : [])]];
         }
 
         $nodes = [];
