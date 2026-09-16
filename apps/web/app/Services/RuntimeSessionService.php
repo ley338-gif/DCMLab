@@ -46,17 +46,7 @@ final readonly class RuntimeSessionService
             return $result;
         }
 
-        $session = SandboxSession::query()->create([
-            'user_id' => $request->userId,
-            'activity_id' => $request->activityId,
-            'sandbox_template_id' => $template->id,
-            'lab_attempt_id' => $request->labAttemptId,
-            'runtime_provider' => $template->runtime_provider,
-            'runtime_instance_id' => $result['sandbox_id'] ?? null,
-            'status' => $result['status'] ?? 'running',
-            'started_at' => now(),
-            'last_activity_at' => now(),
-        ]);
+        $session = $this->reuseOrCreateSession($request, $template, $result);
 
         if ($request->labAttemptId !== null) {
             LabAttempt::query()->whereKey($request->labAttemptId)->update([
@@ -65,6 +55,54 @@ final readonly class RuntimeSessionService
         }
 
         return [...$result, 'session_id' => $session->id];
+    }
+
+    /**
+     * CMS-8b, Betreiber-Review (drittes Review): Python ist fuer denselben
+     * `runtime_key` idempotent -- ein zweiter `start()`-Aufruf mit
+     * gleichem `runtime_key` bekommt dieselbe `sandbox_id` zurueck, KEINE
+     * neue Runtime. Ohne diese Wiederverwendung wuerde jeder erneute
+     * Start-Klick eine weitere `SandboxSession`-Zeile fuer dieselbe
+     * Runtime anlegen; `sessionFor()` (immer die neueste Zeile) wuerde
+     * `destroy()` dann nur auf die neueste Zeile anwenden, aeltere Zeilen
+     * blieben dauerhaft faelschlich `running`.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    private function reuseOrCreateSession(RuntimeRequest $request, SandboxTemplate $template, array $result): SandboxSession
+    {
+        $runtimeId = $result['sandbox_id'] ?? null;
+
+        $existing = $runtimeId !== null
+            ? SandboxSession::query()->where('runtime_instance_id', $runtimeId)->latest('id')->first()
+            : null;
+
+        if ($existing !== null) {
+            // Wiederverwendung nur bei echtem Owner-Match -- eine falsche
+            // Zuordnung waere schlimmer als ein harter Fehler (in der
+            // Praxis sollte das nie passieren, Pythons `runtime_key` ist
+            // bereits Owner-scoped; das hier ist die zweite,
+            // Laravel-seitige Verteidigungslinie).
+            if ((string) $existing->user_id !== $request->userId
+                || $existing->runtime_provider !== $template->runtime_provider
+                || $existing->lab_attempt_id !== $request->labAttemptId) {
+                throw new RuntimeSessionOwnerMismatchException($runtimeId);
+            }
+
+            return $existing;
+        }
+
+        return SandboxSession::query()->create([
+            'user_id' => $request->userId,
+            'activity_id' => $request->activityId,
+            'sandbox_template_id' => $template->id,
+            'lab_attempt_id' => $request->labAttemptId,
+            'runtime_provider' => $template->runtime_provider,
+            'runtime_instance_id' => $runtimeId,
+            'status' => $result['status'] ?? 'running',
+            'started_at' => now(),
+            'last_activity_at' => now(),
+        ]);
     }
 
     /**

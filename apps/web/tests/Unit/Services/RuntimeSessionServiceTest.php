@@ -10,6 +10,7 @@ use App\Models\SandboxTemplate;
 use App\Models\User;
 use App\Services\RuntimeGoneException;
 use App\Services\RuntimeRequest;
+use App\Services\RuntimeSessionOwnerMismatchException;
 use App\Services\RuntimeSessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -101,6 +102,58 @@ class RuntimeSessionServiceTest extends TestCase
 
         $this->assertSame(['error' => 'active_runtime_exists'], $result);
         $this->assertSame(0, SandboxSession::query()->count());
+    }
+
+    public function test_start_reuses_the_existing_session_when_python_returns_the_same_runtime_instance_id(): void
+    {
+        // CMS-8b, Betreiber-Review (drittes Review): Python ist fuer
+        // denselben runtime_key idempotent -- ein zweiter start()-Aufruf
+        // (z. B. ein erneuter Klick) bekommt dieselbe sandbox_id zurueck.
+        // Ohne Wiederverwendung wuerde das eine zweite SandboxSession-Zeile
+        // fuer dieselbe Runtime anlegen.
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+
+        $request = new RuntimeRequest(
+            userId: (string) $user->id,
+            datasetSlug: 'ct-thorax-60',
+            templateSlug: 'dicom-basic-tools',
+            runtimeKey: 'sandbox:user:'.$user->id,
+        );
+
+        $first = $this->service()->start($request);
+        $second = $this->service()->start($request);
+
+        $this->assertSame(1, SandboxSession::query()->count());
+        $this->assertSame($first['session_id'], $second['session_id']);
+    }
+
+    public function test_start_throws_when_the_runtime_instance_id_belongs_to_a_different_owner(): void
+    {
+        // Zweite, Laravel-seitige Verteidigungslinie (Pythons runtime_key
+        // ist bereits Owner-scoped, das hier sollte nie eintreten) -- eine
+        // falsche Zuordnung waere schlimmer als ein harter Fehler.
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $owner = User::factory()->create();
+        SandboxSession::factory()->create([
+            'user_id' => $owner->id,
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+        ]);
+
+        $otherUser = User::factory()->create();
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+
+        $this->expectException(RuntimeSessionOwnerMismatchException::class);
+
+        $this->service()->start(new RuntimeRequest(
+            userId: (string) $otherUser->id,
+            datasetSlug: 'ct-thorax-60',
+            templateSlug: 'dicom-basic-tools',
+            runtimeKey: 'sandbox:user:'.$otherUser->id,
+        ));
     }
 
     public function test_state_against_a_gone_session_reconciles_and_clears_the_attempts_current_session(): void
