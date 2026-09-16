@@ -131,6 +131,38 @@ class LessonControllerTest extends TestCase
     }
 
     /**
+     * CMS-7d.3 (ADR 0118): eine Lektion mit befuelltem rich_content wird
+     * ueber RichContentRenderer gerendert, nicht mehr ueber body/
+     * MarkdownRenderer -- der eigentliche Read-Cutover.
+     */
+    public function test_it_prefers_rich_content_over_the_legacy_body_when_present(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.1',
+            'track_id' => $track->id,
+            'order' => 0,
+            'body' => "## Veraltet\n\nDieser Markdown-Text darf NICHT gerendert werden.",
+            'rich_content' => [
+                'type' => 'doc', 'version' => 1,
+                'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Aus rich_content gerendert.']]],
+                ],
+            ],
+        ]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.1')
+            ->assertInertia(fn ($page) => $page
+                ->where('elements.0.type', 'content')
+                ->where('elements.0.body_html', fn (string $html) => str_contains($html, 'Aus rich_content gerendert.')
+                    && ! str_contains($html, 'Veraltet')),
+            );
+    }
+
+    /**
      * ADR 0101 (CMS-5a): body/title/teaser/objectives kommen bevorzugt aus
      * der DB, ContentRepository ist nur noch Fallback.
      */

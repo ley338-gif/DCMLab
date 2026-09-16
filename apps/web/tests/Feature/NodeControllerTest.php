@@ -191,6 +191,46 @@ class NodeControllerTest extends TestCase
             );
     }
 
+    /**
+     * CMS-7d.3 (ADR 0118): eine Node mit befuelltem rich_content wird ueber
+     * RichContentRenderer gerendert, nicht mehr ueber body/NodeSections/
+     * MarkdownRenderer -- der eigentliche Read-Cutover.
+     */
+    public function test_it_prefers_rich_content_over_the_legacy_body_when_present(): void
+    {
+        Node::factory()->create([
+            'slug' => 'test-node',
+            'points' => 10,
+            'body' => "## Briefing\n\nVeraltet -- darf NICHT gerendert werden.\n\n## Hints\n\n### h1\n\nVeraltet.\n\n## Write-up\n\nVeraltet.",
+            'hints' => [['id' => 'h1', 'cost' => 3]],
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Briefing aus rich_content.']]],
+                ]],
+                'hints' => ['h1' => ['type' => 'doc', 'version' => 1, 'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Hint aus rich_content.']]],
+                ]]],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Write-up aus rich_content.']]],
+                ]],
+            ],
+        ]);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'sess-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/sess-1/state' => Http::response($this->baseState()),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/de/nodes/test-node')
+            ->assertInertia(fn ($page) => $page
+                ->where('briefing_html', fn (string $html) => str_contains($html, 'Briefing aus rich_content.')
+                    && ! str_contains($html, 'Veraltet')),
+            );
+    }
+
     public function test_second_visit_reuses_the_existing_session(): void
     {
         $node = Node::factory()->create(['slug' => 'test-node']);
@@ -252,6 +292,41 @@ class NodeControllerTest extends TestCase
         $attempt->refresh();
         $this->assertSame(['h1'], $attempt->hints_used);
         $this->assertSame(9, $attempt->points);
+    }
+
+    public function test_hint_endpoint_prefers_rich_content_over_the_legacy_body(): void
+    {
+        $node = Node::factory()->create([
+            'slug' => 'test-node',
+            'body' => "## Briefing\n\nX.\n\n## Hints\n\n### h1\n\nVeraltet.\n\n## Write-up\n\nX.",
+            'hints' => [['id' => 'h1', 'cost' => 1]],
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => []],
+                'hints' => ['h1' => ['type' => 'doc', 'version' => 1, 'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Hint aus rich_content.']]],
+                ]]],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
+        ]);
+        $user = User::factory()->create();
+        $attempt = NodeAttempt::create([
+            'user_id' => $user->id, 'node_id' => $node->id, 'engine_session_id' => 'existing-session',
+            'status' => 'started', 'started_at' => now(),
+        ]);
+
+        Http::fake([
+            '*/v1/sessions/existing-session/hint' => Http::response(['points' => 9]),
+            '*/v1/sessions/existing-session/state' => Http::response(
+                [...$this->baseState(), 'hints_used' => ['h1'], 'points' => 9],
+            ),
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/de/nodes/test-node/hint', ['hint_id' => 'h1']);
+
+        $response->assertOk();
+        $this->assertStringContainsString('Hint aus rich_content.', $response->json('text_html'));
+        $this->assertStringNotContainsString('Veraltet', $response->json('text_html'));
     }
 
     public function test_write_up_endpoint_zeroes_points_and_returns_rendered_html(): void

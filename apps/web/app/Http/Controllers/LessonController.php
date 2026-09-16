@@ -6,6 +6,7 @@ use App\Activities\ActivityProgressRecorder;
 use App\Content\ContentRepository;
 use App\Content\MarkdownRenderer;
 use App\Content\QuizContent;
+use App\Content\RichContent\RichContentRenderer;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Node;
@@ -55,7 +56,12 @@ class LessonController extends Controller
         // zwischen "vorher"/"nachher" eingeschoben, sondern als eigenes
         // Element ueber lesson_elements positioniert.
         $split = QuizContent::splitBody($body);
-        $contentHtml = $renderer->render(trim($split['before']."\n\n".$split['after']));
+        // CMS-7d.3 (ADR 0118): rich_content ist die kanonische Prosa-Quelle
+        // (before+after bereits als EIN Dokument, ADR 0115/0117) -- Legacy-
+        // Fallback fuer eine noch nicht migrierte Lektion bleibt bestehen.
+        $contentHtml = $lesson->rich_content !== null
+            ? (new RichContentRenderer($content->glossary()))->render($lesson->rich_content)
+            : $renderer->render(trim($split['before']."\n\n".$split['after']));
 
         // ADR 0104 (CMS-6a): dieselbe DB-Vorrang-Regel wie body oben --
         // vermeidet, gegen einen nach einer Quiz-Freigabe veralteten

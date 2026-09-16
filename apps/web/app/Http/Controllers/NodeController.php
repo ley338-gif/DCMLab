@@ -6,6 +6,7 @@ use App\Activities\ActivityProgressRecorder;
 use App\Content\ContentRepository;
 use App\Content\MarkdownRenderer;
 use App\Content\NodeSections;
+use App\Content\RichContent\RichContentRenderer;
 use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
@@ -109,7 +110,6 @@ class NodeController extends Controller
         abort_unless($body !== null, 404);
 
         $sections = NodeSections::parse($this->bodyFor($node, $content));
-        $renderer = new MarkdownRenderer($content->glossary());
 
         $attempt = $this->attemptFor($node, $engine);
         $engineState = $engine->state($attempt->engine_session_id);
@@ -121,7 +121,7 @@ class NodeController extends Controller
             'cost' => $hint['cost'],
             'used' => in_array($hint['id'], $hintsUsed, true),
             'text_html' => in_array($hint['id'], $hintsUsed, true)
-                ? $renderer->render($sections['hints'][$hint['id']] ?? '')
+                ? $this->renderNodeSection($node, $content, $sections['hints'][$hint['id']] ?? '', 'hints', $hint['id'])
                 : null,
         ])->values();
 
@@ -149,12 +149,12 @@ class NodeController extends Controller
                 'slug' => $nextNode->slug,
                 'title' => $nextNode->title['de'] ?? $nextNode->slug,
             ] : null,
-            'briefing_html' => $renderer->render($sections['briefing']),
+            'briefing_html' => $this->renderNodeSection($node, $content, $sections['briefing'], 'briefing'),
             'hints' => $hints,
             // Nach dem Loesen wird das Write-up automatisch gezeigt, ganz
             // ohne die "kostet Punkte"-Warnung (Abschnitt 5.3: "vorab").
             'write_up_html' => ($engineState['write_up_seen'] || $engineState['solved'])
-                ? $renderer->render($sections['write_up'])
+                ? $this->renderNodeSection($node, $content, $sections['write_up'], 'write_up')
                 : null,
             'templates' => $environment['templates'] ?? [],
             'placeholders' => $environment['placeholders'] ?? [],
@@ -218,11 +218,10 @@ class NodeController extends Controller
         $this->syncAttempt($attempt, $engine);
 
         $sections = NodeSections::parse($this->bodyFor($node, $content));
-        $renderer = new MarkdownRenderer($content->glossary());
 
         return response()->json([
             ...$result,
-            'text_html' => isset($result['error']) ? null : $renderer->render($sections['hints'][$data['hint_id']] ?? ''),
+            'text_html' => isset($result['error']) ? null : $this->renderNodeSection($node, $content, $sections['hints'][$data['hint_id']] ?? '', 'hints', $data['hint_id']),
         ]);
     }
 
@@ -234,11 +233,10 @@ class NodeController extends Controller
         $this->syncAttempt($attempt, $engine);
 
         $sections = NodeSections::parse($this->bodyFor($node, $content));
-        $renderer = new MarkdownRenderer($content->glossary());
 
         return response()->json([
             ...$result,
-            'write_up_html' => $renderer->render($sections['write_up']),
+            'write_up_html' => $this->renderNodeSection($node, $content, $sections['write_up'], 'write_up'),
         ]);
     }
 
@@ -368,6 +366,29 @@ class NodeController extends Controller
     private function bodyFor(Node $node, ContentRepository $content): string
     {
         return $node->body ?? $content->nodes()[$node->slug]['body'] ?? '';
+    }
+
+    /**
+     * CMS-7d.3 (ADR 0118): bevorzugt `rich_content` (RichContentRenderer)
+     * ueber die weiterhin gepflegten `$legacyMarkdown`-Abschnitte
+     * (`NodeSections::parse()` + `MarkdownRenderer`) -- Legacy-Fallback fuer
+     * eine noch nicht migrierte Node. `$key` ist `briefing`/`write_up`/
+     * `hints`, `$hintId` nur bei `hints` gesetzt.
+     */
+    private function renderNodeSection(Node $node, ContentRepository $content, string $legacyMarkdown, string $key, ?string $hintId = null): string
+    {
+        $richContent = $node->rich_content;
+        $document = match (true) {
+            $richContent === null => null,
+            $key === 'hints' => $richContent['hints'][$hintId] ?? null,
+            default => $richContent[$key] ?? null,
+        };
+
+        if ($document !== null) {
+            return (new RichContentRenderer($content->glossary()))->render($document);
+        }
+
+        return (new MarkdownRenderer($content->glossary()))->render($legacyMarkdown);
     }
 
     private function attemptFor(Node $node, EngineClientContract $engine): NodeAttempt
