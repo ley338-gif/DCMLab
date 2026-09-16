@@ -1,5 +1,6 @@
 /**
- * DCMLab Rich-Content-Dokument v1 (ADR 0111/0112, CMS-7a) -- dieselbe Form,
+ * DCMLab Rich-Content-Dokument v1 (ADR 0111/0112/0114, CMS-7a/CMS-7c) --
+ * dieselbe Form,
  * die `App\Content\RichContent\RichContentValidator` serverseitig prueft.
  * TipTap (CMS-7b) kennt dieses Format nicht direkt, siehe
  * `RichContentEditorAdapter` -- diese Typen sind bewusst unabhaengig von
@@ -68,7 +69,8 @@ export type RichContentCodeBlockVariant =
     | 'console'
     | 'terminal'
     | 'diagram'
-    | 'mermaid';
+    | 'mermaid'
+    | 'dicom_dump';
 
 export type RichContentCodeBlockNode = {
     type: 'code_block';
@@ -98,6 +100,31 @@ export type RichContentSelfCheckNode = {
     content: RichContentBlockNode[];
 };
 
+export type RichContentCalloutKind = 'info' | 'warning';
+
+export type RichContentCalloutNode = {
+    type: 'callout';
+    attrs: { kind: RichContentCalloutKind; title?: string };
+    content: RichContentBlockNode[];
+};
+
+/**
+ * Eine einzelne Tag-Zeile hat -- anders als jeder andere Knoten in diesem
+ * Schema -- bewusst kein eigenes `type`-Feld: sie ist kein Rich-Content-
+ * Block, sondern ein reines, geschlossenes Datenobjekt (ADR 0114).
+ */
+export type RichContentDicomTagRow = {
+    tag: string;
+    keyword: string;
+    vr: string;
+    value: string;
+};
+
+export type RichContentDicomTagTableNode = {
+    type: 'dicom_tag_table';
+    content: RichContentDicomTagRow[];
+};
+
 export type RichContentBlockNode =
     | RichContentParagraphNode
     | RichContentHeadingNode
@@ -106,7 +133,9 @@ export type RichContentBlockNode =
     | RichContentBlockquoteNode
     | RichContentCodeBlockNode
     | RichContentTableNode
-    | RichContentSelfCheckNode;
+    | RichContentSelfCheckNode
+    | RichContentCalloutNode
+    | RichContentDicomTagTableNode;
 
 export type RichContentDocument = {
     type: 'doc';
@@ -129,4 +158,6 @@ export const RICH_CONTENT_BLOCK_TYPES = [
     'code_block',
     'table',
     'self_check',
+    'callout',
+    'dicom_tag_table',
 ] as const;

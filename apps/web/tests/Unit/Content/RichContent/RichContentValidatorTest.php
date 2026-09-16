@@ -212,4 +212,100 @@ class RichContentValidatorTest extends TestCase
 
         $this->assertTrue(collect($issues)->contains(fn ($issue) => str_contains($issue, 'unbekannter Block-Typ')));
     }
+
+    public function test_it_accepts_a_valid_callout(): void
+    {
+        $doc = [
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'callout', 'attrs' => ['kind' => 'warning', 'title' => 'Achtung'], 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Vorsicht.']]],
+            ]]],
+        ];
+
+        $this->assertSame([], (new RichContentValidator)->validate($doc));
+    }
+
+    public function test_it_accepts_a_callout_without_a_title(): void
+    {
+        $doc = [
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'callout', 'attrs' => ['kind' => 'info'], 'content' => [
+                ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Hinweis.']]],
+            ]]],
+        ];
+
+        $this->assertSame([], (new RichContentValidator)->validate($doc));
+    }
+
+    public function test_it_rejects_a_callout_with_an_unknown_kind(): void
+    {
+        $issues = (new RichContentValidator)->validate([
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'callout', 'attrs' => ['kind' => 'danger'], 'content' => []]],
+        ]);
+
+        $this->assertTrue(collect($issues)->contains(fn ($issue) => str_contains($issue, 'attrs.kind')));
+    }
+
+    public function test_it_accepts_a_valid_dicom_tag_table(): void
+    {
+        $doc = [
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'dicom_tag_table', 'content' => [
+                ['tag' => '(0010,0010)', 'keyword' => 'PatientName', 'vr' => 'PN', 'value' => 'DOE^JOHN'],
+            ]]],
+        ];
+
+        $this->assertSame([], (new RichContentValidator)->validate($doc));
+    }
+
+    public function test_it_rejects_a_dicom_tag_table_row_missing_a_field(): void
+    {
+        $issues = (new RichContentValidator)->validate([
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'dicom_tag_table', 'content' => [
+                ['tag' => '(0010,0010)', 'keyword' => 'PatientName', 'vr' => 'PN'],
+            ]]],
+        ]);
+
+        $this->assertTrue(collect($issues)->contains(fn ($issue) => str_contains($issue, '.value: muss ein String sein')));
+    }
+
+    public function test_it_accepts_every_code_block_variant_including_dicom_dump(): void
+    {
+        $doc = [
+            'type' => 'doc', 'version' => 1,
+            'content' => [['type' => 'code_block', 'attrs' => ['variant' => 'dicom_dump'], 'text' => '(0010,0010) PN [DOE^JOHN]']],
+        ];
+
+        $this->assertSame([], (new RichContentValidator)->validate($doc));
+    }
+
+    /**
+     * Additive Schema-Erweiterung (ADR 0114, CMS-7c): ein Dokument, das
+     * nur die bisherigen CMS-7a/7b-Typen nutzt, muss unveraendert valide
+     * bleiben -- die neuen Blocktypen duerfen bestehende Regeln nicht
+     * verschaerfen.
+     */
+    public function test_existing_cms_7b_documents_remain_valid(): void
+    {
+        $doc = [
+            'type' => 'doc', 'version' => 1,
+            'content' => [
+                ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [['type' => 'text', 'text' => 'Titel']]],
+                ['type' => 'paragraph', 'content' => [
+                    ['type' => 'text', 'text' => 'fett', 'marks' => [['type' => 'bold']]],
+                    ['type' => 'glossary_term', 'attrs' => ['slug' => 'dicom']],
+                ]],
+                ['type' => 'code_block', 'attrs' => ['variant' => 'console'], 'text' => '$ echoscu foo'],
+                ['type' => 'table', 'content' => [
+                    ['type' => 'table_row', 'content' => [
+                        ['type' => 'table_cell', 'attrs' => ['header' => true], 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Tag']]]]],
+                    ]],
+                ]],
+            ],
+        ];
+
+        $this->assertSame([], (new RichContentValidator)->validate($doc));
+    }
 }

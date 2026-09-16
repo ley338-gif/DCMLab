@@ -5,7 +5,8 @@ namespace App\Content\RichContent;
 use App\Content\HeadingSlug;
 
 /**
- * Rendert ein validiertes Rich-Content-Dokument (ADR 0111, CMS-7a) zu HTML --
+ * Rendert ein validiertes Rich-Content-Dokument (ADR 0111/0112/0114,
+ * CMS-7a/CMS-7c) zu HTML --
  * das strukturelle Gegenstueck zu `MarkdownRenderer`, das denselben Markup-
  * Vertrag erzeugt (dieselben CSS-Klassen fuer Code-/Konsolen-/Terminal-/
  * Diagramm-Bloecke und Glossar-Begriffe), damit das bestehende Frontend-CSS
@@ -101,8 +102,65 @@ final class RichContentRenderer
             'code_block' => $this->renderCodeBlock($node),
             'table' => $this->renderTable($node),
             'self_check' => $this->renderSelfCheck($node),
+            'callout' => $this->renderCallout($node),
+            'dicom_tag_table' => $this->renderDicomTagTable($node),
             default => '',
         };
+    }
+
+    /**
+     * `callout` (ADR 0114, CMS-7c): ein gemeinsamer Block fuer Info-/
+     * Warnkasten -- `attrs.kind` traegt die visuelle Klasse, spaetere
+     * Arten (`tip`, `note`, ...) brauchen hier nur eine weitere CSS-Klasse,
+     * kein neues Markup.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function renderCallout(array $node): string
+    {
+        $kind = is_string($node['attrs']['kind'] ?? null) ? $node['attrs']['kind'] : 'info';
+        $title = is_string($node['attrs']['title'] ?? null) ? $node['attrs']['title'] : null;
+
+        $titleHtml = $title !== null ? sprintf('<p class="lesson-callout-title">%s</p>', e($title)) : '';
+
+        return sprintf(
+            '<div class="lesson-callout lesson-callout-%s">%s%s</div>',
+            e($kind),
+            $titleHtml,
+            $this->renderBlockContent($node),
+        );
+    }
+
+    /**
+     * `dicom_tag_table` (ADR 0114, CMS-7c): fachlich strukturierte Zeilen
+     * statt eines generischen `table`-Blocks -- jede Zeile ist ein reines
+     * Datenobjekt (kein `type`, siehe RichContentValidator), deshalb hier
+     * direkt auf die vier Felder zugegriffen statt ueber renderBlock().
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function renderDicomTagTable(array $node): string
+    {
+        $rows = is_array($node['content'] ?? null) ? $node['content'] : [];
+
+        $rowsHtml = implode('', array_map(function (mixed $row): string {
+            if (! is_array($row)) {
+                return '';
+            }
+
+            $cell = fn (string $field): string => e(is_string($row[$field] ?? null) ? $row[$field] : '');
+
+            return sprintf(
+                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                $cell('tag'),
+                $cell('keyword'),
+                $cell('vr'),
+                $cell('value'),
+            );
+        }, $rows));
+
+        return '<table class="dicom-tag-table"><thead><tr><th>Tag</th><th>Keyword</th><th>VR</th><th>Value</th></tr></thead><tbody>'
+            .$rowsHtml.'</tbody></table>';
     }
 
     /**
@@ -272,10 +330,13 @@ final class RichContentRenderer
     }
 
     /**
-     * Dieselben fuenf Varianten wie `MarkdownRenderer::markMermaidBlocks()`/
-     * `markCommandBlocks()`, hier direkt aus `attrs.variant` statt aus einer
-     * Heuristik auf dem gerenderten HTML -- derselbe visuelle Vertrag
-     * (Klassen, Copy-Buttons).
+     * Dieselben sechs Varianten wie `MarkdownRenderer::markMermaidBlocks()`/
+     * `markCommandBlocks()` plus `dicom_dump` (ADR 0114, CMS-7c), hier
+     * direkt aus `attrs.variant` statt aus einer Heuristik auf dem
+     * gerenderten HTML -- derselbe visuelle Vertrag (Klassen,
+     * Copy-Buttons). `dicom_dump` teilt sich bewusst die Zeilen-Darstellung
+     * mit `terminal` (Betreiber-Vorgabe: "Copy-/Monospace-/Renderer-
+     * Mechaniken gemeinsam"), nur mit einer eigenen CSS-Klasse.
      *
      * @param  array<string, mixed>  $node
      */
@@ -296,6 +357,7 @@ final class RichContentRenderer
                 e($rawText),
             ),
             'console' => $this->renderConsoleBlock($lines),
+            'dicom_dump' => sprintf('<div class="lesson-dicom-dump"><pre><code>%s</code></pre></div>', $this->renderOutputLines($lines)),
             default => $this->renderTerminalBlock($lines),
         };
     }
@@ -333,12 +395,25 @@ final class RichContentRenderer
      */
     private function renderTerminalBlock(array $lines): string
     {
+        return sprintf('<div class="lesson-terminal"><pre><code>%s</code></pre></div>', $this->renderOutputLines($lines));
+    }
+
+    /**
+     * Reine Ausgabe-Zeilen ohne Prompt-Erkennung -- geteilt zwischen
+     * `terminal` und `dicom_dump` (ADR 0114): beide sind unformatierter
+     * Text ohne Befehlszeile, nur mit unterschiedlicher CSS-Klasse am
+     * Wrapper.
+     *
+     * @param  list<string>  $lines
+     */
+    private function renderOutputLines(array $lines): string
+    {
         $renderedLines = array_map(
             fn (string $line): string => sprintf('<span class="lesson-line lesson-line-output">%s</span>', e($line)),
             $lines,
         );
 
-        return sprintf('<div class="lesson-terminal"><pre><code>%s</code></pre></div>', implode("\n", $renderedLines));
+        return implode("\n", $renderedLines);
     }
 
     private function copyButton(string $textToCopy, string $label): string

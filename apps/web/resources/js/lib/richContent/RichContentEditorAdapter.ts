@@ -1,6 +1,8 @@
 import type {
     RichContentBlockNode,
+    RichContentCalloutKind,
     RichContentCodeBlockVariant,
+    RichContentDicomTagRow,
     RichContentDocument,
     RichContentInlineNode,
     RichContentListItemNode,
@@ -27,10 +29,11 @@ export type TipTapNode = {
 /**
  * Ein DCMLab- oder TipTap-Knotentyp, den `RichContentEditorAdapter` (noch)
  * nicht kennt -- absichtlich eine Exception statt eines stillen
- * Uebergehens (Betreiber-Vorgabe fuer CMS-7b): `self_check`, `table` und
- * `glossary_term` sind im Editor-Extension-Satz von CMS-7b bewusst noch
- * nicht unterstuetzt (folgen mit CMS-7c) -- ein Dokument mit einem dieser
- * Knoten darf beim Laden nicht kommentarlos seinen Inhalt verlieren.
+ * Uebergehens (Betreiber-Vorgabe fuer CMS-7b/7c): `table` bleibt im
+ * Editor-Extension-Satz weiterhin nicht unterstuetzt (generische Tabellen
+ * sind kein Ziel von CMS-7c, siehe ADR 0114 -- nur `dicom_tag_table`
+ * wurde editorfaehig) -- ein Dokument mit einem dieser Knoten darf beim
+ * Laden nicht kommentarlos seinen Inhalt verlieren.
  */
 export class UnsupportedEditorNodeError extends Error {
     constructor(public readonly nodeType: string) {
@@ -48,6 +51,8 @@ const BLOCK_TYPE_TO_TIPTAP: Partial<
     ordered_list: 'orderedList',
     blockquote: 'blockquote',
     code_block: 'codeBlock',
+    self_check: 'selfCheck',
+    callout: 'callout',
 };
 
 const MARK_TYPE_TO_TIPTAP: Record<'bold' | 'italic' | 'code', string> = {
@@ -91,9 +96,30 @@ function toTipTapBlock(node: RichContentBlockNode): TipTapNode {
                 content: node.content.map(toTipTapListItem),
             };
         case 'blockquote':
+        case 'self_check':
+        case 'callout': {
+            const attrs: Record<string, unknown> | undefined =
+                node.type === 'callout'
+                    ? {
+                          kind: node.attrs.kind,
+                          ...(node.attrs.title !== undefined
+                              ? { title: node.attrs.title }
+                              : {}),
+                      }
+                    : node.type === 'self_check'
+                      ? { summary: node.attrs.summary }
+                      : undefined;
+
             return {
-                type: 'blockquote',
+                type: tiptapType!,
+                ...(attrs ? { attrs } : {}),
                 content: node.content.map(toTipTapBlock),
+            };
+        }
+        case 'dicom_tag_table':
+            return {
+                type: 'dicomTagTable',
+                content: node.content.map((row) => toTipTapDicomTagRow(row)),
             };
         case 'code_block': {
             const attrs: Record<string, unknown> = {
@@ -120,6 +146,16 @@ function toTipTapListItem(item: RichContentListItemNode): TipTapNode {
     return { type: 'listItem', content: item.content.map(toTipTapBlock) };
 }
 
+/**
+ * Eine Tag-Zeile hat -- anders als jeder andere DCMLab-Knoten -- kein
+ * eigenes `type` (reines Datenobjekt, siehe `RichContentDicomTagRow`), in
+ * TipTap braucht sie trotzdem einen echten Knotentyp (`dicomTagRow`,
+ * `customNodes.ts`), weil ProseMirror-Content immer aus Knoten besteht.
+ */
+function toTipTapDicomTagRow(row: RichContentDicomTagRow): TipTapNode {
+    return { type: 'dicomTagRow', attrs: { ...row } };
+}
+
 function toTipTapInline(node: RichContentInlineNode): TipTapNode {
     switch (node.type) {
         case 'text': {
@@ -133,8 +169,16 @@ function toTipTapInline(node: RichContentInlineNode): TipTapNode {
         }
         case 'hard_break':
             return { type: 'hardBreak' };
+        case 'glossary_term':
+            return { type: 'glossaryTerm', attrs: { slug: node.attrs.slug } };
         default:
-            throw new UnsupportedEditorNodeError(node.type);
+            // Alle heutigen RichContentInlineNode-Varianten sind oben
+            // behandelt -- dieser Zweig ist nur eine Absicherung fuer eine
+            // kuenftige, hier noch nicht nachgezogene Schema-Erweiterung
+            // (siehe Klassendoc), TypeScript narrowt ihn deshalb auf `never`.
+            throw new UnsupportedEditorNodeError(
+                (node as { type: string }).type,
+            );
     }
 }
 
@@ -193,6 +237,36 @@ function fromTipTapBlock(node: TipTapNode): RichContentBlockNode {
                 type: 'blockquote',
                 content: (node.content ?? []).map(fromTipTapBlock),
             };
+        case 'selfCheck': {
+            const summary = node.attrs?.summary;
+
+            return {
+                type: 'self_check',
+                attrs: { summary: typeof summary === 'string' ? summary : '' },
+                content: (node.content ?? []).map(fromTipTapBlock),
+            };
+        }
+        case 'callout': {
+            const kind = node.attrs?.kind;
+            const title = node.attrs?.title;
+
+            return {
+                type: 'callout',
+                attrs: {
+                    kind:
+                        kind === 'warning'
+                            ? 'warning'
+                            : ('info' satisfies RichContentCalloutKind),
+                    ...(typeof title === 'string' ? { title } : {}),
+                },
+                content: (node.content ?? []).map(fromTipTapBlock),
+            };
+        }
+        case 'dicomTagTable':
+            return {
+                type: 'dicom_tag_table',
+                content: (node.content ?? []).map(fromTipTapDicomTagRow),
+            };
         case 'codeBlock': {
             const text = (node.content ?? [])
                 .map((child) => child.text ?? '')
@@ -221,6 +295,19 @@ function fromTipTapListItem(node: TipTapNode): RichContentListItemNode {
     };
 }
 
+function fromTipTapDicomTagRow(node: TipTapNode): RichContentDicomTagRow {
+    const attrs = node.attrs ?? {};
+    const field = (key: keyof RichContentDicomTagRow): string =>
+        typeof attrs[key] === 'string' ? (attrs[key] as string) : '';
+
+    return {
+        tag: field('tag'),
+        keyword: field('keyword'),
+        vr: field('vr'),
+        value: field('value'),
+    };
+}
+
 function fromTipTapInline(node: TipTapNode): RichContentInlineNode {
     switch (node.type) {
         case 'text': {
@@ -237,6 +324,14 @@ function fromTipTapInline(node: TipTapNode): RichContentInlineNode {
         }
         case 'hardBreak':
             return { type: 'hard_break' };
+        case 'glossaryTerm': {
+            const slug = node.attrs?.slug;
+
+            return {
+                type: 'glossary_term',
+                attrs: { slug: typeof slug === 'string' ? slug : '' },
+            };
+        }
         default:
             throw new UnsupportedEditorNodeError(node.type);
     }

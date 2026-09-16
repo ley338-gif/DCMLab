@@ -1,15 +1,15 @@
 <script setup lang="ts">
 /**
- * Gemeinsamer Rich-Content-Editor fuer Lesson/Node (CMS-7b) -- kennt nach
- * aussen ausschliesslich das DCMLab-v1-Dokumentformat (`RichContentDocument`,
- * ADR 0111/0112). TipTap ist ein reines internes Implementierungsdetail:
- * `modelValue`/`update:modelValue` sind nie TipTap-JSON, siehe
- * `RichContentEditorAdapter`.
+ * Gemeinsamer Rich-Content-Editor fuer Lesson/Node (CMS-7b/7c) -- kennt
+ * nach aussen ausschliesslich das DCMLab-v1-Dokumentformat
+ * (`RichContentDocument`, ADR 0111/0112/0114). TipTap ist ein reines
+ * internes Implementierungsdetail: `modelValue`/`update:modelValue` sind
+ * nie TipTap-JSON, siehe `RichContentEditorAdapter`.
  *
  * Absichtlich noch ohne `lessons.rich_content`/`nodes.rich_content`,
  * Controller- oder Publisher-Anbindung und ohne Migration bestehender
  * Bodies -- dieser Slice bleibt isoliert testbar (Betreiber-Vorgabe fuer
- * CMS-7b), bis CMS-7d den echten Cutover macht.
+ * CMS-7b/7c), bis CMS-7d den echten Cutover macht.
  */
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import { ref, watch } from 'vue';
@@ -18,6 +18,7 @@ import {
     toTipTap,
     UnsupportedEditorNodeError,
 } from '@/lib/richContent/RichContentEditorAdapter';
+import type { GlossaryTermOption } from '@/lib/richContent/slashCommand';
 import { richContentExtensions } from '@/lib/richContent/tiptapExtensions';
 import { trans } from '@/lib/trans';
 import type { RichContentDocument } from '@/types/richContent';
@@ -26,8 +27,13 @@ const props = withDefaults(
     defineProps<{
         modelValue: RichContentDocument;
         editable?: boolean;
+        /**
+         * Fuer das "/glossary"-Slash-Kommando (ADR 0114) -- leer, wenn der
+         * Aufrufer (noch) keine Glossarliste uebergibt.
+         */
+        glossaryTerms?: GlossaryTermOption[];
     }>(),
-    { editable: true },
+    { editable: true, glossaryTerms: () => [] },
 );
 
 const emit = defineEmits<{
@@ -57,7 +63,7 @@ function safeToTipTap(doc: RichContentDocument) {
 
 const editor = useEditor({
     content: safeToTipTap(props.modelValue) ?? undefined,
-    extensions: richContentExtensions(),
+    extensions: richContentExtensions(props.glossaryTerms),
     editable: props.editable,
     onUpdate: ({ editor: updatedEditor }) => {
         emit('update:modelValue', fromTipTap(updatedEditor.getJSON()));
