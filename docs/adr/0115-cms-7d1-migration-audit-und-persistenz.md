@@ -7,6 +7,12 @@ Angenommen, 30.09.2026. **Ergaenzt durch ADR 0116:** die dort unten unter
 `thematic_break`-Blocktyp sei eine spaetere CMS-7d.2-Entscheidung, wurde
 nach Betreiber-Review sofort entschieden -- `horizontal_rule` ist bereits
 ein echter v1-Block, das Audit meldet 0 statt 9 blockierende Funde.
+**Korrigiert durch ADR 0117:** die Aussage weiter unten, Lektionen
+bestuenden nur aus `QuizContent::splitBody($body)['before']`, war
+unvollstaendig -- `LessonController::show()` fuegt `before` UND `after`
+(die Fussnote/Navigation nach dem Quiz) zu einem Content-Block zusammen,
+`rich-content:audit`/`rich-content:migrate` pruefen/konvertieren seitdem
+beide.
 
 ## Kontext
 

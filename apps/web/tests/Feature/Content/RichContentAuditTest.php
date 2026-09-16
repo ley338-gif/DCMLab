@@ -118,6 +118,28 @@ class RichContentAuditTest extends TestCase
         $this->assertSame(0, $result['exitCode'], $result['output']);
     }
 
+    /**
+     * Fund aus dem echten CMS-7d.2-Betrieb: `LessonController::show()`
+     * fuegt "before" UND "after" (die Fussnote/Navigation NACH dem
+     * Quiz-Abschnitt) zu einem gemeinsamen Content-Block zusammen -- ein
+     * Audit, der nur "before" prueft, wuerde ein Problem in "after" nie
+     * melden, obwohl es genauso im Lernpfad landet. "after" ist real in
+     * 9 von 42 Lektionen nicht leer.
+     */
+    public function test_an_unmodeled_construct_in_the_after_quiz_footer_blocks_too(): void
+    {
+        $dir = $this->buildContentDir([
+            'lessons/1.0/de.md' => $this->frontMatter()
+                ."## Intro\n\nSauberer Text.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n\n---\n\n**Als Nächstes:** ![Alt](bild.png)\n",
+        ]);
+
+        $result = $this->audit($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('Lektion 1.0 [prose_nach_quiz]', $result['output']);
+        $this->assertStringContainsString('bild:', $result['output']);
+    }
+
     public function test_node_sections_are_audited_independently(): void
     {
         $broken = <<<'MD'
