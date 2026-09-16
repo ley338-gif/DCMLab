@@ -20,6 +20,44 @@ from app.config import settings
 from app.datasets_yaml import DatasetParams
 from app.worklists_yaml import WorklistParams, load_worklist_params
 
+
+class UnknownTemplateError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class RuntimeTemplateConfig:
+    """CMS-8b: bewusst ein simples Python-Verzeichnis statt einer YAML-Datei
+    -- Runtime-Templates sind Betreiber-/Deployment-Konfiguration (welches
+    Container-Image-Paar), kein Autoreninhalt wie datasets.yml/worklists.yml.
+    Fuer den einen heutigen Eintrag ist der Effekt identisch zum Status quo
+    vor CMS-8b; RESOURCE_LIMITS/TOOLBOX_RESOURCE_LIMITS bleiben bewusst
+    GLOBALE Konstanten, nicht Teil dieser Config (Sicherheitsgrenzen duerfen
+    nicht pro Vorlage variieren, ADR 0096)."""
+
+    orthanc_image: str
+    toolbox_image: str
+
+
+def _runtime_templates() -> dict[str, RuntimeTemplateConfig]:
+    # Als Funktion statt Modulkonstante, damit sie `settings.orthanc_image`/
+    # `settings.toolbox_image` zur Aufrufzeit liest (Tests ueberschreiben
+    # diese per monkeypatch) statt beim Modul-Import einzufrieren.
+    return {
+        "dicom-basic-tools": RuntimeTemplateConfig(
+            orthanc_image=settings.orthanc_image,
+            toolbox_image=settings.toolbox_image,
+        ),
+    }
+
+
+def resolve_template(template_slug: str) -> RuntimeTemplateConfig:
+    template = _runtime_templates().get(template_slug)
+    if template is None:
+        raise UnknownTemplateError(template_slug)
+    return template
+
+
 RESOURCE_LIMITS = {
     "mem_limit": "256m",
     "nano_cpus": 500_000_000,  # 0.5 CPU
@@ -68,7 +106,10 @@ def build_session(
     sandbox_id: str,
     dataset_slug: str,
     dataset_params: DatasetParams,
+    template_slug: str,
 ) -> SessionContainers:
+    template = resolve_template(template_slug)
+
     network_name = f"dcmlab-sandbox-{sandbox_id}"
     volume_name = f"dcmlab-sandbox-{sandbox_id}-data"
     worklist_volume_name = f"{network_name}-worklists"
@@ -87,7 +128,7 @@ def build_session(
     )
 
     orthanc = docker_client.containers.run(
-        settings.orthanc_image,
+        template.orthanc_image,
         detach=True,
         name=f"{network_name}-orthanc",
         network=network_name,
@@ -98,7 +139,7 @@ def build_session(
     _wait_until_running(orthanc)
 
     toolbox = docker_client.containers.run(
-        settings.toolbox_image,
+        template.toolbox_image,
         detach=True,
         name=f"{network_name}-toolbox",
         network_mode=f"container:{orthanc.id}",

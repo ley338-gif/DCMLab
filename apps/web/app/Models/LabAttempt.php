@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
@@ -54,5 +55,18 @@ class LabAttempt extends Model
     public function currentSandboxSession(): BelongsTo
     {
         return $this->belongsTo(SandboxSession::class, 'current_sandbox_session_id');
+    }
+
+    /**
+     * Die echte, historische Beziehung (CMS-8b): ein Attempt kann im Lauf
+     * der Zeit mehrere Runtime-Sitzungen haben (Neustart nach TTL-Ablauf) --
+     * `currentSandboxSession()` ist nur ein Komfortzeiger auf die aktuell
+     * aktive davon.
+     *
+     * @return HasMany<SandboxSession, $this>
+     */
+    public function sandboxSessions(): HasMany
+    {
+        return $this->hasMany(SandboxSession::class);
     }
 }

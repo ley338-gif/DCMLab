@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $user_id
  * @property int|null $activity_id
  * @property int|null $sandbox_template_id
+ * @property int|null $lab_attempt_id
  * @property string $runtime_provider
  * @property string|null $runtime_instance_id
  * @property string $status
@@ -30,6 +31,7 @@ class SandboxSession extends Model
         'user_id',
         'activity_id',
         'sandbox_template_id',
+        'lab_attempt_id',
         'runtime_provider',
         'runtime_instance_id',
         'status',
@@ -73,5 +75,13 @@ class SandboxSession extends Model
     public function sandboxTemplate(): BelongsTo
     {
         return $this->belongsTo(SandboxTemplate::class);
+    }
+
+    /**
+     * @return BelongsTo<LabAttempt, $this>
+     */
+    public function labAttempt(): BelongsTo
+    {
+        return $this->belongsTo(LabAttempt::class);
     }
 }
