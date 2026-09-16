@@ -23,20 +23,30 @@ use RuntimeException;
  * die Versionshistorie das je erfahren haette. Dieser Service kapselt
  * beides in EINER Transaktion:
  *
- *   normalize(payload)          -- Legacy-`body` -> `rich_content`, siehe
- *                                   LessonPayloadNormalizer/NodePayloadNormalizer
- *   validate(normalized)        -- ausserhalb der Transaktion: eine
- *                                   ungueltige Version ist ein normaler,
- *                                   erwarteter Ausgang (Autor bekommt
- *                                   Befunde zurueck), keine Transaktion noetig
  *   DB::transaction:
+ *     Activity-Zeile sperren (lockForUpdate())  -- CMS-7d.4: serialisiert
+ *                                                  jeden Publish/Restore
+ *                                                  derselben Activity, siehe
+ *                                                  isLegacyRestoreBlocked()
+ *     Legacy-Kompatibilitaetspruefung
+ *     normalize(payload)          -- Legacy-`body` -> `rich_content`, siehe
+ *                                     LessonPayloadNormalizer/NodePayloadNormalizer
+ *     validate(normalized)        -- eine ungueltige Version ist ein
+ *                                     normaler, erwarteter Ausgang (Autor
+ *                                     bekommt Befunde zurueck); eine reine
+ *                                     Lese-/Ablehnungs-Transaktion ohne
+ *                                     Schreibvorgang committet folgenlos
  *     ActivityContentApplier::apply()   -- schreibt Lesson/Node/Activity
  *     ContentVersioningService-Logik    -- is_current umhaengen, Version
  *                                          veroeffentlichen/neu anlegen
  *
  * `ActivityContentApplier::apply()` bleibt unveraendert bestehen (entscheidet
  * weiterhin Lesson/Quiz/Node/ContentWriter) -- nur der Aufrufzeitpunkt
- * wandert in die Transaktion.
+ * wandert in die Transaktion. Seit CMS-7d.4 laeuft die gesamte Kette
+ * (inklusive normalize()/validate()) innerhalb der gesperrten Transaktion,
+ * nicht mehr nur apply()+Versionswechsel -- noetig, damit die neue
+ * Legacy-Kompatibilitaetspruefung race-sicher gegen einen konkurrierenden
+ * Publish/Restore derselben Activity ist.
  */
 final readonly class ContentPublishingService
 {
@@ -53,20 +63,40 @@ final readonly class ContentPublishingService
      */
     public function publish(ContentVersion $version, User $reviewer): array
     {
-        $activity = $version->activity;
-        $normalized = $this->normalize($activity, $version->payload);
-        $issues = $this->registry->resolve($activity)->validate($normalized);
+        return DB::transaction(function () use ($version, $reviewer): array {
+            // CMS-7d.4 (Betreiber-Review): die Activity-Zeile wird als
+            // ALLERERSTES gesperrt -- jeder Publish/Restore dieser Activity
+            // serialisiert sich dadurch gegen jeden anderen, nicht nur der
+            // Legacy-Zweig unten. Ohne diesen Lock koennte ein nativer
+            // Publish genau zwischen der Legacy-Pruefung und dem
+            // tatsaechlichen Schreiben eines anderen Vorgangs committen --
+            // dieselbe Fehlerklasse, die der atomare Publish/Restore in
+            // ADR 0118 fuer Live-Daten vs. Versionshistorie schon geschlossen
+            // hat, hier fuer die Legacy-Kompatibilitaetspruefung selbst.
+            $activity = Activity::query()->whereKey($version->activity_id)->lockForUpdate()->firstOrFail();
 
-        if ($issues !== []) {
-            return $issues;
-        }
+            if ($this->isLegacyRestoreBlocked($activity, $version->payload)) {
+                return [new ContentIssue(
+                    "lessons/{$activity->key}/de.md",
+                    null,
+                    'Diese alte Version kann nicht mehr automatisch veroeffentlicht werden -- '
+                        .'die Lektion wurde seitdem im Rich-Content-Editor veraendert. Bitte im '
+                        .'Editor neu speichern und erneut einreichen.',
+                )];
+            }
 
-        DB::transaction(function () use ($activity, $normalized, $version, $reviewer): void {
+            $normalized = $this->normalize($activity, $version->payload);
+            $issues = $this->registry->resolve($activity)->validate($normalized);
+
+            if ($issues !== []) {
+                return $issues;
+            }
+
             $this->applyOrFail($activity, $normalized);
             $this->versions->publish($version, $reviewer);
-        });
 
-        return [];
+            return [];
+        });
     }
 
     /**
@@ -111,19 +141,33 @@ final readonly class ContentPublishingService
             );
         }
 
-        $activity = $source->activity;
-        $normalized = $this->normalize($activity, $source->payload);
-        $issues = $this->registry->resolve($activity)->validate($normalized);
+        return DB::transaction(function () use ($source, $performedBy): ContentVersion {
+            // CMS-7d.4 (Betreiber-Review): siehe publish() -- derselbe
+            // Activity-Lock, aus demselben Race-Grund. Die eigentliche
+            // Legacy-Kompatibilitaetspruefung UND normalize()/validate()
+            // laufen deshalb jetzt erst hier, gegen den gesperrten Zustand,
+            // nicht mehr davor.
+            $activity = Activity::query()->whereKey($source->activity_id)->lockForUpdate()->firstOrFail();
 
-        if ($issues !== []) {
-            $summary = implode('; ', array_map(fn (ContentIssue $issue): string => (string) $issue, $issues));
+            if ($this->isLegacyRestoreBlocked($activity, $source->payload)) {
+                throw new RuntimeException(
+                    'Wiederherstellung abgebrochen -- diese historische Version stammt aus dem alten '
+                        .'Inhaltsformat. Die Lektion wurde seitdem im Rich-Content-Editor veraendert und '
+                        .'kann deshalb nicht mehr verlustfrei automatisch wiederhergestellt werden.',
+                );
+            }
 
-            throw new RuntimeException(
-                "Wiederherstellung abgebrochen -- die historische Version ist gegen die aktuellen Regeln nicht mehr gueltig: {$summary}",
-            );
-        }
+            $normalized = $this->normalize($activity, $source->payload);
+            $issues = $this->registry->resolve($activity)->validate($normalized);
 
-        return DB::transaction(function () use ($activity, $normalized, $source, $performedBy): ContentVersion {
+            if ($issues !== []) {
+                $summary = implode('; ', array_map(fn (ContentIssue $issue): string => (string) $issue, $issues));
+
+                throw new RuntimeException(
+                    "Wiederherstellung abgebrochen -- die historische Version ist gegen die aktuellen Regeln nicht mehr gueltig: {$summary}",
+                );
+            }
+
             $this->applyOrFail($activity, $normalized);
 
             ContentVersion::query()
@@ -142,6 +186,53 @@ final readonly class ContentPublishingService
                 'restored_from_version_id' => $source->id,
             ]);
         });
+    }
+
+    /**
+     * CMS-7d.4 (Betreiber-Review vor #126s Merge, Nachtrag): die
+     * "historisches before + LIVE Lesson::body-after"-Kompatibilitaet aus
+     * `normalize()` ist nur so lange eindeutig, wie sich die Lektion seit
+     * dem Cutover nicht veraendert hat -- sobald `rich_content` als EIN
+     * Dokument im neuen Editor bearbeitet wurde, gibt es keine belastbare
+     * Grenze zwischen "before" und "after" mehr. Ein Legacy-Payload
+     * (`payload.body` ohne `payload.rich_content`) darf deshalb nur
+     * angewendet werden, solange fuer diese Lesson-Activity noch nie eine
+     * ECHTE, im Rich-Content-Editor gespeicherte Autorenrevision
+     * veroeffentlicht wurde. Node hat kein analoges "nie separat
+     * versioniertes" Segment (`NodeSections::parse()` rekonstruiert
+     * Briefing/Hints/Write-up immer vollstaendig aus `body`) und bekommt
+     * deshalb keine Sperre.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function isLegacyRestoreBlocked(Activity $activity, array $payload): bool
+    {
+        return ! array_key_exists('rich_content', $payload)
+            && $activity->type === ActivityType::Lesson->value
+            && $this->hasNativeRichContentAuthoringPublish($activity);
+    }
+
+    /**
+     * `true` heisst genau: "es wurde mindestens einmal eine ECHTE, im
+     * Rich-Content-Editor gespeicherte Autorenrevision veroeffentlicht" --
+     * monoton (bleibt `true`, sobald einmal erreicht, da jede kuenftige
+     * Publish/Restore-Version seit CMS-7d.3 Phase 3 `rich_content` traegt).
+     * `whereNull('restored_from_version_id')` filtert `restoreVersion()`-
+     * erzeugte Versionen bewusst heraus: eine Wiederherstellung ist selbst
+     * keine Autoren-Bearbeitung im neuen Editor -- sonst wuerde der ERSTE
+     * Legacy-Restore jeden weiteren sofort blockieren, obwohl niemand das
+     * Dokument je angefasst hat. Ein prae-7d.3-Draft, der erst NACH dem
+     * Cutover veroeffentlicht wird, zaehlt schon dadurch korrekt nicht mit
+     * (`ContentVersioningService::publish()` ersetzt das Payload nicht,
+     * es traegt also weiterhin keinen `rich_content`-Schluessel).
+     */
+    private function hasNativeRichContentAuthoringPublish(Activity $activity): bool
+    {
+        return $activity->contentVersions()
+            ->where('status', 'published')
+            ->whereNull('restored_from_version_id')
+            ->get()
+            ->contains(fn (ContentVersion $v): bool => array_key_exists('rich_content', $v->payload));
     }
 
     /**

@@ -231,3 +231,92 @@ Planung, aber direkte Konsequenz des Cutovers):
   (`1.4`) im Browser gepruft -- Tabellen rendern/editieren korrekt,
   Draft-Vorschau zeigt denselben Inhalt wie die Learner-Seite, ohne einen
   `lesson_progress`-Eintrag fuer den vorschauenden Autor anzulegen.
+
+## Nachtrag (CMS-7d.4, Betreiber-Review)
+
+Die urspruengliche Restore-Kompatibilitaet fuer eine Legacy-Lesson-
+Revision (`payload.body` ohne `payload.rich_content`) ergaenzte das nie
+separat versionierte `after` (den Nach-Quiz-Fusstext) aus der LIVE
+`Lesson::body`-Spalte. Betreiber-Fund vor CMS-7d.4: das ist nur so lange
+korrekt, wie sich die Lektion seit dem Cutover nicht veraendert hat --
+sobald ein Autor den ehemaligen Nach-Quiz-Bereich ueber den
+vereinheitlichten `RichContentEditor` bearbeitet, gibt es keine
+belastbare Grenze zwischen "before" und "after" mehr. Ein Blockindex
+oder eine persistierte Grenze waere kuenstliche Archaeologie fuer eine
+Unterscheidung, die fachlich nicht mehr existiert.
+
+**Entscheidung:** Legacy-Restore/-Publish (ein Payload ohne
+`rich_content`) bleibt fuer eine Lesson nur erlaubt, solange diese
+Lesson-Activity seit dem Cutover noch nie eine ECHTE, im
+Rich-Content-Editor gespeicherte Autorenrevision veroeffentlicht hat
+(`ContentPublishingService::hasNativeRichContentAuthoringPublish()` --
+eine veroeffentlichte Version mit `rich_content` im Payload UND ohne
+`restored_from_version_id`; ein Legacy-Restore selbst zaehlt also
+bewusst nicht mit). Sobald das der Fall ist, lehnt der Service den
+Legacy-Restore/-Publish serverseitig ab (`restoreVersion()` wirft,
+`publish()` gibt eine `ContentIssue` zurueck) statt zu raten, welchen
+Teil des heutigen Dokuments er ueberschreiben darf. Node bekommt keine
+analoge Sperre (`NodeSections::parse()` rekonstruiert alle drei
+Abschnitte immer vollstaendig aus `body`, kein "nie separat
+versioniertes" Segment).
+
+**Race-Sicherheit:** `publish()` und `restoreVersion()` sperren dafuer
+jetzt beide zuerst die betroffene `Activity`-Zeile (`lockForUpdate()`)
+und fuehren Legacy-Pruefung, `normalize()`, `validate()`, Apply und
+Versionswechsel vollstaendig innerhalb derselben Transaktion aus --
+sonst koennte ein nativer Publish genau zwischen einer fruehen Pruefung
+und dem tatsaechlichen Schreiben eines konkurrierenden Restores
+committen, und der Restore wuerde trotzdem ungeprueft ueberschreiben.
+Das waere dieselbe Fehlerklasse, die 7d.3 mit dem atomaren
+Publish/Apply (`ContentPublishingService`s Kern-Idee, siehe oben) fuer
+Live-Daten vs. Versionshistorie bereits geschlossen hat -- hier fuer die
+Legacy-Kompatibilitaetspruefung selbst.
+
+Siehe [`docs/offene-fragen.md`](../offene-fragen.md) fuer den damit
+erledigten Eintrag.
+
+**Weitere CMS-7d.4-Entscheidungen (derselbe PR, kleiner geschnitten):**
+
+- *404-Gates* (`NodeController::show()`, `LearnerViewBuilder::lessonProps()`):
+  der Existenzcheck haengt nicht mehr allein an `body !== null` --
+  `rich_content !== null || body !== null`. Eine reine Rich-Content-
+  Ressource (`body` zufaellig `null`) ist genauso gueltig; `body` bleibt
+  eine implizite Konvention (`StudioNodeController::store()` setzt es
+  immer auf `''`), keine erzwungene Invariante.
+- *Coverage-Healthcheck* (`php artisan rich-content:coverage`, neu):
+  zaehlt "present" (nicht `NULL`) und "valid" (besteht
+  `RichContentValidator`) bewusst GETRENNT, nicht nur `whereNotNull()->count()`
+  -- "alle produktiven Lessons/Nodes haben valides rich_content" ist
+  logisch staerker als "ist nicht NULL". Reine Schema-/Envelope-
+  Validierung gegen das bereits gespeicherte Dokument, keine erneute
+  Markdown-Konvertierung (kein Wiederverwenden von
+  `rich-content:migrate`s schwererer Preflight-Arbeit). Beispiel-Ausgabe:
+  ```
+  Lessons:
+  rich_content present: 42/42
+  rich_content valid:   42/42
+
+  Nodes:
+  rich_content present: 17/17
+  rich_content valid:   17/17
+  ```
+- *Fallback-Signal:* `Log::warning('learner_view.legacy_body_fallback', ...)`
+  an den beiden tatsaechlichen Learner-Fallback-Stellen
+  (`LearnerViewBuilder`, `NodeController::renderNodeSection()`) --
+  belegt "0 Fallbacks im produktiven Bestand" per Log-Suche, bevor eine
+  spaetere Iteration den Fallback-Pfad entfernt. Fallback-Entfernung
+  selbst ist NICHT Teil von 7d.4.
+- *Alte Infrastruktur:* `NodeSections`/`QuizContent::splitBody()` bleiben
+  unveraendert auf drei legitime Gruppen begrenzt (Migrations-/Audit-
+  Tooling; Quiz/Exam, dauerhaft ausserhalb des Scopes; die genannten
+  Lesson-/Node-Kompatibilitaets-Fallbacks) -- verifiziert, kein Umbau.
+  `rich-content:migrate` laeuft nirgends automatisiert (kein Scheduler-
+  Eintrag), bleibt ein manuell auszufuehrendes Migrationswerkzeug.
+- *Invarianten als Tests:* `RichContentCutoverInvariantsTest` friert die
+  volle Betreiber-Checkliste ein -- die meisten Punkte referenziert sie
+  nur (bereits durch bestehende Tests bewiesen, nicht dupliziert), zwei
+  echte Luecken schliesst sie neu: ein frischer Draft enthaelt nie
+  `body`; ein Quiz-Publish aendert `body` nur innerhalb des
+  `## Quiz`-Abschnitts (macht die "Quiz bleibt markdown-gefuehrt,
+  unveraendert"-Abgrenzung aus dem Kontext oben zu einer echten,
+  regressionsgeschuetzten Invariante statt nur dokumentierter Absicht).

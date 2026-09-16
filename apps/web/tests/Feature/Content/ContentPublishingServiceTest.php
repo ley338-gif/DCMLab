@@ -11,6 +11,7 @@ use App\Models\Themenfeld;
 use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
@@ -366,6 +367,248 @@ class ContentPublishingServiceTest extends TestCase
 
         $this->assertTrue($restored->is_current);
         $this->assertSame('Historisch.', $lesson->fresh()->rich_content['content'][0]['content'][0]['text']);
+    }
+
+    /**
+     * CMS-7d.4 (Betreiber-Vorgabe): sobald fuer diese Lesson eine ECHTE,
+     * im Rich-Content-Editor gespeicherte Autorenrevision veroeffentlicht
+     * wurde, gibt es keine belastbare Grenze zwischen "before" und
+     * "after" im aktuellen Dokument mehr -- ein Legacy-Restore wird
+     * deshalb serverseitig abgelehnt statt zu raten, welchen Teil des
+     * heutigen Dokuments er ersetzen darf.
+     */
+    public function test_legacy_restore_is_blocked_after_a_native_rich_content_publish(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'title' => ['de' => 'Aktuell'], 'rich_content' => $this->validRichContent('Aktuell.')]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $author = User::factory()->create();
+        $performer = User::factory()->reviewer()->create();
+
+        // Eine ECHTE (nicht per Restore erzeugte) veroeffentlichte
+        // Rich-Content-Revision -- das allein macht die Lektion "nativ
+        // veroeffentlicht".
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published', 'payload' => $this->lessonDraftPayload('Aktuell.'),
+            'is_current' => true, 'created_by' => $author->id, 'reviewed_by' => $author->id,
+        ]);
+
+        $legacyHistorical = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published',
+            'payload' => [
+                'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
+                'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'lab' => ['node' => null, 'optional' => true],
+                'body' => "Legacy-Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
+            ],
+            'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
+        ]);
+
+        try {
+            app(ContentPublishingService::class)->restoreVersion($legacyHistorical, $performer);
+            $this->fail('restoreVersion() haette werfen muessen.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('alten Inhaltsformat', $exception->getMessage());
+        }
+
+        $this->assertSame('Aktuell', $lesson->fresh()->title['de']);
+        $this->assertSame(2, ContentVersion::where('activity_id', $activity->id)->count(), 'kein Schreibvorgang, keine neue Version.');
+    }
+
+    /**
+     * Dieselbe Sperre gilt fuer publish(), nicht nur restoreVersion(): ein
+     * vor dem Cutover angelegter, nie neu gespeicherter Draft/Review kann
+     * ebenfalls noch payload.body ohne rich_content tragen. publish()
+     * WIRFT dabei NICHT (anders als restoreVersion()) -- der Controller
+     * behandelt eine Ablehnung als zurueckgegebene ContentIssue[], sonst
+     * produziert der Schutz im Browser einen 500er statt einer normalen
+     * Autoren-Fehlermeldung.
+     */
+    public function test_legacy_publish_is_blocked_after_a_native_rich_content_publish(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'title' => ['de' => 'Aktuell'], 'rich_content' => $this->validRichContent('Aktuell.')]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $author = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published', 'payload' => $this->lessonDraftPayload('Aktuell.'),
+            'is_current' => true, 'created_by' => $author->id, 'reviewed_by' => $author->id,
+        ]);
+
+        $stalePendingDraft = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review',
+            'payload' => [
+                'title' => 'Alter Entwurf', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
+                'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'lab' => ['node' => null, 'optional' => true],
+                'body' => "Alter Entwurfstext.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
+            ],
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+
+        $issues = app(ContentPublishingService::class)->publish($stalePendingDraft, $reviewer);
+
+        $this->assertNotEmpty($issues);
+        $this->assertStringContainsString('nicht mehr automatisch veroeffentlicht', (string) $issues[0]);
+        $this->assertSame('Aktuell', $lesson->fresh()->title['de']);
+        $this->assertSame('review', $stalePendingDraft->fresh()->status);
+        $this->assertFalse($stalePendingDraft->fresh()->is_current);
+    }
+
+    /**
+     * Eine `restoreVersion()`-erzeugte Version zaehlt selbst NICHT als
+     * native Autorenrevision (`whereNull('restored_from_version_id')`) --
+     * sonst wuerde der ERSTE Legacy-Restore jeden weiteren sofort
+     * blockieren, obwohl niemand das Dokument im neuen Editor je
+     * angefasst hat.
+     */
+    public function test_a_legacy_restore_itself_does_not_count_as_a_native_publish(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'body' => 'Alt.', 'rich_content' => null]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $author = User::factory()->create();
+        $performer = User::factory()->reviewer()->create();
+
+        $legacyPayload = fn (string $text) => [
+            'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
+            'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
+            'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+            'lab' => ['node' => null, 'optional' => true],
+            'body' => "{$text}\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
+        ];
+
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published', 'payload' => $legacyPayload('Aktuell.'),
+            'is_current' => true, 'created_by' => $author->id, 'reviewed_by' => $author->id,
+        ]);
+        $olderLegacy = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published', 'payload' => $legacyPayload('Alt.'),
+            'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
+        ]);
+
+        // Erster Restore -- erzeugt eine neue, veroeffentlichte Version MIT
+        // rich_content, aber mit restored_from_version_id gesetzt.
+        $firstRestore = app(ContentPublishingService::class)->restoreVersion($olderLegacy, $performer);
+        $this->assertNotNull($firstRestore->restored_from_version_id);
+
+        // Ein zweiter Legacy-Restore muss trotzdem noch erlaubt sein --
+        // der erste Restore war selbst keine Autoren-Bearbeitung.
+        $secondRestore = app(ContentPublishingService::class)->restoreVersion($olderLegacy, $performer);
+        $this->assertTrue($secondRestore->is_current);
+    }
+
+    /**
+     * Ein prae-7d.3-Draft, der ERST NACH dem Cutover veroeffentlicht wird,
+     * zaehlt ebenfalls nicht als native Autorenrevision -- er traegt als
+     * gespeicherte Version weiterhin `payload.body`
+     * (`ContentVersioningService::publish()` ersetzt das Payload nicht).
+     */
+    public function test_publishing_a_pre_cutover_draft_after_the_cutover_does_not_count_as_native(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'body' => 'Alt.', 'rich_content' => null]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $author = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $legacyDraft = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review',
+            'payload' => [
+                'title' => 'Nachtraeglich veroeffentlicht', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
+                'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'lab' => ['node' => null, 'optional' => true],
+                'body' => "Alter Entwurfstext.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
+            ],
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+
+        $issues = app(ContentPublishingService::class)->publish($legacyDraft, $reviewer);
+        $this->assertSame([], $issues, 'ohne vorherigen nativen Publish muss dieser Legacy-Publish noch erlaubt sein.');
+        $this->assertArrayNotHasKey('rich_content', $legacyDraft->fresh()->payload, 'die gespeicherte Version bleibt payload.body -- publish() schreibt das Payload nicht um.');
+
+        // Ein weiterer Legacy-Restore muss trotzdem noch moeglich sein --
+        // dieser nachtraegliche Legacy-Publish zaehlt nicht als native
+        // Autorenrevision.
+        $anotherLegacyHistorical = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published',
+            'payload' => [
+                'title' => 'Noch aelter', 'teaser' => 'Alt', 'level' => 'einsteiger', 'duration_minutes' => 5,
+                'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'lab' => ['node' => null, 'optional' => true],
+                'body' => "Noch aelterer Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
+            ],
+            'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
+        ]);
+
+        $restored = app(ContentPublishingService::class)->restoreVersion($anotherLegacyHistorical, $reviewer);
+        $this->assertTrue($restored->is_current);
+    }
+
+    /**
+     * Race-Sicherheit (Betreiber-Review): die Legacy-Kompatibilitaetspruefung
+     * darf sich nicht auf einen Zustand von VOR der Transaktion verlassen --
+     * ein nativer Publish, der "waehrend" eines Restores committet, muss
+     * trotzdem gesehen werden. Simuliert per `DB::listen()` (analog dem
+     * `RichContentMigrateTest`-Muster): eine native Rich-Content-Version
+     * "erscheint" exakt zwischen dem Sperren der Activity-Zeile und der
+     * eigentlichen Legacy-Pruefung.
+     */
+    public function test_restore_sees_a_native_publish_that_appears_between_locking_and_checking(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'body' => 'Alt.', 'rich_content' => null]);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $author = User::factory()->create();
+        $performer = User::factory()->reviewer()->create();
+
+        $legacyHistorical = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'published',
+            'payload' => [
+                'title' => 'Legacy', 'teaser' => 'Legacy', 'level' => 'einsteiger', 'duration_minutes' => 5,
+                'tools' => [], 'requires' => [], 'glossary_terms' => [], 'objectives' => ['Ziel'],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'lab' => ['node' => null, 'optional' => true],
+                'body' => "Legacy-Text.\n\n```\necho 'ok'\n```\n\n**Was du daran abliest:** Beispiel.",
+            ],
+            'is_current' => false, 'created_by' => $author->id, 'reviewed_by' => $author->id,
+        ]);
+
+        $fired = false;
+        DB::listen(function ($query) use (&$fired, $activity, $author): void {
+            if ($fired || stripos($query->sql, 'select') !== 0 || ! str_contains($query->sql, 'activities')) {
+                return;
+            }
+
+            $fired = true;
+
+            // Simuliert einen nativen Publish, der genau zwischen dem
+            // Activity-Lock und der Legacy-Pruefung committet.
+            DB::table('content_versions')->insert([
+                'activity_id' => $activity->id,
+                'status' => 'published',
+                'payload' => json_encode(['title' => 'Nativ', 'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []]]),
+                'is_current' => false,
+                'created_by' => $author->id,
+                'reviewed_by' => $author->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        try {
+            app(ContentPublishingService::class)->restoreVersion($legacyHistorical, $performer);
+            $this->fail('restoreVersion() haette die zwischenzeitlich erschienene native Publish sehen und ablehnen muessen.');
+        } catch (RuntimeException $exception) {
+            $this->assertTrue($fired, 'die simulierte native Publish haette waehrend des Laufs feuern muessen');
+            $this->assertStringContainsString('alten Inhaltsformat', $exception->getMessage());
+        }
     }
 
     /**

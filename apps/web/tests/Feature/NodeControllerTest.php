@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -229,6 +230,73 @@ class NodeControllerTest extends TestCase
                 ->where('briefing_html', fn (string $html) => str_contains($html, 'Briefing aus rich_content.')
                     && ! str_contains($html, 'Veraltet')),
             );
+    }
+
+    /**
+     * CMS-7d.4 (Betreiber-Review): der 404-Existenzcheck durfte nicht
+     * mehr allein von `body !== null` abhaengen -- eine reine
+     * Rich-Content-Node (`body` zufaellig `null`, kein produktiver Fall
+     * heute, da `StudioNodeController::store()` immer `''` setzt, aber
+     * nicht mehr strukturell erzwungen) muss trotzdem sichtbar bleiben.
+     */
+    public function test_it_is_visible_when_rich_content_is_set_but_body_is_null(): void
+    {
+        Node::factory()->create([
+            'slug' => 'test-node',
+            'body' => null,
+            'hints' => [],
+            'rich_content' => [
+                'type' => 'node_content', 'version' => 1,
+                'briefing' => ['type' => 'doc', 'version' => 1, 'content' => [
+                    ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Nur Rich Content, kein body.']]],
+                ]],
+                'hints' => [],
+                'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
+        ]);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'sess-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/sess-1/state' => Http::response($this->baseState()),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/de/nodes/test-node')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('briefing_html', fn (string $html) => str_contains($html, 'Nur Rich Content, kein body.')),
+            );
+    }
+
+    /**
+     * CMS-7d.4 Phase 3: der Markdown-Fallback (kein rich_content
+     * gesetzt) loggt ein messbares Signal -- Ziel ist, dass dieser
+     * Log-Eintrag im produktiven Bestand nie feuert
+     * (`rich-content:coverage`).
+     */
+    public function test_falling_back_to_markdown_logs_a_warning(): void
+    {
+        Node::factory()->create([
+            'slug' => 'test-node',
+            'body' => "## Briefing\n\nNur Markdown.\n\n## Hints\n\n## Write-up\n\nText.",
+            'hints' => [],
+            'rich_content' => null,
+        ]);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'sess-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/sess-1/state' => Http::response($this->baseState()),
+        ]);
+        Log::spy();
+
+        $this->actingAs($user)->get('/de/nodes/test-node')->assertOk();
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context) => $message === 'learner_view.legacy_body_fallback'
+                && $context['node_slug'] === 'test-node' && $context['field'] === 'briefing')
+            ->once();
     }
 
     public function test_second_visit_reuses_the_existing_session(): void

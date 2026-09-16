@@ -20,46 +20,28 @@ festgehalten: Schema v1 gilt ab jetzt als eingefroren (der letzte
 guenstige Zeitpunkt dafuer, vor dem CMS-7d.2-Backfill), und
 `rich-content:audit` wird zum Gate vor jedem Backfill-Lauf.
 
-## Restore einer prae-7d.3-Lesson-Revision: `after` stammt aus einem Legacy-Snapshot, nicht aus dem aktuellen Rich Content
+## ~~Restore einer prae-7d.3-Lesson-Revision: `after` stammt aus einem Legacy-Snapshot, nicht aus dem aktuellen Rich Content~~ Umgesetzt
 
-**Frage:** Soll `LessonPayloadNormalizer` fuer eine sehr alte, `body`-
+~~**Frage:** Soll `LessonPayloadNormalizer` fuer eine sehr alte, `body`-
 tragende Lesson-Revision irgendwann den fehlenden Nach-Quiz-Teil
 (`after`) aus dem AKTUELLEN, zusammengefuehrten `rich_content` ziehen
 statt weiterhin aus der live `Lesson::body`-Spalte -- und wenn ja, ab
 welchem Zeitpunkt darf `body` als Restore-Kompatibilitaetspfad ganz
-entfallen?
+entfallen?~~
 
-**Kontext:** ADR 0118 (CMS-7d.3) loest den urspruenglichen Fund
-(Restore einer Legacy-Revision haette `after` verloren) damit, dass
-`LessonPayloadNormalizer::normalize()` ein historisches `payload.body`
-als `before` interpretiert und das fehlende `after` aus der live
-`Lesson::body`-Spalte ergaenzt (`QuizContent::splitBody()`). Das ist
-fuer den urspruenglichen Vertragsbruch korrekt: vor 7d.3 speicherte der
-Lesson-Editor in `payload.body` ausdruecklich nur `before`, `after` kam
-nie aus dem Editor, sondern immer live aus `Lesson::body`.
-
-Seit dem Cutover wird `body` nach jedem Rich-Content-Publish aber
-absichtlich NICHT mehr aktualisiert ("keine zwei schreibenden Sources
-of Truth", ADR 0118) -- `body` friert deshalb den `after`-Stand exakt
-zum Zeitpunkt des letzten Vor-Cutover-Publishs ein. Bearbeitet ein Autor
-den ehemaligen Nach-Quiz-Bereich spaeter nur noch ueber das
-zusammengefuehrte Rich-Content-Dokument (dort ist er seit Phase 5
-sichtbar und editierbar), aendert sich `body` nicht mit -- ein
-anschliessender Restore einer prae-7d.3-Revision haengt deshalb weiterhin
-den EINGEFRORENEN Legacy-Stand an, nicht den zuletzt tatsaechlich
-gepflegten `after`-Text. Ein begrenzter, aber realer Legacy-Sonderfall,
-kein Bug -- `body` ist fuer genau diesen einen Zweck (Restore-
-Kompatibilitaet fuer eine noch nicht migrierte Alt-Revision) weiterhin
-lesend im Spiel, obwohl er sonst ueberall als reiner Anzeige-Fallback
-gilt.
-
-**Empfehlung:** Vorerst so belassen -- betrifft nur den Restore einer
-Revision, die noch aus der Zeit VOR dem Cutover stammt, eine mit der
-Zeit natuerlich schrumpfende Menge. Erst angehen, wenn CMS-7d.4 (oder
-eine spaetere Iteration) `body` vollstaendig aus jedem verbleibenden
-Lesepfad entfernt -- dann muesste der Normalizer sein `after`
-stattdessen aus dem aktuellen `Lesson::rich_content` extrahieren (oder
-der Restore-Pfad fuer `body`-Revisionen wird ganz eingestellt).
+**Umgesetzt (CMS-7d.4, ADR 0118-Nachtrag):** Statt den aktuellen
+`after`-Stand irgendwoher zu extrahieren (es gibt seit dem Cutover keine
+belastbare before/after-Grenze mehr, sobald `rich_content` als EIN
+Dokument bearbeitet wurde -- ein Blockindex waere kuenstliche
+Archaeologie fuer eine Unterscheidung, die fachlich nicht mehr
+existiert), lehnt `ContentPublishingService` einen Legacy-Restore/
+-Publish serverseitig ab, sobald fuer die betroffene Lesson bereits eine
+ECHTE, im Rich-Content-Editor gespeicherte Autorenrevision
+veroeffentlicht wurde (`hasNativeRichContentAuthoringPublish()`). Bis
+dahin bleibt die bestehende "historisches before + live
+`Lesson::body`-after"-Kompatibilitaet unveraendert -- und ist in diesem
+Fenster nachweislich eindeutig, weil noch niemand das Dokument im neuen
+Editor angefasst hat.
 
 ## `content:export` fehlt noch -- `content/` ist nur noch Import-Format, kein deterministischer Export
 
