@@ -115,15 +115,28 @@ class StudioLabController extends Controller
             ->latest()
             ->first();
 
+        $fields = $pendingVersion !== null ? $pendingVersion->payload : $registry->resolve($activity)->deserialize();
+
+        // Betreiber-Review: die Katalogoptionen (inklusive der "nicht mehr
+        // verfuegbar"-Markierung fuer einen archivierten/entfernten Wert,
+        // siehe templateOptions()/datasetOptions()) muessen zu den Feldern
+        // passen, die der Editor tatsaechlich anzeigt -- bei einem
+        // pending Draft/Review ist das $fields (der Entwurf), NICHT mehr
+        // die Live-Lab-Zeile. Sonst faellt ein archivierter/entfernter
+        // Entwurfswert aus dem <select>, ohne als "nicht mehr verfuegbar"
+        // markiert zu werden.
+        $selectedTemplate = is_string($fields['runtime_template'] ?? null) ? $fields['runtime_template'] : null;
+        $selectedDataset = is_string($fields['dataset'] ?? null) ? $fields['dataset'] : null;
+
         return Inertia::render('Studio/Labs/Edit', [
             'lab' => [
                 'slug' => $lab->slug,
                 'title' => $lab->title['de'] ?? $lab->slug,
                 'status' => $lab->status,
             ],
-            'fields' => $pendingVersion !== null ? $pendingVersion->payload : $registry->resolve($activity)->deserialize(),
-            'sandbox_templates' => $this->templateOptions($lab->runtime_template),
-            'datasets' => $this->datasetOptions($content, $lab->dataset),
+            'fields' => $fields,
+            'sandbox_templates' => $this->templateOptions($selectedTemplate),
+            'datasets' => $this->datasetOptions($content, $selectedDataset),
             'pending_version' => $pendingVersion === null ? null : [
                 'id' => $pendingVersion->id,
                 'status' => $pendingVersion->status,

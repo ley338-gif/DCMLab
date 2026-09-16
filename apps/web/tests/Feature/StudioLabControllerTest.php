@@ -186,6 +186,46 @@ class StudioLabControllerTest extends TestCase
     }
 
     /**
+     * Betreiber-Korrektur: die Katalogoptionen muessen zu den tatsaechlich
+     * angezeigten Feldern passen -- bei einem pending Draft/Review ist das
+     * der Entwurf, NICHT die Live-Lab-Zeile. Vorher wurden die Optionen
+     * immer anhand der Live-Zeile gebaut, sodass ein im Draft gesetzter,
+     * inzwischen archivierter/entfernter Wert kommentarlos aus dem
+     * <select> fiel statt als "nicht mehr verfuegbar" markiert zu werden.
+     */
+    public function test_edit_derives_stale_catalog_options_from_the_pending_draft_not_the_live_lab(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'template-a', 'name' => 'Vorlage A']);
+        SandboxTemplate::factory()->create(['slug' => 'stale-template', 'name' => 'Veraltete Vorlage', 'status' => 'draft']);
+        $lab = Lab::factory()->create(['slug' => 'test-lab', 'runtime_template' => 'template-a', 'dataset' => 'ct-thorax-60']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'test-lab']);
+        ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'draft',
+            'payload' => [
+                'title' => 'Entwurfstitel', 'scenario_title' => 'Szenario', 'difficulty' => 'easy',
+                'points' => 10, 'estimated_minutes' => 10,
+                'runtime_template' => 'stale-template', 'dataset' => 'stale-dataset',
+                'assertions' => [], 'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ],
+            'is_current' => false, 'created_by' => User::factory()->create()->id,
+        ]);
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($reviewer)
+            ->get("/de/studio/labs/{$lab->slug}")
+            ->assertInertia(fn ($page) => $page
+                ->where('fields.runtime_template', 'stale-template')
+                ->where('fields.dataset', 'stale-dataset')
+                ->where('sandbox_templates', fn ($templates) => collect($templates)->contains([
+                    'slug' => 'stale-template', 'name' => 'Veraltete Vorlage', 'available' => false,
+                ]))
+                ->where('datasets', fn ($datasets) => collect($datasets)->contains([
+                    'slug' => 'stale-dataset', 'available' => false,
+                ]))
+            );
+    }
+
+    /**
      * Betreiber-Korrektur (CMS-8c): ein Entwurf ohne runtime_template/
      * dataset/assertions bleibt speicherbar -- nur das PUBLISH (getestet in
      * ContentPublishingServiceTest) verlangt sie.
