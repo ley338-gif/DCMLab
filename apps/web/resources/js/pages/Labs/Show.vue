@@ -49,7 +49,7 @@ const props = defineProps<{
     attempt: { status: AttemptStatus } | null;
     can_start: boolean;
     runtime: {
-        status: 'queued' | 'running';
+        status: 'queued' | 'running' | 'sandbox_unavailable';
         queue_position: number | null;
     } | null;
     assertions: AssertionState[];
@@ -65,6 +65,9 @@ const runtimeErrorLabels: Record<string, string> = {
     quota_exceeded: trans('Dein Runtime-Kontingent ist derzeit ausgeschöpft.'),
     lab_unavailable: trans(
         'Dieses Lab ist gerade nicht verfügbar. Bitte später erneut versuchen.',
+    ),
+    sandbox_unavailable: trans(
+        'Die Runtime-Umgebung ist gerade nicht erreichbar. Bitte später erneut versuchen.',
     ),
 };
 
@@ -107,18 +110,38 @@ function assertionLabel(assertion: AssertionState): string {
  */
 const attemptStatus = ref<AttemptStatus | null>(props.attempt?.status ?? null);
 const runtimeStatus = ref<RuntimeStatus>(
-    props.runtime === null ? 'idle' : props.runtime.status,
+    props.runtime === null
+        ? 'idle'
+        : props.runtime.status === 'sandbox_unavailable'
+          ? 'error'
+          : props.runtime.status,
 );
 const queuePosition = ref<number | null>(props.runtime?.queue_position ?? null);
 const assertions = ref<AssertionState[]>(props.assertions);
 const destroying = ref(false);
+
+/**
+ * Betreiber-Korrektur (Haerten): einzige Quelle fuer die sichtbare
+ * Fehlermeldung -- start()s Session-Flash (`props.runtime_error`) ODER,
+ * falls das initiale `show()` bereits eine nicht erreichbare Runtime
+ * gemeldet hat, dieselbe Meldung von Anfang an. Jede spaetere, vom
+ * Client selbst entdeckte Nichtverfuegbarkeit (Polling, exec(),
+ * restartRuntime()) schreibt hierher, statt den Lernenden mit einem
+ * erklaerungslosen Retry-Button allein zu lassen.
+ */
+const runtimeErrorMessage = ref<string | null>(
+    props.runtime_error ??
+        (props.runtime?.status === 'sandbox_unavailable'
+            ? 'sandbox_unavailable'
+            : null),
+);
 
 const startButtonLabel = computed(() => {
     if (!attemptStatus.value) {
         return trans('Lab starten');
     }
 
-    return props.runtime_error
+    return runtimeErrorMessage.value
         ? trans('Erneut versuchen')
         : trans('Runtime starten');
 });
@@ -148,6 +171,7 @@ async function pollRuntimeState() {
     if (!response.ok) {
         stopPolling();
         runtimeStatus.value = 'error';
+        runtimeErrorMessage.value = 'sandbox_unavailable';
         return;
     }
 
@@ -199,6 +223,7 @@ async function runCommand(command: string) {
     } catch {
         stopPolling();
         runtimeStatus.value = 'error';
+        runtimeErrorMessage.value = 'sandbox_unavailable';
 
         return {
             stdout: '',
@@ -228,6 +253,14 @@ async function restartRuntime() {
     try {
         await deleteJson(destroyRuntime.url({ lab: props.lab.slug }));
         router.post(startLab.url({ lab: props.lab.slug }));
+    } catch {
+        // Betreiber-Korrektur (Haerten): vorher lief ein Fehlschlag hier
+        // als unbehandelte Rejection durch -- der nachfolgende
+        // router.post()-Aufruf feuerte dann nie, der Button re-aktivierte
+        // sich aber wortlos wieder, ohne dass der Lernende erfuhr, warum
+        // "Neustart" nichts bewirkt hat.
+        runtimeStatus.value = 'error';
+        runtimeErrorMessage.value = 'sandbox_unavailable';
     } finally {
         destroying.value = false;
     }
@@ -272,13 +305,13 @@ onBeforeUnmount(() => {
             {{ trans('Noch keine Anleitung hinterlegt.') }}
         </p>
 
-        <Alert v-if="props.runtime_error" variant="destructive" class="mt-6">
+        <Alert v-if="runtimeErrorMessage" variant="destructive" class="mt-6">
             <AlertTitle>{{
                 trans('Runtime konnte nicht gestartet werden')
             }}</AlertTitle>
             <AlertDescription>
                 {{
-                    runtimeErrorLabels[props.runtime_error] ??
+                    runtimeErrorLabels[runtimeErrorMessage] ??
                     genericRuntimeErrorLabel
                 }}
             </AlertDescription>

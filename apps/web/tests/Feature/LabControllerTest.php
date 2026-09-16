@@ -13,7 +13,9 @@ use App\Models\SandboxTemplate;
 use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\ProfileService;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -844,5 +846,204 @@ class LabControllerTest extends TestCase
             'sb-2',
             SandboxSession::whereKey($attempt->current_sandbox_session_id)->value('runtime_instance_id'),
         );
+    }
+
+    /**
+     * Haerten (CMS-8d, letzter Commit): bis hierhin fingen liveRuntimeStatus()
+     * und runtimeState() ausschliesslich RuntimeGoneException ab -- ein
+     * Transport-Fehler oder ein von SandboxClient::mapKnownFailure() nicht
+     * abgefangener 5xx liefen als ungefangene Exception bis zum Controller
+     * durch und haetten das gesamte Lab-Briefing mit einem 500er zerstoert.
+     */
+    public function test_show_reports_sandbox_unavailable_on_a_connection_failure(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        Http::fake(['*/v1/sandboxes/sb-1' => fn () => throw new ConnectionException('refused')]);
+        $this->mock(ExceptionHandler::class, fn ($mock) => $mock->shouldReceive('report')->once());
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('runtime.status', 'sandbox_unavailable')
+                ->where('runtime.queue_position', null),
+            );
+    }
+
+    public function test_show_reports_sandbox_unavailable_on_an_unmapped_server_error(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        Http::fake(['*/v1/sandboxes/sb-1' => Http::response(['detail' => 'internal'], 500)]);
+        $this->mock(ExceptionHandler::class, fn ($mock) => $mock->shouldReceive('report')->once());
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('runtime.status', 'sandbox_unavailable'));
+    }
+
+    /**
+     * RuntimeNotReadyException ist keine RequestException -- eigener,
+     * getrennter Fangzweig, gemappt auf denselben "queued"-Zustand, den
+     * state() normalerweise schon per 200 liefert. Kein report() hier,
+     * das ist kein Fehlerfall.
+     */
+    public function test_show_reports_queued_when_state_unexpectedly_reports_not_ready(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        Http::fake(['*/v1/sandboxes/sb-1' => Http::response(['detail' => 'sandbox_not_ready'], 409)]);
+        $this->mock(ExceptionHandler::class, fn ($mock) => $mock->shouldNotReceive('report'));
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('runtime.status', 'queued'));
+    }
+
+    public function test_runtime_state_reports_sandbox_unavailable_on_a_connection_failure(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        Http::fake(['*/v1/sandboxes/sb-1' => fn () => throw new ConnectionException('refused')]);
+        $this->mock(ExceptionHandler::class, fn ($mock) => $mock->shouldReceive('report')->once());
+
+        $this->actingAs($user)
+            ->getJson('/de/labs/c-echo-connectivity/runtime')
+            ->assertStatus(503)
+            ->assertJson(['error' => 'sandbox_unavailable']);
+    }
+
+    public function test_exec_reports_sandbox_unavailable_on_a_connection_failure_during_exec(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        Http::fake(['*/v1/sandboxes/sb-1/exec' => fn () => throw new ConnectionException('refused')]);
+        $this->mock(ExceptionHandler::class, fn ($mock) => $mock->shouldReceive('report')->once());
+
+        $this->actingAs($user)
+            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu'])
+            ->assertStatus(503)
+            ->assertJson(['error' => 'sandbox_unavailable']);
+
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('started', $attempt->status);
+        $this->assertSame([], $attempt->assertions_passed);
+    }
+
+    /**
+     * Kein teilweise gespeicherter Solve: events() liegt ausserhalb der
+     * Transaktion, ein Transport-Fehler dort darf die Transaktion also gar
+     * nicht erst eroeffnen (dieselbe Garantie, die schon fuer den
+     * RuntimeGoneException-Fall gilt, jetzt auch fuer diesen Fehlertyp).
+     */
+    public function test_exec_reports_sandbox_unavailable_on_a_connection_failure_during_events(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-echo-connectivity',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1']],
+        ]);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201),
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
+        ]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+
+        Http::fake(['*/v1/sandboxes/sb-1/events' => fn () => throw new ConnectionException('refused')]);
+        $this->mock(ExceptionHandler::class, fn ($mock) => $mock->shouldReceive('report')->once());
+
+        $this->actingAs($user)
+            ->postJson('/de/labs/c-echo-connectivity/exec', ['command' => 'echoscu 127.0.0.1 4242 -aec ORTHANC'])
+            ->assertStatus(503)
+            ->assertJson(['error' => 'sandbox_unavailable']);
+
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('started', $attempt->status);
+        $this->assertSame([], $attempt->assertions_passed);
+        $this->assertSame(0, ActivityProgress::count());
+    }
+
+    public function test_destroy_runtime_reports_sandbox_unavailable_on_a_connection_failure(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+        $this->assertNotNull($attempt->current_sandbox_session_id);
+
+        Http::fake(['*/v1/sandboxes/sb-1' => fn () => throw new ConnectionException('refused')]);
+        $this->mock(ExceptionHandler::class, fn ($mock) => $mock->shouldReceive('report')->once());
+
+        $this->actingAs($user)
+            ->deleteJson('/de/labs/c-echo-connectivity/runtime')
+            ->assertStatus(503)
+            ->assertJson(['error' => 'sandbox_unavailable']);
+
+        // Betreiber-Vorgabe: ein fehlgeschlagener Destroy-Versuch darf den
+        // Komfortzeiger nicht faelschlich loeschen -- die Sitzung ist ja
+        // moeglicherweise noch da, nur der Aufruf ist gescheitert.
+        $this->assertNotNull($attempt->fresh()->current_sandbox_session_id);
+    }
+
+    public function test_starting_a_lab_reports_a_soft_error_on_a_connection_failure(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => fn () => throw new ConnectionException('refused')]);
+        $this->mock(ExceptionHandler::class, fn ($mock) => $mock->shouldReceive('report')->once());
+
+        $this->actingAs($user)
+            ->post('/de/labs/c-echo-connectivity/start')
+            ->assertRedirect()
+            ->assertSessionHas('runtime_error', 'sandbox_unavailable');
+
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('started', $attempt->status);
+        $this->assertNull($attempt->current_sandbox_session_id);
     }
 }

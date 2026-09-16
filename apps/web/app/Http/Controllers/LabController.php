@@ -15,6 +15,8 @@ use App\Services\RuntimeGoneException;
 use App\Services\RuntimeNotReadyException;
 use App\Services\RuntimeRequest;
 use App\Services\RuntimeSessionService;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -133,14 +135,26 @@ class LabController extends Controller
             return back()->with('runtime_error', 'lab_unavailable');
         }
 
-        $result = $sessions->start(new RuntimeRequest(
-            userId: (string) $user->id,
-            datasetSlug: (string) $lab->dataset,
-            templateSlug: (string) $lab->runtime_template,
-            runtimeKey: "lab-attempt:{$attempt->id}",
-            activityId: $activity->id,
-            labAttemptId: $attempt->id,
-        ));
+        try {
+            $result = $sessions->start(new RuntimeRequest(
+                userId: (string) $user->id,
+                datasetSlug: (string) $lab->dataset,
+                templateSlug: (string) $lab->runtime_template,
+                runtimeKey: "lab-attempt:{$attempt->id}",
+                activityId: $activity->id,
+                labAttemptId: $attempt->id,
+            ));
+        } catch (ConnectionException|RequestException $e) {
+            // Betreiber-Korrektur (Haerten): quota_exceeded/active_runtime_
+            // exists kommen bereits als weiches ['error' => ...] zurueck
+            // (siehe unten) -- ein unmapped 5xx/Transport-Fehler wird
+            // dagegen geworfen, nicht zurueckgegeben, und braucht deshalb
+            // sein eigenes catch, um denselben neutralen Rueckkanal zu
+            // nutzen statt eines ungefangenen 500ers.
+            report($e);
+
+            return back()->with('runtime_error', 'sandbox_unavailable');
+        }
 
         if (isset($result['error'])) {
             return back()->with('runtime_error', $result['error']);
@@ -158,6 +172,14 @@ class LabController extends Controller
             $state = $sessions->state($sandboxId);
         } catch (RuntimeGoneException) {
             return response()->json(['error' => 'sandbox_not_found'], 404);
+        } catch (RuntimeNotReadyException) {
+            // Siehe liveRuntimeStatus() -- theoretischer Verteidigungspfad,
+            // state() meint normalerweise schon per 200 "queued".
+            return response()->json(['status' => 'queued', 'queue_position' => null]);
+        } catch (ConnectionException|RequestException $e) {
+            report($e);
+
+            return response()->json(['error' => 'sandbox_unavailable'], 503);
         }
 
         return response()->json([
@@ -194,6 +216,10 @@ class LabController extends Controller
             return response()->json(['error' => 'sandbox_not_found'], 404);
         } catch (RuntimeNotReadyException) {
             return response()->json(['error' => 'sandbox_not_ready'], 409);
+        } catch (ConnectionException|RequestException $e) {
+            report($e);
+
+            return response()->json(['error' => 'sandbox_unavailable'], 503);
         }
 
         $assertionsPassed = $attempt->assertions_passed;
@@ -218,6 +244,10 @@ class LabController extends Controller
                 return response()->json(['error' => 'sandbox_not_found'], 404);
             } catch (RuntimeNotReadyException) {
                 return response()->json(['error' => 'sandbox_not_ready'], 409);
+            } catch (ConnectionException|RequestException $e) {
+                report($e);
+
+                return response()->json(['error' => 'sandbox_unavailable'], 503);
             }
 
             [$assertionsPassed, $allSatisfied, $progressContext] = DB::transaction(function () use ($lab, $attempt, $events, $progressRecorder, $user) {
@@ -294,7 +324,13 @@ class LabController extends Controller
         $attempt = $this->ownAttemptOrFail($lab);
         $sandboxId = $this->activeSandboxIdOrFail($attempt);
 
-        $sessions->destroy($sandboxId);
+        try {
+            $sessions->destroy($sandboxId);
+        } catch (ConnectionException|RequestException $e) {
+            report($e);
+
+            return response()->json(['error' => 'sandbox_unavailable'], 503);
+        }
 
         return response()->json(['ok' => true]);
     }
@@ -350,6 +386,23 @@ class LabController extends Controller
             // Sitzung selbst als 'reaped') -- fuer den Lernenden bedeutet
             // das schlicht "keine aktive Runtime".
             return null;
+        } catch (RuntimeNotReadyException) {
+            // state() repraesentiert "noch nicht bereit" normalerweise
+            // schon als 200 {status: 'queued'} -- dieser Zweig ist nur
+            // Verteidigung fuer den theoretisch moeglichen 409-Pfad in
+            // SandboxClient::mapKnownFailure(), keine echte Fehlermeldung.
+            return ['status' => 'queued', 'queue_position' => null];
+        } catch (ConnectionException|RequestException $e) {
+            // Betreiber-Korrektur (Haerten): ein voruebergehend nicht
+            // erreichbarer Sandbox-Service (Transport-Fehler oder ein von
+            // mapKnownFailure() nicht abgefangener 5xx) darf nicht das
+            // gesamte Lab-Briefing mit einem 500er zerstoeren -- ein
+            // nicht-fataler Zustand statt einer geworfenen Exception. Die
+            // Exception bleibt trotzdem serverseitig sichtbar (Logs), nur
+            // der Lernende sieht keine Details.
+            report($e);
+
+            return ['status' => 'sandbox_unavailable', 'queue_position' => null];
         }
 
         return [
