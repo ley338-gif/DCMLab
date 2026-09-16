@@ -309,6 +309,13 @@ def collect_orthanc_facts(
     curl-Aufruf selbst ist serverseitig fest verdrahtet (kein
     Nutzereingabe-Pfad dorthin) -- sonst waere das ein Command-Injection-
     Vektor in einer sonst harmlosen internen Beobachtungsfunktion.
+
+    Betreiber-Review (drittes Review): Discovery (`/changes` hat die
+    Instanz gemeldet) ist selbst schon ein Fact -- ein Ausfall einer der
+    beiden Anreicherungsabfragen darf ihn nicht vernichten, sondern laesst
+    nur das betroffene Feld leer. Vorher wurde eine Instanz komplett
+    uebersprungen, wenn ausgerechnet `simplified-tags` fehlschlug, obwohl
+    `header?simplify` (Transfer-Syntax) durchaus verfuegbar gewesen waere.
     """
 
     changes = _orthanc_get(docker_client, toolbox_container_id, "/changes")
@@ -334,9 +341,6 @@ def collect_orthanc_facts(
         tags = _orthanc_get(
             docker_client, toolbox_container_id, f"/instances/{instance_id}/simplified-tags",
         )
-        if tags is None:
-            continue
-
         # `simplified-tags` deckt nur das Hauptdatenset ab, NICHT die File
         # Meta Information (Gruppe 0002) -- TransferSyntaxUID liegt dort und
         # fehlt in `simplified-tags` deshalb immer (live gegen echtes Orthanc
@@ -344,11 +348,13 @@ def collect_orthanc_facts(
         header = _orthanc_get(
             docker_client, toolbox_container_id, f"/instances/{instance_id}/header?simplify",
         )
+
+        sop_class = tags.get("SOPClassUID", "") if tags is not None else ""
         transfer_syntax = header.get("TransferSyntaxUID", "") if header is not None else ""
 
         instances.append({
             "instance_id": instance_id,
-            "sop_class": str(tags.get("SOPClassUID", "")),
+            "sop_class": str(sop_class),
             "transfer_syntax": str(transfer_syntax),
         })
 
