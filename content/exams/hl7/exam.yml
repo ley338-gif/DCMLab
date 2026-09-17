@@ -1,0 +1,147 @@
+track: hl7
+title_key: exam.hl7.title
+pass_percent: 80
+draw: 10
+duration_minutes: 10
+shuffle: true
+
+# Antwortindizes 0-basiert (single/multi), siehe ADR 0066. Neuer Track,
+# Pool komplett neu geschrieben (keine quiz:-Daten in den Lektionen zum
+# Zeitpunkt dieser Pruefung uebernommen -- eigene, unabhaengige Fragen).
+
+questions:
+  - id: f01
+    type: single
+    answer: 1
+    lesson: "7.1"
+    review: { lesson: "7.1", anchor: "zwei-standards-zwei-aufgaben" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f02
+    type: single
+    answer: 1
+    lesson: "7.1"
+    review: { lesson: "7.1", anchor: "im-alltag-heisst-das" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f03
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "7.1"
+    review: { lesson: "7.1", anchor: "drei-identitaeten-die-du-auseinanderhalten-musst" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f04
+    type: truefalse
+    answer: false
+    lesson: "7.1"
+    review: { lesson: "7.1", anchor: "das-ct-funktioniert-aber-der-patient-ist-nicht-da" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f05
+    type: single
+    answer: 2
+    lesson: "7.2"
+    review: { lesson: "7.2", anchor: "warum-msh-besonders-ist" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f06
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "7.2"
+    review: { lesson: "7.2", anchor: "ein-feld-ist-nicht-automatisch-die-wahrheit" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f07
+    type: truefalse
+    answer: false
+    lesson: "7.2"
+    review: { lesson: "7.2", anchor: "die-fuenf-suchanker-fuer-den-pacs-admin" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f08
+    type: input
+    answer: "PID"
+    lesson: "7.2"
+    review: { lesson: "7.2", anchor: "zeilen-sind-segmente" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f09
+    type: single
+    answer: 1
+    lesson: "7.3"
+    review: { lesson: "7.3", anchor: "die-gefaehrliche-abkuerzung-name-geburtsdatum" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f10
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "7.3"
+    review: { lesson: "7.3", anchor: "patient-ist-nicht-fall-ist-nicht-untersuchung" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f11
+    type: truefalse
+    answer: false
+    lesson: "7.3"
+    review: { lesson: "7.3", anchor: "merge-ist-ein-workflow-kein-string-replace" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f12
+    type: input
+    answer: "ADT"
+    lesson: "7.3"
+    review: { lesson: "7.3", anchor: "adt-ist-ereignisverkehr" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f13
+    type: single
+    answer: 1
+    lesson: "cross"
+    review:
+      - { lesson: "7.1", anchor: "im-alltag-heisst-das" }
+      - { lesson: "7.3", anchor: "patient-ist-nicht-fall-ist-nicht-untersuchung" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f14
+    type: single
+    answer: 1
+    lesson: "cross"
+    review:
+      - { lesson: "7.2", anchor: "stolperfallen" }
+      - { lesson: "7.3", anchor: "die-gefaehrliche-abkuerzung-name-geburtsdatum" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f15
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "cross"
+    review:
+      - { lesson: "7.1", anchor: "zwei-standards-zwei-aufgaben" }
+      - { lesson: "7.3", anchor: "adt-ist-ereignisverkehr" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f16
+    type: truefalse
+    answer: false
+    lesson: "cross"
+    review:
+      - { lesson: "7.2", anchor: "zeilen-sind-segmente" }
+      - { lesson: "7.1", anchor: "eine-hl7-v2-nachricht-sieht-anders-aus" }
+    difficulty: 3
+    tags: [integration]

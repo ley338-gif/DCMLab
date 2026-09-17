@@ -1,0 +1,24 @@
+id: "7.5"
+track: klinische-workflows
+order: 2
+duration_minutes: 16
+level: aufbau
+objectives_count: 3
+requires: ["7.2"]
+tools: []
+
+related_node:
+  node: hl7-ack-trap
+  optional: false
+
+glossary_terms: [ack, mllp]
+quiz:
+  - id: q1
+    type: single
+    answer: 1
+  - id: q2
+    type: multi
+    answer: [0, 2, 3]
+status: draft
+authors: ["draft-ai"]
+updated: "2026-09-17"

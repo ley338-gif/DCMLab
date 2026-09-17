@@ -1,0 +1,24 @@
+id: "7.6"
+track: klinische-workflows
+order: 3
+duration_minutes: 16
+level: aufbau
+objectives_count: 3
+requires: ["7.4", "7.5"]
+tools: []
+
+related_node:
+  node: null
+  optional: true
+
+glossary_terms: [hl7-v2]
+quiz:
+  - id: q1
+    type: single
+    answer: 1
+  - id: q2
+    type: multi
+    answer: [0, 2, 3]
+status: draft
+authors: ["draft-ai"]
+updated: "2026-09-17"

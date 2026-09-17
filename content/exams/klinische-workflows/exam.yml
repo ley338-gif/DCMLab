@@ -1,0 +1,146 @@
+track: klinische-workflows
+title_key: exam.klinische-workflows.title
+pass_percent: 80
+draw: 10
+duration_minutes: 10
+shuffle: true
+
+# Antwortindizes 0-basiert (single/multi), siehe ADR 0066. Neuer Track,
+# Pool komplett neu geschrieben.
+
+questions:
+  - id: f01
+    type: single
+    answer: 1
+    lesson: "7.4"
+    review: { lesson: "7.4", anchor: "der-weg-des-auftrags" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f02
+    type: multi
+    answer: [0, 1, 2]
+    lesson: "7.4"
+    review: { lesson: "7.4", anchor: "die-bruecke-heisst-mapping" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f03
+    type: truefalse
+    answer: false
+    lesson: "7.4"
+    review: { lesson: "7.4", anchor: "im-alltag-heisst-das" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f04
+    type: input
+    answer: "OBR"
+    lesson: "7.4"
+    review: { lesson: "7.4", anchor: "orc-und-obr" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f05
+    type: single
+    answer: 1
+    lesson: "7.5"
+    review: { lesson: "7.5", anchor: "mllp-der-umschlag-nicht-der-inhalt" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f06
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "7.5"
+    review: { lesson: "7.5", anchor: "das-ack-lesen" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f07
+    type: truefalse
+    answer: false
+    lesson: "7.5"
+    review: { lesson: "7.5", anchor: "retries-und-duplikate" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f08
+    type: input
+    answer: "AE"
+    lesson: "7.5"
+    review: { lesson: "7.5", anchor: "das-ack-lesen" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f09
+    type: single
+    answer: 1
+    lesson: "7.6"
+    review: { lesson: "7.6", anchor: "ein-vereinfachter-rueckweg" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f10
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "7.6"
+    review: { lesson: "7.6", anchor: "obr-und-obx-im-ergebnis" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f11
+    type: truefalse
+    answer: false
+    lesson: "7.6"
+    review: { lesson: "7.6", anchor: "status-ist-teil-des-workflows" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f12
+    type: single
+    answer: 2
+    lesson: "7.6"
+    review: { lesson: "7.6", anchor: "obr-und-obx-im-ergebnis" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f13
+    type: single
+    answer: 1
+    lesson: "cross"
+    review:
+      - { lesson: "7.4", anchor: "der-weg-des-auftrags" }
+      - { lesson: "7.6", anchor: "ein-vereinfachter-rueckweg" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f14
+    type: single
+    answer: 1
+    lesson: "cross"
+    review:
+      - { lesson: "7.5", anchor: "das-ack-lesen" }
+      - { lesson: "7.6", anchor: "status-ist-teil-des-workflows" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f15
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "cross"
+    review:
+      - { lesson: "7.4", anchor: "ein-sauberer-troubleshooting-pfad" }
+      - { lesson: "7.5", anchor: "retries-und-duplikate" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f16
+    type: truefalse
+    answer: false
+    lesson: "cross"
+    review:
+      - { lesson: "7.4", anchor: "auf-der-dicom-seite" }
+      - { lesson: "7.6", anchor: "der-systemuebergreifende-trace" }
+    difficulty: 3
+    tags: [integration]

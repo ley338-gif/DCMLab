@@ -1,0 +1,146 @@
+track: fhir-web
+title_key: exam.fhir-web.title
+pass_percent: 80
+draw: 10
+duration_minutes: 10
+shuffle: true
+
+# Antwortindizes 0-basiert (single/multi), siehe ADR 0066. Neuer Track,
+# Pool komplett neu geschrieben.
+
+questions:
+  - id: f01
+    type: single
+    answer: 1
+    lesson: "8.1"
+    review: { lesson: "8.1", anchor: "resource-id-ist-nicht-patient-id" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f02
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "8.1"
+    review: { lesson: "8.1", anchor: "referenzen-verbinden-ressourcen" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f03
+    type: truefalse
+    answer: false
+    lesson: "8.1"
+    review: { lesson: "8.1", anchor: "eine-kleine-patient-ressource" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f04
+    type: input
+    answer: "GET"
+    lesson: "8.1"
+    review: { lesson: "8.1", anchor: "rest-ist-transport-fhir-ist-modell" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f05
+    type: single
+    answer: 1
+    lesson: "8.2"
+    review: { lesson: "8.2", anchor: "imagingstudy-metadaten-ueber-die-dicom-study" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f06
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "8.2"
+    review: { lesson: "8.2", anchor: "der-trace-ueber-drei-identifier-welten" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f07
+    type: truefalse
+    answer: false
+    lesson: "8.2"
+    review: { lesson: "8.2", anchor: "diagnosticreport-das-ergebnis" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f08
+    type: input
+    answer: "ServiceRequest"
+    lesson: "8.2"
+    review: { lesson: "8.2", anchor: "servicerequest-die-anforderung" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f09
+    type: single
+    answer: 2
+    lesson: "8.3"
+    review: { lesson: "8.3", anchor: "drei-dicomweb-dienste" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f10
+    type: multi
+    answer: [0, 2]
+    lesson: "8.3"
+    review: { lesson: "8.3", anchor: "und-wo-kommt-ihe-hinein" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f11
+    type: truefalse
+    answer: false
+    lesson: "8.3"
+    review: { lesson: "8.3", anchor: "abruf-mit-wado-rs" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f12
+    type: single
+    answer: 2
+    lesson: "8.3"
+    review: { lesson: "8.3", anchor: "suchen-mit-qido-rs" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f13
+    type: single
+    answer: 1
+    lesson: "cross"
+    review:
+      - { lesson: "8.1", anchor: "resource-id-ist-nicht-patient-id" }
+      - { lesson: "8.2", anchor: "imagingstudy-metadaten-ueber-die-dicom-study" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f14
+    type: single
+    answer: 1
+    lesson: "cross"
+    review:
+      - { lesson: "8.2", anchor: "imagingstudy-metadaten-ueber-die-dicom-study" }
+      - { lesson: "8.3", anchor: "abruf-mit-wado-rs" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f15
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "cross"
+    review:
+      - { lesson: "8.1", anchor: "rest-ist-transport-fhir-ist-modell" }
+      - { lesson: "8.3", anchor: "drei-dicomweb-dienste" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f16
+    type: truefalse
+    answer: false
+    lesson: "cross"
+    review:
+      - { lesson: "8.1", anchor: "identifier-bleiben-trotzdem-wichtig" }
+      - { lesson: "8.2", anchor: "servicerequest-die-anforderung" }
+    difficulty: 3
+    tags: [integration]

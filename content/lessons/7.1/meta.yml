@@ -1,0 +1,24 @@
+id: "7.1"
+track: hl7
+order: 1
+duration_minutes: 12
+level: einsteiger
+objectives_count: 3
+requires: []
+tools: []
+
+related_node:
+  node: null
+  optional: true
+
+glossary_terms: [hl7-v2]
+quiz:
+  - id: q1
+    type: single
+    answer: 1
+  - id: q2
+    type: multi
+    answer: [0, 3]
+status: draft
+authors: ["draft-ai"]
+updated: "2026-09-17"
