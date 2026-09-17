@@ -110,6 +110,12 @@ const themenfeldId = ref<number | null>(props.node.themenfeld_id);
  * und Studio/Labs/Edit.vue -- vergleicht den aktuellen Stand gegen den
  * zuletzt erfolgreich gespeicherten Schnappschuss, kein neuer Speicher-/
  * Autosave-Mechanismus.
+ *
+ * Betreiber-Befund: deckt bewusst NUR `fields` ab (den Entwurf), nicht
+ * `themenfeldId` -- das Themenfeld wird ueber saveThemenfeld() sofort und
+ * unabhaengig vom Entwurf gespeichert (siehe Hinweistext am Themenfeld-
+ * Select). Die Anzeige heisst deshalb "Entwurf gespeichert", nicht nur
+ * "Gespeichert", um diesen Geltungsbereich nicht zu verschleiern.
  */
 const lastSavedSnapshot = ref(JSON.stringify(props.fields));
 const hasUnsavedChanges = computed(
@@ -332,8 +338,8 @@ function restore() {
                 <span class="text-muted-foreground text-xs">
                     {{
                         hasUnsavedChanges
-                            ? trans('Ungespeicherte Änderungen')
-                            : trans('Gespeichert')
+                            ? trans('Entwurf: ungespeicherte Änderungen')
+                            : trans('Entwurf gespeichert')
                     }}
                 </span>
             </div>
