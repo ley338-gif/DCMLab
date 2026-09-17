@@ -93,6 +93,11 @@ Route::prefix('de')->group(function () {
             Route::post('{track}/unpublish', [StudioTrackController::class, 'unpublish'])->name('unpublish');
             Route::post('{track}/archive', [StudioTrackController::class, 'archive'])->name('archive');
             Route::post('{track}/restore', [StudioTrackController::class, 'restore'])->name('restore');
+            // Studio-Lessons-Umbau: eine Lesson gehoert genau einer Track
+            // (lessons.track_id ist 1:n) -- "Zuordnen" ist deshalb immer ein
+            // Verschieben, nie ein "Hinzufuegen" wie bei Lab/lesson_elements.
+            Route::post('{track}/lessons', [StudioTrackController::class, 'moveLesson'])->name('move-lesson');
+            Route::patch('{track}/lessons/reorder', [StudioTrackController::class, 'reorderLessons'])->name('reorder-lessons');
         });
         // Lesson-Ressource (Studio-Lessons-Umbau): index hier, der eigentliche
         // Editor bleibt LessonEditorController (siehe author.lessons.edit.*
