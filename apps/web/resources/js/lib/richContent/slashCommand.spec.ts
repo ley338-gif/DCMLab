@@ -16,25 +16,25 @@ describe('resolveSlashCommandItems', () => {
         const items = resolveSlashCommandItems('', []);
 
         expect(items.length).toBeGreaterThan(0);
-        expect(items.some((item) => item.id === 'calloutInfo')).toBe(true);
-        expect(items.some((item) => item.id === 'dicomTagTable')).toBe(true);
-        expect(items.some((item) => item.id === 'dicomDump')).toBe(true);
-        expect(items.some((item) => item.id === 'selfCheck')).toBe(true);
+        expect(items.some((item) => item.id === 'callout-info')).toBe(true);
+        expect(items.some((item) => item.id === 'dicom-tag-table')).toBe(true);
+        expect(items.some((item) => item.id === 'code-dicom-dump')).toBe(true);
+        expect(items.some((item) => item.id === 'self-check')).toBe(true);
     });
 
     it('filters base commands by title and by keyword', () => {
         expect(
             resolveSlashCommandItems('warn', []).map((item) => item.id),
-        ).toEqual(['calloutWarning']);
+        ).toEqual(['callout-warning']);
         expect(
             resolveSlashCommandItems('dump', []).map((item) => item.id),
-        ).toEqual(['dicomDump']);
+        ).toEqual(['code-dicom-dump']);
     });
 
     it('finds the horizontal_rule command by its German keyword "trenner"', () => {
         expect(
             resolveSlashCommandItems('trenner', []).map((item) => item.id),
-        ).toEqual(['horizontalRule']);
+        ).toEqual(['horizontal-rule']);
     });
 
     it('returns no base commands for a query that matches nothing', () => {
@@ -108,7 +108,7 @@ describe('slash command execution against a real editor', () => {
     }
 
     it('inserts a callout with an empty paragraph', () => {
-        const doc = runCommand('calloutInfo');
+        const doc = runCommand('callout-info');
 
         expect(doc.content[0]).toMatchObject({
             type: 'callout',
@@ -117,7 +117,7 @@ describe('slash command execution against a real editor', () => {
     });
 
     it('inserts a warning callout', () => {
-        const doc = runCommand('calloutWarning');
+        const doc = runCommand('callout-warning');
 
         expect(doc.content[0]).toMatchObject({
             type: 'callout',
@@ -126,7 +126,7 @@ describe('slash command execution against a real editor', () => {
     });
 
     it('inserts a self_check with a default summary', () => {
-        const doc = runCommand('selfCheck');
+        const doc = runCommand('self-check');
 
         expect(doc.content[0]).toMatchObject({
             type: 'self_check',
@@ -135,7 +135,7 @@ describe('slash command execution against a real editor', () => {
     });
 
     it('inserts a dicom_tag_table with one empty row', () => {
-        const doc = runCommand('dicomTagTable');
+        const doc = runCommand('dicom-tag-table');
 
         expect(doc.content[0]).toEqual({
             type: 'dicom_tag_table',
@@ -144,7 +144,7 @@ describe('slash command execution against a real editor', () => {
     });
 
     it('inserts a horizontal_rule', () => {
-        const doc = runCommand('horizontalRule');
+        const doc = runCommand('horizontal-rule');
 
         expect(
             doc.content.some((node) => node.type === 'horizontal_rule'),
@@ -170,7 +170,7 @@ describe('slash command execution against a real editor', () => {
     });
 
     it('inserts a dicom_dump code_block', () => {
-        const doc = runCommand('dicomDump');
+        const doc = runCommand('code-dicom-dump');
 
         expect(doc.content[0]).toMatchObject({
             type: 'code_block',
