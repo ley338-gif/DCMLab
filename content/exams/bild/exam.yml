@@ -293,3 +293,35 @@ questions:
     review: { lesson: "3.7", anchor: "die-sop-class-sagt-was-ein-objekt-fachlich-ist" }
     difficulty: 1
     tags: [datenmodell]
+
+  - id: f35
+    type: single
+    answer: 1
+    lesson: "3.8"
+    review: { lesson: "3.8", anchor: "rdsr-ist-strukturierte-information" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f36
+    type: multi
+    answer: [0, 2]
+    lesson: "3.8"
+    review: { lesson: "3.8", anchor: "vier-stationen-vier-moegliche-fehler" }
+    difficulty: 3
+    tags: [integration, datenmodell]
+
+  - id: f37
+    type: truefalse
+    answer: false
+    lesson: "3.8"
+    review: { lesson: "3.8", anchor: "vier-stationen-vier-moegliche-fehler" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f38
+    type: single
+    answer: 1
+    lesson: "3.8"
+    review: { lesson: "3.8", anchor: "rdsr-ist-strukturierte-information" }
+    difficulty: 1
+    tags: [datenmodell]
