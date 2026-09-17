@@ -142,6 +142,16 @@
 
 /* -------------------- Workbench (Toolbox / Editor / Inspector) -------------------- */
 
+/* Betreiber-Befund (PR #135): der Drawer-Umschaltpunkt muss auf der
+   tatsaechlich verfuegbaren Breite DIESER Komponente reagieren, nicht auf
+   der Viewportbreite -- eine Host-Seite kann die Workbench neben einer
+   eigenen Seitenleiste in einen schmaleren Container stellen, in dem selbst
+   bei breitem Viewport kaum Platz fuer Toolbox+Editor+Inspector bleibt
+   (siehe Studio/Labs/Edit.vue: 320px-Sidebar innerhalb max-w-5xl). */
+.rich-content-workbench-container {
+    container-type: inline-size;
+}
+
 .rich-content-workbench {
     display: grid;
     grid-template-columns: 240px minmax(0, 1fr) 300px;
@@ -153,10 +163,10 @@
     display: none;
 }
 
-/* Schmale Viewports (Plan §21/§23): Toolbox/Inspector-Spalten weichen
-   vollstaendig einer Drawer-Leiste -- der Editor bleibt allein nutzbar
-   (Slash-Menue deckt jede Einfuegemoeglichkeit weiterhin ab). */
-@media (max-width: 1100px) {
+/* Schmale verfuegbare Breite (Plan §21/§23): Toolbox/Inspector-Spalten
+   weichen vollstaendig einer Drawer-Leiste -- der Editor bleibt allein
+   nutzbar (Slash-Menue deckt jede Einfuegemoeglichkeit weiterhin ab). */
+@container (max-width: 1100px) {
     .rich-content-workbench {
         grid-template-columns: minmax(0, 1fr);
     }

@@ -114,76 +114,90 @@ defineExpose({ selectedBlock, currentEditor });
 </script>
 
 <template>
-    <div class="rich-content-workbench">
-        <!-- Schmale Viewports (Plan §21/§23): Toolbox/Inspector hinter je
-             einem Sheet-Trigger statt als feste Spalten -- der Editor
-             bleibt primaer und ueber das Slash-Menue allein voll nutzbar. -->
-        <div class="rich-content-workbench-drawer-bar">
-            <Sheet>
-                <SheetTrigger as-child>
-                    <button
-                        type="button"
-                        class="rich-content-workbench-drawer-trigger"
+    <!-- Betreiber-Befund (PR #135): eine `@media`-Breite kennt nur die
+         Viewportbreite, nicht die tatsaechlich verfuegbare Breite dieser
+         Komponente -- auf der Lab-Seite steht die Workbench neben einer
+         320px-Seitenleiste in einem max-w-5xl-Container und hatte dort
+         selbst bei breitem Viewport kaum noch Platz fuer den Editor. Ein
+         `container-type`-Wrapper macht den Drawer-Umschaltpunkt (siehe CSS)
+         stattdessen von der eigenen verfuegbaren Breite abhaengig, egal wie
+         tief die Workbench auf einer Host-Seite verschachtelt ist. -->
+    <div class="rich-content-workbench-container">
+        <div class="rich-content-workbench">
+            <!-- Schmale verfuegbare Breite (Plan §21/§23): Toolbox/Inspector
+                 hinter je einem Sheet-Trigger statt als feste Spalten -- der
+                 Editor bleibt primaer und ueber das Slash-Menue allein voll
+                 nutzbar. -->
+            <div class="rich-content-workbench-drawer-bar">
+                <Sheet>
+                    <SheetTrigger as-child>
+                        <button
+                            type="button"
+                            class="rich-content-workbench-drawer-trigger"
+                        >
+                            Bausteine
+                        </button>
+                    </SheetTrigger>
+                    <SheetContent
+                        side="left"
+                        class="w-[300px] overflow-y-auto p-4"
                     >
-                        Bausteine
-                    </button>
-                </SheetTrigger>
-                <SheetContent side="left" class="w-[300px] overflow-y-auto p-4">
-                    <SheetHeader class="px-0">
-                        <SheetTitle>Bausteine</SheetTitle>
-                    </SheetHeader>
-                    <RichContentToolbox
-                        :editor="currentEditor()"
-                        :disabled="!props.editable"
-                    />
-                </SheetContent>
-            </Sheet>
-            <Sheet>
-                <SheetTrigger as-child>
-                    <button
-                        type="button"
-                        class="rich-content-workbench-drawer-trigger"
+                        <SheetHeader class="px-0">
+                            <SheetTitle>Bausteine</SheetTitle>
+                        </SheetHeader>
+                        <RichContentToolbox
+                            :editor="currentEditor()"
+                            :disabled="!props.editable"
+                        />
+                    </SheetContent>
+                </Sheet>
+                <Sheet>
+                    <SheetTrigger as-child>
+                        <button
+                            type="button"
+                            class="rich-content-workbench-drawer-trigger"
+                        >
+                            Eigenschaften
+                        </button>
+                    </SheetTrigger>
+                    <SheetContent
+                        side="right"
+                        class="w-[300px] overflow-y-auto p-4"
                     >
-                        Eigenschaften
-                    </button>
-                </SheetTrigger>
-                <SheetContent
-                    side="right"
-                    class="w-[300px] overflow-y-auto p-4"
-                >
-                    <SheetHeader class="px-0">
-                        <SheetTitle>Eigenschaften</SheetTitle>
-                    </SheetHeader>
-                    <RichContentInspector
-                        :editor="currentEditor()"
-                        :selected-block="selectedBlock"
-                        :readonly="!props.editable"
-                    />
-                </SheetContent>
-            </Sheet>
-        </div>
-        <div class="rich-content-workbench-toolbox">
-            <RichContentToolbox
-                :editor="currentEditor()"
-                :disabled="!props.editable"
-            />
-        </div>
-        <div class="rich-content-workbench-editor">
-            <RichContentEditor
-                ref="editorRef"
-                :model-value="props.modelValue"
-                :editable="props.editable"
-                :glossary-terms="props.glossaryTerms"
-                @update:model-value="emit('update:modelValue', $event)"
-                @unsupported-node="emit('unsupported-node', $event)"
-            />
-        </div>
-        <div class="rich-content-workbench-inspector">
-            <RichContentInspector
-                :editor="currentEditor()"
-                :selected-block="selectedBlock"
-                :readonly="!props.editable"
-            />
+                        <SheetHeader class="px-0">
+                            <SheetTitle>Eigenschaften</SheetTitle>
+                        </SheetHeader>
+                        <RichContentInspector
+                            :editor="currentEditor()"
+                            :selected-block="selectedBlock"
+                            :readonly="!props.editable"
+                        />
+                    </SheetContent>
+                </Sheet>
+            </div>
+            <div class="rich-content-workbench-toolbox">
+                <RichContentToolbox
+                    :editor="currentEditor()"
+                    :disabled="!props.editable"
+                />
+            </div>
+            <div class="rich-content-workbench-editor">
+                <RichContentEditor
+                    ref="editorRef"
+                    :model-value="props.modelValue"
+                    :editable="props.editable"
+                    :glossary-terms="props.glossaryTerms"
+                    @update:model-value="emit('update:modelValue', $event)"
+                    @unsupported-node="emit('unsupported-node', $event)"
+                />
+            </div>
+            <div class="rich-content-workbench-inspector">
+                <RichContentInspector
+                    :editor="currentEditor()"
+                    :selected-block="selectedBlock"
+                    :readonly="!props.editable"
+                />
+            </div>
         </div>
     </div>
 </template>
