@@ -3,61 +3,30 @@ difficulty: medium
 points: 25
 category: integration
 themenfeld: interoperabilitaet
-interaction: scenario
 skills: [integration]
 related_lessons: ["7.3", "7.5"]
 estimated_minutes: 8
 
-scenario:
-  start: ack
-  steps:
-    ack:
-      prompt: >
-        Die Interface Engine zeigt für MSG8821 den Status „ACK received“.
-        Trotzdem wurde die Stammdatenänderung im RIS nicht übernommen.
-        Das ACK enthält: MSA|AE|MSG8821|Patient identifier domain unknown.
-        Wie bewertest du den Vorgang?
-      options:
-        - id: success
-          label: Erfolgreich — ein ACK ist angekommen.
-          next: wrong_ack
-        - id: application_error
-          label: Transport erfolgreich, fachliche Verarbeitung abgewiesen.
-          next: inspect
-    inspect:
-      prompt: >
-        Welcher Teil ist der stärkste direkte Hinweis auf den fachlichen Fehler?
-      options:
-        - id: message_type
-          label: Der Nachrichtenname ACK.
-          next: wrong_type
-        - id: msa
-          label: MSA-1 mit dem Wert AE.
-          next: correct
+environment:
+  hosts:
+    - name: workstation
+      ip: 10.60.0.51
+      role: shell
 
-    wrong_ack:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        Ein ACK ist nur die Antwort. Sein Inhalt entscheidet, ob akzeptiert,
-        fehlerhaft verarbeitet oder abgewiesen wurde.
-    wrong_type:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        Dass die Antwort ein ACK ist, sagt noch nichts über Erfolg. Lies den
-        Acknowledgement Code im MSA-Segment.
-    correct:
-      terminal: true
-      outcome: correct
-      reveal: MSA-AE
-      prompt: >
-        Richtig. MSA-1 = AE signalisiert einen Application Error. Die Nachricht
-        wurde transportiert, aber nicht erfolgreich fachlich verarbeitet.
+  tools: [mllpq]
+
+  messages:
+    - id: MSG8821
+      raw: |
+        MSH|^~\&|KIS|HAUS|RIS|RAD|20260916090500||ADT^A08|MSG8821|P|2.5
+        PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA-SOPHIE||19750314|F
+        PV1|1|O|RAD^ANMELDUNG
+      ack: |
+        MSA|AE|MSG8821|Patient identifier domain unknown
+        ERR|||PID^3^1|103^Table value not found
 
 flag:
   type: exact
-  source_tag: scenario
   hash: "sha256:452a5844fc54dc15f7c2699e667c80630c9db597697f150fa08a2aa1b8e7bcbb"
   case_sensitive: false
 
@@ -69,4 +38,4 @@ hints:
 
 stuck_timeout_minutes: 10
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-17"

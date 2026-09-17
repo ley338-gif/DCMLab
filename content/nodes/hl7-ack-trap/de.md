@@ -10,13 +10,18 @@ die Schnittstelle für gesund. Im RIS ist die Patientenänderung aber nicht
 angekommen.
 
 Deine Aufgabe: Entscheide, ob die Nachricht nur **transportiert** oder auch
-**fachlich akzeptiert** wurde.
+**fachlich akzeptiert** wurde — und nenne als Lösung den MSA-1-Code, der das
+belegt (Format `MSA-<Code>`, z. B. `MSA-AA`).
+
+Auf der Workstation steht dir `mllpq <id>` zur Verfügung, um eine Nachricht
+samt ihrem aktuellen ACK anzuzeigen.
 
 ## Hints
 
 ### h1
 
-Lies nicht nur die Statuszeile der Engine. Öffne den Inhalt der Antwort.
+Lies nicht nur die Statuszeile der Engine. Rufe `mllpq MSG8821` auf und öffne
+den Inhalt der Antwort.
 
 ### h2
 
@@ -24,10 +29,14 @@ Lies nicht nur die Statuszeile der Engine. Öffne den Inhalt der Antwort.
 
 ## Write-up
 
-Das ACK lautet:
+`mllpq MSG8821` zeigt die Nachricht und ihr aktuelles ACK:
 
 ```text
-MSH|^~\&|RIS|RAD|KIS|HAUS|20260916090500||ACK^A08|ACK8821|P|2.5
+$ mllpq MSG8821
+MSH|^~\&|KIS|HAUS|RIS|RAD|20260916090500||ADT^A08|MSG8821|P|2.5
+PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA-SOPHIE||19750314|F
+PV1|1|O|RAD^ANMELDUNG
+
 MSA|AE|MSG8821|Patient identifier domain unknown
 ERR|||PID^3^1|103^Table value not found
 ```

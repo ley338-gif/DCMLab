@@ -3,93 +3,58 @@ difficulty: medium
 points: 25
 category: integration
 themenfeld: interoperabilitaet
-interaction: scenario
 skills: [integration]
 related_lessons: ["7.4", "4.7"]
 estimated_minutes: 12
 
-scenario:
-  start: ticket
-  steps:
-    ticket:
-      prompt: >
-        CT-5 zeigt den Patienten 4711 nicht in der Worklist. Im KIS ist der
-        Auftrag ORD93821 sichtbar. C-ECHO und eine allgemeine MWL-Abfrage zum
-        Broker funktionieren.
-      options:
-        - id: device_reconfigure
-          label: Den Scheduled Station AE Title am CT sofort ändern.
-          next: wrong_device
-        - id: trace_order
-          label: Den Auftrag über Interface Engine und RIS anhand seiner IDs verfolgen.
-          next: interface
-        - id: manual_entry
-          label: Den Patienten manuell am CT anlegen und das Ticket schließen.
-          next: wrong_manual
+environment:
+  hosts:
+    - name: workstation
+      ip: 10.60.0.50
+      role: shell
+      config_editable: true
+      config:
+        procedure_codes: ""
 
-    interface:
-      prompt: >
-        In der Interface Engine findest du MSG4711. Der RIS antwortete mit
-        MSA|AE|MSG4711 und ERR ... OBR^4 ... Unknown procedure code CTTHX2.
-        Was ist die wahrscheinlichste Ursache?
-      options:
-        - id: network
-          label: DICOM-Netzwerkfehler zwischen CT und PACS.
-          next: wrong_network
-        - id: mapping
-          label: Der Prozedurcode aus OBR-4 ist im RIS/Mapping nicht bekannt.
-          next: mapping_found
-        - id: uid
-          label: Die Study Instance UID ist doppelt vergeben.
-          next: wrong_uid
+    - name: broker
+      ip: 10.60.0.10
+      services:
+        - port: 104
+          ae_title: BROKER
+          accepts: [modality-worklist-find]
+      worklist: []
 
-    mapping_found:
-      prompt: >
-        Das Mapping wird ergänzt und die fehlgeschlagene Nachricht gezielt
-        erneut verarbeitet. Das RIS legt den Auftrag an und der Broker liefert
-        ihn anschließend in der MWL. Welche Fehlerdomäne war ursächlich?
-      options:
-        - id: confirm_mapping
-          label: Auftrags-/Prozedurcode-Mapping zwischen HL7-Schnittstelle und RIS.
-          next: success
+  known_calling_aets: [WORKSTATION]
+  tools: [mllpq, mllpsend, findscu]
 
-    wrong_device:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        Die allgemeine MWL-Abfrage funktioniert. Ohne Beleg an der Gerätekonfiguration
-        zu drehen würde einen neuen Fehler einführen, bevor die Auftragskette geprüft ist.
-    wrong_manual:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        Eine manuelle Eingabe umgeht den Fehler nur. Auftrag, Accession und spätere
-        Zuordnung bleiben inkonsistent.
-    wrong_network:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        Der Auftrag ist bereits vor der DICOM-Worklist-Kette gescheitert: das RIS hat
-        die HL7-Nachricht fachlich abgewiesen.
-    wrong_uid:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        Vor der Bildentstehung existiert noch keine Study Instance UID, an der dieser
-        Auftrag scheitern könnte.
-    success:
-      terminal: true
-      outcome: correct
-      reveal: OBR-4-MAPPING
-      prompt: >
-        Richtig. Der Auftrag verschwand an der Grenze Interface Engine → RIS, weil der
-        Prozedurcode aus OBR-4 nicht gemappt war. Erst nach Korrektur und gezieltem
-        Reprocessing konnte die MWL den Auftrag zeigen.
+  messages:
+    - id: MSG4711
+      raw: |
+        MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||ORM^O01|MSG4711|P|2.5
+        PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA||19750314|F
+        PV1|1|O|RAD^ANMELDUNG
+        ORC|NW|ORD93821^KIS|||
+        OBR|1|ORD93821^KIS||CTTHX2^CT Thorax mit KM|||20260916083000
+      ack: |
+        MSA|AE|MSG4711|Unknown procedure code CTTHX2
+        ERR|||OBR^4^1|103^Table value not found
+      reprocess:
+        requires_config_field: procedure_codes
+        requires_value: CTTHX2
+        ack: |
+          MSA|AA|MSG4711
+        worklist_entry:
+          host: broker
+          patient_id: "4711"
+          patient_name: "MUSTER^ERIKA"
+          accession_number: "ORD93821"
+          scheduled_station_ae_title: "CT5-RAUM3"
+          scheduled_procedure_step_start_date: "20260916"
+          modality: "CT"
 
 flag:
   type: exact
-  source_tag: scenario
-  hash: "sha256:046132d28e4207c877da3e56cb8fc959d26d9e7996dce803d1e836c20ef61666"
+  hash: "sha256:827683ca3e948ed4d4ba6f69397fab796d358e8937a07a50f9e63302998bda60"
   case_sensitive: false
 
 hints:
@@ -102,4 +67,4 @@ hints:
 
 stuck_timeout_minutes: 10
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-17"

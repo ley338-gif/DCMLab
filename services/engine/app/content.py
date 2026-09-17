@@ -49,6 +49,10 @@ class NodeDefinition:
         return list(self.raw.get("environment", {}).get("tools", []))
 
     @property
+    def messages(self) -> list[dict[str, Any]]:
+        return list(self.raw.get("environment", {}).get("messages", []))
+
+    @property
     def dataset_slug(self) -> str | None:
         slug = self.raw.get("environment", {}).get("dataset")
 
