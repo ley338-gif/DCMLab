@@ -9,6 +9,7 @@ use App\Models\LessonElement;
 use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -245,5 +246,45 @@ class StudioLessonControllerTest extends TestCase
             ->assertSessionHasErrors('lab_slug');
 
         $this->assertSame(0, LessonElement::query()->where('lesson_id', $lesson->id)->count());
+    }
+
+    /**
+     * Betreiber-Korrektur: Duplikat-Check, Positionsberechnung und
+     * `create()` bildeten zuvor keine atomare Einheit -- zwei gleichzeitige
+     * Anfragen fuer dasselbe Lab an derselben Lektion konnten beide den
+     * (noch leeren) Duplikat-Check und dasselbe `max(position)` sehen. Ein
+     * echtes Nebenlaeufigkeits-Race laesst sich unter der SQLite-Testdatenbank
+     * (ein einzelner Schreiber, dateibasierte Sperre) nicht sinnvoll
+     * nachstellen -- stattdessen wird hier die tatsaechliche Absicherung
+     * direkt nachgewiesen: ein `SELECT ... FROM lessons WHERE id = ?` auf
+     * die Lesson selbst (nicht die Route-Bindung, die ueber `lesson_id`
+     * laeuft) muss als Teil der Anfrage ausgefuehrt werden -- das ist genau
+     * die neue `lockForUpdate()`-Zeilensperre, die zwei ueberlappende
+     * Transaktionen fuer dieselbe Lektion serialisiert.
+     */
+    public function test_attaching_a_lab_locks_the_lesson_row_for_the_duration_of_the_write(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id]);
+        Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+
+        Lab::factory()->create(['slug' => 'c-echo-live', 'status' => 'published']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-live']);
+
+        $reviewer = User::factory()->reviewer()->create();
+
+        DB::enableQueryLog();
+
+        $this->actingAs($reviewer)
+            ->post("/de/studio/lessons/{$lesson->lesson_id}/labs", ['lab_slug' => 'c-echo-live'])
+            ->assertRedirect();
+
+        $lockingLessonRead = collect(DB::getQueryLog())->contains(
+            fn (array $entry) => str_contains($entry['query'], 'select * from "lessons" where "lessons"."id" = ?'),
+        );
+
+        DB::disableQueryLog();
+
+        $this->assertTrue($lockingLessonRead, 'attachLab() muss die Lesson-Zeile explizit per lockForUpdate() lesen.');
     }
 }

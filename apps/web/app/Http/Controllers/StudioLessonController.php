@@ -57,6 +57,17 @@ class StudioLessonController extends Controller
      * fachlicher Fehler (Autoren-Doppelklick, verwirrende Doppelkarte) und
      * wird deshalb als Validierungsfehler abgelehnt, nicht stillschweigend
      * ignoriert.
+     *
+     * Betreiber-Korrektur: der Duplikat-Check, die Positionsberechnung und
+     * das `create()` bildeten zuvor keine atomare Einheit -- zwei
+     * gleichzeitige Anfragen fuer dasselbe Lab an derselben Lektion
+     * konnten beide den (noch leeren) Duplikat-Check und dasselbe
+     * `max(position)` sehen und so entweder das Lab doppelt anhaengen oder
+     * zwei Elemente mit identischer Position erzeugen. Ohne neue Spalte/
+     * Unique-Constraint geloest ueber eine `lockForUpdate()`-Zeilensperre
+     * auf die Lesson selbst: die zweite Transaktion wartet, bis die erste
+     * committed hat, und sieht dann das gerade eingefuegte Element beim
+     * eigenen (erneuten) Duplikat-Check und bei der Positionsberechnung.
      */
     public function attachLab(Request $request, Lesson $lesson): RedirectResponse
     {
@@ -67,27 +78,38 @@ class StudioLessonController extends Controller
                 'required',
                 'string',
                 Rule::exists('labs', 'slug')->where('status', 'published'),
-                function (string $attribute, mixed $value, \Closure $fail) use ($lesson): void {
-                    $alreadyAttached = $lesson->elements()
-                        ->whereHas('activity', fn ($query) => $query->where('type', 'lab')->where('key', $value))
-                        ->exists();
-
-                    if ($alreadyAttached) {
-                        $fail('Dieses Lab ist bereits Teil dieser Lektion.');
-                    }
-                },
             ],
         ]);
 
-        $labActivity = Activity::query()->where('type', 'lab')->where('key', $data['lab_slug'])->firstOrFail();
-        $nextPosition = ($lesson->elements()->max('position') ?? -1) + 1;
+        $attached = DB::transaction(function () use ($lesson, $data): bool {
+            Lesson::query()->whereKey($lesson->id)->lockForUpdate()->firstOrFail();
 
-        LessonElement::query()->create([
-            'lesson_id' => $lesson->id,
-            'type' => 'activity',
-            'activity_id' => $labActivity->id,
-            'position' => $nextPosition,
-        ]);
+            $labActivity = Activity::query()->where('type', 'lab')->where('key', $data['lab_slug'])->firstOrFail();
+
+            $alreadyAttached = LessonElement::query()
+                ->where('lesson_id', $lesson->id)
+                ->where('activity_id', $labActivity->id)
+                ->exists();
+
+            if ($alreadyAttached) {
+                return false;
+            }
+
+            $nextPosition = (LessonElement::query()->where('lesson_id', $lesson->id)->max('position') ?? -1) + 1;
+
+            LessonElement::query()->create([
+                'lesson_id' => $lesson->id,
+                'type' => 'activity',
+                'activity_id' => $labActivity->id,
+                'position' => $nextPosition,
+            ]);
+
+            return true;
+        });
+
+        if (! $attached) {
+            return back()->withErrors(['lab_slug' => 'Dieses Lab ist bereits Teil dieser Lektion.']);
+        }
 
         return back()->with('status', 'Lab hinzugefügt.');
     }
