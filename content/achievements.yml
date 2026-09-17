@@ -185,3 +185,17 @@
   unlock_when:
     type: track_passed
     track: grundlagen
+
+- slug: echo-live
+  name: Echo Live
+  description: Führe dein erstes echtes C-ECHO durch — kein Simulator, ein echter Sandbox-Server.
+  image: echo-live.png
+  category: labs
+  rarity: common
+  points: 0
+  is_hidden: false
+  sort_order: 140
+  unlock_when:
+    type: activity_completed
+    activity_type: lab
+    key: c-echo-live
