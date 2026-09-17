@@ -63,7 +63,7 @@ class LessonEditorControllerTest extends TestCase
         [$lesson] = $this->lessonAndActivity();
         $learner = User::factory()->create();
 
-        $this->actingAs($learner)->get("/de/author/lessons/{$lesson->lesson_id}/edit")->assertForbidden();
+        $this->actingAs($learner)->get("/de/studio/lessons/{$lesson->lesson_id}")->assertForbidden();
     }
 
     public function test_an_assigned_author_sees_the_current_fields(): void
@@ -71,10 +71,10 @@ class LessonEditorControllerTest extends TestCase
         [$lesson, , $author] = $this->lessonAndActivity();
 
         $this->actingAs($author)
-            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('Author/LessonEditor')
+                ->component('Studio/Lessons/Edit')
                 ->where('fields.title', 'Alter Titel')
                 ->where('fields.level', 'einsteiger')
                 ->where('fields.objectives', ['Altes Lernziel'])
@@ -83,6 +83,38 @@ class LessonEditorControllerTest extends TestCase
                 ->where('catalog.tools', ['dcmdump'])
                 ->where('catalog.datasets', ['ct-thorax-60'])
             );
+    }
+
+    /**
+     * Studio-Lessons-Umbau: `author/lessons/{lesson}/edit*` bleibt ein
+     * funktionierender Kompatibilitaets-Alias -- derselbe Controller,
+     * dieselbe (jetzt Studio-benannte) Seite, kein zweiter Workflow. Die
+     * erschoepfende Lifecycle-Pruefung bleibt bewusst nur einmal, gegen den
+     * jetzt kanonischen `studio.lessons.*`-Pfad (siehe unten) -- dieser
+     * Test bestaetigt nur, dass der alte Pfad ueberhaupt noch funktioniert.
+     */
+    public function test_the_legacy_author_edit_route_still_resolves_to_the_same_editor(): void
+    {
+        [$lesson, , $author] = $this->lessonAndActivity();
+
+        $this->actingAs($author)
+            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Studio/Lessons/Edit')
+                ->where('fields.title', 'Alter Titel')
+            );
+
+        $this->actingAs($author)
+            ->postJson("/de/author/lessons/{$lesson->lesson_id}/edit/validate", [
+                'title' => 'Alter Titel', 'teaser' => 'Alter Teaser', 'level' => 'einsteiger',
+                'duration_minutes' => 5, 'tools' => ['dcmdump'], 'requires' => [], 'glossary_terms' => ['dicom'],
+                'objectives' => ['Altes Lernziel'],
+                'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+                'related_node' => ['node' => null, 'optional' => true],
+                'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+            ])
+            ->assertOk();
     }
 
     /**
@@ -98,7 +130,7 @@ class LessonEditorControllerTest extends TestCase
         Node::factory()->create(['slug' => 'studio-only-node', 'status' => 'published']);
 
         $this->actingAs($author)
-            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
             ->assertInertia(fn ($page) => $page
                 ->where('catalog.nodes', fn ($nodes) => collect($nodes)->contains('studio-only-node'))
             );
@@ -110,7 +142,7 @@ class LessonEditorControllerTest extends TestCase
         Node::factory()->create(['slug' => 'draft-node', 'status' => 'draft']);
 
         $this->actingAs($author)
-            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
             ->assertInertia(fn ($page) => $page
                 ->where('catalog.nodes', fn ($nodes) => ! collect($nodes)->contains('draft-node'))
             );
@@ -121,7 +153,7 @@ class LessonEditorControllerTest extends TestCase
         [$lesson, , $author] = $this->lessonAndActivity();
 
         $this->actingAs($author)
-            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
             ->assertInertia(fn ($page) => $page
                 ->where('fields.rich_content', function ($document) {
                     $texts = collect($document['content'])
@@ -172,12 +204,12 @@ class LessonEditorControllerTest extends TestCase
         ];
 
         $this->actingAs($author)
-            ->postJson("/de/author/lessons/{$lesson->lesson_id}/edit/validate", $payload)
+            ->postJson("/de/studio/lessons/{$lesson->lesson_id}/validate", $payload)
             ->assertOk()
             ->assertJson(fn ($json) => $json->where('issues', [])->etc());
 
         $this->actingAs($author)
-            ->post("/de/author/lessons/{$lesson->lesson_id}/edit", $payload)
+            ->post("/de/studio/lessons/{$lesson->lesson_id}", $payload)
             ->assertRedirect();
 
         $version = ContentVersion::where('activity_id', $activity->id)->firstOrFail();
@@ -223,7 +255,7 @@ class LessonEditorControllerTest extends TestCase
         // Stand, nicht die veraltete Datei (die bewusst nie geschrieben
         // wurde) -- currentFields() muss deshalb die DB bevorzugen.
         $this->actingAs($author)
-            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
             ->assertInertia(fn ($page) => $page
                 ->where('fields.title', 'Neuer Titel')
                 ->where('fields.level', 'aufbau')
@@ -266,7 +298,7 @@ class LessonEditorControllerTest extends TestCase
         ]);
 
         $this->actingAs($author)
-            ->get("/de/author/lessons/{$lesson->lesson_id}/edit")
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
             ->assertInertia(fn ($page) => $page
                 ->where('fields.title', 'Entwurfstitel')
                 ->where('fields.rich_content', function ($document) {

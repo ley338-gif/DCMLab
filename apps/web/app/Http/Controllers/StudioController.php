@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lab;
+use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\SandboxTemplate;
 use App\Models\Track;
@@ -35,6 +36,15 @@ class StudioController extends Controller
             'node_count' => Node::query()->count(),
             'can_manage_labs' => Gate::allows('manage', Lab::class),
             'lab_count' => Lab::query()->count(),
+            // Lesson hat -- anders als Track/Node/Lab -- keine strukturelle
+            // Policy, die ein "manage" ueberhaupt kennt (kein store()/
+            // archive() in Studio, siehe StudioLessonController-Klassendoc):
+            // jede Nicht-Lernende-Rolle, die bis hierher kommt
+            // (`studio.access` oben), darf die Liste ansehen; ob eine
+            // konkrete Lektion bearbeitbar ist, entscheidet erst
+            // LessonEditorController pro Lektion.
+            'can_manage_lessons' => true,
+            'lesson_count' => Lesson::query()->count(),
         ]);
     }
 }

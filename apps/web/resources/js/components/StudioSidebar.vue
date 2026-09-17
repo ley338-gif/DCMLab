@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import {
+    BookOpenText,
     Container,
+    FlaskConical,
     GraduationCap,
     LayoutGrid,
     ShieldCheck,
@@ -23,6 +25,8 @@ import {
 import { trans } from '@/lib/trans';
 import { index as authorPanelIndex } from '@/routes/author';
 import { index as studioIndex } from '@/routes/studio';
+import { index as studioLabsIndex } from '@/routes/studio/labs';
+import { index as studioLessonsIndex } from '@/routes/studio/lessons';
 import { index as studioNodesIndex } from '@/routes/studio/nodes';
 import { index as sandboxTemplatesIndex } from '@/routes/studio/sandbox-templates';
 import { index as studioTracksIndex } from '@/routes/studio/tracks';
@@ -31,21 +35,39 @@ import type { NavItem } from '@/types';
 // Studio ergaenzt das bestehende Autoren-Panel ressourcenweise (ADR 0094
 // Abschnitt 11), statt es in einem Zug abzuloesen -- der Ruecklink haelt
 // beide Bereiche gegenseitig auffindbar, solange das so bleibt.
-const mainNavItems = computed<NavItem[]>(() => [
-    {
-        title: trans('Übersicht'),
-        href: studioIndex(),
-        icon: LayoutGrid,
-    },
+//
+// Zwei Gruppen (Studio-Lessons-Umbau): "Lerninhalte" fasst die vier
+// Content-Ressourcen zusammen (Tracks/Lessons/Nodes/Labs) -- Labs hatte
+// zuvor trotz vollstaendigem Controller/Routen/Dashboard-Karte gar keinen
+// Sidebar-Eintrag, eine reine Luecke, kein Scope-Zuwachs.
+const contentNavItems = computed<NavItem[]>(() => [
     {
         title: trans('Tracks'),
         href: studioTracksIndex(),
         icon: GraduationCap,
     },
     {
+        title: trans('Lessons'),
+        href: studioLessonsIndex(),
+        icon: BookOpenText,
+    },
+    {
         title: trans('Nodes'),
         href: studioNodesIndex(),
         icon: Terminal,
+    },
+    {
+        title: trans('Labs'),
+        href: studioLabsIndex(),
+        icon: FlaskConical,
+    },
+]);
+
+const mainNavItems = computed<NavItem[]>(() => [
+    {
+        title: trans('Übersicht'),
+        href: studioIndex(),
+        icon: LayoutGrid,
     },
     {
         title: trans('Sandbox-Vorlagen'),
@@ -75,6 +97,7 @@ const mainNavItems = computed<NavItem[]>(() => [
         </SidebarHeader>
 
         <SidebarContent>
+            <NavMain :items="contentNavItems" :label="trans('Lerninhalte')" />
             <NavMain :items="mainNavItems" />
         </SidebarContent>
 

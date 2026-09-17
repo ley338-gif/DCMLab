@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { index as authorPanelIndex } from '@/routes/author';
 import { index as studioLabsIndex } from '@/routes/studio/labs';
+import { index as studioLessonsIndex } from '@/routes/studio/lessons';
 import { index as studioNodesIndex } from '@/routes/studio/nodes';
 import { index as sandboxTemplatesIndex } from '@/routes/studio/sandbox-templates';
 import { index as studioTracksIndex } from '@/routes/studio/tracks';
@@ -18,6 +19,8 @@ const props = defineProps<{
     sandbox_template_count: number;
     can_manage_tracks: boolean;
     track_count: number;
+    can_manage_lessons: boolean;
+    lesson_count: number;
     can_manage_nodes: boolean;
     node_count: number;
     can_manage_labs: boolean;
@@ -74,6 +77,28 @@ const roleLabels: Record<string, string> = {
                             props.can_manage_tracks
                                 ? trans('Tracks verwalten')
                                 : trans('Tracks ansehen')
+                        }}</Button>
+                    </Link>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{{ trans('Lessons') }}</CardTitle>
+                </CardHeader>
+                <CardContent class="flex flex-col gap-3">
+                    <p class="text-muted-foreground text-sm">
+                        {{
+                            trans(':count Lektionen insgesamt.', {
+                                count: props.lesson_count,
+                            })
+                        }}
+                    </p>
+                    <Link :href="studioLessonsIndex()">
+                        <Button variant="outline">{{
+                            props.can_manage_lessons
+                                ? trans('Lessons verwalten')
+                                : trans('Lessons ansehen')
                         }}</Button>
                     </Link>
                 </CardContent>
@@ -153,7 +178,7 @@ const roleLabels: Record<string, string> = {
                     <p class="text-muted-foreground text-sm">
                         {{
                             trans(
-                                'Lektions-, Prüfungs-, Quiz- und Achievement-Editoren sind vorerst weiterhin dort.',
+                                'Prüfungs-, Quiz- und Achievement-Editoren sind vorerst weiterhin dort.',
                             )
                         }}
                     </p>

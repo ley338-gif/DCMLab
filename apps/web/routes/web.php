@@ -22,6 +22,7 @@ use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\StudioController;
 use App\Http\Controllers\StudioLabController;
 use App\Http\Controllers\StudioLessonController;
+use App\Http\Controllers\StudioLessonElementsController;
 use App\Http\Controllers\StudioNodeController;
 use App\Http\Controllers\StudioSandboxTemplateController;
 use App\Http\Controllers\StudioTrackController;
@@ -93,14 +94,30 @@ Route::prefix('de')->group(function () {
             Route::post('{track}/archive', [StudioTrackController::class, 'archive'])->name('archive');
             Route::post('{track}/restore', [StudioTrackController::class, 'restore'])->name('restore');
         });
-        // Elementsequenz (ADR 0105/0106, CMS-6b/CMS-6c).
-        Route::get('studio/lessons/{lesson}', [StudioLessonController::class, 'show'])->name('studio.lessons.show');
-        Route::patch('studio/lessons/{lesson}/reorder', [StudioLessonController::class, 'reorder'])->name('studio.lessons.reorder');
+        // Lesson-Ressource (Studio-Lessons-Umbau): index hier, der eigentliche
+        // Editor bleibt LessonEditorController (siehe author.lessons.edit.*
+        // weiter unten fuer den unveraenderten Kompatibilitaets-Pfad) --
+        // dieselben vier Methoden, jetzt zusaetzlich unter studio.lessons.*
+        // erreichbar und dort kanonisch (Studio-Breadcrumbs, keine zweite
+        // Editor-Implementierung).
+        Route::prefix('studio/lessons')->name('studio.lessons.')->group(function () {
+            Route::get('/', [StudioLessonController::class, 'index'])->name('index');
+            Route::get('{lesson}', [LessonEditorController::class, 'edit'])->name('edit');
+            Route::post('{lesson}/validate', [LessonEditorController::class, 'validateDraft'])->name('validate');
+            Route::post('{lesson}', [LessonEditorController::class, 'storeDraft'])->name('update');
+            Route::get('{lesson}/preview', [LessonEditorController::class, 'preview'])->name('preview');
+        });
+        // Elementsequenz (ADR 0105/0106, CMS-6b/CMS-6c) -- umbenannt von
+        // StudioLessonController zu StudioLessonElementsController
+        // (Studio-Lessons-Umbau), damit der Name nicht mehr faelschlich den
+        // Lesson-Editor selbst suggeriert.
+        Route::get('studio/lessons/{lesson}/elements', [StudioLessonElementsController::class, 'show'])->name('studio.lessons.elements.show');
+        Route::patch('studio/lessons/{lesson}/elements/reorder', [StudioLessonElementsController::class, 'reorder'])->name('studio.lessons.elements.reorder');
         // Lab an eine Lektion haengen (CMS-8e prep): erzeugt den
         // lesson_elements-Eintrag, den es fuer ein freiplatzierbares Lab
-        // bislang an keiner Stelle geben konnte (siehe StudioLessonController
-        // Klassendoc-Ergaenzung).
-        Route::post('studio/lessons/{lesson}/labs', [StudioLessonController::class, 'attachLab'])->name('studio.lessons.attach-lab');
+        // bislang an keiner Stelle geben konnte (siehe
+        // StudioLessonElementsController Klassendoc-Ergaenzung).
+        Route::post('studio/lessons/{lesson}/elements/labs', [StudioLessonElementsController::class, 'attachLab'])->name('studio.lessons.elements.attach-lab');
         // Node-Editor (ADR 0107/0108/0109, CMS-6d): store/duplicate/archive/
         // restore/updateThemenfeld sind strukturelle Eingriffe (NodePolicy),
         // update() speichert einen Content-Entwurf (ActivityPolicy) --

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Lab;
+use App\Models\Lesson;
 use App\Models\SandboxTemplate;
 use App\Models\Track;
 use App\Models\User;
@@ -110,5 +111,22 @@ class StudioControllerTest extends TestCase
         $this->actingAs($reviewer)
             ->get('/de/studio')
             ->assertInertia(fn ($page) => $page->where('can_manage_labs', true));
+    }
+
+    /**
+     * Lesson hat -- anders als Track/Node/Lab -- keine strukturelle Policy
+     * (kein store()/archive() in Studio): `can_manage_lessons` ist deshalb
+     * fuer jede Nicht-Lernende-Rolle gleich `true`, nicht rollenabhaengig.
+     */
+    public function test_it_reports_the_lesson_count_and_manage_rights(): void
+    {
+        Lesson::factory()->count(2)->create();
+        $author = User::factory()->author()->create();
+
+        $this->actingAs($author)
+            ->get('/de/studio')
+            ->assertInertia(fn ($page) => $page
+                ->where('lesson_count', 2)
+                ->where('can_manage_lessons', true));
     }
 }

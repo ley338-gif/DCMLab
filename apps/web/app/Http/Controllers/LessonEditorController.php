@@ -20,10 +20,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Zweiter Autoren-Editor (ADR 0071/0081/0089, W6.2): Metadaten und
- * Lektionstext. Bearbeitet nur die Prosa vor einem bestehenden
- * `## Quiz`-Abschnitt -- dieser bleibt Sache des Quiz-Editors (ADR 0080)
- * und wird beim Serialisieren automatisch unangetastet erhalten
+ * Lesson-Editor (ADR 0071/0081/0089, W6.2): Metadaten und Lektionstext.
+ * Bearbeitet nur die Prosa vor einem bestehenden `## Quiz`-Abschnitt --
+ * dieser bleibt Sache des Quiz-Editors (ADR 0080) und wird beim
+ * Serialisieren automatisch unangetastet erhalten
  * (`LessonActivity::serialize()`). `sandbox`/`lab` (verschachtelte
  * YAML-Bloecke) und `objectives` (mehrzeilige Liste in der Frontmatter)
  * sind seit ADR 0089 ebenfalls Teil dieses Editors --
@@ -31,6 +31,14 @@ use Inertia\Response;
  * sondern von `LessonActivity::serialize()` aus der Listenlaenge von
  * `objectives` abgeleitet (muss laut `ContentValidator::
  * checkLessonStructure()` immer uebereinstimmen).
+ *
+ * Studio-Lessons-Umbau: diese Klasse bleibt der EINZIGE Lesson-Editor --
+ * seit diesem Umbau unter `studio.lessons.*` (kanonisch, siehe
+ * routes/web.php) UND unveraendert unter `author.lessons.edit.*`
+ * (Kompatibilitaets-Alias) erreichbar. Beide Routen rufen dieselben vier
+ * Methoden auf und rendern dieselbe `Studio/Lessons/Edit`-Seite mit
+ * Studio-Breadcrumbs -- welche URL benutzt wurde, spielt fuer den
+ * Controller keine Rolle.
  */
 class LessonEditorController extends Controller
 {
@@ -44,7 +52,7 @@ class LessonEditorController extends Controller
             ->latest()
             ->first();
 
-        return Inertia::render('Author/LessonEditor', [
+        return Inertia::render('Studio/Lessons/Edit', [
             'lesson' => [
                 'lesson_id' => $lesson->lesson_id,
                 'title' => $lesson->title['de'] ?? $lesson->lesson_id,
@@ -85,8 +93,10 @@ class LessonEditorController extends Controller
             'can_publish' => Gate::allows('publish', $activity),
             // Echte Learner View des ungespeicherten Entwurfs (CMS-7d.3
             // Phase 6, ADR 0118) statt eines Links auf die veroeffentlichte
-            // Lektion -- siehe preview() unten.
-            'preview_url' => route('author.lessons.edit.preview', $lesson),
+            // Lektion -- siehe preview() unten. Kanonische Studio-Route,
+            // unabhaengig davon, ob diese Seite ueber sie oder den
+            // author/...-Alias erreicht wurde.
+            'preview_url' => route('studio.lessons.preview', $lesson),
         ]);
     }
 

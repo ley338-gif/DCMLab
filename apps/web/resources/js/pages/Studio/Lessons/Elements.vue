@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { index as studioIndex } from '@/routes/studio';
-import { attachLab, reorder } from '@/routes/studio/lessons';
+import { attachLab, reorder } from '@/routes/studio/lessons/elements';
 
 type ElementRow = {
     id: number;

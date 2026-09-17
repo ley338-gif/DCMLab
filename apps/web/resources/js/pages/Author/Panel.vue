@@ -32,7 +32,11 @@ const roleLabels: Record<string, string> = {
 };
 
 const editorRoutes: Record<string, (key: string) => string> = {
-    lesson: (key) => `/de/author/lessons/${key}/edit`,
+    // Studio-Lessons-Umbau: Studio ist jetzt der kanonische Lesson-Workflow
+    // -- derselbe LessonEditorController, nur nicht mehr der
+    // author/...-Alias, den es weiterhin gibt, aber niemand mehr neu
+    // verlinkt.
+    lesson: (key) => `/de/studio/lessons/${key}`,
     exam: (key) => `/de/author/exams/${key}/edit`,
 };
 

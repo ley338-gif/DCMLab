@@ -13,11 +13,14 @@ import { Label } from '@/components/ui/label';
 import RichContentEditor from '@/components/RichContent/RichContentEditor.vue';
 import { postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
-import { home } from '@/routes';
-import { edit, store, validate } from '@/routes/author/lessons/edit';
+import { index as studioIndex } from '@/routes/studio';
+import {
+    index as studioLessonsIndex,
+    update,
+    validate,
+} from '@/routes/studio/lessons';
+import { show as showLessonElements } from '@/routes/studio/lessons/elements';
 import { publish, submit } from '@/routes/author/quiz-versions';
-import { show as showLesson } from '@/routes/lessons';
-import { show as showStudioLesson } from '@/routes/studio/lessons';
 import type { RichContentDocument } from '@/types/richContent';
 import type { GlossaryTermOption } from '@/lib/richContent/slashCommand';
 
@@ -113,7 +116,7 @@ async function runValidation() {
 
 function saveDraft() {
     saving.value = true;
-    router.post(store.url({ lesson: props.lesson.lesson_id }), fields.value, {
+    router.post(update.url({ lesson: props.lesson.lesson_id }), fields.value, {
         preserveScroll: true,
         onFinish: () => {
             saving.value = false;
@@ -164,12 +167,9 @@ const statusLabels: Record<string, string> = {
         <Breadcrumbs
             class="mb-6"
             :breadcrumbs="[
-                { title: trans('Tracks'), href: home() },
-                { title: lesson.title, href: showLesson(lesson.lesson_id) },
-                {
-                    title: trans('Lektion bearbeiten'),
-                    href: edit(lesson.lesson_id),
-                },
+                { title: trans('Studio'), href: studioIndex() },
+                { title: trans('Lessons'), href: studioLessonsIndex() },
+                { title: lesson.title, href: '' },
             ]"
         />
 
@@ -181,7 +181,7 @@ const statusLabels: Record<string, string> = {
             </h1>
             <div class="flex items-center gap-2">
                 <Link
-                    :href="showStudioLesson(lesson.lesson_id)"
+                    :href="showLessonElements(lesson.lesson_id)"
                     class="text-muted-foreground text-sm underline-offset-4 hover:underline"
                 >
                     {{ trans('Elementreihenfolge ansehen') }}
