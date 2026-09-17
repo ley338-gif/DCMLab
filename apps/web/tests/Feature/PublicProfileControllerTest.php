@@ -158,7 +158,7 @@ class PublicProfileControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->has('profile.achievements', 13)
+            ->has('profile.achievements', 14)
             ->where('profile.achievements', function ($achievements) {
                 $sandboxStarter = collect($achievements)->firstWhere('slug', 'sandbox-starter');
 

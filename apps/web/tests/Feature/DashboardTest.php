@@ -109,7 +109,7 @@ class DashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->has('achievements', 13)
+            ->has('achievements', 14)
             ->where('achievements', fn ($achievements) => collect($achievements)
                 ->firstWhere('slug', 'sandbox-starter')['unlocked'] === true
                 && collect($achievements)->firstWhere('slug', 'echo-heard')['unlocked'] === false
