@@ -3,79 +3,30 @@ difficulty: hard
 points: 50
 category: integration
 themenfeld: interoperabilitaet
-interaction: scenario
 skills: [integration]
 related_lessons: ["8.2", "8.3"]
 estimated_minutes: 10
 
-scenario:
-  start: viewer
-  steps:
-    viewer:
-      prompt: >
-        Ein Portal lädt erfolgreich ImagingStudy/img-93821 aus dem FHIR-Server.
-        Patient, Study UID und Serienanzahl stimmen. Beim Öffnen der Bilder
-        ruft der Client GET /fhir/ImagingStudy/img-93821/pixels auf und erhält
-        404. Was ist die beste Erklärung?
-      options:
-        - id: missing_pixels
-          label: Die ImagingStudy ist beschädigt, weil sie keine Pixel enthält.
-          next: wrong_pixels
-        - id: wrong_layer
-          label: Der Client benutzt die falsche API-Schicht für den Bildabruf.
-          next: endpoint
-        - id: resend_hl7
-          label: Der HL7-Auftrag muss erneut gesendet werden.
-          next: wrong_hl7
-    endpoint:
-      prompt: >
-        Die ImagingStudy enthält die DICOM Study UID. Welcher Dienst ist für
-        den Abruf der DICOM-Objekte vorgesehen?
-      options:
-        - id: qido
-          label: QIDO-RS
-          next: wrong_qido
-        - id: wado
-          label: WADO-RS
-          next: correct
-        - id: stow
-          label: STOW-RS
-          next: wrong_stow
+environment:
+  hosts:
+    - name: workstation
+      ip: 10.60.0.52
+      role: shell
 
-    wrong_pixels:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        ImagingStudy beschreibt die DICOM-Studie; sie ist nicht der Speicherort
-        der kompletten DICOM-Pixelobjekte.
-    wrong_hl7:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        Auftrag und ImagingStudy sind vorhanden. Das Problem liegt beim
-        Bildabruf, nicht beim vorgelagerten Order-Transport.
-    wrong_qido:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        QIDO-RS dient der Suche. Für den Abruf der Objekte brauchst du WADO-RS.
-    wrong_stow:
-      terminal: true
-      outcome: wrong
-      prompt: >
-        STOW-RS dient dem Speichern/Übertragen zum Server, nicht dem Abruf.
-    correct:
-      terminal: true
-      outcome: correct
-      reveal: WADO-RS
-      prompt: >
-        Richtig. Die FHIR ImagingStudy liefert Kontext und Identifikatoren;
-        die DICOM-Objekte werden über einen Imaging-Endpunkt wie WADO-RS
-        abgerufen.
+    - name: fhir-server
+      ip: 10.60.0.30
+      resources:
+        - path: /fhir/ImagingStudy/img-93821
+          method: GET
+          status: 200
+          content_type: application/fhir+json
+          body: |
+            {"resourceType":"ImagingStudy","id":"img-93821","status":"available","subject":{"reference":"Patient/pat-4711"},"identifier":[{"system":"urn:dicom:uid","value":"urn:oid:1.2.276.0.7230010.3.1.2.93821"}],"numberOfSeries":3,"numberOfInstances":412}
+
+  tools: [curl]
 
 flag:
   type: exact
-  source_tag: scenario
   hash: "sha256:220a8fc886276773a74e5d57a63ef7934b6594047d8495c582527ad5b9c2fce1"
   case_sensitive: false
 
@@ -89,4 +40,4 @@ hints:
 
 stuck_timeout_minutes: 10
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-17"

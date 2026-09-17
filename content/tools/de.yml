@@ -234,3 +234,23 @@ curl:
   lesson: "2.8"
   anchor: qido-rs-dieselbe-suche-per-http
   needs_sandbox: true
+
+mllpq:
+  name: mllpq
+  suite: hl7
+  kind: netz
+  purpose: Zeigt den Status und Inhalt einer HL7-v2-Nachricht samt ihrem aktuellen ACK.
+  example: "mllpq MSG4711"
+  lesson: "7.5"
+  anchor: mllp-der-umschlag-nicht-der-inhalt
+  needs_sandbox: false
+
+mllpsend:
+  name: mllpsend
+  suite: hl7
+  kind: netz
+  purpose: Stoesst das erneute Verarbeiten einer zuvor fachlich abgelehnten HL7-Nachricht an.
+  example: "mllpsend MSG4711"
+  lesson: "7.5"
+  anchor: mllp-der-umschlag-nicht-der-inhalt
+  needs_sandbox: false

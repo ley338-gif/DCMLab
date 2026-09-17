@@ -10,11 +10,26 @@ import shlex
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 from app import find
 from app.content import NodeDefinition, load_dataset
 
 NON_NETWORK_COMMANDS = {"ping", "ls", "cat", "echo", "clear", "help"}
+
+# Werkzeuge, die nur auf dem Shell-Host laufen und ueber `tools:` in node.yml
+# freigeschaltet sein muessen -- dieselbe Freigabe-Regel wie echoscu/storescu/
+# findscu, jetzt auch fuer die HL7-/FHIR-Simulation (curl/mllpq/mllpsend).
+NETWORK_TOOLS = {"echoscu", "storescu", "findscu", "curl", "mllpq", "mllpsend"}
+
+# PS3.16 TID 10001 kennt keinen HTTP-Statuscode -- diese generische
+# OperationOutcome ist der Fallback, wenn `curl` einen Pfad trifft, der auf
+# dem simulierten Host nicht deklariert ist (Abschnitt 6l).
+MSG_FHIR_NOT_FOUND_BODY = (
+    '{"resourceType":"OperationOutcome","issue":'
+    '[{"severity":"error","code":"not-found","diagnostics":"Not Found"}]}'
+)
+HTTP_REASON_PHRASES = {200: "OK", 201: "Created", 404: "Not Found"}
 
 # DCMTK-Voreinstellungen, wenn -aet/-aec fehlen (Abschnitt 5.3).
 DEFAULT_AET = {"echoscu": "ECHOSCU", "findscu": "FINDSCU", "storescu": "STORESCU"}
@@ -101,6 +116,13 @@ def initial_state(node: NodeDefinition) -> dict[str, Any]:
         "created_at": now_iso(),
         "last_progress_at": now_iso(),
         "_dataset_file_count": file_count,
+        # HL7-Simulation (Abschnitt 6l): pro Nachricht, ob sie bereits
+        # per mllpsend erfolgreich reprocessed wurde -- steuert, welches
+        # ACK mllpq anzeigt. dynamic_worklist sammelt MWL-Eintraege, die
+        # dadurch entstehen, damit ein anschliessendes `findscu -W` sie
+        # findet (derselbe archive-Host wie bei statischem `worklist:`).
+        "hl7_messages": {msg["id"]: {"resolved": False} for msg in node.messages},
+        "dynamic_worklist": {},
     }
 
     if archive_host is not None:
@@ -243,11 +265,11 @@ def exec_command(
 
     tool, args = tokens[0], tokens[1:]
 
-    known_tools = {"echoscu", "storescu", "findscu", "dcmdump", "dcmftest"}
+    known_tools = {"echoscu", "storescu", "findscu", "dcmdump", "dcmftest"} | NETWORK_TOOLS
     if tool not in NON_NETWORK_COMMANDS and tool not in known_tools:
         return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
 
-    if tool in {"echoscu", "storescu", "findscu"} and tool not in node.tools:
+    if tool in NETWORK_TOOLS and tool not in node.tools:
         return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
 
     if host.get("role") != "shell" and tool not in NON_NETWORK_COMMANDS:
@@ -275,6 +297,12 @@ def exec_command(
         return _exec_dcmdump(node, args)
     if tool == "dcmftest":
         return _exec_dcmftest(node, args)
+    if tool == "curl":
+        return _exec_curl(node, state, args)
+    if tool == "mllpq":
+        return _exec_mllpq(node, state, args)
+    if tool == "mllpsend":
+        return _exec_mllpsend(node, state, args)
 
     return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
 
@@ -384,6 +412,193 @@ def _exec_dcmftest(node: NodeDefinition, args: list[str]) -> ExecResult:
         return ExecResult(stdout=f"no: {filename}", exit_code=1)
 
     return ExecResult(stdout=f"yes: {filename}", exit_code=0)
+
+
+def _shell_host(node: NodeDefinition) -> dict[str, Any] | None:
+    """Die Oberflaeche montiert immer genau ein Terminal, gegen den einen
+    Host mit role: shell (Nodes/Show.vue) -- mllpsend braucht dessen Config,
+    ohne dass der Aufrufer den Hostnamen selbst mitgeben muss."""
+
+    return next((h for h in node.hosts if h.get("role") == "shell"), None)
+
+
+def _hl7_current_ack(msg: dict[str, Any], resolved: bool) -> str:
+    if resolved and "reprocess" in msg:
+        return str(msg["reprocess"].get("ack", msg.get("ack", "")))
+
+    return str(msg.get("ack", ""))
+
+
+def _hl7_ack_code(msg: dict[str, Any], resolved: bool) -> str:
+    ack_text = _hl7_current_ack(msg, resolved).strip()
+    first_line = ack_text.splitlines()[0] if ack_text else ""
+    fields = first_line.split("|")
+
+    return fields[1] if len(fields) > 1 else "?"
+
+
+def _exec_mllpq(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
+    messages = node.messages
+
+    if not messages:
+        return ExecResult(stderr="mllpq: keine Nachrichten in dieser Simulation.", exit_code=1)
+
+    if not args:
+        lines = []
+        for entry in messages:
+            msg_id = entry["id"]
+            resolved = state.get("hl7_messages", {}).get(msg_id, {}).get("resolved", False)
+            code = _hl7_ack_code(entry, resolved)
+            lines.append(f"{msg_id}  {code}")
+
+        _touch_progress(state)
+
+        return ExecResult(stdout="\n".join(lines))
+
+    msg_id = args[0]
+    msg = next((m for m in messages if m["id"] == msg_id), None)
+
+    if msg is None:
+        return ExecResult(stderr=f"mllpq: {msg_id}: unknown message", exit_code=1)
+
+    resolved = state.get("hl7_messages", {}).get(msg_id, {}).get("resolved", False)
+    ack_text = _hl7_current_ack(msg, resolved)
+    _touch_progress(state)
+
+    stdout = str(msg.get("raw", "")).rstrip("\n") + "\n\n" + ack_text.rstrip("\n")
+
+    return ExecResult(stdout=stdout)
+
+
+def _exec_mllpsend(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
+    if not args:
+        return ExecResult(stderr="usage: mllpsend <message-id>", exit_code=1)
+
+    msg_id = args[0]
+    msg = next((m for m in node.messages if m["id"] == msg_id), None)
+
+    if msg is None:
+        return ExecResult(stderr=f"mllpsend: {msg_id}: unknown message", exit_code=1)
+
+    reprocess = msg.get("reprocess")
+
+    if reprocess is None:
+        return ExecResult(
+            stderr=f"mllpsend: {msg_id}: keine Reprocessing-Regel fuer diese Nachricht.",
+            exit_code=1,
+        )
+
+    timestamp = datetime.now(UTC).strftime("%H:%M:%S")
+    entry = state.setdefault("hl7_messages", {}).setdefault(msg_id, {"resolved": False})
+
+    if entry.get("resolved"):
+        # Bereits geloest -- idempotent dieselbe Erfolgsmeldung erneut, wie
+        # ein zweiter storescu-Versuch nach bereits erfolgreichem Transfer.
+        stdout = "\n".join([
+            f"{timestamp}  REPROCESS {msg_id}", f"{timestamp}  IN ACK",
+            reprocess.get("ack", "").rstrip("\n"),
+        ])
+
+        return ExecResult(stdout=stdout)
+
+    shell = _shell_host(node)
+    config = state.get("config", {}).get(shell["name"], {}) if shell else {}
+
+    required_field = reprocess.get("requires_config_field")
+    required_value = reprocess.get("requires_value")
+    current_value = config.get(required_field, "") if required_field else ""
+
+    if required_field and current_value != required_value:
+        # Ursache nicht behoben -- dieselbe Ablehnung wie beim ersten Versuch,
+        # kein automatischer Fortschritt nur durchs Wiederholen.
+        stdout = "\n".join([
+            f"{timestamp}  REPROCESS {msg_id}", f"{timestamp}  IN ACK",
+            str(msg.get("ack", "")).rstrip("\n"),
+        ])
+
+        return ExecResult(stdout=stdout, exit_code=1)
+
+    entry["resolved"] = True
+    _touch_progress(state)
+
+    log = [
+        f"{timestamp}  REPROCESS {msg_id}", f"{timestamp}  IN ACK",
+        reprocess.get("ack", "").rstrip("\n"),
+    ]
+
+    worklist_entry = reprocess.get("worklist_entry")
+    if worklist_entry:
+        target_host = worklist_entry.get("host")
+        entry_data = {k: v for k, v in worklist_entry.items() if k != "host"}
+        state.setdefault("dynamic_worklist", {}).setdefault(target_host, []).append(entry_data)
+        log.append(
+            f"{timestamp}  RIS ORDER CREATED {entry_data.get('accession_number', '?')}",
+        )
+        log.append(
+            f"{timestamp}  MWL ENTRY CREATED "
+            f"{entry_data.get('scheduled_station_ae_title', '?')}",
+        )
+
+    return ExecResult(stdout="\n".join(log))
+
+
+def _exec_curl(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
+    method = "GET"
+    show_headers = False
+    positional: list[str] = []
+
+    i = 0
+    while i < len(args):
+        token = args[i]
+
+        if token == "-X":
+            i += 1
+            method = args[i]
+        elif token == "-i":
+            show_headers = True
+        elif token in ("-s", "-v"):
+            pass
+        elif not token.startswith("-"):
+            positional.append(token)
+
+        i += 1
+
+    if not positional:
+        return ExecResult(stderr="usage: curl [-X <method>] [-i] <url>", exit_code=2)
+
+    parsed_url = urlsplit(positional[0])
+    host = node.host_by_ip(parsed_url.hostname) if parsed_url.hostname else None
+
+    if host is None:
+        return ExecResult(
+            stdout=f"curl: (6) Could not resolve host: {parsed_url.hostname}", exit_code=6,
+        )
+
+    _touch_progress(state)
+
+    resources = host.get("resources", [])
+    match = next(
+        (
+            r for r in resources
+            if r.get("path") == parsed_url.path and r.get("method", "GET") == method
+        ),
+        None,
+    )
+
+    if match is None:
+        status, content_type, body = 404, "application/fhir+json", MSG_FHIR_NOT_FOUND_BODY
+    else:
+        status = match.get("status", 200)
+        content_type = match.get("content_type", "application/json")
+        body = match.get("body", "")
+
+    if show_headers:
+        reason = HTTP_REASON_PHRASES.get(status, "")
+        header = f"HTTP/1.1 {status} {reason}\nContent-Type: {content_type}\n\n"
+
+        return ExecResult(stdout=header + body.rstrip("\n"))
+
+    return ExecResult(stdout=body.rstrip("\n"))
 
 
 def _exec_help(node: NodeDefinition) -> ExecResult:
@@ -503,7 +718,13 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
     # kein QueryRetrieveLevel wie STUDY/SERIES -- deshalb ein eigener Zweig,
     # ausgeloest durch das reale findscu-Flag -W statt -S/-P.
     if parsed["query_root"] == "WORKLIST":
-        worklist = archive_host.get("worklist", []) if archive_host else []
+        worklist = list(archive_host.get("worklist", [])) if archive_host else []
+        if archive_name:
+            # Feature 6l: ein per mllpsend erfolgreich reprocesster HL7-
+            # Auftrag legt hier einen Eintrag an, den ein anschliessendes
+            # findscu -W findet -- derselbe archive-Host wie bei statisch
+            # deklariertem worklist: (Abschnitt 6f).
+            worklist += state.get("dynamic_worklist", {}).get(archive_name, [])
 
         return _exec_findscu_against_worklist(worklist, parsed["keys"])
 

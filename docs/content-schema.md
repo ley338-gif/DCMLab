@@ -615,6 +615,109 @@ statt aus `datasets.yml` — eine Szenario-Node hat kein
 ebenso; die Node-Oberfläche zeigt statt der Terminal-Tabs eine
 Dialogfrage mit Antwortoptionen. Details und Begründung: ADR 0071.
 
+### 6k. HL7-v2-Nachrichten-Simulation (`environment.messages`, ab P11)
+
+Für Nodes, in denen der Lernende eine HL7-v2-Nachricht in einer
+Interface-Engine-Queue inspizieren und — nach Behebung der Ursache —
+erneut verarbeiten lassen soll, trägt die Umgebung `messages` statt
+(oder zusätzlich zu) `hosts`/`objects`. Anders als `objects`/`files`
+(Abschnitt 3) ist das bewusst **top-level**, nicht pro Host: die
+Queue gehört der Shell selbst, es gibt in dieser Simulation kein
+zweites, entfernt adressiertes HL7-System, an das man sich verbindet.
+
+```yaml
+environment:
+  hosts:
+    - name: workstation
+      ip: 10.60.0.50
+      role: shell
+      config_editable: true
+      config:
+        procedure_codes: ""       # der Lernende traegt hier die Korrektur ein
+
+  tools: [mllpq, mllpsend]
+
+  messages:
+    - id: MSG4711
+      raw: |
+        MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||ORM^O01|MSG4711|P|2.5
+        PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA||19750314|F
+        ORC|NW|ORD93821^KIS|||
+        OBR|1|ORD93821^KIS||CTTHX2^CT Thorax mit KM|||20260916083000
+      ack: |
+        MSA|AE|MSG4711|Unknown procedure code CTTHX2
+        ERR|||OBR^4^1|103^Table value not found
+      reprocess:                  # optional -- fehlt er, ist die Nachricht
+                                   # bewusst read-only (siehe hl7-ack-trap)
+        requires_config_field: procedure_codes
+        requires_value: CTTHX2
+        ack: "MSA|AA|MSG4711"
+        worklist_entry:           # optional, siehe Abschnitt 6f
+          host: broker            # Name eines Hosts mit worklist:
+          patient_id: "4711"
+          patient_name: "MUSTER^ERIKA"
+          accession_number: "ORD93821"
+          scheduled_station_ae_title: "CT5-RAUM3"
+          scheduled_procedure_step_start_date: "20260916"
+          modality: "CT"
+```
+
+`mllpq` (kein Ziel-Host/Port, reiner Lesebefehl wie `dcmdump`) zeigt ohne
+Argument den Status (Nachrichten-ID plus aktueller MSA-1-Code) jeder
+deklarierten Nachricht, mit einer ID den vollständigen `raw`-Dump plus das
+aktuell gültige ACK (das ursprünglich ablehnende, oder nach erfolgreichem
+`mllpsend` das aus `reprocess.ack`). `mllpsend <id>` prüft
+`reprocess.requires_config_field`/`requires_value` gegen die Konfiguration
+des Shell-Hosts (derselbe `config_editable`-Mechanismus wie bei
+Modalitäts-Simulationen, Abschnitt 5.3) — ist die Ursache nicht behoben,
+wiederholt sich exakt die ursprüngliche Ablehnung; ist sie behoben, markiert
+die Session die Nachricht als gelöst und legt, falls angegeben, einen
+`worklist_entry` an, den ein anschließendes `findscu -W` gegen den
+benannten Host findet (Abschnitt 6f). Eine Nachricht ohne `reprocess:` lässt
+`mllpsend` absichtlich mit einer klaren Fehlermeldung scheitern. Details und
+Begründung: ADR 0104 (siehe `services/engine/app/rules.py`, `_exec_mllpq`/
+`_exec_mllpsend`).
+
+### 6l. FHIR-/HTTP-Simulation (`environment.hosts[].resources`, ab P11)
+
+Für Nodes, in denen der Lernende `curl` gegen eine simulierte FHIR- oder
+sonstige REST-Ressource richtet, trägt der jeweilige Host `resources` —
+pro-Host wie `services`/`worklist`/`records` (Abschnitt 6a/6f), weil hier
+anders als bei `messages` ein entferntes System über IP adressiert wird:
+
+```yaml
+environment:
+  hosts:
+    - name: workstation
+      ip: 10.60.0.52
+      role: shell
+
+    - name: fhir-server
+      ip: 10.60.0.30
+      resources:
+        - path: /fhir/ImagingStudy/img-93821
+          method: GET               # Default GET, falls weggelassen
+          status: 200
+          content_type: application/fhir+json
+          body: |
+            {"resourceType":"ImagingStudy","id":"img-93821", ...}
+
+  tools: [curl]
+```
+
+`curl` (Optionen `-X <Methode>`, `-i` für Statuszeile/Header, `-s`/`-v`
+werden nur akzeptiert, nicht ausgewertet) sucht ein exaktes
+`(method, path)`-Paar in `resources` des per IP aufgelösten Hosts. Ein
+unbekannter Host liefert die reale curl-Fehlermeldung `(6) Could not
+resolve host`; ein bekannter Host ohne passende Ressource liefert eine
+generische FHIR-`OperationOutcome` mit Status 404 — genau der Fall, den
+Nodes wie „FHIR ist nicht WADO“ als absichtlichen Fehltritt zeigen (der
+Client fragt eine plausible, aber falsche URL ab). Es gibt keine
+Suchparameter, keine Auth- und keine `-f`-Semantik — dieselbe bewusste
+Beschränkung auf den jeweiligen Lernpunkt wie bei jeder anderen simulierten
+Umgebung (Abschnitt 0). Details: `services/engine/app/rules.py`,
+`_exec_curl`.
+
 ## 7. Node — `de.md`
 
 ```markdown
