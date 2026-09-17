@@ -1,0 +1,79 @@
+slug: stored-but-invisible
+difficulty: medium
+points: 25
+category: integration
+themenfeld: dicom
+interaction: scenario
+skills: [integration, datenmodell]
+related_lessons: ["3.7", "4.12"]
+estimated_minutes: 10
+scenario:
+  start: ticket
+  steps:
+    ticket:
+      prompt: >
+        Eine Modalität meldet C-STORE Success. Im Viewer erscheint die neue
+        Instance nicht. Welcher Test trennt Archivbestand am besten von der
+        Viewer-Oberfläche?
+      options:
+        - id: send_again
+          label: Die Instance sofort erneut senden.
+          next: wrong_send
+        - id: query_archive
+          label: Die Study/Instance direkt im Archiv per Query oder interner Suche prüfen.
+          next: found
+        - id: restart_viewer
+          label: Den Viewer neu starten und sonst nichts prüfen.
+          next: wrong_viewer
+    found:
+      prompt: >
+        Die Study ist im Archiv auffindbar. Die fragliche Instance hat
+        Modality SR. Was prüfst du als Nächstes?
+      options:
+        - id: display_support
+          label: SOP Class und Darstellungsunterstützung des Viewers prüfen.
+          next: success
+        - id: network
+          label: ICMP-Ping von der Modalität zum PACS wiederholen.
+          next: wrong_network
+        - id: resend
+          label: Study erneut senden, bis sie als Bild erscheint.
+          next: wrong_send
+    wrong_send:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Mehrfache Transfers beantworten nicht, ob das Objekt bereits im Archiv
+        vorhanden ist oder ob nur die Darstellung fehlt.
+    wrong_viewer:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein Neustart kann Symptome verändern, liefert aber keinen Beleg für den
+        Archivbestand. Erst die Schichten trennen.
+    wrong_network:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Storage wurde bereits erfolgreich bestätigt und die Study ist im
+        Archiv auffindbar. Der Netzweg ist jetzt nicht der engste Fehlerort.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: objekt-ist-kein-bild
+      prompt: >
+        Richtig. Storage und Archivindex sind belegt. Jetzt entscheidet die
+        konkrete SOP Class und ob der Viewer dieses SR-Objekt darstellen kann.
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:d0be9cfad35d32d22a254ec3e7404898b2386f91db8a4517ae3b40dfdafb8f52"
+  case_sensitive: false
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+stuck_timeout_minutes: 10
+status: draft
+updated: "2026-09-16"

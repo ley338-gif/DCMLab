@@ -236,3 +236,35 @@ questions:
       - { lesson: "4.10", anchor: "von-aussen-nach-innen-eingrenzen" }
     difficulty: 2
     tags: [netzwerk]
+
+  - id: f25
+    type: single
+    answer: 1
+    lesson: "4.11"
+    review: { lesson: "4.11", anchor: "der-ziel-ae-ist-mehr-als-ein-name" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f26
+    type: multi
+    answer: [0, 2]
+    lesson: "4.11"
+    review: { lesson: "4.11", anchor: "die-haeufigsten-fehlerklassen" }
+    difficulty: 2
+    tags: [netzwerk, integration]
+
+  - id: f27
+    type: single
+    answer: 1
+    lesson: "4.12"
+    review: { lesson: "4.12", anchor: "vier-schichten-statt-einer-oberflaeche" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f28
+    type: truefalse
+    answer: false
+    lesson: "4.12"
+    review: { lesson: "4.12", anchor: "im-alltag-heisst-das" }
+    difficulty: 2
+    tags: [datenmodell]

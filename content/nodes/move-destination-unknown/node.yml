@@ -1,0 +1,91 @@
+slug: move-destination-unknown
+difficulty: medium
+points: 25
+category: integration
+themenfeld: dicom
+interaction: scenario
+skills: [integration, netzwerk]
+related_lessons: ["2.4", "4.11"]
+estimated_minutes: 10
+scenario:
+  start: ticket
+  steps:
+    ticket:
+      prompt: >
+        Eine Befundstation findet eine Study per C-FIND. C-MOVE auf die
+        Destination VIEWER-07 scheitert sofort. Welche Information prüfst du
+        zuerst im PACS?
+      options:
+        - id: study_uid
+          label: Ob die Study Instance UID im Archiv existiert.
+          next: uid_hint
+        - id: move_registry
+          label: Ob VIEWER-07 als Move Destination mit IP und Port registriert ist.
+          next: registry
+        - id: patient_name
+          label: Ob PatientName exakt geschrieben ist.
+          next: wrong_patient
+    uid_hint:
+      prompt: >
+        Die Study wurde gerade per C-FIND gefunden. Damit ist ihre Existenz
+        bereits belegt. Der Fehler tritt erst beim C-MOVE auf.
+      options:
+        - id: now_registry
+          label: Move-Destination-Registry prüfen.
+          next: registry
+        - id: search_again
+          label: Noch einmal nach PatientName suchen.
+          next: wrong_patient
+    registry:
+      prompt: >
+        VIEWER-07 ist im PACS eingetragen, aber mit Port 11113. Auf dem Viewer
+        lauscht der Storage SCP laut Konfiguration auf 11112. Was ist der
+        nächste sinnvolle Schritt?
+      options:
+        - id: correct_port
+          label: Zielport im PACS auf 11112 korrigieren und Retrieve erneut testen.
+          next: success
+        - id: change_pacs_port
+          label: Den PACS-DICOM-Port auf 11112 ändern.
+          next: wrong_pacs
+        - id: resend_study
+          label: Die Originalstudie von der Modalität erneut senden.
+          next: wrong_resend
+    wrong_patient:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Studie ist auffindbar; der Fehler entsteht erst beim Versand an
+        die Move Destination. PatientName ist dafür nicht der erste Prüfpunkt.
+    wrong_pacs:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Listener des PACS ist nicht das Ziel der zweiten Association. Das
+        PACS muss den Storage SCP des Viewers auf dessen Port erreichen.
+    wrong_resend:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Study liegt bereits im Archiv. Ein erneuter Modalitätentransfer
+        ändert die falsche Move-Destination-Konfiguration nicht.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: move-ziel-korrigiert
+      prompt: >
+        Richtig. C-MOVE besteht aus Auftrag und separatem C-STORE zum Ziel.
+        VIEWER-07 war bekannt, zeigte aber auf den falschen Listener-Port.
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:173b132ddf2b65541444326963e216540f096ef64bea4d4a4d3e4ab800fd42df"
+  case_sensitive: false
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+stuck_timeout_minutes: 10
+status: draft
+updated: "2026-09-16"
