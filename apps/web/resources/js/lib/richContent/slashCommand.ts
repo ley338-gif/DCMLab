@@ -1,10 +1,13 @@
 import { Extension } from '@tiptap/core';
 import Suggestion from '@tiptap/suggestion';
+import { blockDefinitions } from './blockDefinitions';
+import { insertBlockAtAnchor } from './insertionAnchor';
 import type { Editor, Range } from '@tiptap/core';
 import type {
     SuggestionKeyDownProps,
     SuggestionProps,
 } from '@tiptap/suggestion';
+import type { RichContentBlockDefinition } from './blockDefinitions';
 
 export type GlossaryTermOption = { slug: string; term: string };
 
@@ -14,257 +17,31 @@ export type SlashCommandItem = {
     command: (editor: Editor, range: Range) => void;
 };
 
-type BaseCommandDefinition = SlashCommandItem & { keywords: string[] };
-
 /**
- * Die feste Befehlsliste (Betreiber-Wireframe, CMS-7c): fuer die
- * bestehenden 7b-Bausteine die eingebauten Toggle-Kommandos (wirken auf
- * den aktuellen Block), fuer alle DCMLab-eigenen Bloecke (`callout`,
- * `self_check`, `dicom_tag_table`, `code_block`-Varianten)
- * `insertContent` -- ein neuer Block statt eine Umwandlung des aktuellen.
+ * Loescht zuerst den "/query"-Bereich (unveraendert wie zuvor), fuegt den
+ * neuen Block dann ueber den geteilten Anker-Helfer relativ zur JETZT
+ * aktuellen Selektion ein -- Slash, Toolbox und beide "+"-Varianten teilen
+ * sich ab hier dieselbe Einfuege-Logik (siehe insertionAnchor.ts).
  */
-function baseCommandDefinitions(): BaseCommandDefinition[] {
-    return [
-        {
-            id: 'paragraph',
-            title: 'Text',
-            keywords: ['paragraph', 'text', 'absatz'],
-            command: (editor, range) =>
-                editor.chain().focus().deleteRange(range).setParagraph().run(),
+function toSlashCommandItem(
+    definition: RichContentBlockDefinition,
+): SlashCommandItem {
+    return {
+        id: definition.id,
+        title: definition.label,
+        command: (editor, range) => {
+            editor.chain().focus().deleteRange(range).run();
+            insertBlockAtAnchor(editor, definition.createNode(), {
+                kind: 'selection',
+            });
         },
-        {
-            id: 'heading2',
-            title: 'Überschrift 2',
-            keywords: ['heading', 'h2', 'überschrift'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .setHeading({ level: 2 })
-                    .run(),
-        },
-        {
-            id: 'heading3',
-            title: 'Überschrift 3',
-            keywords: ['heading', 'h3', 'überschrift'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .setHeading({ level: 3 })
-                    .run(),
-        },
-        {
-            id: 'heading4',
-            title: 'Überschrift 4',
-            keywords: ['heading', 'h4', 'überschrift'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .setHeading({ level: 4 })
-                    .run(),
-        },
-        {
-            id: 'bulletList',
-            title: 'Aufzählung',
-            keywords: ['bullet', 'liste', 'ul'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleBulletList()
-                    .run(),
-        },
-        {
-            id: 'orderedList',
-            title: 'Nummerierte Liste',
-            keywords: ['ordered', 'liste', 'ol', 'nummeriert'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleOrderedList()
-                    .run(),
-        },
-        {
-            id: 'blockquote',
-            title: 'Zitat',
-            keywords: ['blockquote', 'zitat', 'quote'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .toggleBlockquote()
-                    .run(),
-        },
-        {
-            id: 'horizontalRule',
-            title: 'Trennlinie',
-            keywords: ['divider', 'trenner', 'trennlinie', 'hr', 'horizontal'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .setHorizontalRule()
-                    .run(),
-        },
-        {
-            id: 'table',
-            title: 'Tabelle',
-            keywords: ['table', 'tabelle'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertTable({ rows: 2, cols: 2, withHeaderRow: true })
-                    .run(),
-        },
-        {
-            id: 'code',
-            title: 'Code',
-            keywords: ['code'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertContent({
-                        type: 'codeBlock',
-                        attrs: { variant: 'code' },
-                    })
-                    .run(),
-        },
-        {
-            id: 'terminal',
-            title: 'Terminal einfügen',
-            keywords: ['terminal', 'ausgabe', 'output'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertContent({
-                        type: 'codeBlock',
-                        attrs: { variant: 'terminal' },
-                    })
-                    .run(),
-        },
-        {
-            id: 'console',
-            title: 'Befehl einfügen',
-            keywords: ['console', 'konsole', 'befehl', 'command'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertContent({
-                        type: 'codeBlock',
-                        attrs: { variant: 'console' },
-                    })
-                    .run(),
-        },
-        {
-            id: 'dicomDump',
-            title: 'DICOM Dump',
-            keywords: ['dicom', 'dump', 'dcmdump'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertContent({
-                        type: 'codeBlock',
-                        attrs: { variant: 'dicom_dump' },
-                    })
-                    .run(),
-        },
-        {
-            id: 'dicomTagTable',
-            title: 'DICOM Tag Table',
-            keywords: ['dicom', 'tag', 'table', 'tabelle'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertContent({
-                        type: 'dicomTagTable',
-                        content: [
-                            {
-                                type: 'dicomTagRow',
-                                attrs: {
-                                    tag: '',
-                                    keyword: '',
-                                    vr: '',
-                                    value: '',
-                                },
-                            },
-                        ],
-                    })
-                    .run(),
-        },
-        {
-            id: 'calloutInfo',
-            title: 'Info-Box',
-            keywords: ['info', 'callout', 'hinweis'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertContent({
-                        type: 'callout',
-                        attrs: { kind: 'info' },
-                        content: [{ type: 'paragraph' }],
-                    })
-                    .run(),
-        },
-        {
-            id: 'calloutWarning',
-            title: 'Warnung',
-            keywords: ['warning', 'callout', 'achtung', 'warnung'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertContent({
-                        type: 'callout',
-                        attrs: { kind: 'warning' },
-                        content: [{ type: 'paragraph' }],
-                    })
-                    .run(),
-        },
-        {
-            id: 'selfCheck',
-            title: 'Selbstcheck',
-            keywords: ['self', 'check', 'selbstcheck', 'quiz', 'antwort'],
-            command: (editor, range) =>
-                editor
-                    .chain()
-                    .focus()
-                    .deleteRange(range)
-                    .insertContent({
-                        type: 'selfCheck',
-                        attrs: { summary: 'Antwort anzeigen' },
-                        content: [{ type: 'paragraph' }],
-                    })
-                    .run(),
-        },
-    ];
+    };
 }
 
-function matchesQuery(item: BaseCommandDefinition, query: string): boolean {
+function matchesQuery(
+    definition: RichContentBlockDefinition,
+    query: string,
+): boolean {
     const normalized = query.trim().toLowerCase();
 
     if (normalized === '') {
@@ -272,8 +49,8 @@ function matchesQuery(item: BaseCommandDefinition, query: string): boolean {
     }
 
     return (
-        item.title.toLowerCase().includes(normalized) ||
-        item.keywords.some((keyword) => keyword.includes(normalized))
+        definition.label.toLowerCase().includes(normalized) ||
+        definition.keywords.some((keyword) => keyword.includes(normalized))
     );
 }
 
@@ -318,7 +95,9 @@ export function resolveSlashCommandItems(
             }));
     }
 
-    return baseCommandDefinitions().filter((item) => matchesQuery(item, query));
+    return blockDefinitions
+        .filter((definition) => matchesQuery(definition, query))
+        .map(toSlashCommandItem);
 }
 
 /**

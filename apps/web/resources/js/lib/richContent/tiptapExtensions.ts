@@ -4,7 +4,9 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TableRow from '@tiptap/extension-table-row';
 import StarterKit from '@tiptap/starter-kit';
+import { VueNodeViewRenderer } from '@tiptap/vue-3';
 import type { AnyExtension } from '@tiptap/core';
+import RichContentBlockChrome from '@/components/RichContent/RichContentBlockChrome.vue';
 import {
     Callout,
     DicomTagRow,
@@ -17,6 +19,23 @@ import {
     type GlossaryTermOption,
 } from '@/lib/richContent/slashCommand';
 import type { RichContentCodeBlockVariant } from '@/types/richContent';
+
+/**
+ * Ein gemeinsames NodeView-Chrome (Hover-/Auswahl-Kopfzeile, Block-"+") fuer
+ * alle vier chrome-tragenden Blocktypen -- siehe RichContentBlockChrome.vue.
+ * `selectedOnTextSelection: true`, weil die Chrome auch beim reinen Tippen
+ * IM Block sichtbar sein soll, nicht nur bei einer expliziten
+ * NodeSelection auf dem ganzen Block.
+ */
+function withBlockChrome<T extends AnyExtension>(extension: T): T {
+    return extension.extend({
+        addNodeView() {
+            return VueNodeViewRenderer(RichContentBlockChrome, {
+                selectedOnTextSelection: true,
+            });
+        },
+    }) as T;
+}
 
 /**
  * TipTaps eingebaute `codeBlock`-Extension kennt nur `language` -- DCMLabs
@@ -75,11 +94,11 @@ export function richContentExtensions(
             heading: { levels: [2, 3, 4] },
             link: { openOnClick: false, autolink: false },
         }),
-        RichContentCodeBlock,
-        Callout,
-        SelfCheck,
+        withBlockChrome(RichContentCodeBlock),
+        withBlockChrome(Callout),
+        withBlockChrome(SelfCheck),
         DicomTagRow,
-        DicomTagTable,
+        withBlockChrome(DicomTagTable),
         GlossaryTerm,
         // `resizable: false` (Default): DCMLab-Tabellen haben keine
         // interaktive Spaltenbreite -- weniger TipTap-interne Attribute,
