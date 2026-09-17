@@ -100,6 +100,60 @@ describe('RichContentBlockChrome (NodeView wiring)', () => {
         expect(chrome.text()).toContain('Terminal');
     });
 
+    /**
+     * `NodeViewContent` rendert standardmaessig ein schlichtes `<div>` --
+     * ohne eine `<table>/<tbody>`-Huelle stuenden die `<tr>`-Kindknoten
+     * ausserhalb jeden Tabellen-Kontexts im DOM (ungueltiges HTML). Regression
+     * fuer genau diesen Fehler, gefunden bei der Live-Verifikation gegen eine
+     * echte Lektion.
+     */
+    it('wraps a dicom_tag_table NodeView in a valid table/tbody structure', async () => {
+        const wrapper = mount(RichContentEditor, {
+            props: {
+                modelValue: docWith({
+                    type: 'dicom_tag_table',
+                    content: [{ tag: 'A', keyword: '', vr: '', value: '' }],
+                }),
+            },
+        });
+        await flushEditor();
+
+        const chrome = wrapper.find(
+            '.rich-content-block-chrome[data-block-type="dicomTagTable"]',
+        );
+        const table = chrome.find('table.dicom-tag-table');
+        expect(table.exists()).toBe(true);
+        const tbody = table.find('tbody');
+        expect(tbody.exists()).toBe(true);
+        expect(tbody.find('tr[data-dicom-tag-row]').exists()).toBe(true);
+    });
+
+    /**
+     * Ohne `<pre><code>` verliert der Code-Block seine Monospace-Darstellung
+     * im Editor (Whitespace-Erhalt uebernimmt ProseMirror unabhaengig davon
+     * bereits selbst ueber `whitespace: 'pre'`).
+     */
+    it('wraps a code_block NodeView in pre/code for monospace rendering', async () => {
+        const wrapper = mount(RichContentEditor, {
+            props: {
+                modelValue: docWith({
+                    type: 'code_block',
+                    attrs: { variant: 'terminal' },
+                    text: '$ ls',
+                }),
+            },
+        });
+        await flushEditor();
+
+        const chrome = wrapper.find(
+            '.rich-content-block-chrome[data-block-type="codeBlock"]',
+        );
+        const pre = chrome.find('pre');
+        expect(pre.exists()).toBe(true);
+        expect(pre.find('code').exists()).toBe(true);
+        expect(pre.text()).toContain('$ ls');
+    });
+
     it('never wraps a table in chrome (Table keeps its own TipTap NodeView unchanged)', async () => {
         const wrapper = mount(RichContentEditor, {
             props: {

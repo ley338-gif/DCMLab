@@ -26,6 +26,28 @@ const definition = computed(() =>
     }),
 );
 
+/**
+ * `NodeViewContent`'s `as` prop chooses the ONE element it renders as --
+ * ohne diese Unterscheidung wuerde die NodeView den Knoten immer als
+ * schlichtes `<div>` rendern und damit die vom eigenen `renderHTML()` des
+ * Knotens vorgesehene Struktur verlieren: `dicom_tag_table` braucht seine
+ * `tr`-Kinder zwingend in einem `<table><tbody>`, sonst entsteht ungueltiges
+ * HTML (`<tr>` ohne Tabellen-Kontext); `code_block` braucht `<pre><code>`
+ * fuer Monospace-Schrift (Whitespace-Erhalt uebernimmt ProseMirror bereits
+ * selbst ueber `whitespace: 'pre'` im Node-Spec, unabhaengig vom Tag).
+ */
+const contentTag = computed(() => {
+    if (props.node.type.name === 'dicomTagTable') {
+        return 'tbody';
+    }
+
+    if (props.node.type.name === 'codeBlock') {
+        return 'code';
+    }
+
+    return 'div';
+});
+
 function insertParagraphAfter(): void {
     const pos = props.getPos();
 
@@ -63,7 +85,24 @@ function insertParagraphAfter(): void {
                 definition?.label ?? node.type.name
             }}</span>
         </div>
-        <NodeViewContent class="rich-content-block-chrome-content" />
+        <table
+            v-if="node.type.name === 'dicomTagTable'"
+            class="dicom-tag-table"
+        >
+            <NodeViewContent
+                :as="contentTag"
+                class="rich-content-block-chrome-content"
+            />
+        </table>
+        <pre
+            v-else-if="node.type.name === 'codeBlock'"
+            class="rich-content-block-chrome-content-pre"
+        ><NodeViewContent :as="contentTag" class="rich-content-block-chrome-content" /></pre>
+        <NodeViewContent
+            v-else
+            :as="contentTag"
+            class="rich-content-block-chrome-content"
+        />
         <button
             type="button"
             class="rich-content-block-chrome-add"

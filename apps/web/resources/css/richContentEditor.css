@@ -118,6 +118,28 @@
     color: var(--accent-foreground);
 }
 
+/* dicom_tag_table und code_block brauchen im Chrome eine eigene
+   `<table>`/`<pre>`-Huelle (siehe RichContentBlockChrome.vue) -- ohne sie
+   wuerde NodeViewContent nur ein schlichtes <div> rendern. */
+.rich-content-block-chrome .dicom-tag-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.rich-content-block-chrome .dicom-tag-table td {
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+}
+
+.rich-content-block-chrome-content-pre {
+    margin: 0;
+    overflow-x: auto;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 /* -------------------- Workbench (Toolbox / Editor / Inspector) -------------------- */
 
 .rich-content-workbench {
