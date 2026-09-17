@@ -1,0 +1,79 @@
+slug: restore-or-retrieve
+difficulty: medium
+points: 25
+category: integration
+themenfeld: dicom
+interaction: scenario
+skills: [integration]
+related_lessons: ["5.3", "5.11"]
+estimated_minutes: 10
+scenario:
+  start: incident
+  steps:
+    incident:
+      prompt: >
+        Eine einzelne Study wurde versehentlich aus dem Primärarchiv gelöscht.
+        Sie existiert vollständig in einem erreichbaren Zweitarchiv. PACS,
+        Datenbank und Viewer funktionieren sonst normal. Was ist die kleinste
+        passende Wiederherstellungsmaßnahme?
+      options:
+        - id: full_restore
+          label: Das komplette PACS aus dem letzten Backup zurücksetzen.
+          next: wrong_full
+        - id: retrieve
+          label: Die betroffene Study gezielt aus dem Zweitarchiv zurückübertragen.
+          next: second
+        - id: dr
+          label: Disaster-Recovery-Standort aktivieren.
+          next: wrong_dr
+    second:
+      prompt: >
+        Anderes Szenario: Primär-PACS inklusive Datenbank und Konfiguration ist
+        verloren. Auf einem Filesystem liegen nur DICOM-Dateikopien. Reicht
+        ein C-STORE dieser Dateien, um den kompletten Dienstzustand wiederherzustellen?
+      options:
+        - id: yes
+          label: Ja, DICOM-Dateien sind das vollständige PACS.
+          next: wrong_files
+        - id: no
+          label: Nein. Anwendung, Datenbank, Konfiguration und Integrationen brauchen ein DR-/Restore-Verfahren.
+          next: success
+    wrong_full:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Für eine einzelne fehlende Study wäre ein Komplett-Restore unnötig breit
+        und könnte neuere Daten zurückrollen.
+    wrong_dr:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Dienst ist verfügbar; nur eine Study fehlt. Vollständiges DR wäre
+        unverhältnismäßig.
+    wrong_files:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        DICOM-Dateien enthalten die Bildobjekte, aber nicht automatisch den
+        vollständigen Anwendungs-, Datenbank- und Integrationszustand.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: recovery-scope-passend
+      prompt: >
+        Richtig. Recovery beginnt mit der Frage, welcher Zustand verloren ist.
+        Einzelne Objekte können gezielt zurück, ein verlorenes PACS braucht
+        dagegen mehr als nur seine DICOM-Dateien.
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:f7ed723fdbe28c9882c8810a1b87ea9e30a18e46cd7c05be897c12352cd9ecd7"
+  case_sensitive: false
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+stuck_timeout_minutes: 10
+status: draft
+updated: "2026-09-16"

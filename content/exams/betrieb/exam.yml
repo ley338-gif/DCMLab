@@ -325,3 +325,131 @@ questions:
       - { lesson: "5.8", anchor: "sicherheit-lektion-5-6" }
     difficulty: 3
     tags: [security, integration]
+
+  - id: f39
+    type: single
+    answer: 0
+    lesson: "5.9"
+    review: { lesson: "5.9", anchor: "c-echo-ist-gruen-dann-koennen-wir-live-gehen" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f40
+    type: multi
+    answer: [0, 2, 3]
+    lesson: "5.9"
+    review: { lesson: "5.9", anchor: "schritt-5-worklist-separat-testen" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f41
+    type: truefalse
+    answer: false
+    lesson: "5.9"
+    review: { lesson: "5.9", anchor: "schritt-3-storage-mit-einem-kontrollierten-testobjekt" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f42
+    type: input
+    answer: "C-ECHO"
+    lesson: "5.9"
+    review: { lesson: "5.9", anchor: "c-echo-ist-gruen-dann-koennen-wir-live-gehen" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f43
+    type: single
+    answer: 0
+    lesson: "5.10"
+    review: { lesson: "5.10", anchor: "ein-ae-title-ist-kein-dns-name" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f44
+    type: multi
+    answer: [0, 1, 2]
+    lesson: "5.10"
+    review: { lesson: "5.10", anchor: "was-pro-dicom-endpunkt-dokumentiert-werden-sollte" }
+    difficulty: 2
+    tags: [netzwerk]
+
+  - id: f45
+    type: truefalse
+    answer: false
+    lesson: "5.10"
+    review: { lesson: "5.10", anchor: "lebenszyklus-statt-excel-friedhof" }
+    difficulty: 3
+    tags: [netzwerk]
+
+  - id: f46
+    type: input
+    answer: "CT01"
+    lesson: "5.10"
+    review: { lesson: "5.10", anchor: "drei-systeme-heissen-ct01" }
+    difficulty: 1
+    tags: [netzwerk]
+
+  - id: f47
+    type: single
+    answer: 2
+    lesson: "5.11"
+    review: { lesson: "5.11", anchor: "die-bilder-liegen-doch-noch-auf-dem-zweiten-storage" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f48
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "5.11"
+    review: { lesson: "5.11", anchor: "rpo-und-rto-ohne-managementsprache" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f49
+    type: truefalse
+    answer: false
+    lesson: "5.11"
+    review: { lesson: "5.11", anchor: "warum-retrieve-kein-restore-ist" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f50
+    type: input
+    answer: "RTO"
+    lesson: "5.11"
+    review: { lesson: "5.11", anchor: "rpo-und-rto-ohne-managementsprache" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f51
+    type: single
+    answer: 1
+    lesson: "5.12"
+    review: { lesson: "5.12", anchor: "storage-ist-nicht-routing" }
+    difficulty: 1
+    tags: [integration]
+
+  - id: f52
+    type: multi
+    answer: [0, 1, 3]
+    lesson: "5.12"
+    review: { lesson: "5.12", anchor: "routing-loops" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f53
+    type: truefalse
+    answer: false
+    lesson: "5.12"
+    review: { lesson: "5.12", anchor: "im-alltag-heisst-das" }
+    difficulty: 3
+    tags: [integration]
+
+  - id: f54
+    type: single
+    answer: 0
+    lesson: "5.12"
+    review: { lesson: "5.12", anchor: "eine-routingregel-lesbar-machen" }
+    difficulty: 1
+    tags: [integration]

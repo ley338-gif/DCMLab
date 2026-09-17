@@ -1,0 +1,25 @@
+id: "5.10"
+track: betrieb
+order: 10
+title_key: lesson.5_10.title
+duration_minutes: 11
+level: fortgeschritten
+objectives_count: 4
+requires: ["5.9"]
+tools: []
+sandbox:
+  required: false
+  dataset: null
+related_node:
+  node: null
+  optional: true
+glossary_terms: [ae-title]
+quiz:
+  - id: q1
+    type: multi
+    answer: [0, 1, 2, 3]
+  - id: q2
+    type: single
+    answer: 1
+status: draft
+updated: "2026-09-17"
