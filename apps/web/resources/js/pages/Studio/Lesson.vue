@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
 import { GripVertical } from '@lucide/vue';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { index as studioIndex } from '@/routes/studio';
-import { reorder } from '@/routes/studio/lessons';
+import { attachLab, reorder } from '@/routes/studio/lessons';
 
 type ElementRow = {
     id: number;
@@ -17,9 +18,15 @@ type ElementRow = {
     label: string;
 };
 
+type AvailableLab = {
+    slug: string;
+    title: string;
+};
+
 const props = defineProps<{
     lesson: { lesson_id: string; title: string };
     elements: ElementRow[];
+    available_labs: AvailableLab[];
     can_manage: boolean;
 }>();
 
@@ -27,14 +34,46 @@ const kindLabels: Record<string, string> = {
     content: trans('Lektionstext'),
     sandbox: trans('Sandbox'),
     node: trans('Lab / Node'),
+    lab: trans('Lab'),
     quiz: trans('Quiz'),
 };
+
+const selectedLabSlug = ref('');
+
+function attachSelectedLab() {
+    if (selectedLabSlug.value === '') {
+        return;
+    }
+
+    router.post(
+        attachLab.url({ lesson: props.lesson.lesson_id }),
+        { lab_slug: selectedLabSlug.value },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                selectedLabSlug.value = '';
+            },
+        },
+    );
+}
 
 // Optimistisch lokal umsortiert, dann per PATCH gespeichert (CMS-6c) --
 // noch schlichtes natives HTML5-Drag&Drop statt einer neuen Abhaengigkeit,
 // fuer eine einzelne vertikale Liste reicht das.
 const items = ref<ElementRow[]>([...props.elements]);
 const draggedIndex = ref<number | null>(null);
+
+// `items` ist eine lokale Kopie (s.o.), keine berechnete Ansicht auf
+// `props.elements` -- ohne diesen Watcher wuerde ein frisch angehaengtes
+// Lab zwar serverseitig existieren (sichtbar an der aktualisierten
+// `available_labs`-Liste), aber erst nach einem manuellen Reload in dieser
+// Liste auftauchen.
+watch(
+    () => props.elements,
+    (elements) => {
+        items.value = [...elements];
+    },
+);
 
 function onDragStart(index: number) {
     draggedIndex.value = index;
@@ -122,5 +161,48 @@ function onDrop(targetIndex: number) {
                 {{ trans('Noch keine Elementsequenz vorhanden.') }}
             </p>
         </div>
+
+        <Card v-if="can_manage" class="mt-6">
+            <CardHeader>
+                <CardTitle class="text-base">{{
+                    trans('Lab hinzufügen')
+                }}</CardTitle>
+            </CardHeader>
+            <CardContent class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div class="flex-1 space-y-1.5">
+                    <select
+                        v-model="selectedLabSlug"
+                        class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
+                    >
+                        <option value="">
+                            {{ trans('-- Lab auswählen --') }}
+                        </option>
+                        <option
+                            v-for="lab in available_labs"
+                            :key="lab.slug"
+                            :value="lab.slug"
+                        >
+                            {{ lab.title }}
+                        </option>
+                    </select>
+                    <p
+                        v-if="available_labs.length === 0"
+                        class="text-muted-foreground text-xs"
+                    >
+                        {{
+                            trans(
+                                'Keine veröffentlichten Labs verfügbar, die dieser Lektion noch nicht angehängt sind.',
+                            )
+                        }}
+                    </p>
+                </div>
+                <Button
+                    :disabled="selectedLabSlug === ''"
+                    @click="attachSelectedLab"
+                >
+                    {{ trans('Hinzufügen') }}
+                </Button>
+            </CardContent>
+        </Card>
     </PageContainer>
 </template>

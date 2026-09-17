@@ -96,6 +96,11 @@ Route::prefix('de')->group(function () {
         // Elementsequenz (ADR 0105/0106, CMS-6b/CMS-6c).
         Route::get('studio/lessons/{lesson}', [StudioLessonController::class, 'show'])->name('studio.lessons.show');
         Route::patch('studio/lessons/{lesson}/reorder', [StudioLessonController::class, 'reorder'])->name('studio.lessons.reorder');
+        // Lab an eine Lektion haengen (CMS-8e prep): erzeugt den
+        // lesson_elements-Eintrag, den es fuer ein freiplatzierbares Lab
+        // bislang an keiner Stelle geben konnte (siehe StudioLessonController
+        // Klassendoc-Ergaenzung).
+        Route::post('studio/lessons/{lesson}/labs', [StudioLessonController::class, 'attachLab'])->name('studio.lessons.attach-lab');
         // Node-Editor (ADR 0107/0108/0109, CMS-6d): store/duplicate/archive/
         // restore/updateThemenfeld sind strukturelle Eingriffe (NodePolicy),
         // update() speichert einen Content-Entwurf (ActivityPolicy) --
