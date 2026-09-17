@@ -10,8 +10,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 /**
  * Track-Verwaltung in Studio (ADR 0100, CMS-4b): das erste First-Class-
@@ -32,7 +34,11 @@ use Inertia\Response;
  * lesson_elements. Beide Methoden sperren die betroffene(n) Zeile(n) per
  * `lockForUpdate()`, um dieselbe Race-Klasse zu schliessen, die
  * `StudioLessonElementsController::attachLab()` bereits (CMS-8e) fuer
- * `lesson_elements` behoben hat.
+ * `lesson_elements` behoben hat -- `reorderLessons()` sperrt dafuer nicht
+ * nur die Track selbst, sondern auch jede ihrer aktuellen Lesson-Zeilen
+ * (siehe dortiger Methoden-Kommentar), sonst haette eine gleichzeitige
+ * `moveLesson()` eine dieser Lessons unbemerkt in eine andere Track
+ * verschieben koennen.
  */
 class StudioTrackController extends Controller
 {
@@ -230,29 +236,67 @@ class StudioTrackController extends Controller
      * `lessons.lesson_id` entgegen (fachlicher Schluessel, konsistent mit
      * `moveLesson()` oben) -- analog zu
      * `StudioLessonElementsController::reorder()` fuer `lesson_elements`.
-     * Betreiber-Vorgabe: die Permutation wird ERST NACH dem Sperren der
-     * Track validiert, gegen den dann aktuellen Lesson-Bestand dieser
-     * Track -- nicht davor. Ohne das koennte eine Lesson zwischen
-     * Anfrageeingang und Sperrerwerb per `moveLesson()` aus der Track
-     * heraus verschoben worden sein, und die Validierung wuerde gegen
-     * einen bereits veralteten Bestand pruefen.
+     *
+     * Betreiber-Korrektur: eine Zeilensperre nur auf die Track reichte
+     * nicht -- `moveLesson()` sperrt beim Verschieben einer Lesson IN eine
+     * Track nur die ZIEL-Track, nie die (fuer diese Methode hier
+     * eigentlich relevante) QUELL-Track der schon laenger dort
+     * befindlichen Lessons. Ohne eigene Sperren auf den Lesson-Zeilen
+     * selbst konnte ein gleichzeitiger `moveLesson()`-Aufruf eine Lesson
+     * aus dieser Track herausverschieben, NACHDEM sie hier schon
+     * unverschluesselt in die Permutation aufgenommen wurde -- die
+     * anschliessende `order`-Zuweisung traf dann eine Lesson, die laengst
+     * einer anderen Track gehoerte, und ueberschrieb dort versehentlich
+     * eine fremde Position.
+     *
+     * Behoben durch: (1) jede zu dieser Track gehoerende Lesson-Zeile wird
+     * hier selbst per `lockForUpdate()` gesperrt, nicht nur die Track; (2)
+     * die Permutation wird gegen genau diesen gesperrten Bestand validiert
+     * (`Rule::in()`, nicht mehr eine von Hand zusammengesetzte `in:`-Regel);
+     * (3) jedes einzelne Update ist zusaetzlich auf `track_id = $track->id`
+     * eingeschraenkt und prueft die betroffene Zeilenzahl -- genau EINE
+     * erwartet, alles andere ist ein Invariantenbruch (sollte durch die
+     * Sperren oben bereits ausgeschlossen sein, siehe
+     * ContentPublishingService::applyOrFail() fuer dasselbe Muster: eine
+     * defensive, aber nicht mehr normal erreichbare Absicherung, keine
+     * Bruch der Transaktion riskieren statt eine Teil-Umsortierung).
      */
     public function reorderLessons(Request $request, Track $track): RedirectResponse
     {
         Gate::authorize('manage', $track);
 
         DB::transaction(function () use ($request, $track): void {
-            Track::query()->whereKey($track->id)->lockForUpdate()->firstOrFail();
+            $lockedTrack = Track::query()->whereKey($track->id)->lockForUpdate()->firstOrFail();
 
-            $lessonIds = Lesson::query()->where('track_id', $track->id)->pluck('lesson_id');
+            $lockedLessons = Lesson::query()
+                ->where('track_id', $lockedTrack->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id', 'lesson_id']);
+
+            $lessonIds = $lockedLessons->pluck('lesson_id');
 
             $data = $request->validate([
                 'order' => ['required', 'array', 'size:'.$lessonIds->count()],
-                'order.*' => ['string', 'distinct', 'in:'.$lessonIds->implode(',')],
+                'order.*' => ['string', 'distinct', Rule::in($lessonIds->all())],
             ]);
 
+            $lessonsByLessonId = $lockedLessons->keyBy('lesson_id');
+
             foreach ($data['order'] as $position => $lessonId) {
-                Lesson::query()->where('lesson_id', $lessonId)->update(['order' => $position]);
+                $lesson = $lessonsByLessonId[$lessonId];
+
+                $updated = Lesson::query()
+                    ->whereKey($lesson->id)
+                    ->where('track_id', $lockedTrack->id)
+                    ->update(['order' => $position]);
+
+                if ($updated !== 1) {
+                    throw new RuntimeException(
+                        "reorderLessons(): Lesson \"{$lessonId}\" gehoerte beim Schreiben nicht mehr zur gesperrten Track {$lockedTrack->slug} -- Transaktion abgebrochen.",
+                    );
+                }
+
                 Activity::query()->where('type', 'lesson')->where('key', $lessonId)->update(['order' => $position]);
             }
         });

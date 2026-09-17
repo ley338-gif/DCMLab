@@ -292,4 +292,77 @@ class StudioTrackControllerTest extends TestCase
             ])
             ->assertSessionHasErrors('order.0');
     }
+
+    /**
+     * Betreiber-Korrektur: eine Zeilensperre nur auf die Track reichte
+     * nicht -- `moveLesson()` sperrt beim Verschieben einer Lesson nur die
+     * ZIEL-Track, nie die QUELL-Track der schon dort befindlichen Lessons.
+     * Ohne eigene Sperren auf den Lesson-Zeilen selbst konnte eine
+     * gleichzeitige `moveLesson()` eine Lesson aus dieser Track
+     * herausverschieben, NACHDEM sie hier schon in die Permutation
+     * aufgenommen wurde, und die anschliessende `order`-Zuweisung traf
+     * dann eine laengst fremde Lesson. Ein echtes Race laesst sich unter
+     * der SQLite-Testdatenbank nicht sinnvoll nachstellen (derselbe Grund
+     * wie bei den analogen Lock-Nachweisen fuer `attachLab()`/
+     * `moveLesson()`) -- stattdessen wird hier die tatsaechliche
+     * Absicherung direkt nachgewiesen: jede zur Track gehoerende
+     * Lesson-Zeile muss gelesen UND gesperrt werden, nicht nur die Track.
+     */
+    public function test_reordering_locks_every_lesson_row_belonging_to_the_track(): void
+    {
+        $track = Track::factory()->create();
+        $first = Lesson::factory()->create(['track_id' => $track->id, 'order' => 0]);
+        $second = Lesson::factory()->create(['track_id' => $track->id, 'order' => 1]);
+        $reviewer = User::factory()->reviewer()->create();
+
+        DB::enableQueryLog();
+
+        $this->actingAs($reviewer)
+            ->patch("/de/studio/tracks/{$track->slug}/lessons/reorder", [
+                'order' => [$second->lesson_id, $first->lesson_id],
+            ])
+            ->assertRedirect();
+
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $lessonLockIndex = $queries->search(
+            fn (string $query) => str_contains($query, 'select "id", "lesson_id" from "lessons" where "track_id" = ?'),
+        );
+
+        $this->assertNotFalse($lessonLockIndex, 'reorderLessons() muss alle Lesson-Zeilen dieser Track per lockForUpdate() lesen, nicht nur die Track selbst.');
+    }
+
+    /**
+     * Zweiter Teil derselben Betreiber-Korrektur: selbst wenn die Sperre
+     * oben je fehlschluege, darf das eigentliche `update()` niemals eine
+     * Lesson treffen, die nicht mehr zur gesperrten Track gehoert -- jedes
+     * Update ist deshalb zusaetzlich auf `track_id` eingeschraenkt. Direkt
+     * ueber den Query-Log nachgewiesen, damit ein kuenftiges "Vereinfachen"
+     * dieser WHERE-Klausel (genau der urspruengliche Fehler) sofort
+     * auffaellt.
+     */
+    public function test_reordering_scopes_each_update_to_the_locked_track(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'order' => 0]);
+        $reviewer = User::factory()->reviewer()->create();
+
+        DB::enableQueryLog();
+
+        $this->actingAs($reviewer)
+            ->patch("/de/studio/tracks/{$track->slug}/lessons/reorder", [
+                'order' => [$lesson->lesson_id],
+            ])
+            ->assertRedirect();
+
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $scopedUpdateIndex = $queries->search(
+            fn (string $query) => str_contains($query, 'update "lessons" set "order" = ?, "updated_at" = ? where "lessons"."id" = ? and "track_id" = ?'),
+        );
+
+        $this->assertNotFalse($scopedUpdateIndex, 'reorderLessons() muss jedes Lesson-Update zusaetzlich auf track_id = die gesperrte Track einschraenken.');
+    }
 }
