@@ -45,3 +45,75 @@
     font-size: 13px;
     color: var(--muted-foreground);
 }
+
+/* -------------------- Block-Chrome (NodeView) -------------------- */
+
+.rich-content-block-chrome {
+    position: relative;
+    margin: 10px 0;
+    padding: 22px 10px 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+}
+
+.rich-content-block-chrome:hover,
+.rich-content-block-chrome.is-selected {
+    border-color: var(--border);
+    background: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.rich-content-block-chrome-header {
+    position: absolute;
+    top: 4px;
+    left: 8px;
+    display: none;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+}
+
+.rich-content-block-chrome:hover .rich-content-block-chrome-header,
+.rich-content-block-chrome.is-selected .rich-content-block-chrome-header {
+    display: flex;
+}
+
+.rich-content-block-chrome-handle {
+    width: 14px;
+    height: 14px;
+    color: var(--muted-foreground);
+    opacity: 0.6;
+    cursor: default;
+}
+
+.rich-content-block-chrome-icon {
+    width: 13px;
+    height: 13px;
+}
+
+.rich-content-block-chrome-add {
+    position: absolute;
+    right: 8px;
+    top: 4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    color: var(--muted-foreground);
+}
+
+.rich-content-block-chrome:hover .rich-content-block-chrome-add,
+.rich-content-block-chrome.is-selected .rich-content-block-chrome-add {
+    display: inline-flex;
+}
+
+.rich-content-block-chrome-add:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
