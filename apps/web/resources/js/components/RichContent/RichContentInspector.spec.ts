@@ -2,7 +2,7 @@ import type { JSONContent } from '@tiptap/core';
 import { Editor } from '@tiptap/vue-3';
 import { mount } from '@vue/test-utils';
 import { markRaw } from 'vue';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { resolveSelectedBlock } from '@/lib/richContent/insertionAnchor';
 import { richContentExtensions } from '@/lib/richContent/tiptapExtensions';
 import RichContentInspector from './RichContentInspector.vue';
@@ -203,6 +203,91 @@ describe('RichContentInspector', () => {
         });
 
         expect(wrapper.text()).toContain('Zeile danach einfügen');
+    });
+
+    /**
+     * Betreiber-Befund aus der PR-Pruefung: `updateAttrs()` wird bei JEDEM
+     * Tastendruck in einem Inspector-Textfeld aufgerufen. Ein `.focus()` im
+     * Chain wuerde den DOM-Fokus vom gerade getippten Feld auf den Editor
+     * zurueckreissen -- die vorherigen Tests pruefen nur EIN Schreiben
+     * (`setValue()` setzt den kompletten Text in einem Rutsch), nicht
+     * fortlaufendes Tippen. Dieser Test simuliert mehrere aufeinanderfolgende
+     * Tastendruecke UND prueft direkt, ob TipTaps `focus`-Kommando ausgeloest
+     * wird (`view.focus()`, siehe @tiptap/core/src/commands/focus.ts -- NICHT
+     * `view.dom.focus()`, das nur in iOS/Android/Safari-Sonderfaellen laeuft).
+     * Das Kommando verzoegert den eigentlichen Aufruf ueber
+     * `requestAnimationFrame`, deshalb der Tick danach -- ohne ihn wuerde der
+     * Test auch bei faelschlich vorhandenem `.focus()` gruen bleiben (siehe
+     * DicomTagTableInspector.spec.ts fuer die empirisch verifizierte Probe:
+     * mit `.focus()` im Chain schlaegt genau diese Testform 5x fehl, einmal
+     * je simuliertem Tastendruck).
+     */
+    it("never triggers TipTap's focus command while typing in the Callout title field", async () => {
+        const editor = editorWith({
+            type: 'doc',
+            content: [
+                {
+                    type: 'callout',
+                    attrs: { kind: 'info', title: null },
+                    content: [{ type: 'paragraph', content: [] }],
+                },
+            ],
+        });
+        editor.commands.setTextSelection(2);
+
+        const wrapper = mount(RichContentInspector, {
+            props: { editor, selectedBlock: selectedBlockFor(editor) },
+        });
+
+        const focusSpy = vi.spyOn(editor.view, 'focus');
+        const titleInput = wrapper.find('input[placeholder="(kein Titel)"]');
+
+        for (const value of [
+            'A',
+            'Ac',
+            'Ach',
+            'Acht',
+            'Achtu',
+            'Achtun',
+            'Achtung',
+        ]) {
+            await titleInput.setValue(value);
+        }
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        expect(focusSpy).not.toHaveBeenCalled();
+        expect(editor.getJSON().content?.[0]).toMatchObject({
+            type: 'callout',
+            attrs: { kind: 'info', title: 'Achtung' },
+        });
+    });
+
+    it("never triggers TipTap's focus command while typing the Code Block language", async () => {
+        const editor = editorWith({
+            type: 'doc',
+            content: [
+                { type: 'codeBlock', attrs: { variant: 'code' }, content: [] },
+            ],
+        });
+        editor.commands.setTextSelection(1);
+
+        const wrapper = mount(RichContentInspector, {
+            props: { editor, selectedBlock: selectedBlockFor(editor) },
+        });
+
+        const focusSpy = vi.spyOn(editor.view, 'focus');
+        const languageInput = wrapper.find('input[placeholder="z. B. python"]');
+
+        for (const value of ['p', 'py', 'pyt', 'pyth', 'pytho', 'python']) {
+            await languageInput.setValue(value);
+        }
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        expect(focusSpy).not.toHaveBeenCalled();
+        expect(editor.getJSON().content?.[0]).toMatchObject({
+            type: 'codeBlock',
+            attrs: { variant: 'code', language: 'python' },
+        });
     });
 
     it('never writes when readonly is set', async () => {

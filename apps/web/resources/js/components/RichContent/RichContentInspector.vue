@@ -60,6 +60,13 @@ const component = computed(() => {
  * es sei denn, er hat sich (durch eine andere Ursache) tatsaechlich
  * geaendert, in welchem Fall bewusst NICHT geschrieben wird, um nie einen
  * anderen als den angezeigten Block zu treffen.
+ *
+ * Bewusst OHNE `.focus()`: dieser Pfad wird bei JEDEM Tastendruck in einem
+ * Inspector-Textfeld aufgerufen (Callout-Titel, Code-Sprache, ...) --
+ * `.focus()` wuerde den DOM-Fokus vom gerade getippten Eingabefeld auf den
+ * Editor zurueckreissen und damit fortlaufendes Tippen unmoeglich machen.
+ * Die Transaktion wird unabhaengig vom DOM-Fokus zugestellt; `.focus()` ist
+ * hier rein kosmetisch und beim Tippen schaedlich, nicht erforderlich.
  */
 function updateAttrs(partial: Record<string, unknown>): void {
     if (!props.editor || props.readonly || !props.selectedBlock) {
@@ -75,7 +82,6 @@ function updateAttrs(partial: Record<string, unknown>): void {
 
     props.editor
         .chain()
-        .focus()
         .command(({ tr }) => {
             tr.setNodeMarkup(fresh.pos, undefined, {
                 ...fresh.node.attrs,

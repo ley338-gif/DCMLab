@@ -1,7 +1,7 @@
 import { Editor } from '@tiptap/vue-3';
 import { mount } from '@vue/test-utils';
 import { markRaw } from 'vue';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { resolveSelectedBlock } from '@/lib/richContent/insertionAnchor';
 import { fromTipTap } from '@/lib/richContent/RichContentEditorAdapter';
 import { richContentExtensions } from '@/lib/richContent/tiptapExtensions';
@@ -125,6 +125,40 @@ describe('DicomTagTableInspector', () => {
         const table = dicomTagTable(editor);
         expect(table.content).toHaveLength(1);
         expect(table.content[0].tag).toBe('B');
+    });
+
+    /**
+     * Betreiber-Befund aus der PR-Pruefung: `updateRow()` wird bei JEDEM
+     * Tastendruck in einer Zellen-Eingabe aufgerufen. Ein `.focus()` im
+     * Chain wuerde den DOM-Fokus vom gerade getippten Feld auf den Editor
+     * zurueckreissen und fortlaufendes Tippen unmoeglich machen. Simuliert
+     * mehrere aufeinanderfolgende Tastendruecke und prueft direkt, ob
+     * TipTaps `focus`-Kommando (`view.focus()`) ausgeloest wird -- empirisch
+     * verifiziert: mit `.focus()` im Chain schlaegt genau diese Testform 5x
+     * fehl, einmal je simuliertem Tastendruck.
+     */
+    it("never triggers TipTap's focus command while typing continuously in a row field", async () => {
+        const editor = editorWithRows([
+            { tag: '', keyword: '', vr: '', value: '' },
+        ]);
+        editor.commands.setNodeSelection(0);
+        const wrapper = mountFor(editor);
+
+        const focusSpy = vi.spyOn(editor.view, 'focus');
+        const tagInput = wrapper.find('input[placeholder="Tag"]');
+
+        for (const value of ['(', '(0', '(00', '(001', '(0010']) {
+            await tagInput.setValue(value);
+        }
+
+        // TipTaps `focus`-Kommando ruft `view.focus()` verzoegert ueber
+        // `requestAnimationFrame` auf (siehe @tiptap/core/src/commands/focus.ts)
+        // -- ohne diesen Tick wuerde der Test auch dann gruen bleiben, wenn
+        // `.focus()` faelschlich im Chain stuende.
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        expect(focusSpy).not.toHaveBeenCalled();
+        expect(dicomTagTable(editor).content[0].tag).toBe('(0010');
     });
 
     /**

@@ -58,6 +58,14 @@ const rows = computed<Row[]>(() => {
     return list;
 });
 
+/**
+ * Bewusst OHNE `.focus()`: wird bei JEDEM Tastendruck in einem Zellenfeld
+ * aufgerufen -- `.focus()` wuerde den DOM-Fokus vom gerade getippten Feld
+ * auf den Editor zurueckreissen und fortlaufendes Tippen unmoeglich machen
+ * (Betreiber-Befund aus der PR-Pruefung). `addRow()`/`removeRow()` sind
+ * dagegen einzelne Klicks auf einen Button, kein Tippen -- dort bleibt
+ * `.focus()`, um den sichtbaren Cursor sinnvoll zur Tabelle zurueckzuholen.
+ */
 function updateRow(
     rowOffset: number,
     field: keyof RowAttrs,
@@ -77,7 +85,6 @@ function updateRow(
 
     props.editor
         .chain()
-        .focus()
         .command(({ tr }) => {
             const rowNode = tr.doc.nodeAt(rowPos);
 
