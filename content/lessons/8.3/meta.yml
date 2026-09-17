@@ -1,0 +1,29 @@
+id: "8.3"
+track: fhir-web
+order: 3
+duration_minutes: 20
+level: fortgeschritten
+objectives_count: 3
+requires: ["8.2", "2.8", "5.1"]
+tools: [curl]
+
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+
+related_node:
+  node: fhir-is-not-wado
+  optional: false
+
+glossary_terms: [dicomweb, qido-rs, wado-rs, stow-rs, ihe]
+quiz:
+  - id: q1
+    type: single
+    answer: 1
+  - id: q2
+    type: multi
+    answer: [0, 2]
+tools_checked: "2026-09-17"
+status: draft
+authors: ["draft-ai"]
+updated: "2026-09-17"

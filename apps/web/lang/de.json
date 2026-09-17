@@ -96,15 +96,22 @@
     "track.troubleshooting.title": "Troubleshooting",
     "track.betrieb.title": "Betrieb und Integration",
     "track.grundlagen.title": "Grundlagen",
+    "track.hl7.title": "HL7 v2",
+    "track.klinische-workflows.title": "Klinische Workflows",
+    "track.fhir-web.title": "FHIR & Web",
 
     "themenfeld.dicom.title": "DICOM und PACS",
     "themenfeld.datenschutz.title": "Datenschutz im Klinikbetrieb",
+    "themenfeld.interoperabilitaet.title": "Interoperabilität",
 
     "exam.fundamente.title": "Abschlussprüfung — Fundamente",
     "exam.services.title": "Abschlussprüfung — Die Services",
     "exam.bild.title": "Abschlussprüfung — Das Bild selbst",
     "exam.betrieb.title": "Abschlussprüfung — Betrieb und Integration",
     "exam.troubleshooting.title": "Abschlussprüfung — Troubleshooting",
+    "exam.hl7.title": "Abschlussprüfung — HL7 v2",
+    "exam.klinische-workflows.title": "Abschlussprüfung — Klinische Workflows",
+    "exam.fhir-web.title": "Abschlussprüfung — FHIR & Web",
 
     "Log in": "Anmelden",
     "Log in to your account": "In deinem Konto anmelden",

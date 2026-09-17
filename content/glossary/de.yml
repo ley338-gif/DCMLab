@@ -364,3 +364,94 @@ netzsegmentierung:
   short: Trennt Modalitäten/Archive in ein eigenes, von anderen Netzen abgeschottetes Segment — die verbreitetste Kompensation dafür, dass DICOM selbst kaum eingebaute Authentifizierung kennt.
   see_also: [association]
   lesson: "5.6"
+
+hl7-v2:
+  term: HL7 v2
+  expansion: Health Level Seven Version 2
+  short: Ereignisorientierter Nachrichtenstandard, über den klinische Systeme unter anderem Patienten-, Auftrags- und Befunddaten austauschen.
+  see_also: [adt, ack, fhir]
+  lesson: "7.1"
+
+segment:
+  term: Segment
+  expansion: HL7 v2 Segment
+  short: Eine Zeile einer HL7-v2-Nachricht, zum Beispiel MSH, PID, ORC, OBR oder OBX.
+  see_also: [hl7-v2]
+  lesson: "7.2"
+
+adt:
+  term: ADT
+  expansion: Admit, Discharge, Transfer
+  short: HL7-v2-Nachrichtenfamilie für Patientenstammdaten und Bewegungsereignisse.
+  see_also: [patient-id, hl7-v2]
+  lesson: "7.3"
+
+ack:
+  term: ACK
+  expansion: Acknowledgement
+  short: Antwort auf eine HL7-v2-Nachricht. Entscheidend ist nicht nur, dass ein ACK kam, sondern welcher Acknowledgement Code darin steht.
+  see_also: [hl7-v2]
+  lesson: "7.5"
+
+mllp:
+  term: MLLP
+  expansion: Minimal Lower Layer Protocol
+  short: Häufig verwendete TCP-Rahmung für HL7-v2-Nachrichten; Transport und fachliche Verarbeitung sind dabei zwei getrennte Ebenen.
+  see_also: [hl7-v2, ack]
+  lesson: "7.5"
+
+fhir:
+  term: FHIR
+  expansion: Fast Healthcare Interoperability Resources
+  short: Ressourcenbasierter HL7-Standard für strukturierte Gesundheitsdaten und APIs.
+  see_also: [service-request, imaging-study, diagnostic-report]
+  lesson: "8.1"
+
+service-request:
+  term: ServiceRequest
+  expansion: FHIR ServiceRequest
+  short: FHIR-Ressource für die Anforderung einer diagnostischen oder anderen medizinischen Leistung.
+  see_also: [imaging-study, diagnostic-report]
+  lesson: "8.2"
+
+imaging-study:
+  term: ImagingStudy
+  expansion: FHIR ImagingStudy
+  short: FHIR-Ressource mit Informationen über eine DICOM-Studie; die DICOM-Instanzen selbst liegen nicht in der Ressource.
+  see_also: [dicomweb, diagnostic-report]
+  lesson: "8.2"
+
+diagnostic-report:
+  term: DiagnosticReport
+  expansion: FHIR DiagnosticReport
+  short: FHIR-Ressource für Befund und Interpretation diagnostischer Untersuchungen.
+  see_also: [service-request, imaging-study]
+  lesson: "8.2"
+
+qido-rs:
+  term: QIDO-RS
+  expansion: Query based on ID for DICOM Objects by RESTful Services
+  short: DICOMweb-Suchdienst für Studien, Serien und Instanzen.
+  see_also: [dicomweb, wado-rs]
+  lesson: "8.3"
+
+wado-rs:
+  term: WADO-RS
+  expansion: Web Access to DICOM Objects by RESTful Services
+  short: DICOMweb-Abrufdienst für DICOM-Objekte und Darstellungen.
+  see_also: [dicomweb, qido-rs]
+  lesson: "8.3"
+
+stow-rs:
+  term: STOW-RS
+  expansion: Store Over the Web by RESTful Services
+  short: DICOMweb-Speicherdienst zum Übertragen von DICOM-Objekten per HTTP.
+  see_also: [dicomweb]
+  lesson: "8.3"
+
+ihe:
+  term: IHE
+  expansion: Integrating the Healthcare Enterprise
+  short: Profile und Transaktionen, die Standards wie DICOM und HL7 für konkrete klinische Workflows zusammenführen.
+  see_also: [hl7-v2, dicom, dicomweb]
+  lesson: "8.3"

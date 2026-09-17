@@ -1,0 +1,24 @@
+id: "8.2"
+track: fhir-web
+order: 2
+duration_minutes: 20
+level: fortgeschritten
+objectives_count: 3
+requires: ["8.1", "7.4", "7.6"]
+tools: []
+
+related_node:
+  node: null
+  optional: true
+
+glossary_terms: [service-request, imaging-study, diagnostic-report]
+quiz:
+  - id: q1
+    type: single
+    answer: 2
+  - id: q2
+    type: multi
+    answer: [0, 2]
+status: draft
+authors: ["draft-ai"]
+updated: "2026-09-17"
