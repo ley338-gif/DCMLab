@@ -137,6 +137,13 @@ class StudioLabController extends Controller
             'fields' => $fields,
             'sandbox_templates' => $this->templateOptions($selectedTemplate),
             'datasets' => $this->datasetOptions($content, $selectedDataset),
+            // Fuer das Slash-Menue/die Toolbox des RichContentWorkbench
+            // ("/glossary", ADR 0114/0118), analog StudioNodeController --
+            // vorher hier fehlend (Betreiber-Befund), das Feld existierte
+            // nur bei Lesson/Node.
+            'glossary' => collect($content->glossary())
+                ->map(fn (array $entry, string $slug): array => ['slug' => $slug, 'term' => $entry['term'] ?? $slug])
+                ->values(),
             'pending_version' => $pendingVersion === null ? null : [
                 'id' => $pendingVersion->id,
                 'status' => $pendingVersion->status,

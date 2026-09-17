@@ -186,6 +186,28 @@ class StudioLabControllerTest extends TestCase
     }
 
     /**
+     * Betreiber-Befund (Rich Content Workbench, Lab-Anbindung): das
+     * `glossary`-Feld fuer das Slash-Menue/die Toolbox des Editors fehlte
+     * hier komplett, obwohl `Studio/Labs/Edit.vue` schon immer denselben
+     * RichContentEditor wie Lesson/Node benutzt (analog
+     * StudioNodeController/LessonEditorController).
+     */
+    public function test_edit_exposes_the_glossary_for_the_rich_content_workbench(): void
+    {
+        $lab = Lab::factory()->create(['slug' => 'test-lab']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'test-lab']);
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($reviewer)
+            ->get("/de/studio/labs/{$lab->slug}")
+            ->assertInertia(fn ($page) => $page
+                ->where('glossary', fn ($glossary) => collect($glossary)->contains([
+                    'slug' => 'dicom', 'term' => 'DICOM',
+                ]))
+            );
+    }
+
+    /**
      * Betreiber-Korrektur: die Katalogoptionen muessen zu den tatsaechlich
      * angezeigten Feldern passen -- bei einem pending Draft/Review ist das
      * der Entwurf, NICHT die Live-Lab-Zeile. Vorher wurden die Optionen

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import RichContentEditor from '@/components/RichContent/RichContentEditor.vue';
+import RichContentWorkbench from '@/components/RichContent/RichContentWorkbench.vue';
 import { postJson } from '@/lib/api';
+import type { GlossaryTermOption } from '@/lib/richContent/slashCommand';
 import { trans } from '@/lib/trans';
 import type { RichContentDocument } from '@/types/richContent';
 import { index as labsIndex } from '@/routes/studio/labs';
@@ -70,6 +71,7 @@ const props = defineProps<{
     fields: LabFields;
     sandbox_templates: TemplateOption[];
     datasets: DatasetOption[];
+    glossary: GlossaryTermOption[];
     pending_version: PendingVersion;
     versions: VersionRow[];
     can_manage: boolean;
@@ -81,6 +83,16 @@ const issues = ref<string[]>([]);
 const validating = ref(false);
 const saving = ref(false);
 const acting = ref(false);
+
+/**
+ * Leichtgewichtiger "ungespeichert"-Hinweis, analog Studio/Lessons/Edit.vue
+ * -- vergleicht den aktuellen Stand gegen den zuletzt erfolgreich
+ * gespeicherten Schnappschuss, kein neuer Speicher-/Autosave-Mechanismus.
+ */
+const lastSavedSnapshot = ref(JSON.stringify(props.fields));
+const hasUnsavedChanges = computed(
+    () => JSON.stringify(fields.value) !== lastSavedSnapshot.value,
+);
 
 const statusLabels: Record<string, string> = {
     draft: trans('Entwurf'),
@@ -123,12 +135,16 @@ async function runValidation() {
 
 function saveDraft() {
     saving.value = true;
+    const snapshotAtSaveTime = JSON.stringify(fields.value);
     router.patch(updateLab.url({ lab: props.lab.slug }), fields.value, {
         preserveScroll: true,
         onFinish: () => {
             saving.value = false;
         },
-        onSuccess: () => runValidation(),
+        onSuccess: () => {
+            lastSavedSnapshot.value = snapshotAtSaveTime;
+            runValidation();
+        },
     });
 }
 
@@ -203,6 +219,13 @@ function restore() {
             <Badge v-if="pending_version" variant="secondary">
                 {{ statusLabels[pending_version.status] }}
             </Badge>
+            <span class="text-muted-foreground ml-auto text-xs">
+                {{
+                    hasUnsavedChanges
+                        ? trans('Ungespeicherte Änderungen')
+                        : trans('Gespeichert')
+                }}
+            </span>
         </div>
 
         <Alert v-if="issues.length > 0" variant="destructive" class="mb-6">
@@ -369,26 +392,22 @@ function restore() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle class="text-base">{{
-                            trans('Aufgabe')
-                        }}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <RichContentEditor
-                            v-model="fields.rich_content"
-                            class="border-input bg-background min-h-32 w-full rounded-md border p-3 text-sm shadow-xs"
-                        />
-                        <p class="text-muted-foreground mt-2 text-xs">
-                            {{
-                                trans(
-                                    'Briefing, das der Lernende vor dem Start des Labs sieht.',
-                                )
-                            }}
-                        </p>
-                    </CardContent>
-                </Card>
+                <div>
+                    <h2 class="mb-3 text-base font-semibold">
+                        {{ trans('Aufgabe') }}
+                    </h2>
+                    <RichContentWorkbench
+                        v-model="fields.rich_content"
+                        :glossary-terms="glossary"
+                    />
+                    <p class="text-muted-foreground mt-2 text-xs">
+                        {{
+                            trans(
+                                'Briefing, das der Lernende vor dem Start des Labs sieht.',
+                            )
+                        }}
+                    </p>
+                </div>
 
                 <Card>
                     <CardHeader>
