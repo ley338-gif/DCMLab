@@ -117,3 +117,91 @@
     background: var(--accent);
     color: var(--accent-foreground);
 }
+
+/* -------------------- Workbench (Toolbox / Editor / Inspector) -------------------- */
+
+.rich-content-workbench {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr) 300px;
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .rich-content-workbench {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rich-content-workbench-toolbox,
+    .rich-content-workbench-inspector {
+        order: 2;
+    }
+
+    .rich-content-workbench-editor {
+        order: 1;
+    }
+}
+
+.rich-content-workbench-toolbox,
+.rich-content-workbench-inspector {
+    position: sticky;
+    top: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    padding: 12px;
+}
+
+@media (max-width: 1100px) {
+    .rich-content-workbench-toolbox,
+    .rich-content-workbench-inspector {
+        position: static;
+    }
+}
+
+.rich-content-toolbox-group + .rich-content-toolbox-group {
+    margin-top: 16px;
+}
+
+.rich-content-toolbox-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted-foreground);
+    margin-bottom: 6px;
+}
+
+.rich-content-toolbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border-radius: 7px;
+    font-size: 13px;
+    text-align: left;
+    color: var(--foreground);
+}
+
+.rich-content-toolbox-item:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.rich-content-toolbox-item:disabled {
+    color: var(--muted-foreground);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.rich-content-toolbox-item-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+.rich-content-workbench-inspector-empty {
+    font-size: 13px;
+    color: var(--muted-foreground);
+}

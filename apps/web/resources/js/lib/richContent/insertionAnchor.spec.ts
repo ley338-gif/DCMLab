@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     insertBlockAtAnchor,
     resolveInsertionPosition,
+    resolveSelectedBlock,
 } from './insertionAnchor';
 import { richContentExtensions } from './tiptapExtensions';
 import type { JSONContent } from '@tiptap/core';
@@ -285,5 +286,138 @@ describe('insertBlockAtAnchor', () => {
                 { kind: 'endOfDocument' },
             ),
         ).not.toThrow();
+    });
+});
+
+describe('resolveSelectedBlock', () => {
+    it('resolves a NodeSelection to the selected node directly', () => {
+        const editor = editorWithContent({
+            type: 'doc',
+            content: [
+                { type: 'horizontalRule' },
+                { type: 'paragraph', content: [] },
+            ],
+        });
+        editor.commands.setNodeSelection(0);
+
+        const block = resolveSelectedBlock(editor);
+
+        expect(block?.node.type.name).toBe('horizontalRule');
+        expect(block?.pos).toBe(0);
+    });
+
+    it('resolves a cursor in a plain top-level paragraph to that paragraph', () => {
+        const editor = editorWithContent({
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Hallo' }],
+                },
+            ],
+        });
+        editor.commands.setTextSelection(3);
+
+        const block = resolveSelectedBlock(editor);
+
+        expect(block?.node.type.name).toBe('paragraph');
+    });
+
+    /**
+     * DCMLabs Schema kennt `RichContentBlockNode` nur als flache Top-Level-
+     * Liste (types/richContent.ts) -- ein Absatz innerhalb eines Callouts
+     * ist dort kein eigener auswaehlbarer Block. Der Cursor mitten im Text
+     * eines Callouts muss deshalb den CALLOUT als ausgewaehlten Block
+     * ergeben, nicht seinen inneren Absatz.
+     */
+    it('bubbles up to the enclosing callout when the cursor is nested inside its paragraph', () => {
+        const editor = editorWithContent({
+            type: 'doc',
+            content: [
+                {
+                    type: 'callout',
+                    attrs: { kind: 'info', title: null },
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: 'Zwei' }],
+                        },
+                    ],
+                },
+            ],
+        });
+        // Mitten im Wort "Zwei" innerhalb des Callout-Absatzes.
+        editor.commands.setTextSelection(4);
+
+        const block = resolveSelectedBlock(editor);
+
+        expect(block?.node.type.name).toBe('callout');
+    });
+
+    /**
+     * Betreiber-Korrektur: Table-Inspector-Operationen muessen die
+     * tatsaechlich ausgewaehlte Tabelle treffen, auch wenn der Cursor tief
+     * in einer Zelle steht -- die Tabelle, nicht die innere Zelle/der
+     * innere Absatz, muss der ausgewaehlte Block sein.
+     */
+    it('bubbles up to the enclosing table when the cursor is nested inside a table cell', () => {
+        const editor = editorWithContent({
+            type: 'doc',
+            content: [
+                {
+                    type: 'table',
+                    content: [
+                        {
+                            type: 'tableRow',
+                            content: [
+                                {
+                                    type: 'tableCell',
+                                    content: [
+                                        {
+                                            type: 'paragraph',
+                                            content: [
+                                                { type: 'text', text: 'Zelle' },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        editor.commands.setTextSelection(5);
+
+        const block = resolveSelectedBlock(editor);
+
+        expect(block?.node.type.name).toBe('table');
+    });
+
+    it('bubbles up to the enclosing list when the cursor is nested inside a list item', () => {
+        const editor = editorWithContent({
+            type: 'doc',
+            content: [
+                {
+                    type: 'bulletList',
+                    content: [
+                        {
+                            type: 'listItem',
+                            content: [
+                                {
+                                    type: 'paragraph',
+                                    content: [{ type: 'text', text: 'Eins' }],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+        editor.commands.setTextSelection(3);
+
+        const block = resolveSelectedBlock(editor);
+
+        expect(block?.node.type.name).toBe('bulletList');
     });
 });

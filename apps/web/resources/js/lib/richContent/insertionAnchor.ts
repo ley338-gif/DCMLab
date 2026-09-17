@@ -1,5 +1,6 @@
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import type { Editor, JSONContent } from '@tiptap/core';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 
 /**
  * Ein Einfuegepunkt fuer einen neuen Block -- bewusst NIE implizit "wo der
@@ -90,6 +91,45 @@ export function resolveInsertionPosition(
     }
 
     return { pos: blockEnd };
+}
+
+export type EnclosingBlock = { pos: number; node: ProseMirrorNode };
+
+/**
+ * Identifiziert den aktuell "ausgewaehlten" Block fuer Workbench/Inspector
+ * (Plan §12) -- ANDERS als `resolveInsertionPosition()`, absichtlich IMMER
+ * Tiefe 1 (den Top-Level-Eintrag von `doc.content`), nicht die dynamische
+ * Tiefe des unmittelbaren Cursor-Containers: DCMLabs eigenes Schema kennt
+ * `RichContentBlockNode` nur als FLACHE Top-Level-Liste (siehe
+ * `types/richContent.ts`) -- ein Absatz innerhalb eines Callouts/einer
+ * Listenzeile/Tabellenzelle ist dort kein eigenstaendig auswaehlbarer
+ * Block, sondern nur Inhalt EINES Top-Level-Blocks. Der Cursor irgendwo
+ * innerhalb einer Tabelle (auch tief in einer Zelle) soll deshalb immer
+ * "diese Tabelle" als ausgewaehlten Block ergeben, nicht den inneren
+ * Absatz -- sonst koennte der Table-Inspector nie die richtige Tabelle
+ * treffen (Betreiber-Korrektur: "Table Inspector operations ... target the
+ * currently selected table safely").
+ *
+ * Liefert bei einer NodeSelection den markierten Knoten, sonst den
+ * Top-Level-Block der aktuellen Cursor-Position. Bewusst zustandslos -- der
+ * Aufrufer muss bei JEDER Transaktion neu aufrufen, nie eine fruehere `pos`
+ * wiederverwenden (eine ProseMirror-Position ist keine dauerhafte
+ * Identitaet).
+ */
+export function resolveSelectedBlock(editor: Editor): EnclosingBlock | null {
+    const { selection } = editor.state;
+
+    if (selection instanceof NodeSelection) {
+        return { pos: selection.from, node: selection.node };
+    }
+
+    const { $from } = selection;
+
+    if ($from.depth === 0) {
+        return null;
+    }
+
+    return { pos: $from.before(1), node: $from.node(1) };
 }
 
 /**
