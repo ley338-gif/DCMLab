@@ -1,0 +1,26 @@
+id: "5.9"
+track: betrieb
+order: 9
+title_key: lesson.5_9.title
+duration_minutes: 15
+level: fortgeschritten
+objectives_count: 5
+requires: ["1.5", "1.8", "2.1", "2.2", "2.5", "5.2"]
+tools: [echoscu, storescu, findscu]
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+related_node:
+  node: modality-go-live
+  optional: false
+glossary_terms: [ae-title, association, sop-class]
+quiz:
+  - id: q1
+    type: multi
+    answer: [0, 1, 2, 4]
+  - id: q2
+    type: single
+    answer: 2
+tools_checked: "2026-09-17"
+status: draft
+updated: "2026-09-17"

@@ -292,3 +292,120 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 4. Die Checkliste verlangt eine Frage zum Patch-Support-Zeitraum des Herstellers
 
 **Erklärung:** Die Checkliste übersetzt 5.6s realen Befund direkt in Ausschreibungsfragen zu echter AE-Title-Prüfung und Patch-Support-Dauer, und verortet Sicherheitsfragen ausdrücklich in der Ausschreibung selbst — kein theoretisches Beispiel ohne Bezug.
+
+### f39 — Was ist der wichtigste Grund, warum ein grünes C-ECHO allein keine vollständige Abnahme ist?
+
+1. C-ECHO prüft nur Verification, nicht Storage, Worklist oder den fachlichen Workflow
+2. C-ECHO ist technisch unzuverlässig
+3. C-ECHO benötigt immer ein zusätzliches Passwort
+4. C-ECHO funktioniert nur bei CT-Geräten
+
+**Erklärung:** C-ECHO testet ausschließlich Verification. Eine Modalität kann darüber erreichbar sein und trotzdem keine Bilder speichern oder eine leere Worklist haben — Storage, Worklist und der fachliche End-to-End-Workflow sind eigene, unabhängige Tests.
+
+### f40 — Welche Aussagen zu einer sauberen Modalitäts-Abnahme stimmen? *(Mehrfachauswahl)*
+
+1. Storage sollte mit einer tatsächlich benötigten SOP Class getestet werden, nicht nur mit irgendeinem Objekt
+2. Eine Worklist-Abnahme prüft nur, ob überhaupt ein Treffer erscheint
+3. Ein Negativtest mit bewusst falscher Konfiguration hilft, spätere Fehlerbilder wiederzuerkennen
+4. Der fachliche End-to-End-Test ist der eigentliche Abschluss der Abnahme
+
+**Erklärung:** Eine Worklist-Abnahme prüft mehr als nur irgendeinen Treffer — Patient ID, Accession Number, Modality, Scheduled Station AE Title, Zeitfenster und das Verhalten bei mehreren Treffern gehören dazu. Storage-Tests mit der tatsächlich benötigten SOP Class, ein bewusster Negativtest und der fachliche End-to-End-Test runden die Abnahme erst ab.
+
+### f41 — Ein erfolgreicher C-STORE-Test mit einem Testobjekt beweist automatisch, dass auch Enhanced-CT- oder SR-Objekte derselben Modalität gespeichert werden können.
+
+**Richtig / Falsch**
+
+**Erklärung:** Falsch. Enhanced CT, SR oder RDSR sind gegebenenfalls eigene, zusätzliche Tests — ein erfolgreicher Test mit einem Objekttyp sagt nichts über einen anderen aus.
+
+### f42 — Welcher DICOM-Dienst ist laut Lektion der erste sinnvolle Test bei einer Modalitäts-Inbetriebnahme, ohne bereits die vollständige Abnahme zu sein? *(Freitext)*
+
+**Erklärung:** `C-ECHO`. Es bestätigt Netzweg und grundlegende Erreichbarkeit, sagt aber nichts über Storage, Worklist oder den fachlichen Workflow aus.
+
+### f43 — Warum ist ein AE Title kein Ersatz für einen DNS-Namen?
+
+1. AE Titles sind nur innerhalb der jeweiligen DICOM-Konfiguration eindeutig, nicht global auflösbar
+2. AE Titles dürfen keine Zahlen enthalten
+3. DNS-Namen sind immer kürzer
+4. AE Titles werden automatisch von Orthanc vergeben
+
+**Erklärung:** Ein AE Title ist eine lokale Application Entity Title innerhalb einer DICOM-Konfiguration, kein weltweit auflösbarer Name. Die Zuordnung zu Host und Port lebt in der Konfiguration der beteiligten Systeme, nicht in einem globalen Verzeichnis.
+
+### f44 — Welche Angaben gehören laut Lektion sinnvollerweise zu jedem dokumentierten DICOM-Endpunkt? *(Mehrfachauswahl)*
+
+1. AE Title, IP/DNS und Port
+2. Rollen und benötigte SOP Classes
+3. Owner und Herstellerkontakt
+4. Die aktuelle CPU-Auslastung des Geräts
+
+**Erklärung:** Identität und Netzwerkziel (AE Title, IP/DNS, Port), die tatsächlich genutzten Rollen/SOP Classes sowie Owner und Eskalationsweg sind die praktisch relevanten Felder einer Registry. Laufende Systemmetriken wie CPU-Auslastung gehören nicht in eine AE-Registry.
+
+### f45 — Ein stillgelegter AE-Eintrag bleibt auch ohne Entfernung aus der Registry zuverlässig von einem noch gültigen, aber selten genutzten Eintrag unterscheidbar.
+
+**Richtig / Falsch**
+
+**Erklärung:** Falsch. Ein verwaister AE-Eintrag ist später kaum von einem noch gültigen, aber selten genutzten Ziel zu unterscheiden — deshalb gehört das Entfernen zum Lebenszyklus, nicht nur das Anlegen.
+
+### f46 — Wie lautete der AE Title, den im Lektionsbeispiel ein altes CT, ein neues CT und eine Router-Route gleichzeitig trugen? *(Freitext)*
+
+**Erklärung:** `CT01`. Der AE Title des stillgelegten Geräts blieb im PACS stehen, ein neues Gerät erhielt denselben Namen, und zusätzlich existierte ein Router-Alias mit derselben Bezeichnung.
+
+### f47 — Das Primärsystem fällt aus, DICOM-Dateien liegen vollständig auf einem zweiten Storage. Anwender können sich trotzdem nicht anmelden. Warum?
+
+1. Die DICOM-Dateien sind beschädigt
+2. Ein PACS besteht ausschließlich aus DICOM-Dateien
+3. Datenbank, Rechte, Routing und weitere Anwendungszustände fehlen trotz vorhandener Bilddateien
+4. Der zweite Storage ist grundsätzlich nicht erreichbar
+
+**Erklärung:** Ein produktives PACS besteht aus deutlich mehr als den Bilddateien — Datenbankzustand, Rechte, Routingregeln und Integrationsparameter gehören ebenso dazu. Vorhandene DICOM-Dateien allein stellen diesen Zustand nicht wieder her.
+
+### f48 — Welche Aussagen zu RPO und RTO stimmen? *(Mehrfachauswahl)*
+
+1. RPO beschreibt den maximal tolerierbaren Datenverlust
+2. RTO beschreibt, wie lange ein Dienst maximal ausfallen darf
+3. Replikation ersetzt automatisch einen getesteten Restore-Nachweis
+4. Ein RPO von 15 Minuten bedeutet, dass ein Ausfall höchstens die letzten 15 Minuten kosten darf
+
+**Erklärung:** RPO und RTO beantworten getrennte Fragen — wie viel Datenverlust ist tolerierbar (RPO) und wie lange darf der Dienst ausfallen (RTO). Replikation schützt vor Verfügbarkeitsausfall, ersetzt aber keinen nachgewiesenen Restore-Test, weil sie Fehler mit repliziert statt sie abzufangen.
+
+### f49 — Ein DICOM-Retrieve von einem Zweitarchiv stellt bei einem vollständig verlorenen PACS automatisch auch Datenbank, Benutzer und Routingregeln wieder her.
+
+**Richtig / Falsch**
+
+**Erklärung:** Falsch. Ein Retrieve bringt DICOM-Objekte zurück, aber nicht automatisch Datenbank, Benutzer/Rechte, Routingregeln oder Jobhistorien — bei einem vollständig verlorenen PACS braucht es dafür ein eigenes DR-/Restore-Verfahren.
+
+### f50 — Welche der beiden Kennzahlen RPO/RTO beantwortet die Frage „Wie lange darf der Dienst ausfallen?"? *(Freitext)*
+
+**Erklärung:** `RTO`. RPO beantwortet dagegen, wie viele Daten im schlimmsten Fall verloren gehen dürfen.
+
+### f51 — Eine Studie ist korrekt im PACS gespeichert, kommt aber nicht am vorgesehenen Routing-Ziel an. Was prüfst du zuerst?
+
+1. Ob der ursprüngliche C-STORE erfolgreich war
+2. Ob die Routingregel überhaupt gematcht hat
+3. Ob das PACS neu gestartet werden muss
+4. Ob die Modalität online ist
+
+**Erklärung:** „Im PACS angekommen" ist nicht dasselbe wie „an alle Ziele verteilt". Die naheliegendste erste Prüfung ist, ob die zuständige Routingregel für diese Studie überhaupt gematcht hat.
+
+### f52 — Welche Aussagen zu Prefetch und Routing stimmen? *(Mehrfachauswahl)*
+
+1. Prefetch kombiniert häufig Query/Retrieve und Routing
+2. Ein Abnahmetest für eine Route sollte auch ein absichtlich nicht erreichbares Ziel enthalten
+3. Duplikaterkennung allein reicht als Schutz vor Routing-Loops aus, ein sauberes Routendesign ist dafür unnötig
+4. Eine Routingregel lässt sich in Trigger, Bedingung, Ziel und Ergebnis zerlegen
+
+**Erklärung:** Prefetch sucht Voruntersuchungen (Query/Retrieve) und überträgt sie anschließend (Routing). Ein Abnahmetest sollte auch das Fehlerverhalten bei nicht erreichbarem Ziel zeigen, und eine Regel lässt sich in die vier genannten Kernteile zerlegen. Duplikaterkennung allein genügt nicht — die Route sollte zusätzlich so entworfen sein, dass ein Loop erst gar nicht nötig wird.
+
+### f53 — Ein wachsender Queue-Zustand bei einem Routing-Ziel wird laut Lektion am zuverlässigsten dadurch erkannt, dass sich Anwender über fehlende Bilder beschweren.
+
+**Richtig / Falsch**
+
+**Erklärung:** Falsch. Eine wachsende Queue gehört in die aktive Betriebsüberwachung mit eigener Grenze und Alarmierung — nicht in die Warteschleife bis zur ersten Anwenderbeschwerde.
+
+### f54 — Welcher der vier Kernteile einer Routingregel entscheidet, WANN sie überhaupt aktiv wird?
+
+1. Trigger
+2. Bedingung
+3. Ziel
+4. Ergebnis
+
+**Erklärung:** Der Trigger ist der Auslöser, der eine Regel überhaupt erst aktiv werden lässt. Erst danach prüft sie ihre Bedingung, bevor sie an ein Ziel sendet und das Ergebnis dokumentiert.

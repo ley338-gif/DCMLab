@@ -1,0 +1,25 @@
+id: "5.11"
+track: betrieb
+order: 11
+title_key: lesson.5_11.title
+duration_minutes: 14
+level: fortgeschritten
+objectives_count: 5
+requires: ["5.3", "5.7"]
+tools: []
+sandbox:
+  required: false
+  dataset: null
+related_node:
+  node: restore-or-retrieve
+  optional: false
+glossary_terms: []
+quiz:
+  - id: q1
+    type: single
+    answer: 2
+  - id: q2
+    type: multi
+    answer: [0, 2, 3]
+status: draft
+updated: "2026-09-17"

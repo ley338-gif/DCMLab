@@ -1,0 +1,83 @@
+slug: modality-go-live
+difficulty: medium
+points: 25
+category: integration
+themenfeld: dicom
+interaction: scenario
+skills: [integration, netzwerk]
+related_lessons: ["5.9"]
+estimated_minutes: 12
+scenario:
+  start: echo
+  steps:
+    echo:
+      prompt: >
+        Neues CT: C-ECHO zum PACS ist erfolgreich. Der Hersteller fragt, ob
+        damit die Abnahme erledigt ist. Was antwortest du?
+      options:
+        - id: done
+          label: Ja, DICOM funktioniert damit vollständig.
+          next: wrong_echo
+        - id: continue
+          label: Nein. Als Nächstes Storage mit benötigter SOP Class testen.
+          next: store
+    store:
+      prompt: >
+        Ein kontrolliertes CT-Testobjekt wurde erfolgreich gespeichert. Was
+        ist der stärkere nächste Beleg?
+      options:
+        - id: archive_query
+          label: Im Archiv unabhängig nach Study UID/Patient ID suchen.
+          next: query
+        - id: screenshot
+          label: Nur den grünen Sendestatus am CT fotografieren.
+          next: wrong_screenshot
+    query:
+      prompt: >
+        Die Study ist im Archiv. Das CT soll im Alltag Worklist benutzen. Was
+        gehört jetzt noch zur Abnahme?
+      options:
+        - id: workflow
+          label: Einen kontrollierten RIS/KIS-Auftrag per MWL auswählen und End-to-End durchspielen.
+          next: success
+        - id: finish
+          label: Nichts mehr; Worklist ist unabhängig und kann später getestet werden.
+          next: wrong_workflow
+    wrong_echo:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        C-ECHO testet Verification, nicht CT Image Storage, Worklist oder den
+        fachlichen End-to-End-Workflow.
+    wrong_screenshot:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Senderstatus ist wertvoll, aber die unabhängige Archivsicht liefert
+        den stärkeren zweiten Beleg.
+    wrong_workflow:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Wenn MWL produktiv genutzt werden soll, gehört sie in die Abnahme. Sonst
+        wird der erste echte Patient zum Integrationstest.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: go-live-end-to-end
+      prompt: >
+        Richtig. Eine belastbare Abnahme prüft Verification, Storage,
+        Archivbestand und den tatsächlich vorgesehenen Workflow getrennt.
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:801f023b0258fa23231e5f9dc769162b82ede6263f5dd69bba2d39f4ec85e049"
+  case_sensitive: false
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+stuck_timeout_minutes: 10
+status: draft
+updated: "2026-09-16"
