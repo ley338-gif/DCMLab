@@ -231,3 +231,31 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 4. Fehlende Fensterung und fehlende Zeichenkodierung sind derselbe Fehlertyp
 
 **Erklärung:** Speicherung und nachgelagerte Verarbeitung sind getrennte Prüfschritte mit unterschiedlichen Werkzeugreaktionen — ein Archiv, das speichert, hat damit nicht jedes Attribut geprüft. Fehlende Fensterung (Anzeigeproblem) und fehlende Zeichenkodierung (Textdarstellung) sind aber zwei unabhängige, unterschiedliche Fehlertypen.
+
+### f31 — Ein Radiologe sagt: „Da ist nichts Neues", obwohl das Archiv eine neue Instance zählt. Welcher Tag klärt zuerst, was diese Instance überhaupt ist?
+
+1. Modality
+2. SOPClassUID
+3. SeriesDescription
+4. StudyInstanceUID
+
+**Erklärung:** `Modality` gibt nur eine grobe Einordnung (z. B. `SR` für mehrere verschiedene Objektarten). `SOPClassUID` (0008,0016) sagt präzise, welche Art DICOM-Objekt vorliegt — Bild, SR, RDSR, KOS oder PDF.
+
+### f32 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
+
+1. Ein Structured Report kann technisch korrekt im Archiv liegen, obwohl der Viewer ihn nicht darstellt
+2. Ein RDSR ist im Kern ein Screenshot der Dosisanzeige
+3. Ein KOS verweist auf andere Instances, statt sie zu duplizieren
+4. Ein Encapsulated PDF kann von einem Archiv gespeichert werden, auch ohne dass es einen PDF-Renderer besitzt
+
+**Erklärung:** Ein SR kann gespeichert, aber vom Viewer nicht darstellbar sein — Storage-Support und Display-Support sind getrennte Fähigkeiten. Ein KOS dupliziert referenzierte Bilder nicht, sondern verweist nur auf sie. Ein RDSR ist dagegen kein Screenshot, sondern strukturiert und automatisch auswertbar — Option 2 ist deshalb falsch, Option 4 richtig, weil Speicherung und Darstellung ebenfalls getrennte Fähigkeiten sind.
+
+### f33 — Ein erfolgreicher C-STORE beweist, dass der Viewer das gespeicherte Objekt auch darstellen kann.
+
+**Richtig / Falsch**
+
+**Erklärung:** Falsch. Das Archiv kann ein Objekt korrekt annehmen und indexieren, obwohl der Viewer die konkrete SOP Class nicht rendert — Storage-Support und Display-Support sind zwei verschiedene Fähigkeiten.
+
+### f34 — Im Eingangsbeispiel meldet ein RDSR-Objekt beim Tag `Modality` denselben Wert wie ein einfacher Structured Report. Wie lautet dieser Wert? *(Freitext)*
+
+**Erklärung:** `SR`. Sowohl ein klassischer Structured Report als auch ein spezialisierter Radiation Dose SR melden sich über `Modality` gleich — erst `SOPClassUID` unterscheidet die beiden konkret.

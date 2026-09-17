@@ -261,3 +261,35 @@ questions:
       - { lesson: "3.6", anchor: "dasselbe-objekt-drei-werkzeuge-drei-reaktionen" }
     difficulty: 3
     tags: [datenmodell, integration]
+
+  - id: f31
+    type: single
+    answer: 1
+    lesson: "3.7"
+    review: { lesson: "3.7", anchor: "die-sop-class-sagt-was-ein-objekt-fachlich-ist" }
+    difficulty: 1
+    tags: [datenmodell]
+
+  - id: f32
+    type: multi
+    answer: [0, 2]
+    lesson: "3.7"
+    review: { lesson: "3.7", anchor: "vier-objektarten-die-pacs-admins-regelmaessig-begegnen" }
+    difficulty: 3
+    tags: [datenmodell]
+
+  - id: f33
+    type: truefalse
+    answer: false
+    lesson: "3.7"
+    review: { lesson: "3.7", anchor: "stolperfallen" }
+    difficulty: 2
+    tags: [integration]
+
+  - id: f34
+    type: input
+    answer: "SR"
+    lesson: "3.7"
+    review: { lesson: "3.7", anchor: "die-sop-class-sagt-was-ein-objekt-fachlich-ist" }
+    difficulty: 1
+    tags: [datenmodell]
