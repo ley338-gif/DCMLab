@@ -199,3 +199,84 @@
     type: activity_completed
     activity_type: lab
     key: c-echo-live
+
+- slug: track-hl7
+  name: HL7 v2 abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „HL7 v2".
+  image: HL7v2.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 150
+  unlock_when:
+    type: track_passed
+    track: hl7
+
+- slug: track-klinische-workflows
+  name: Klinische Workflows abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „Klinische Workflows".
+  image: klinischeworkflows.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 160
+  unlock_when:
+    type: track_passed
+    track: klinische-workflows
+
+- slug: track-fhir-web
+  name: FHIR & Web abgeschlossen
+  description: Bestehe die Abschlussprüfung des Tracks „FHIR & Web".
+  image: fhirundweb.png
+  category: tracks
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 170
+  unlock_when:
+    type: track_passed
+    track: fhir-web
+
+- slug: order-tracer
+  name: Order Tracer
+  description: Verfolge einen HL7-Auftrag über KIS, Interface Engine und RIS zurück und behebe das Mapping-Problem, das ihn aus der Worklist verschwinden ließ.
+  image: ordertracer.png
+  category: integration
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 180
+  unlock_when:
+    type: activity_completed
+    activity_type: node
+    key: hl7-order-gap
+
+- slug: ack-decoder
+  name: ACK Decoder
+  description: Erkenne einen Application Error im ACK, obwohl Transport und Antwort einwandfrei liefen.
+  image: ackdecoder.png
+  category: integration
+  rarity: uncommon
+  points: 0
+  is_hidden: false
+  sort_order: 190
+  unlock_when:
+    type: activity_completed
+    activity_type: node
+    key: hl7-ack-trap
+
+- slug: layer-breaker
+  name: Layer Breaker
+  description: Erkenne, dass FHIR nicht WADO ist — der Bildabruf gehört auf die DICOMweb-Seite.
+  image: layerbreaker.png
+  category: integration
+  rarity: rare
+  points: 0
+  is_hidden: false
+  sort_order: 200
+  unlock_when:
+    type: activity_completed
+    activity_type: node
+    key: fhir-is-not-wado
