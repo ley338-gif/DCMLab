@@ -21,7 +21,7 @@ type AssignedActivity = {
 };
 
 const props = defineProps<{
-    role: 'learner' | 'author' | 'reviewer';
+    role: 'learner' | 'author' | 'reviewer' | 'administrator';
     assigned_activities: AssignedActivity[];
     review_queue_count: number | null;
 }>();
@@ -29,7 +29,10 @@ const props = defineProps<{
 const roleLabels: Record<string, string> = {
     author: trans('Autor:in'),
     reviewer: trans('Reviewer:in'),
+    administrator: trans('Administrator:in'),
 };
+
+const canReview = ['reviewer', 'administrator'].includes(props.role);
 
 const editorRoutes: Record<string, (key: string) => string> = {
     // Studio-Lessons-Umbau: Studio ist jetzt der kanonische Lesson-Workflow
@@ -71,7 +74,7 @@ function goToNewAchievement() {
         </div>
 
         <div class="grid gap-4 md:grid-cols-2">
-            <Card v-if="props.role === 'reviewer'">
+            <Card v-if="canReview">
                 <CardHeader>
                     <CardTitle>{{ trans('Review-Queue') }}</CardTitle>
                 </CardHeader>
@@ -91,7 +94,7 @@ function goToNewAchievement() {
                 </CardContent>
             </Card>
 
-            <Card v-if="props.role === 'reviewer'">
+            <Card v-if="canReview">
                 <CardHeader>
                     <CardTitle>{{ trans('Nutzerverwaltung') }}</CardTitle>
                 </CardHeader>
