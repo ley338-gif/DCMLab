@@ -185,3 +185,36 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 4. Ein ungefilterter Mitschnitt ist für die Diagnose meist genauso brauchbar wie ein gezielt gefilterter
 
 **Erklärung:** Reproduzieren vor Erklären und die schichtweise Eingrenzung sind der Kern der Systematik. `-d` liefert dagegen nur mehr Zeilen insgesamt, nicht automatisch mehr relevante — und ein ungefilterter Mitschnitt macht die eigentliche Association eher unlesbar als brauchbar.
+
+### f25 — Der C-MOVE-Auftrag einer Workstation enthält den Move Destination AE Title. Woher kennt das PACS anschließend IP-Adresse und Port dieses Ziels?
+
+1. Aus dem C-MOVE-Request selbst
+2. Aus der eigenen Konfiguration des PACS
+3. Aus einer DNS-Abfrage zur Laufzeit
+4. Von der anfragenden Workstation direkt
+
+**Erklärung:** Der C-MOVE-Request trägt nur den Move Destination AE Title als Namen. IP und Port dieses Ziels muss das PACS aus seiner eigenen, lokal gepflegten Konfiguration kennen — sonst kann es die zweite, separate C-STORE-Association gar nicht aufbauen.
+
+### f26 — Welche Aussagen zu C-MOVE stimmen? *(Mehrfachauswahl)*
+
+1. C-MOVE besteht aus einem Auftrag ans Archiv und einer separaten C-STORE-Association zum Ziel
+2. Ein erfolgreiches C-ECHO zum PACS beweist, dass auch die spätere Storage-Association zum Ziel funktioniert
+3. Move Destination AE Title und Called AE Title des PACS erfüllen unterschiedliche Rollen
+4. Ein C-FIND-Treffer beweist automatisch einen erfolgreichen C-MOVE
+
+**Erklärung:** C-MOVE zerfällt in zwei unabhängige Vorgänge — Auftrag und Rückrichtung. C-ECHO prüft nur die erste Verbindung zum PACS, nichts über den zweiten Hop zum Ziel. Move Destination AE und Called AE des PACS sind zwei verschiedene Rollen, und ein C-FIND-Treffer belegt nur, dass die Studie auffindbar ist — nicht, dass der anschließende Retrieve gelingt.
+
+### f27 — Ein C-STORE meldet Success. Was genau beweist dieser Status?
+
+1. Dass der Viewer das Objekt anzeigen kann
+2. Dass der angesprochene Storage SCP das Objekt angenommen hat
+3. Dass die Studie bereits im Archivindex durchsuchbar ist
+4. Dass es sich um ein darstellbares Bild handelt
+
+**Erklärung:** Ein C-STORE-Erfolg belegt ausschließlich, dass der angesprochene Storage SCP das Objekt angenommen hat. Indexierung, Darstellbarkeit im Viewer und Objektart sind davon unabhängige, getrennt zu prüfende Schichten.
+
+### f28 — Eine leere Trefferliste im Viewer beweist, dass das gesuchte Objekt nicht im Archiv gespeichert wurde.
+
+**Richtig / Falsch**
+
+**Erklärung:** Falsch. Ein Viewer ist nur eine Sicht auf den Archivbestand und kann durch Filter, Berechtigungen oder eine nicht bildhafte SOP Class leer bleiben, obwohl das Objekt korrekt gespeichert und über C-FIND auffindbar ist.

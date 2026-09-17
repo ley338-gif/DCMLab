@@ -1,0 +1,26 @@
+id: "4.11"
+track: troubleshooting
+order: 11
+title_key: lesson.4_11.title
+duration_minutes: 12
+level: aufbau
+objectives_count: 4
+requires: ["2.4", "4.10"]
+tools: [movescu, storescp]
+sandbox:
+  required: true
+  dataset: ct-thorax-60
+related_node:
+  node: move-destination-unknown
+  optional: false
+glossary_terms: [scu, scp, ae-title, association]
+quiz:
+  - id: q1
+    type: single
+    answer: 2
+  - id: q2
+    type: multi
+    answer: [0, 2, 3]
+tools_checked: "2026-09-17"
+status: draft
+updated: "2026-09-17"
