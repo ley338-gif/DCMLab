@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
 import { GripVertical } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import RichContentEditor from '@/components/RichContent/RichContentEditor.vue';
+import RichContentWorkbench from '@/components/RichContent/RichContentWorkbench.vue';
 import { postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
 import type { GlossaryTermOption } from '@/lib/richContent/slashCommand';
@@ -104,6 +104,17 @@ const validating = ref(false);
 const saving = ref(false);
 const acting = ref(false);
 const themenfeldId = ref<number | null>(props.node.themenfeld_id);
+
+/**
+ * Leichtgewichtiger "ungespeichert"-Hinweis, analog Studio/Lessons/Edit.vue
+ * und Studio/Labs/Edit.vue -- vergleicht den aktuellen Stand gegen den
+ * zuletzt erfolgreich gespeicherten Schnappschuss, kein neuer Speicher-/
+ * Autosave-Mechanismus.
+ */
+const lastSavedSnapshot = ref(JSON.stringify(props.fields));
+const hasUnsavedChanges = computed(
+    () => JSON.stringify(fields.value) !== lastSavedSnapshot.value,
+);
 
 const statusLabels: Record<string, string> = {
     draft: trans('Entwurf'),
@@ -215,12 +226,16 @@ async function runValidation() {
 
 function saveDraft() {
     saving.value = true;
+    const snapshotAtSaveTime = JSON.stringify(fields.value);
     router.patch(updateNode.url({ node: props.node.slug }), fields.value, {
         preserveScroll: true,
         onFinish: () => {
             saving.value = false;
         },
-        onSuccess: () => runValidation(),
+        onSuccess: () => {
+            lastSavedSnapshot.value = snapshotAtSaveTime;
+            runValidation();
+        },
     });
 }
 
@@ -314,6 +329,13 @@ function restore() {
                 <Badge v-if="pending_version" variant="secondary">
                     {{ statusLabels[pending_version.status] }}
                 </Badge>
+                <span class="text-muted-foreground text-xs">
+                    {{
+                        hasUnsavedChanges
+                            ? trans('Ungespeicherte Änderungen')
+                            : trans('Gespeichert')
+                    }}
+                </span>
             </div>
             <div class="flex items-center gap-2">
                 <a :href="preview_url" target="_blank" rel="noopener">
@@ -539,10 +561,9 @@ function restore() {
                         }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <RichContentEditor
+                        <RichContentWorkbench
                             v-model="fields.rich_content.briefing"
                             :glossary-terms="glossary"
-                            class="border-input bg-background min-h-32 w-full rounded-md border p-3 text-sm shadow-xs"
                         />
                         <p class="text-muted-foreground mt-2 text-xs">
                             {{
@@ -616,10 +637,9 @@ function restore() {
                                     {{ trans('Löschen') }}
                                 </Button>
                             </div>
-                            <RichContentEditor
+                            <RichContentWorkbench
                                 v-model="fields.rich_content.hints[hint.id]"
                                 :glossary-terms="glossary"
-                                class="border-input bg-background min-h-24 w-full rounded-md border p-3 text-sm shadow-xs"
                             />
                         </div>
                         <Button
@@ -640,10 +660,9 @@ function restore() {
                         }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <RichContentEditor
+                        <RichContentWorkbench
                             v-model="fields.rich_content.write_up"
                             :glossary-terms="glossary"
-                            class="border-input bg-background min-h-32 w-full rounded-md border p-3 text-sm shadow-xs"
                         />
                         <p class="text-muted-foreground mt-2 text-xs">
                             {{
