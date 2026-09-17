@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
-import { home } from '@/routes';
+import { index as tracksIndex } from '@/routes/tracks';
 import { index as authorIndex } from '@/routes/author';
 import { publish } from '@/routes/author/quiz-versions';
 
@@ -48,7 +48,7 @@ function publishVersion(versionId: number) {
         <Breadcrumbs
             class="mb-6"
             :breadcrumbs="[
-                { title: trans('Tracks'), href: home() },
+                { title: trans('Tracks'), href: tracksIndex() },
                 { title: trans('Autoren-Panel'), href: authorIndex() },
                 { title: trans('Review-Queue'), href: '' },
             ]"

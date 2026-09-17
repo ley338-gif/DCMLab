@@ -6,6 +6,7 @@ use App\Models\LessonProgress;
 use App\Models\QuizReview;
 use App\Models\Track;
 use App\Services\AchievementService;
+use App\Services\DashboardHomeService;
 use App\Services\ExamAttemptService;
 use App\Services\ProfileService;
 use Illuminate\Support\Facades\Auth;
@@ -15,12 +16,18 @@ use Inertia\Response;
 class DashboardController extends Controller
 {
     /**
-     * Zeigt den eigenen Fortschritt: Punkte, Rang, Lektionen je Track,
-     * zuletzt abgeschlossene Lektion und Achievements -- alles aus echten
-     * Fortschrittsdaten, nichts geschaetzt oder erfunden.
+     * Zeigt die persoenliche Homebase: allen voran "Weiterlernen" (die
+     * wichtigste Frage "was jetzt?"), dann Tracks, Labs, eine deterministische
+     * Empfehlung und -- weiter hinten, nicht mehr oben -- Punkte/Rang/
+     * Achievements. Alles aus echten Fortschrittsdaten, nichts geschaetzt
+     * oder erfunden (Homebase-Umbau).
      */
-    public function index(ProfileService $profiles, ExamAttemptService $exams, AchievementService $achievementService): Response
-    {
+    public function index(
+        ProfileService $profiles,
+        ExamAttemptService $exams,
+        AchievementService $achievementService,
+        DashboardHomeService $home,
+    ): Response {
         $user = Auth::user();
         $profile = $profiles->profileFor($user);
 
@@ -41,6 +48,7 @@ class DashboardController extends Controller
         $tracks = $trackModels->map(fn (Track $track) => [
             'slug' => $track->slug,
             'title_key' => $track->title_key,
+            'title' => $track->title,
             'lessons_count' => $track->lessons_count,
             'completed_lessons_count' => $track->completed_lessons_count,
             'exam' => [
@@ -51,24 +59,30 @@ class DashboardController extends Controller
             ],
         ]);
 
-        $recentLessons = LessonProgress::query()
+        $recentProgress = LessonProgress::query()
             ->where('user_id', $user->id)
             ->with('lesson.track')
             ->orderByDesc('started_at')
             ->limit(5)
-            ->get()
-            ->map(fn (LessonProgress $progress) => [
-                'lesson_id' => $progress->lesson->lesson_id,
-                'title' => $progress->lesson->title['de'] ?? $progress->lesson->lesson_id,
-                'status' => $progress->status,
-                'started_at' => $progress->started_at->toIso8601String(),
-                'completed_at' => $progress->completed_at?->toIso8601String(),
-            ]);
+            ->get();
+
+        $recentLessons = $recentProgress->map(fn (LessonProgress $progress) => [
+            'lesson_id' => $progress->lesson->lesson_id,
+            'title' => $progress->lesson->title['de'] ?? $progress->lesson->lesson_id,
+            'status' => $progress->status,
+            'started_at' => $progress->started_at->toIso8601String(),
+            'completed_at' => $progress->completed_at?->toIso8601String(),
+            'track_slug' => $progress->lesson->track->slug,
+            'track_title_key' => $progress->lesson->track->title_key,
+        ]);
 
         $dueReviewsCount = QuizReview::query()
             ->where('user_id', $user->id)
             ->where('due_at', '<=', now())
             ->count();
+
+        $continueLearning = $home->continueLearning($user, $recentProgress->first());
+        $labs = $home->labsOverview($user);
 
         return Inertia::render('Dashboard', [
             'profile' => [
@@ -80,6 +94,9 @@ class DashboardController extends Controller
             'recent_lessons' => $recentLessons,
             'achievements' => $achievementService->listForUser($user)->values(),
             'due_reviews_count' => $dueReviewsCount,
+            'continue_learning' => $continueLearning,
+            'labs' => $labs,
+            'recommended' => $home->recommendedNext($user, $trackModels, $continueLearning, $labs),
         ]);
     }
 }

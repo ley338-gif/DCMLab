@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExamController;
 use App\Http\Controllers\ExamEditorController;
 use App\Http\Controllers\GlossaryController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LabController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\LessonController;
@@ -34,7 +35,12 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/de');
 
 Route::prefix('de')->group(function () {
-    Route::get('/', [TrackController::class, 'index'])->name('home');
+    // Homebase-Umbau: "/" ist jetzt personalisiert (Gast: Landingpage,
+    // eingeloggt: Redirect auf das Dashboard) -- der volle Katalog, den
+    // frueher "home" gezeigt hat, lebt unveraendert unter tracks.index
+    // weiter (siehe TrackController::index Klassendoc).
+    Route::get('/', [HomeController::class, 'index'])->name('home');
+    Route::get('tracks', [TrackController::class, 'index'])->name('tracks.index');
     Route::get('tracks/{track}', [TrackController::class, 'show'])->name('tracks.show');
 
     // Oeffentlich, kein Login noetig (Abschnitt 7: Profil per Slug erreichbar).

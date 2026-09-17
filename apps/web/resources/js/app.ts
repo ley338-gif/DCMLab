@@ -24,6 +24,7 @@ void createInertiaApp({
             case name === 'Profiles/Show':
             case name === 'Leaderboard':
                 return null;
+            case name === 'Welcome':
             case name === 'Tracks/Index':
             case name === 'Tracks/Show':
             case name === 'Nodes/Show':

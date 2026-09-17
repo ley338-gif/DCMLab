@@ -13,10 +13,9 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
-import { home } from '@/routes';
 import { show as showLesson } from '@/routes/lessons';
 import { show as showExam, start as startExam } from '@/routes/tracks/exam';
-import { show as showTrack } from '@/routes/tracks';
+import { index as tracksIndex, show as showTrack } from '@/routes/tracks';
 
 type UnmetRequirement = { lesson_id: string; title: string };
 
@@ -62,10 +61,10 @@ const trackTitle = props.track.title?.de ?? trans(props.track.title_key);
         <Breadcrumbs
             class="mb-6"
             :breadcrumbs="[
-                { title: trans('Tracks'), href: home() },
+                { title: trans('Tracks'), href: tracksIndex() },
                 {
                     title: trans(`themenfeld.${track.themenfeld}.title`),
-                    href: home(),
+                    href: tracksIndex(),
                 },
                 { title: trackTitle, href: showTrack(track.slug) },
             ]"

@@ -36,6 +36,7 @@ import { index as glossaryIndex } from '@/routes/glossary';
 import { index as nodesIndex } from '@/routes/nodes';
 import { index as reviewIndex } from '@/routes/review';
 import { index as studioIndex } from '@/routes/studio';
+import { index as tracksIndex } from '@/routes/tracks';
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
@@ -46,9 +47,7 @@ function toggleAppearance() {
 }
 
 function isActive(prefix: string): boolean {
-    const url = page.url;
-
-    return prefix === '/de' ? url === '/de' : url.startsWith(prefix);
+    return page.url.startsWith(prefix);
 }
 </script>
 
@@ -73,11 +72,9 @@ function isActive(prefix: string): boolean {
                                 :aria-label="trans('Hauptnavigation')"
                             >
                                 <Link
-                                    :href="home()"
+                                    :href="tracksIndex()"
                                     :class="{
-                                        'is-active':
-                                            isActive('/de/tracks') ||
-                                            isActive('/de'),
+                                        'is-active': isActive('/de/tracks'),
                                     }"
                                 >
                                     <GraduationCap
@@ -177,10 +174,8 @@ function isActive(prefix: string): boolean {
 
             <nav class="lesson-app-nav" :aria-label="trans('Hauptnavigation')">
                 <Link
-                    :href="home()"
-                    :class="{
-                        'is-active': isActive('/de/tracks') || isActive('/de'),
-                    }"
+                    :href="tracksIndex()"
+                    :class="{ 'is-active': isActive('/de/tracks') }"
                 >
                     <GraduationCap class="size-4" aria-hidden="true" />
                     {{ trans('Tracks') }}
