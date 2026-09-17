@@ -127,19 +127,45 @@
     align-items: start;
 }
 
+.rich-content-workbench-drawer-bar {
+    display: none;
+}
+
+/* Schmale Viewports (Plan §21/§23): Toolbox/Inspector-Spalten weichen
+   vollstaendig einer Drawer-Leiste -- der Editor bleibt allein nutzbar
+   (Slash-Menue deckt jede Einfuegemoeglichkeit weiterhin ab). */
 @media (max-width: 1100px) {
     .rich-content-workbench {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .rich-content-workbench-toolbox,
-    .rich-content-workbench-inspector {
-        order: 2;
+    .rich-content-workbench-drawer-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
     }
 
-    .rich-content-workbench-editor {
-        order: 1;
+    .rich-content-workbench-toolbox,
+    .rich-content-workbench-inspector {
+        display: none;
     }
+}
+
+.rich-content-workbench-drawer-trigger {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--foreground);
+    background: var(--card);
+}
+
+.rich-content-workbench-drawer-trigger:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
 }
 
 .rich-content-workbench-toolbox,
@@ -150,13 +176,6 @@
     border-radius: 10px;
     background: var(--card);
     padding: 12px;
-}
-
-@media (max-width: 1100px) {
-    .rich-content-workbench-toolbox,
-    .rich-content-workbench-inspector {
-        position: static;
-    }
 }
 
 .rich-content-toolbox-group + .rich-content-toolbox-group {
@@ -201,7 +220,102 @@
     flex-shrink: 0;
 }
 
-.rich-content-workbench-inspector-empty {
+/* -------------------- Inspector -------------------- */
+
+.rich-content-inspector-empty {
     font-size: 13px;
     color: var(--muted-foreground);
+}
+
+.rich-content-inspector-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted-foreground);
+    margin-bottom: 12px;
+}
+
+.rich-content-inspector-field + .rich-content-inspector-field {
+    margin-top: 12px;
+}
+
+.rich-content-inspector-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--foreground);
+    margin-bottom: 4px;
+}
+
+.rich-content-inspector-dicom-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rich-content-inspector-dicom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 48px 1fr auto;
+    gap: 6px;
+    align-items: center;
+}
+
+.rich-content-inspector-row-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    color: var(--muted-foreground);
+}
+
+.rich-content-inspector-row-remove:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.rich-content-inspector-row-remove:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.rich-content-inspector-row-add {
+    align-self: flex-start;
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    color: var(--foreground);
+    border: 1px dashed var(--border);
+}
+
+.rich-content-inspector-row-add:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.rich-content-inspector-table-ops {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.rich-content-inspector-op {
+    padding: 7px 8px;
+    border-radius: 7px;
+    font-size: 13px;
+    text-align: left;
+    color: var(--foreground);
+}
+
+.rich-content-inspector-op:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+
+.rich-content-inspector-op:disabled {
+    color: var(--muted-foreground);
+    cursor: not-allowed;
+    opacity: 0.6;
 }

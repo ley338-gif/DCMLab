@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import type { Editor } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import { onBeforeUnmount, onMounted, shallowRef } from 'vue';
+import { markRaw, onBeforeUnmount, onMounted, shallowRef } from 'vue';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
 import {
     resolveBlockDefinition,
     type RichContentBlockDefinition,
@@ -11,6 +18,7 @@ import type { UnsupportedEditorNodeError } from '@/lib/richContent/RichContentEd
 import type { GlossaryTermOption } from '@/lib/richContent/slashCommand';
 import type { RichContentDocument } from '@/types/richContent';
 import RichContentEditor from './RichContentEditor.vue';
+import RichContentInspector from './RichContentInspector.vue';
 import RichContentToolbox from './RichContentToolbox.vue';
 
 /**
@@ -59,6 +67,16 @@ function currentEditor(): Editor | undefined {
  * zuvor aufgeloeste Position ungueltig machen kann, auch ohne ein neues
  * Selektionsereignis (Plan §12). Liest die Selektion jedes Mal frisch --
  * niemals eine `pos` aus einem frueheren Aufruf wiederverwenden.
+ *
+ * `markRaw(block.node)`: der ProseMirror-Knoten landet in einem `ref` und
+ * wird als Prop bis in die Sub-Inspectors weitergereicht -- Vues
+ * Reactivity-Proxy um ein solches Objekt bricht identitaetssensitive
+ * ProseMirror-Interna (`isLeaf`/`nodeSize` vergleichen intern per `===`
+ * gegen ein Singleton; hinter einem Proxy schlaegt das fehl und liefert
+ * eine FALSCHE `nodeSize` -- empirisch verifiziert in
+ * DicomTagTableInspector.spec.ts). Derselbe Grund wie `RichContentToolbox`s
+ * Notwendigkeit, den Editor selbst per `@tiptap/vue-3`s markRaw()-tem
+ * `Editor` zu konstruieren.
  */
 function recomputeSelectedBlock(): void {
     const editor = currentEditor();
@@ -73,7 +91,7 @@ function recomputeSelectedBlock(): void {
     selectedBlock.value = block
         ? {
               pos: block.pos,
-              node: block.node,
+              node: markRaw(block.node),
               definition: resolveBlockDefinition({
                   type: block.node.type.name,
                   attrs: block.node.attrs,
@@ -97,6 +115,53 @@ defineExpose({ selectedBlock, currentEditor });
 
 <template>
     <div class="rich-content-workbench">
+        <!-- Schmale Viewports (Plan §21/§23): Toolbox/Inspector hinter je
+             einem Sheet-Trigger statt als feste Spalten -- der Editor
+             bleibt primaer und ueber das Slash-Menue allein voll nutzbar. -->
+        <div class="rich-content-workbench-drawer-bar">
+            <Sheet>
+                <SheetTrigger as-child>
+                    <button
+                        type="button"
+                        class="rich-content-workbench-drawer-trigger"
+                    >
+                        Bausteine
+                    </button>
+                </SheetTrigger>
+                <SheetContent side="left" class="w-[300px] overflow-y-auto p-4">
+                    <SheetHeader class="px-0">
+                        <SheetTitle>Bausteine</SheetTitle>
+                    </SheetHeader>
+                    <RichContentToolbox
+                        :editor="currentEditor()"
+                        :disabled="!props.editable"
+                    />
+                </SheetContent>
+            </Sheet>
+            <Sheet>
+                <SheetTrigger as-child>
+                    <button
+                        type="button"
+                        class="rich-content-workbench-drawer-trigger"
+                    >
+                        Eigenschaften
+                    </button>
+                </SheetTrigger>
+                <SheetContent
+                    side="right"
+                    class="w-[300px] overflow-y-auto p-4"
+                >
+                    <SheetHeader class="px-0">
+                        <SheetTitle>Eigenschaften</SheetTitle>
+                    </SheetHeader>
+                    <RichContentInspector
+                        :editor="currentEditor()"
+                        :selected-block="selectedBlock"
+                        :readonly="!props.editable"
+                    />
+                </SheetContent>
+            </Sheet>
+        </div>
         <div class="rich-content-workbench-toolbox">
             <RichContentToolbox
                 :editor="currentEditor()"
@@ -114,18 +179,11 @@ defineExpose({ selectedBlock, currentEditor });
             />
         </div>
         <div class="rich-content-workbench-inspector">
-            <p
-                v-if="!selectedBlock"
-                class="rich-content-workbench-inspector-empty"
-            >
-                Kein Block ausgewählt.
-            </p>
-            <p v-else class="rich-content-workbench-inspector-empty">
-                {{
-                    selectedBlock.definition?.label ??
-                    selectedBlock.node.type.name
-                }}
-            </p>
+            <RichContentInspector
+                :editor="currentEditor()"
+                :selected-block="selectedBlock"
+                :readonly="!props.editable"
+            />
         </div>
     </div>
 </template>
