@@ -445,10 +445,10 @@ def _exec_mllpq(node: NodeDefinition, state: dict[str, Any], args: list[str]) ->
 
     if not args:
         lines = []
-        for msg in messages:
-            msg_id = msg["id"]
+        for entry in messages:
+            msg_id = entry["id"]
             resolved = state.get("hl7_messages", {}).get(msg_id, {}).get("resolved", False)
-            code = _hl7_ack_code(msg, resolved)
+            code = _hl7_ack_code(entry, resolved)
             lines.append(f"{msg_id}  {code}")
 
         _touch_progress(state)
@@ -521,7 +521,10 @@ def _exec_mllpsend(node: NodeDefinition, state: dict[str, Any], args: list[str])
     entry["resolved"] = True
     _touch_progress(state)
 
-    log = [f"{timestamp}  REPROCESS {msg_id}", f"{timestamp}  IN ACK", reprocess.get("ack", "").rstrip("\n")]
+    log = [
+        f"{timestamp}  REPROCESS {msg_id}", f"{timestamp}  IN ACK",
+        reprocess.get("ack", "").rstrip("\n"),
+    ]
 
     worklist_entry = reprocess.get("worklist_entry")
     if worklist_entry:

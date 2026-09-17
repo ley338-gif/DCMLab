@@ -92,7 +92,10 @@ def test_curl_is_gated_behind_node_tools_declaration() -> None:
                     {
                         "name": "fhir-server", "ip": "10.0.0.30",
                         "resources": [
-                            {"path": "/fhir/Patient/pat-1", "method": "GET", "status": 200, "body": "{}"},
+                            {
+                                "path": "/fhir/Patient/pat-1", "method": "GET",
+                                "status": 200, "body": "{}",
+                            },
                         ],
                     },
                 ],
