@@ -56,7 +56,7 @@
   title_key: track.hl7.title
   level: einsteiger
   hours: 4
-  status: draft
+  status: published
 
 - slug: klinische-workflows
   themenfeld: interoperabilitaet
@@ -64,7 +64,7 @@
   title_key: track.klinische-workflows.title
   level: aufbau
   hours: 5
-  status: draft
+  status: published
 
 - slug: fhir-web
   themenfeld: interoperabilitaet
@@ -72,4 +72,4 @@
   title_key: track.fhir-web.title
   level: fortgeschritten
   hours: 5
-  status: draft
+  status: published

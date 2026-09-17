@@ -19,6 +19,6 @@ quiz:
   - id: q2
     type: multi
     answer: [0, 2]
-status: draft
+status: published
 authors: ["draft-ai"]
 updated: "2026-09-17"
