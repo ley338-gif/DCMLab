@@ -259,3 +259,36 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 ### f34 — Im Eingangsbeispiel meldet ein RDSR-Objekt beim Tag `Modality` denselben Wert wie ein einfacher Structured Report. Wie lautet dieser Wert? *(Freitext)*
 
 **Erklärung:** `SR`. Sowohl ein klassischer Structured Report als auch ein spezialisierter Radiation Dose SR melden sich über `Modality` gleich — erst `SOPClassUID` unterscheidet die beiden konkret.
+
+### f35 — Ein CT sendet seine Bilder erfolgreich ins PACS. Im Dose-Management-System erscheint die Untersuchung trotzdem nicht. Was folgt daraus zuerst?
+
+1. Der Bildtransfer war fehlerhaft
+2. RDSR ist ein eigenes Objekt mit eigener SOP Class, das unabhängig vom Bildtransfer scheitern kann
+3. Das Dose-System ist grundsätzlich falsch konfiguriert
+4. RDSR wird automatisch mit jedem Bild mitgesendet
+
+**Erklärung:** Bildübertragung und RDSR-Übertragung sind zwei unterschiedliche DICOM-Objekte mit eigener SOP Class und eigener Verhandlung — ein erfolgreicher Bildtransfer sagt nichts über den RDSR-Weg aus.
+
+### f36 — Welche Aussagen zu RDSR stimmen? *(Mehrfachauswahl)*
+
+1. Ein RDSR enthält Dosisdaten als strukturierte, maschinenlesbare Inhalte
+2. Ein Dose-Screenshot ist für automatische Auswertung genauso geeignet wie ein RDSR
+3. Ein RDSR kann PACS → Dose-System über einen zweiten, unabhängigen Hop erreichen
+4. Sobald die Bildserie im PACS gespeichert ist, ist automatisch auch das RDSR gespeichert
+
+**Erklärung:** RDSR liegt strukturiert vor und lässt sich automatisch auswerten — ein Screenshot dagegen kaum. Der Weg zum Dose-System läuft häufig über einen zweiten, eigenständigen Transfer ab PACS oder Router. Bild- und RDSR-Instance sind getrennte Objekte; das eine zu speichern garantiert nicht das andere.
+
+### f37 — Ein grüner Bildtransfer beweist, dass auch die RDSR-SOP-Class auf einer Association akzeptiert wurde.
+
+**Richtig / Falsch**
+
+**Erklärung:** Falsch. C-ECHO und CT Image Storage können funktionieren, während die RDSR-SOP-Class im Presentation Context eigenständig abgelehnt wird — jeder Objekttyp verhandelt seine eigene Zulassung.
+
+### f38 — Welche symbolische SOP-Class-Bezeichnung gibt `dcmdump` für das RDSR-Beispielobjekt aus 3.8 aus?
+
+1. CTImageStorage
+2. XRayRadiationDoseSRStorage
+3. BasicTextSRStorage
+4. KeyObjectSelectionDocumentStorage
+
+**Erklärung:** `dcmdump` löst die SOP-Class-UID des Beispielobjekts zu `XRayRadiationDoseSRStorage` auf — dem sprechenden Namen für X-Ray Radiation Dose SR, statt die Ziffernfolge auszugeben.
