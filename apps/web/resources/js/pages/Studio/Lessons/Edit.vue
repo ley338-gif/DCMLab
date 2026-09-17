@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import RichContentEditor from '@/components/RichContent/RichContentEditor.vue';
+import RichContentWorkbench from '@/components/RichContent/RichContentWorkbench.vue';
 import { postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
 import { index as studioIndex } from '@/routes/studio';
@@ -75,6 +75,16 @@ const validating = ref(false);
 const saving = ref(false);
 const acting = ref(false);
 
+/**
+ * Leichtgewichtiger "ungespeichert"-Hinweis (Plan §22) -- vergleicht den
+ * aktuellen Stand gegen den zuletzt erfolgreich gespeicherten Schnappschuss,
+ * kein neuer Speicher-/Autosave-Mechanismus.
+ */
+const lastSavedSnapshot = ref(JSON.stringify(props.fields));
+const hasUnsavedChanges = computed(
+    () => JSON.stringify(fields.value) !== lastSavedSnapshot.value,
+);
+
 function listModel(key: 'tools' | 'requires' | 'glossary_terms') {
     return {
         get(): string {
@@ -116,12 +126,16 @@ async function runValidation() {
 
 function saveDraft() {
     saving.value = true;
+    const snapshotAtSaveTime = JSON.stringify(fields.value);
     router.post(update.url({ lesson: props.lesson.lesson_id }), fields.value, {
         preserveScroll: true,
         onFinish: () => {
             saving.value = false;
         },
-        onSuccess: () => runValidation(),
+        onSuccess: () => {
+            lastSavedSnapshot.value = snapshotAtSaveTime;
+            runValidation();
+        },
     });
 }
 
@@ -163,7 +177,7 @@ const statusLabels: Record<string, string> = {
         :title="trans('Lektion bearbeiten: :title', { title: lesson.title })"
     />
 
-    <PageContainer>
+    <PageContainer wide>
         <Breadcrumbs
             class="mb-6"
             :breadcrumbs="[
@@ -180,6 +194,13 @@ const statusLabels: Record<string, string> = {
                 }}
             </h1>
             <div class="flex items-center gap-2">
+                <span class="text-muted-foreground text-xs">
+                    {{
+                        hasUnsavedChanges
+                            ? trans('Ungespeicherte Änderungen')
+                            : trans('Gespeichert')
+                    }}
+                </span>
                 <Link
                     :href="showLessonElements(lesson.lesson_id)"
                     class="text-muted-foreground text-sm underline-offset-4 hover:underline"
@@ -425,27 +446,22 @@ const statusLabels: Record<string, string> = {
             </CardContent>
         </Card>
 
-        <Card class="mt-4">
-            <CardHeader>
-                <CardTitle class="text-base">{{
-                    trans('Lektionstext')
-                }}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <RichContentEditor
-                    v-model="fields.rich_content"
-                    :glossary-terms="catalog.glossary"
-                    class="border-input bg-background min-h-40 w-full rounded-md border p-3 text-sm shadow-xs"
-                />
-                <p class="text-muted-foreground mt-2 text-xs">
-                    {{
-                        trans(
-                            'Der Quiz-Abschnitt am Ende der Lektion wird hier nicht angezeigt -- er bleibt beim Speichern unangetastet und wird im Quiz-Editor bearbeitet. Ein Verweis auf die naechste Lektion ("Als Naechstes: ...") gehoert dagegen hierher, ganz am Ende.',
-                        )
-                    }}
-                </p>
-            </CardContent>
-        </Card>
+        <div class="mt-4">
+            <h2 class="mb-3 text-base font-semibold">
+                {{ trans('Lektionstext') }}
+            </h2>
+            <RichContentWorkbench
+                v-model="fields.rich_content"
+                :glossary-terms="catalog.glossary"
+            />
+            <p class="text-muted-foreground mt-2 text-xs">
+                {{
+                    trans(
+                        'Der Quiz-Abschnitt am Ende der Lektion wird hier nicht angezeigt -- er bleibt beim Speichern unangetastet und wird im Quiz-Editor bearbeitet. Ein Verweis auf die naechste Lektion ("Als Naechstes: ...") gehoert dagegen hierher, ganz am Ende.',
+                    )
+                }}
+            </p>
+        </div>
 
         <div class="mt-8 flex flex-wrap items-center gap-3 border-t pt-6">
             <Button
