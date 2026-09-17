@@ -198,11 +198,20 @@ Route::prefix('de')->group(function () {
 
         // Eigenstaendige Lab-Route (CMS-8a, Abschnitt H) -- innerhalb einer
         // Lesson zeigt lesson_elements nur eine Launch-/Status-Karte, das
-        // eigentliche Lab-Erlebnis lebt hier. Noch ohne Terminal/Exec-
-        // Endpunkte (CMS-8b/8d). Ansehen und Beginnen sind bewusst getrennt
-        // (Betreiber-Review vor #128, siehe LabController-Klassendoc).
+        // eigentliche Lab-Erlebnis lebt hier. Ansehen und Beginnen sind
+        // bewusst getrennt (Betreiber-Review vor #128, siehe
+        // LabController-Klassendoc). Runtime/exec (CMS-8d) bekommen
+        // dieselbe throttle:30,1-Gruppe wie sandbox/{sandboxId} (Abschnitt
+        // C, gleiche Container-Attach-Kosten) -- KEINE Route nimmt eine
+        // sandbox_id vom Client, jeder Endpunkt loest immer den eigenen
+        // Attempt des Nutzers auf.
         Route::get('labs/{lab}', [LabController::class, 'show'])->name('labs.show');
         Route::post('labs/{lab}/start', [LabController::class, 'start'])->name('labs.start');
+        Route::prefix('labs/{lab}')->name('labs.')->middleware('throttle:30,1')->group(function () {
+            Route::get('runtime', [LabController::class, 'runtimeState'])->name('runtime.state');
+            Route::post('exec', [LabController::class, 'exec'])->name('exec');
+            Route::delete('runtime', [LabController::class, 'destroyRuntime'])->name('runtime.destroy');
+        });
     });
 
     require __DIR__.'/settings.php';

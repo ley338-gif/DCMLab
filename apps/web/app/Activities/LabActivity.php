@@ -4,6 +4,7 @@ namespace App\Activities;
 
 use App\Content\ContentIssue;
 use App\Content\ContentRepository;
+use App\Content\LabAssertionEvaluator;
 use App\Content\RichContent\RichContentValidator;
 use App\Models\Activity;
 use App\Models\Lab;
@@ -181,6 +182,20 @@ final readonly class LabActivity implements ActivityContract
         } else {
             foreach ($assertions as $index => $assertion) {
                 array_push($issues, ...$this->checkAssertion($file, $index, $assertion));
+            }
+
+            // CMS-8d, Betreiber-Review: zwei Assertions mit identischem
+            // type+prefix sind ein Autorenfehler (zwei Checklisten-Zeilen
+            // fuer fachlich dasselbe Kriterium) -- derselbe Identifier, den
+            // LabAssertionEvaluator zur Laufzeit fuer assertions_passed
+            // verwendet.
+            $identifiers = array_map(
+                fn (mixed $assertion): string => LabAssertionEvaluator::identifierFor(is_array($assertion) ? $assertion : []),
+                $assertions,
+            );
+
+            if (count($identifiers) !== count(array_unique($identifiers))) {
+                $issues[] = new ContentIssue($file, null, 'assertions: doppelte Erfolgskriterien (gleicher type+prefix) sind nicht erlaubt');
             }
         }
 
