@@ -140,49 +140,63 @@ class ContentSync extends Command
             $order = $lesson['meta']['order'] ?? 0;
             $sourceHash = hash('sha256', $lesson['meta_raw'].$lesson['md_raw']);
 
-            Lesson::updateOrCreate(
-                ['lesson_id' => $id],
-                [
-                    'track_id' => $trackIds[$trackSlug],
-                    'order' => $order,
-                    'level' => $lesson['meta']['level'] ?? 'einsteiger',
-                    'duration_minutes' => $lesson['meta']['duration_minutes'] ?? 0,
-                    'objectives_count' => $lesson['meta']['objectives_count'] ?? 0,
-                    'requires' => $lesson['meta']['requires'] ?? [],
-                    'tools' => $lesson['meta']['tools'] ?? [],
-                    'sandbox' => $lesson['meta']['sandbox'] ?? null,
-                    'related_node' => $lesson['meta']['related_node'] ?? null,
-                    'glossary_terms' => $lesson['meta']['glossary_terms'] ?? [],
-                    'tools_checked' => $lesson['meta']['tools_checked'] ?? null,
-                    'status' => $status,
-                    'legacy_authors' => $legacyAuthors,
-                    'content_updated_at' => $lesson['meta']['updated'] ?? null,
-                    'title' => $title,
-                    'teaser' => $teaser,
-                    // ADR 0101 (CMS-5a): dieselbe Datei, die frontmatter fuer
-                    // title/teaser liefert, hat auch body/objectives -- kein
-                    // zusaetzlicher Lesevorgang, nur zwei weitere Spalten.
-                    'body' => $lesson['body'] ?? null,
-                    'objectives' => $lesson['frontmatter']['objectives'] ?? [],
-                    // ADR 0104 (CMS-6a): dieselbe Datei wie objectives/body,
-                    // nur der quiz:-Block aus meta.yml statt der Frontmatter.
-                    'quiz' => $lesson['meta']['quiz'] ?? [],
-                    'source_hash' => $sourceHash,
-                ],
-            );
+            // Studio-Lessons-Umbau (Source-of-Truth-Cutover): track_id/order
+            // werden nur beim ALLERERSTEN Sync einer Lesson aus der Datei
+            // gesetzt. Sobald die Zeile existiert, ist Studio/DB fuer diese
+            // beiden Felder authoritativ (StudioTrackController::
+            // moveLesson()/reorderLessons()) -- ein erneuter content:sync
+            // darf eine dort vorgenommene Verschiebung/Umsortierung nicht
+            // stillschweigend rueckgaengig machen. Dieselbe Schutzidee wie
+            // Track::title/teaser (syncTracks() oben laesst diese Felder
+            // grundsaetzlich unangetastet), hier nur nachtraeglich statt von
+            // Anfang an, weil track_id/order anders als title/teaser beim
+            // ersten Sync ueberhaupt erst einen Wert bekommen muessen -- es
+            // gibt (noch) keinen rein-Studio-seitigen Lesson-Anlageweg.
+            $existingLesson = Lesson::query()->where('lesson_id', $id)->first();
 
-            Activity::updateOrCreate(
-                ['type' => 'lesson', 'key' => $id],
-                [
-                    'track_id' => $trackIds[$trackSlug],
-                    'order' => $order,
-                    'status' => $status,
-                    'legacy_authors' => $legacyAuthors,
-                    'title' => $title,
-                    'teaser' => $teaser,
-                    'source_hash' => $sourceHash,
-                ],
-            );
+            $lessonAttributes = [
+                'level' => $lesson['meta']['level'] ?? 'einsteiger',
+                'duration_minutes' => $lesson['meta']['duration_minutes'] ?? 0,
+                'objectives_count' => $lesson['meta']['objectives_count'] ?? 0,
+                'requires' => $lesson['meta']['requires'] ?? [],
+                'tools' => $lesson['meta']['tools'] ?? [],
+                'sandbox' => $lesson['meta']['sandbox'] ?? null,
+                'related_node' => $lesson['meta']['related_node'] ?? null,
+                'glossary_terms' => $lesson['meta']['glossary_terms'] ?? [],
+                'tools_checked' => $lesson['meta']['tools_checked'] ?? null,
+                'status' => $status,
+                'legacy_authors' => $legacyAuthors,
+                'content_updated_at' => $lesson['meta']['updated'] ?? null,
+                'title' => $title,
+                'teaser' => $teaser,
+                // ADR 0101 (CMS-5a): dieselbe Datei, die frontmatter fuer
+                // title/teaser liefert, hat auch body/objectives -- kein
+                // zusaetzlicher Lesevorgang, nur zwei weitere Spalten.
+                'body' => $lesson['body'] ?? null,
+                'objectives' => $lesson['frontmatter']['objectives'] ?? [],
+                // ADR 0104 (CMS-6a): dieselbe Datei wie objectives/body,
+                // nur der quiz:-Block aus meta.yml statt der Frontmatter.
+                'quiz' => $lesson['meta']['quiz'] ?? [],
+                'source_hash' => $sourceHash,
+            ];
+
+            $activityAttributes = [
+                'status' => $status,
+                'legacy_authors' => $legacyAuthors,
+                'title' => $title,
+                'teaser' => $teaser,
+                'source_hash' => $sourceHash,
+            ];
+
+            if ($existingLesson === null) {
+                $lessonAttributes['track_id'] = $trackIds[$trackSlug];
+                $lessonAttributes['order'] = $order;
+                $activityAttributes['track_id'] = $trackIds[$trackSlug];
+                $activityAttributes['order'] = $order;
+            }
+
+            Lesson::updateOrCreate(['lesson_id' => $id], $lessonAttributes);
+            Activity::updateOrCreate(['type' => 'lesson', 'key' => $id], $activityAttributes);
 
             // ADR 0096 (CMS-2b): eine Spielwiese bekommt nur dann einen
             // eigenen activities-Verzeichniseintrag, wenn die Lektion

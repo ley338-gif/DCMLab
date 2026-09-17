@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
 import { index as studioIndex } from '@/routes/studio';
-import { attachLab, reorder } from '@/routes/studio/lessons';
+import { edit, index as studioLessonsIndex } from '@/routes/studio/lessons';
+import { attachLab, reorder } from '@/routes/studio/lessons/elements';
 
 type ElementRow = {
     id: number;
@@ -110,7 +111,8 @@ function onDrop(targetIndex: number) {
             class="mb-6"
             :breadcrumbs="[
                 { title: trans('Studio'), href: studioIndex() },
-                { title: lesson.title, href: '' },
+                { title: trans('Lessons'), href: studioLessonsIndex() },
+                { title: lesson.title, href: edit(lesson.lesson_id) },
             ]"
         />
 

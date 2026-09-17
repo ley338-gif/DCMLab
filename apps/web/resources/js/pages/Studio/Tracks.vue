@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,9 @@ import { trans } from '@/lib/trans';
 import { index as studioIndex } from '@/routes/studio';
 import {
     archive as archiveTrack,
+    moveLesson,
     publish as publishTrack,
+    reorderLessons,
     restore as restoreTrack,
     store as storeTrack,
     unpublish as unpublishTrack,
@@ -21,6 +23,8 @@ import {
 
 type Status = 'draft' | 'published' | 'archived';
 type Level = 'einsteiger' | 'aufbau' | 'fortgeschritten';
+
+type TrackLessonRow = { lesson_id: string; title: string; order: number };
 
 type TrackRow = {
     slug: string;
@@ -32,12 +36,19 @@ type TrackRow = {
     status: Status;
     themenfeld_id: number;
     lessons_count: number;
+    lessons: TrackLessonRow[];
 };
 
 type Themenfeld = { id: number; slug: string };
+type AllLessonRow = {
+    lesson_id: string;
+    title: string;
+    track_slug: string | null;
+};
 
 const props = defineProps<{
     tracks: TrackRow[];
+    all_lessons: AllLessonRow[];
     themenfelder: Themenfeld[];
     can_manage: boolean;
 }>();
@@ -145,6 +156,95 @@ function transition(
         { preserveScroll: true },
     );
 }
+
+// Lektionen dieser Track (Studio-Lessons-Umbau): nur eine Track gleichzeitig
+// offen, analog zu `editing` oben -- lokale Kopie der Reihenfolge fuer das
+// Drag & Drop, derselbe Aufbau wie in Studio/Lessons/Elements.vue fuer
+// lesson_elements, hier eine Ebene hoeher (Lesson statt Element).
+const managingLessons = ref<string | null>(null);
+const lessonOrder = ref<TrackLessonRow[]>([]);
+const draggedLessonIndex = ref<number | null>(null);
+const moveTargetLessonId = ref('');
+
+function toggleLessonManagement(track: TrackRow) {
+    if (managingLessons.value === track.slug) {
+        managingLessons.value = null;
+        return;
+    }
+
+    managingLessons.value = track.slug;
+    lessonOrder.value = [...track.lessons].sort((a, b) => a.order - b.order);
+    moveTargetLessonId.value = '';
+}
+
+function lessonsAvailableToMove(track: TrackRow) {
+    return props.all_lessons.filter(
+        (lesson) => lesson.track_slug !== track.slug,
+    );
+}
+
+function onLessonDragStart(index: number) {
+    draggedLessonIndex.value = index;
+}
+
+function onLessonDrop(track: TrackRow, targetIndex: number) {
+    const fromIndex = draggedLessonIndex.value;
+    draggedLessonIndex.value = null;
+
+    if (fromIndex === null || fromIndex === targetIndex) {
+        return;
+    }
+
+    const reordered = [...lessonOrder.value];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+    lessonOrder.value = reordered;
+
+    router.patch(
+        reorderLessons.url({ track: track.slug }),
+        { order: reordered.map((lesson) => lesson.lesson_id) },
+        { preserveScroll: true, preserveState: true },
+    );
+}
+
+function moveLessonHere(track: TrackRow) {
+    if (moveTargetLessonId.value === '') {
+        return;
+    }
+
+    router.post(
+        moveLesson.url({ track: track.slug }),
+        { lesson_id: moveTargetLessonId.value },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                moveTargetLessonId.value = '';
+            },
+        },
+    );
+}
+
+// `lessonOrder` ist eine lokale Kopie (s.o.), keine berechnete Ansicht auf
+// `props.tracks` -- ohne diesen Watcher wuerde eine gerade verschobene
+// Lektion zwar serverseitig sofort in ihrer neuen Track stehen, aber erst
+// nach einem manuellen Reload in diesem Panel auftauchen (derselbe Grund
+// wie der Watcher in Studio/Lessons/Elements.vue fuer `items`).
+watch(
+    () => props.tracks,
+    (tracks) => {
+        if (managingLessons.value === null) {
+            return;
+        }
+
+        const track = tracks.find((t) => t.slug === managingLessons.value);
+
+        if (track) {
+            lessonOrder.value = [...track.lessons].sort(
+                (a, b) => a.order - b.order,
+            );
+        }
+    },
+);
 </script>
 
 <template>
@@ -277,6 +377,17 @@ function transition(
                                 }}
                             </Button>
                             <Button
+                                variant="outline"
+                                size="sm"
+                                @click="toggleLessonManagement(track)"
+                            >
+                                {{
+                                    managingLessons === track.slug
+                                        ? trans('Schließen')
+                                        : trans('Lektionen verwalten')
+                                }}
+                            </Button>
+                            <Button
                                 v-if="track.status === 'draft'"
                                 size="sm"
                                 @click="transition(track, 'publish')"
@@ -378,6 +489,78 @@ function transition(
                     <p class="text-muted-foreground text-sm">
                         {{ track.teaser }}
                     </p>
+                </CardContent>
+
+                <CardContent v-if="managingLessons === track.slug">
+                    <p class="text-muted-foreground mb-3 text-sm">
+                        {{
+                            trans(
+                                'Ziehe die Lektionen, um ihre Reihenfolge innerhalb dieser Track zu ändern.',
+                            )
+                        }}
+                    </p>
+                    <div class="mb-4 flex flex-col gap-2">
+                        <Card
+                            v-for="(lesson, index) in lessonOrder"
+                            :key="lesson.lesson_id"
+                            draggable="true"
+                            class="cursor-grab"
+                            @dragstart="onLessonDragStart(index)"
+                            @dragover.prevent
+                            @drop="onLessonDrop(track, index)"
+                        >
+                            <CardHeader
+                                class="flex flex-row items-center gap-3 py-3"
+                            >
+                                <Badge variant="outline">{{ index + 1 }}</Badge>
+                                <CardTitle class="flex-1 text-sm">{{
+                                    lesson.title
+                                }}</CardTitle>
+                                <span class="text-muted-foreground text-xs">{{
+                                    lesson.lesson_id
+                                }}</span>
+                            </CardHeader>
+                        </Card>
+                        <p
+                            v-if="lessonOrder.length === 0"
+                            class="text-muted-foreground text-sm"
+                        >
+                            {{ trans('Noch keine Lektionen in dieser Track.') }}
+                        </p>
+                    </div>
+
+                    <div
+                        class="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-end"
+                    >
+                        <div class="flex-1 space-y-1.5">
+                            <Label>{{
+                                trans('Lektion hierher verschieben')
+                            }}</Label>
+                            <select
+                                v-model="moveTargetLessonId"
+                                class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs"
+                            >
+                                <option value="">
+                                    {{ trans('-- Lektion auswählen --') }}
+                                </option>
+                                <option
+                                    v-for="lesson in lessonsAvailableToMove(
+                                        track,
+                                    )"
+                                    :key="lesson.lesson_id"
+                                    :value="lesson.lesson_id"
+                                >
+                                    {{ lesson.title }} ({{ lesson.lesson_id }})
+                                </option>
+                            </select>
+                        </div>
+                        <Button
+                            :disabled="moveTargetLessonId === ''"
+                            @click="moveLessonHere(track)"
+                        >
+                            {{ trans('Verschieben') }}
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
         </div>

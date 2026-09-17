@@ -132,6 +132,87 @@ class ContentSyncTest extends TestCase
         $this->assertSame($countAfterFirstRun, $countAfterSecondRun);
     }
 
+    /**
+     * Studio-Lessons-Umbau (Source-of-Truth-Cutover): track_id/order werden
+     * nur beim ALLERERSTEN Sync einer Lesson aus der Datei gesetzt. Sobald
+     * die Zeile existiert, ist Studio/DB fuer diese beiden Felder
+     * authoritativ -- ein erneuter content:sync (z. B. weil sich sonst
+     * etwas an der Lektion geaendert hat) darf eine per Studio
+     * vorgenommene Verschiebung/Umsortierung nicht stillschweigend
+     * rueckgaengig machen.
+     */
+    public function test_a_second_sync_does_not_revert_a_studio_reassigned_lesson(): void
+    {
+        $dir = storage_path('framework/testing/sync-'.uniqid());
+
+        File::ensureDirectoryExists($dir.'/lessons/1.0');
+        File::put($dir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: t\n  status: published\n");
+        File::put($dir.'/tracks.yml', "- slug: fundamente\n  themenfeld: dicom\n  order: 1\n  title_key: t\n  level: einsteiger\n  hours: 1\n  status: published\n- slug: services\n  themenfeld: dicom\n  order: 2\n  title_key: t2\n  level: einsteiger\n  hours: 1\n  status: published\n");
+        File::put($dir.'/lessons/1.0/meta.yml', "id: \"1.0\"\ntrack: fundamente\norder: 0\nduration_minutes: 5\nlevel: einsteiger\nobjectives_count: 1\nrequires: []\ntools: []\nglossary_terms: []\nstatus: draft\n");
+        File::put($dir.'/lessons/1.0/de.md', "---\ntitle: Test\nteaser: Test\nobjectives:\n  - Eins\n---\n\nText.\n");
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $fundamente = Track::where('slug', 'fundamente')->firstOrFail();
+        $services = Track::where('slug', 'services')->firstOrFail();
+        $lesson = Lesson::where('lesson_id', '1.0')->firstOrFail();
+        $this->assertSame($fundamente->id, $lesson->track_id);
+        $this->assertSame(0, $lesson->order);
+
+        // Simuliert eine echte Studio-Verschiebung
+        // (StudioTrackController::moveLesson()), ohne den HTTP-Layer hier
+        // erneut zu testen -- die eigentliche Verschiebungslogik hat ihre
+        // eigenen Tests in StudioTrackControllerTest.
+        $lesson->update(['track_id' => $services->id, 'order' => 5]);
+        Activity::query()->where('type', 'lesson')->where('key', '1.0')->update(['track_id' => $services->id, 'order' => 5]);
+
+        Artisan::call('content:sync');
+
+        $lesson->refresh();
+        $this->assertSame($services->id, $lesson->track_id, 'track_id darf durch einen erneuten Sync nicht zurueckgesetzt werden.');
+        $this->assertSame(5, $lesson->order, 'order darf durch einen erneuten Sync nicht zurueckgesetzt werden.');
+
+        $activity = Activity::query()->where('type', 'lesson')->where('key', '1.0')->firstOrFail();
+        $this->assertSame($services->id, $activity->track_id);
+        $this->assertSame(5, $activity->order);
+
+        // Alle anderen, weiterhin datei-gefuehrten Felder werden trotzdem
+        // ganz normal weiter synchronisiert.
+        $this->assertSame('draft', $lesson->status);
+
+        File::deleteDirectory($dir);
+    }
+
+    /**
+     * Gegenprobe zum Cutover-Test oben: eine Lektion, die zum ERSTEN Mal
+     * synchronisiert wird, bekommt track_id/order weiterhin ganz normal aus
+     * der Datei -- der Cutover blockiert nur das UEBERSCHREIBEN einer
+     * bereits existierenden Zeile, nicht die Erstbefuellung.
+     */
+    public function test_a_brand_new_lesson_still_gets_seeded_from_the_file(): void
+    {
+        $dir = storage_path('framework/testing/sync-'.uniqid());
+
+        File::ensureDirectoryExists($dir.'/lessons/1.0');
+        File::put($dir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: t\n  status: published\n");
+        File::put($dir.'/tracks.yml', "- slug: fundamente\n  themenfeld: dicom\n  order: 1\n  title_key: t\n  level: einsteiger\n  hours: 1\n  status: published\n");
+        File::put($dir.'/lessons/1.0/meta.yml', "id: \"1.0\"\ntrack: fundamente\norder: 3\nduration_minutes: 5\nlevel: einsteiger\nobjectives_count: 1\nrequires: []\ntools: []\nglossary_terms: []\nstatus: draft\n");
+        File::put($dir.'/lessons/1.0/de.md', "---\ntitle: Test\nteaser: Test\nobjectives:\n  - Eins\n---\n\nText.\n");
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $fundamente = Track::where('slug', 'fundamente')->firstOrFail();
+        $lesson = Lesson::where('lesson_id', '1.0')->firstOrFail();
+        $this->assertSame($fundamente->id, $lesson->track_id);
+        $this->assertSame(3, $lesson->order);
+
+        File::deleteDirectory($dir);
+    }
+
     public function test_it_skips_lessons_with_unknown_track_and_warns(): void
     {
         $dir = storage_path('framework/testing/sync-'.uniqid());

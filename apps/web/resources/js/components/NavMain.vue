@@ -11,16 +11,24 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { trans } from '@/lib/trans';
 import type { NavItem } from '@/types';
 
-defineProps<{
-    items: NavItem[];
-}>();
+const props = withDefaults(
+    defineProps<{
+        items: NavItem[];
+        label?: string;
+    }>(),
+    {
+        label: undefined,
+    },
+);
 
 const { isCurrentUrl } = useCurrentUrl();
 </script>
 
 <template>
     <SidebarGroup class="px-2 py-0">
-        <SidebarGroupLabel>{{ trans('Platform') }}</SidebarGroupLabel>
+        <SidebarGroupLabel>{{
+            props.label ?? trans('Platform')
+        }}</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem v-for="item in items" :key="item.title">
                 <SidebarMenuButton
