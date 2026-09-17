@@ -27,6 +27,7 @@ import { index as authorPanelIndex } from '@/routes/author';
 import { index as glossaryIndex } from '@/routes/glossary';
 import { index as nodesIndex } from '@/routes/nodes';
 import { index as studioIndex } from '@/routes/studio';
+import { index as tracksIndex } from '@/routes/tracks';
 import type { NavItem } from '@/types';
 
 const page = usePage();
@@ -36,7 +37,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     const items: NavItem[] = [
         {
             title: trans('Tracks'),
-            href: home(),
+            href: tracksIndex(),
             icon: GraduationCap,
         },
         {

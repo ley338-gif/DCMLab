@@ -61,7 +61,7 @@ class TrackControllerTest extends TestCase
         Track::factory()->create(['slug' => 'services', 'themenfeld_id' => $dicom->id, 'order' => 2, 'status' => 'published']);
         Track::factory()->create(['slug' => 'fundamente', 'themenfeld_id' => $dicom->id, 'order' => 1, 'status' => 'published']);
 
-        $this->get('/de')
+        $this->get('/de/tracks')
             ->assertInertia(fn ($page) => $page
                 ->component('Tracks/Index')
                 ->where('tracks.0.slug', 'fundamente')
@@ -85,7 +85,7 @@ class TrackControllerTest extends TestCase
             'title' => ['de' => 'Fundamente der DICOM-Kommunikation'],
         ]);
 
-        $this->get('/de')
+        $this->get('/de/tracks')
             ->assertInertia(fn ($page) => $page->where('tracks.0.title.de', 'Fundamente der DICOM-Kommunikation'));
 
         $this->get("/de/tracks/{$track->slug}")
@@ -102,7 +102,7 @@ class TrackControllerTest extends TestCase
         Track::factory()->create(['slug' => 'archiviert', 'status' => 'archived']);
         Track::factory()->create(['slug' => 'fundamente', 'status' => 'published']);
 
-        $this->get('/de')
+        $this->get('/de/tracks')
             ->assertInertia(fn ($page) => $page
                 ->has('tracks', 1)
                 ->where('tracks.0.slug', 'fundamente'));

@@ -24,6 +24,9 @@ const baseProps = {
     tracks: [],
     recent_lessons: [],
     due_reviews_count: 0,
+    continue_learning: null,
+    labs: [],
+    recommended: null,
 };
 
 function achievement(overrides: Partial<Achievement>): Achievement {
@@ -50,7 +53,9 @@ describe('Dashboard achievements section', () => {
     it('shows a placeholder when there are no achievements at all', () => {
         const wrapper = mountDashboard([]);
 
-        expect(wrapper.text()).toContain('Noch keine Achievements verfügbar.');
+        expect(wrapper.text()).toContain(
+            'Dein erstes Achievement wartet schon.',
+        );
         expect(wrapper.findAllComponents(AchievementBadge)).toHaveLength(0);
     });
 

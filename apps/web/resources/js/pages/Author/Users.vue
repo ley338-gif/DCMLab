@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { trans } from '@/lib/trans';
-import { home } from '@/routes';
+import { index as tracksIndex } from '@/routes/tracks';
 import { index as authorIndex } from '@/routes/author';
 import { update as updateUser } from '@/routes/author/users';
 import {
@@ -110,7 +110,7 @@ const sortedUsers = computed(() =>
         <Breadcrumbs
             class="mb-6"
             :breadcrumbs="[
-                { title: trans('Tracks'), href: home() },
+                { title: trans('Tracks'), href: tracksIndex() },
                 { title: trans('Autoren-Panel'), href: authorIndex() },
                 { title: trans('Nutzerverwaltung'), href: '' },
             ]"

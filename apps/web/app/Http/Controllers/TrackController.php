@@ -12,8 +12,11 @@ use Inertia\Response;
 class TrackController extends Controller
 {
     /**
-     * Zeigt die Trackuebersicht -- die Startseite fuer angemeldete wie
-     * unangemeldete Besucher (Abschnitt 10, P2).
+     * Zeigt die vollstaendige Trackuebersicht unter /de/tracks, oeffentlich
+     * fuer angemeldete wie unangemeldete Besucher (Abschnitt 10, P2).
+     * Homebase-Umbau: vorher lief das unter "/" (Name "home"), das zeigt
+     * jetzt HomeController -- diese Methode/Query ist unveraendert, nur die
+     * Route zieht um.
      */
     public function index(): Response
     {

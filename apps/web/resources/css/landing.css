@@ -1,0 +1,56 @@
+/* Oeffentliche Landingpage (Homebase-Umbau): einzige Stelle mit einem
+   eigenen "Marken"-Ton (Navy) -- nutzt ansonsten ausschliesslich
+   vorhandene Tokens aus app.css (--chart-2/--lesson-accent als Teal-Akzent,
+   --card, --border, ...), keine neuen Hex-Werte ausserhalb dieser beiden
+   Navy-Variablen. */
+
+:root {
+    --landing-navy: hsl(215 45% 14%);
+    --landing-navy-foreground: hsl(0 0% 98%);
+}
+
+.dark {
+    /* Im Dark Mode ist die App-Flaeche bereits dunkel -- der Hero braucht
+       keinen eigenen Navy-Ton mehr, sondern nur eine dezent abgesetzte
+       Kartenflaeche mit demselben Teal-Akzent. */
+    --landing-navy: var(--card);
+    --landing-navy-foreground: var(--foreground);
+}
+
+.landing-hero {
+    background: var(--landing-navy);
+    color: var(--landing-navy-foreground);
+    border-bottom: 1px solid var(--border);
+}
+
+.dark .landing-hero {
+    border-bottom: 1px solid var(--border);
+}
+
+.landing-hero-feature {
+    border: 1px solid
+        color-mix(in srgb, var(--landing-navy-foreground) 16%, transparent);
+    background: color-mix(
+        in srgb,
+        var(--landing-navy-foreground) 6%,
+        transparent
+    );
+}
+
+/* Farbe kommt aus der Tailwind-Utility text-chart-2 (registriert unter
+   --color-chart-2 in app.css) direkt am <component>/<svg> -- hier nur noch
+   Rahmen/Flaeche der Box selbst. */
+
+.landing-model-step {
+    border: 1px solid var(--border);
+    background: var(--card);
+}
+
+.landing-model-arrow {
+    color: var(--muted-foreground);
+}
+
+.landing-cta-band {
+    background: var(--landing-navy);
+    color: var(--landing-navy-foreground);
+}

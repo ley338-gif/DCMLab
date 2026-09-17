@@ -12,10 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
-import { home } from '@/routes';
 import { edit, store, validate } from '@/routes/author/exams/edit';
 import { publish, submit } from '@/routes/author/quiz-versions';
-import { show as showTrack } from '@/routes/tracks';
+import { index as tracksIndex, show as showTrack } from '@/routes/tracks';
 
 type ReviewTarget = { lesson: string; anchor: string };
 
@@ -299,7 +298,7 @@ function updateMultiAnswer(value: string) {
         <Breadcrumbs
             class="mb-6"
             :breadcrumbs="[
-                { title: trans('Tracks'), href: home() },
+                { title: trans('Tracks'), href: tracksIndex() },
                 { title: track.slug, href: showTrack(track.slug) },
                 { title: trans('Prüfung bearbeiten'), href: edit(track.slug) },
             ]"

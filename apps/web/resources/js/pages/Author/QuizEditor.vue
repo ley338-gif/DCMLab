@@ -21,7 +21,7 @@ import { trans } from '@/lib/trans';
 import { edit, store, validate } from '@/routes/author/lessons/quiz';
 import { publish, submit } from '@/routes/author/quiz-versions';
 import { show as showLesson } from '@/routes/lessons';
-import { home } from '@/routes';
+import { index as tracksIndex } from '@/routes/tracks';
 
 type QuestionType = 'single' | 'multi' | 'input';
 
@@ -181,7 +181,7 @@ const statusLabels: Record<string, string> = {
         <Breadcrumbs
             class="mb-6"
             :breadcrumbs="[
-                { title: trans('Tracks'), href: home() },
+                { title: trans('Tracks'), href: tracksIndex() },
                 {
                     title: lesson.title,
                     href: showLesson(lesson.lesson_id),

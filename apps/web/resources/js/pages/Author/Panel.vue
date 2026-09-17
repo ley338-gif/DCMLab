@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { trans } from '@/lib/trans';
-import { home } from '@/routes';
+import { index as tracksIndex } from '@/routes/tracks';
 import { edit as editAchievement } from '@/routes/author/achievements/edit';
 import { index as reviewQueueIndex } from '@/routes/author/review-queue';
 import { index as usersIndex } from '@/routes/author/users';
@@ -61,7 +61,7 @@ function goToNewAchievement() {
         <Breadcrumbs
             class="mb-6"
             :breadcrumbs="[
-                { title: trans('Tracks'), href: home() },
+                { title: trans('Tracks'), href: tracksIndex() },
                 { title: trans('Autoren-Panel'), href: '' },
             ]"
         />

@@ -9,9 +9,8 @@ import {
 } from '@lucide/vue';
 import { computed } from 'vue';
 import { trans } from '@/lib/trans';
-import { home } from '@/routes';
 import { show as showLesson } from '@/routes/lessons';
-import { show as showTrack } from '@/routes/tracks';
+import { index as tracksIndex, show as showTrack } from '@/routes/tracks';
 
 const props = defineProps<{
     track: { slug: string; title_key: string };
@@ -42,7 +41,7 @@ const levelLabels: Record<string, string> = {
             class="lesson-breadcrumb"
             :aria-label="trans('Brotkrumen-Navigation')"
         >
-            <Link :href="home()">{{ trans('Tracks') }}</Link>
+            <Link :href="tracksIndex()">{{ trans('Tracks') }}</Link>
             <ChevronRight class="size-3.5" aria-hidden="true" />
             <Link :href="showTrack(track.slug)">{{
                 trans(track.title_key)
