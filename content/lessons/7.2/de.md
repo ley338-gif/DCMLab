@@ -35,15 +35,19 @@ Die ersten drei Zeichen sagen, welche Art Information folgt:
 
 ## `|`, `^`, `~`, `\`, `&`
 
-HL7 v2 benutzt fünf Trennzeichen, die die Header-Zeile selbst mitliefert (`MSH-2`, hier `^~\&`):
+`MSH-1` definiert den Feldtrenner `|`. `MSH-2` enthält in unserem HL7-v2.5-Beispiel die vier Encoding Characters `^~\&`: Component, Repetition, Escape und Subcomponent.
 
-- `|` — **Feld**: trennt die Felder innerhalb eines Segments
-- `^` — **Komponente**: trennt Bestandteile innerhalb eines Feldes
-- `~` — **Wiederholung**: trennt mehrere Wiederholungen desselben Feldes
-- `&` — **Subkomponente**: trennt Bestandteile innerhalb einer Komponente
-- `\` — **Escape**: leitet ein Escape-Zeichen ein, z. B. um einen der obigen Trenner als reinen Text darzustellen
+Insgesamt benutzt HL7 v2 damit fünf Trennzeichen:
+
+- `|` — **Feld** (MSH-1, Field Separator): trennt die Felder innerhalb eines Segments
+- `^` — **Komponente** (Component Separator): trennt Bestandteile innerhalb eines Feldes
+- `~` — **Wiederholung** (Repetition Separator): trennt mehrere Wiederholungen desselben Feldes
+- `\` — **Escape** (Escape Character): leitet ein Escape-Zeichen ein, z. B. um einen der obigen Trenner als reinen Text darzustellen
+- `&` — **Subkomponente** (Subcomponent Separator): trennt Bestandteile innerhalb einer Komponente
 
 Für den Einstieg brauchst du vor allem `|` und `^` sicher. `~` und `&` begegnen dir seltener, `\` fast nur beim Escaping von Sonderzeichen — wichtig ist zunächst, alle fünf wiederzuerkennen, nicht sie auswendig zu produzieren.
+
+> Neuere HL7-v2-Versionen können zusätzliche Encoding Characters definieren — für die hier gezeigten v2.5-Beispiele reicht dieses Bild.
 
 Nimm diese Zeile:
 
