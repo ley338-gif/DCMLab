@@ -21,7 +21,7 @@ Für dich ist wichtiger als das Auswendiglernen von Triggernummern:
 
 > Eine ADT-Nachricht sagt einem anderen System, dass sich der administrative Zustand eines Patienten oder Falls geändert hat.
 
-Beispielhaft:
+**Beispiel: ADT^A08 — Update Patient Information.** Eine Stammdatenkorrektur, keine Zusammenführung:
 
 ```text
 MSH|^~\&|KIS|HAUS|RIS|RAD|20260916090000||ADT^A08|ADT88421|P|2.5
@@ -29,7 +29,9 @@ PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA-SOPHIE||19750314|F
 PV1|1|O|RAD^ANMELDUNG
 ```
 
-**Was du daran abliest:** Die Nachricht transportiert Stammdaten und Fallkontext. Ob das empfangende RIS eine Änderung automatisch übernimmt, hängt vom vereinbarten Profil und seiner Konfiguration ab.
+**Was du daran abliest:** Die Nachricht transportiert eine Änderung an bestehenden Stammdaten — hier korrigiert sich der Vorname. Die Patient ID bleibt gleich, es entsteht keine neue Identität. Ob das empfangende RIS eine Änderung automatisch übernimmt, hängt vom vereinbarten Profil und seiner Konfiguration ab.
+
+> Welcher Trigger-Event genau verwendet wird, in welcher HL7-Version und mit welcher lokalen Feldbelegung, ist installationsabhängig. Für den Betrieb zählt die vereinbarte Schnittstellenspezifikation, nicht ein allgemeines Lehrbuchbeispiel.
 
 ## Patient ist nicht Fall ist nicht Untersuchung
 
@@ -69,6 +71,18 @@ DOB:        19750314
 
 Bei einer Patientenzusammenführung reicht es nicht, an einer Stelle die Patient ID zu ersetzen. Systeme müssen nachvollziehen, welche Identität führend ist, welche alte Identität ersetzt wurde und welche bereits erzeugten Untersuchungen betroffen sind.
 
+**Beispiel: ADT^A40 — Merge Patient – Patient Identifier List.** Stark gekürzt:
+
+```text
+MSH|^~\&|KIS|HAUS|RIS|RAD|20260916094500||ADT^A40|ADT88433|P|2.5
+PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA
+MRG|4699^^^KLINIK^MR
+```
+
+**Was du daran abliest:** `PID-3` trägt die weiterhin gültige (überlebende) Patient ID, `MRG-1` die Identität, die aufgelöst wird. Ein empfangendes System muss beide IDs kennen und darf nicht nur die neue speichern, ohne die alte als zusammengeführt zu markieren.
+
+> Auch hier gilt: Genaues Feldlayout, Version und ob ein Haus A40 überhaupt in dieser Form nutzt, richten sich nach dem lokalen Profil der Installation.
+
 Für PACS-Administratoren bedeutet das:
 
 1. Quelle des Merge-Ereignisses identifizieren
@@ -97,10 +111,6 @@ Erst dann entscheidest du, ob der Fehler in der Quelle, im Transport, im Mapping
 - **Nur die aktuelle KIS-Sicht betrachten.** Entscheidend ist, welche Nachricht zum damaligen Zeitpunkt an die nachgelagerten Systeme ging.
 - **Merge und Update verwechseln.** Eine Stammdatenkorrektur und die Zusammenführung zweier Identitäten sind fachlich verschieden.
 - **Issuer/Assigning Authority ignorieren.** Gerade bei mehreren Standorten oder angebundenen Einrichtungen ist das riskant.
-
-## Lab
-
-In „ACK heißt nicht automatisch Erfolg“ siehst du, warum eine Nachricht technisch angekommen sein kann und fachlich trotzdem nicht verarbeitet wurde.
 
 ## Selbstcheck
 

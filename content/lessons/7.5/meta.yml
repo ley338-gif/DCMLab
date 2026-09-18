@@ -4,7 +4,7 @@ order: 2
 duration_minutes: 16
 level: aufbau
 objectives_count: 3
-requires: ["7.2"]
+requires: ["7.4"]
 tools: []
 
 related_node:
@@ -21,4 +21,4 @@ quiz:
     answer: [0, 2, 3]
 status: draft
 authors: ["draft-ai"]
-updated: "2026-09-17"
+updated: "2026-09-18"

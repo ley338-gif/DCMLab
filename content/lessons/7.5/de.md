@@ -32,6 +32,14 @@ HL7-v2-Nachrichten werden häufig über TCP mit MLLP-Rahmung transportiert. MLLP
 
 ## Das ACK lesen
 
+Drei Application-Acknowledgement-Codes stehen in MSA-1:
+
+- `AA` — **Application Accept**: die Nachricht wurde fachlich angenommen
+- `AE` — **Application Error**: bei der Verarbeitung trat ein Fehler auf
+- `AR` — **Application Reject**: die Nachricht wurde grundsätzlich abgelehnt
+
+> Im Enhanced-Mode-Acknowledgement gibt es zusätzlich Commit-ACKs wie `CA`/`CE`/`CR`, die die Übernahme in eine Warteschlange bestätigen, bevor die eigentliche fachliche Verarbeitung überhaupt läuft. Für den Einstieg reicht: Sie sind eine weitere, vorgelagerte Ebene — nicht dein Hauptlernziel hier.
+
 Ein vereinfachtes ACK:
 
 ```text
@@ -39,7 +47,7 @@ MSH|^~\&|RIS|RAD|KIS|HAUS|20260916081600||ACK^O01|ACK7711|P|2.5
 MSA|AA|MSG4711
 ```
 
-**Was du daran abliest:** `AA` in MSA-1 steht für akzeptiert — die Nachricht wurde transportiert und fachlich angenommen.
+**Was du daran abliest:** `AA` in MSA-1 bedeutet, dass die Anwendung die Nachricht laut ACK-Semantik akzeptiert hat. Das ist **kein Beweis, dass der gesamte Workflow damit erfolgreich abgeschlossen ist** — nur dass Transport und fachliche Annahme dieser einen Nachricht funktioniert haben.
 
 Ein Fehlerfall:
 
@@ -50,6 +58,17 @@ ERR|||OBR^4^1|103^Table value not found
 ```
 
 **Was du daran abliest:** In beiden Fällen kam ein ACK zurück. Erst `MSA` und gegebenenfalls `ERR` sagen dir, ob die Nachricht akzeptiert wurde.
+
+## Vier Ebenen, die du nicht verwechseln darfst
+
+```text
+1. Transport funktioniert         (TCP/MLLP-Rahmen kam an)
+2. Empfänger antwortet             (irgendein ACK kam zurück)
+3. Application ACK hat einen Status (AA / AE / AR in MSA-1)
+4. erwarteter fachlicher Zustand    (ggf. zusätzlich im Zielsystem prüfen)
+```
+
+**Was du daran abliest:** Selbst `AA` beantwortet nur Ebene 3. Ob der Auftrag im RIS wirklich mit den richtigen Werten angelegt wurde, ist eine eigene, vierte Prüfung — bei kritischen Vorgängen lohnt sich ein Blick ins Zielsystem, auch wenn das ACK positiv war.
 
 ## Warum Message Control ID so wertvoll ist
 
@@ -122,7 +141,7 @@ Bei jedem HL7-Fehler beantwortest du vier Fragen:
 
 ## Lab
 
-Im Lab erhältst du zwei „erfolgreich versendete“ Nachrichten. Nur eine wurde fachlich akzeptiert. Deine Aufgabe ist, das anhand des ACKs zu erkennen.
+Im Lab bewertest du eine Nachricht anhand ihres ACKs — und danach, was ein zweites ACK nach einer Korrektur tatsächlich beweist und was nicht.
 
 ## Selbstcheck
 

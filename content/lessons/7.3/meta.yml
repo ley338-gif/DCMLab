@@ -8,7 +8,7 @@ requires: ["7.2"]
 tools: []
 
 related_node:
-  node: hl7-ack-trap
+  node: null
   optional: true
 
 glossary_terms: [adt, patient-id]
@@ -21,4 +21,4 @@ quiz:
     answer: [0, 2, 3]
 status: draft
 authors: ["draft-ai"]
-updated: "2026-09-17"
+updated: "2026-09-18"

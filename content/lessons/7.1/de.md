@@ -63,17 +63,26 @@ OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ|||20260916083000
 
 > Das konkrete Nachrichtenprofil ist installationsabhängig. Nicht jedes Haus verwendet dieselbe HL7-Version, denselben Message Type oder dieselben Feldbelegungen. Für den Betrieb zählt immer die vereinbarte Schnittstellenspezifikation.
 
-## Drei Identitäten, die du auseinanderhalten musst
+## Vier Ebenen, die du auseinanderhalten musst
 
-Ein häufiger Fehler ist, alle IDs wie „die Auftragsnummer“ zu behandeln.
+Ein häufiger Fehler ist, alle IDs wie „die Auftragsnummer“ zu behandeln. Tatsächlich baut sich ein Untersuchungsfall in Schichten auf:
+
+<!-- kein-beispiel -->
+```text
+Patient
+  └─ Fall / Encounter
+       └─ Auftrag / Procedure
+            └─ DICOM Study
+```
 
 | Ebene | Typischer Identifikator | Wofür er steht |
 |---|---|---|
-| Patient | Patient ID / MRN | Wer ist der Patient? |
-| Auftrag | Placer/Filler Order Number, Accession Number | Welche Leistung wurde beauftragt? |
-| Bildstudie | Study Instance UID | Welche konkrete DICOM-Studie wurde erzeugt? |
+| Patient | Patient Identifier (z. B. Patient ID / MRN) | Identifiziert den Patienten innerhalb einer Identifier-Domäne |
+| Fall / Encounter | Encounter-/Fallnummer | Ein eigener administrativer Kontext, etwa ein Aufenthalt oder Termin |
+| Auftrag / Procedure | Placer/Filler Order Number, Accession Number | Welche Leistung wurde beauftragt — gehören zusammen, sind aber nicht pauschal dasselbe |
+| Bildstudie | Study Instance UID | Welche konkrete DICOM-Studie wurde erzeugt |
 
-Diese Werte können miteinander verknüpft sein, sind aber **nicht dasselbe**.
+Diese Werte können miteinander verknüpft sein, sind aber **eigene Identitäten**.
 
 Im DICOM-Objekt findest du zum Beispiel:
 
@@ -83,7 +92,7 @@ Im DICOM-Objekt findest du zum Beispiel:
 (0020,000d) UI [1.2.276.0.7230010...] # StudyInstanceUID
 ```
 
-**Was du daran abliest:** Patient, Auftrag und erzeugte Studie besitzen getrennte Identitäten. Für systemübergreifendes Troubleshooting brauchst du meist mindestens Patient ID und Accession Number; ab der Bildentstehung kommt die Study Instance UID dazu.
+**Was du daran abliest:** Der Patient Identifier identifiziert den Patienten innerhalb seiner Identifier-Domäne — nicht automatisch den Fall oder den Auftrag. Der Fall/Encounter ist ein eigener Kontext, unter dem mehrere Aufträge liegen können. Placer/Filler Order Number und Accession Number gehören in den Auftrags-/Untersuchungskontext, müssen aber nicht identisch sein. Erst die Study Instance UID identifiziert die tatsächlich erzeugte DICOM-Studie.
 
 ## Im Alltag heißt das
 

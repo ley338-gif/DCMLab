@@ -8,8 +8,8 @@ requires: ["7.4", "7.5"]
 tools: []
 
 related_node:
-  node: null
-  optional: true
+  node: oru-status-gap
+  optional: false
 
 glossary_terms: [hl7-v2]
 quiz:
@@ -21,4 +21,4 @@ quiz:
     answer: [0, 2, 3]
 status: draft
 authors: ["draft-ai"]
-updated: "2026-09-17"
+updated: "2026-09-18"
