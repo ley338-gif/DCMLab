@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { FlaskConical, Loader2, Square } from '@lucide/vue';
-import { onBeforeUnmount, ref } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
 import { Button } from '@/components/ui/button';
+import { useRuntimeSession } from '@/composables/useRuntimeSession';
 import { showAchievementUnlockToasts } from '@/lib/achievementToast';
 import { deleteJson, postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
@@ -16,24 +17,79 @@ import type { Achievement } from '@/types/achievement';
 
 const props = defineProps<{ lessonId: string }>();
 
-type Status = 'idle' | 'starting' | 'queued' | 'running' | 'error';
-
-const status = ref<Status>('idle');
 const sandboxId = ref<string | null>(null);
-const queuePosition = ref<number | null>(null);
-const errorMessage = ref<string | null>(null);
-let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-function stopPolling() {
-    if (pollTimer !== null) {
-        clearInterval(pollTimer);
-        pollTimer = null;
+/**
+ * `sandboxId` ist bei jedem Poll bereits gesetzt (siehe `start()`, wird VOR
+ * `enterQueued()`/`enterRunning()` zugewiesen) -- kein Guard fuer `null`
+ * noetig, anders als beim `!sandboxId.value`-Fruehausstieg der Vorversion.
+ */
+async function fetchRuntimeState() {
+    const response = await fetch(sandboxState.url(sandboxId.value as string), {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+    });
+
+    if (!response.ok) {
+        throw new Error('sandbox state request failed');
     }
+
+    return response.json();
 }
 
+const {
+    status,
+    queuePosition,
+    errorMessage,
+    enterStarting,
+    enterQueued,
+    enterRunning,
+    enterError,
+    enterIdle,
+    stopPolling,
+} = useRuntimeSession(fetchRuntimeState);
+
+// PR #148, Prioritaet 4: dieselbe Live-Region/Fokus-Behandlung wie
+// Labs/Show.vue -- beide teilen denselben Composable/dieselbe
+// Zustandsmaschine, eine Spielwiese verdient keine schlechtere
+// Accessibility als ein Lab.
+const announcement = ref('');
+
+watch(status, (value, previous) => {
+    if (value === 'queued') {
+        announcement.value = trans('In der Warteschlange, Platz :position', {
+            position: queuePosition.value ?? '…',
+        });
+    } else if (value === 'running' && previous !== 'running') {
+        announcement.value = trans('Runtime bereit.');
+    }
+});
+
+watch(queuePosition, (position) => {
+    if (status.value === 'queued') {
+        announcement.value = trans('In der Warteschlange, Platz :position', {
+            position: position ?? '…',
+        });
+    }
+});
+
+watch(errorMessage, (message) => {
+    if (message !== null) {
+        announcement.value = message;
+    }
+});
+
+const terminal = ref<InstanceType<typeof EngineTerminal> | null>(null);
+
+watch(status, async (value, previous) => {
+    if (value === 'running' && previous !== 'running') {
+        await nextTick();
+        terminal.value?.focus?.();
+    }
+});
+
 async function start() {
-    status.value = 'starting';
-    errorMessage.value = null;
+    enterStarting();
 
     const response = await fetch(createSandboxRoute.url(props.lessonId), {
         method: 'POST',
@@ -47,17 +103,19 @@ async function start() {
     });
 
     if (response.status === 429) {
-        status.value = 'error';
-        errorMessage.value = trans(
-            'Tageskontingent für die Spielwiese aufgebraucht. Versuch es morgen wieder.',
+        enterError(
+            trans(
+                'Tageskontingent für die Spielwiese aufgebraucht. Versuch es morgen wieder.',
+            ),
         );
         return;
     }
 
     if (!response.ok) {
-        status.value = 'error';
-        errorMessage.value = trans(
-            'Die Spielwiese ist gerade nicht erreichbar. Versuch es gleich noch einmal.',
+        enterError(
+            trans(
+                'Die Spielwiese ist gerade nicht erreichbar. Versuch es gleich noch einmal.',
+            ),
         );
         return;
     }
@@ -72,31 +130,9 @@ async function start() {
     showAchievementUnlockToasts(result.unlocked_achievements);
 
     if (result.status === 'running') {
-        status.value = 'running';
+        enterRunning();
     } else {
-        status.value = 'queued';
-        queuePosition.value = result.queue_position;
-        pollTimer = setInterval(pollState, 3000);
-    }
-}
-
-async function pollState() {
-    if (!sandboxId.value) return;
-
-    const response = await fetch(sandboxState.url(sandboxId.value), {
-        headers: { Accept: 'application/json' },
-        credentials: 'same-origin',
-    });
-    const result = (await response.json()) as {
-        status: string;
-        queue_position: number | null;
-    };
-
-    if (result.status === 'running') {
-        stopPolling();
-        status.value = 'running';
-    } else {
-        queuePosition.value = result.queue_position;
+        enterQueued(result.queue_position);
     }
 }
 
@@ -124,12 +160,8 @@ async function stop() {
         () => undefined,
     );
     sandboxId.value = null;
-    status.value = 'idle';
+    enterIdle();
 }
-
-onBeforeUnmount(() => {
-    stopPolling();
-});
 </script>
 
 <template>
@@ -169,11 +201,15 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="status === 'running'" class="space-y-2">
-            <EngineTerminal :on-command="runCommand" />
+            <EngineTerminal ref="terminal" :on-command="runCommand" />
             <Button type="button" variant="ghost" size="sm" @click="stop">
                 <Square class="size-4" />
                 {{ trans('Spielwiese beenden') }}
             </Button>
         </div>
+
+        <span class="sr-only" role="status" aria-live="polite">
+            {{ announcement }}
+        </span>
     </div>
 </template>

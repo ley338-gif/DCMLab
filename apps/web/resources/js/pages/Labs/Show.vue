@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { Form, Head, router } from '@inertiajs/vue3';
-import { Loader2, Square } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Form, Head, Link, router } from '@inertiajs/vue3';
+import { ArrowRight, CheckCircle2, Loader2, Square } from '@lucide/vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    type RuntimeStatus,
+    useRuntimeSession,
+} from '@/composables/useRuntimeSession';
 import { showAchievementUnlockToasts } from '@/lib/achievementToast';
 import { deleteJson, postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
-import { exec as execLab, start as startLab } from '@/routes/labs';
+import { show as showLesson } from '@/routes/lessons';
+import {
+    exec as execLab,
+    index as labsIndex,
+    start as startLab,
+} from '@/routes/labs';
 import {
     destroy as destroyRuntime,
     state as runtimeState,
@@ -17,16 +26,6 @@ import {
 import type { Achievement } from '@/types/achievement';
 
 type AttemptStatus = 'started' | 'solved' | 'abandoned';
-
-/**
- * Wie bei SandboxPanel.vue: `idle` (keine/keine mehr bekannte Runtime),
- * `starting` (Formular-Submit laeuft, von Inertias eigenem `processing`
- * abgedeckt -- hier nur der Vollstaendigkeit halber im Typ), `queued`,
- * `running`, `error` (Runtime nicht mehr erreichbar -- Polling/Exec haben
- * das festgestellt, nicht dasselbe wie `idle`, aber UI-seitig dieselbe
- * Reaktion: kein Terminal, ggf. ein Retry-Button).
- */
-type RuntimeStatus = 'idle' | 'starting' | 'queued' | 'running' | 'error';
 
 type LabProps = {
     slug: string;
@@ -49,13 +48,20 @@ const props = defineProps<{
     attempt: { status: AttemptStatus } | null;
     can_start: boolean;
     runtime: {
-        status: 'queued' | 'running' | 'sandbox_unavailable';
+        status: 'queued' | 'running' | 'sandbox_unavailable' | 'expired';
         queue_position: number | null;
     } | null;
     assertions: AssertionState[];
     // Betreiber-Korrektur: lokales Prop statt globalem Flash-Sharing --
     // start()s einziger Rückkanal ist der Redirect zurück auf show().
     runtime_error: string | null;
+    // PR #148, Prioritaet 1: immer berechnet (siehe LabController::show()),
+    // aber nur im Abschluss-Bereich eines geloesten Attempts gezeigt.
+    next_step: {
+        type: 'lesson' | 'labs_index';
+        lesson_id: string | null;
+        lesson_title: string | null;
+    };
 }>();
 
 const runtimeErrorLabels: Record<string, string> = {
@@ -69,6 +75,10 @@ const runtimeErrorLabels: Record<string, string> = {
     sandbox_unavailable: trans(
         'Die Runtime-Umgebung ist gerade nicht erreichbar. Bitte später erneut versuchen.',
     ),
+    // PR #148, "Runtime ended/expired": vom Idle-Timeout-Cleanup beendet
+    // (CMS-8b), kein Fehler des Lernenden -- eigener Text statt der
+    // generischen "nicht erreichbar"-Meldung.
+    expired: trans('Deine Sitzung wurde wegen Inaktivität beendet.'),
 };
 
 // Betreiber-Vorgabe: ein unbekannter Fehlerschlüssel bekommt nur eine
@@ -77,8 +87,13 @@ const genericRuntimeErrorLabel = trans(
     'Die Runtime konnte nicht gestartet werden. Bitte später erneut versuchen.',
 );
 
+// Betreiber-Vorgabe (Status-Terminologie): dieselben drei lernenden-
+// facing Begriffe wie Labs/Index.vue ("Nicht gestartet" braucht hier keinen
+// Badge -- fehlt attemptStatus, wird gar kein Badge gezeigt). Die
+// internen Enum-Werte (`started`/`solved`/`abandoned`) bleiben unveraendert,
+// nur das angezeigte Label wechselt von "Begonnen" zu "In Bearbeitung".
 const statusLabels: Record<AttemptStatus, string> = {
-    started: trans('Begonnen'),
+    started: trans('In Bearbeitung'),
     solved: trans('Abgeschlossen'),
     abandoned: trans('Abgebrochen'),
 };
@@ -109,36 +124,63 @@ function assertionLabel(assertion: AssertionState): string {
  * Lab-Slug, nie über eine Sitzungs-ID.
  */
 const attemptStatus = ref<AttemptStatus | null>(props.attempt?.status ?? null);
-const runtimeStatus = ref<RuntimeStatus>(
-    props.runtime === null
-        ? 'idle'
-        : props.runtime.status === 'sandbox_unavailable'
-          ? 'error'
-          : props.runtime.status,
-);
-const queuePosition = ref<number | null>(props.runtime?.queue_position ?? null);
 const assertions = ref<AssertionState[]>(props.assertions);
 const destroying = ref(false);
 
-/**
- * Betreiber-Korrektur (Haerten): einzige Quelle fuer die sichtbare
- * Fehlermeldung -- start()s Session-Flash (`props.runtime_error`) ODER,
- * falls das initiale `show()` bereits eine nicht erreichbare Runtime
- * gemeldet hat, dieselbe Meldung von Anfang an. Jede spaetere, vom
- * Client selbst entdeckte Nichtverfuegbarkeit (Polling, exec(),
- * restartRuntime()) schreibt hierher, statt den Lernenden mit einem
- * erklaerungslosen Retry-Button allein zu lassen.
- */
-const runtimeErrorMessage = ref<string | null>(
-    props.runtime_error ??
-        (props.runtime?.status === 'sandbox_unavailable'
-            ? 'sandbox_unavailable'
-            : null),
+const initialRuntimeStatus: RuntimeStatus =
+    props.runtime === null
+        ? 'idle'
+        : props.runtime.status === 'sandbox_unavailable' ||
+            props.runtime.status === 'expired'
+          ? 'error'
+          : props.runtime.status;
+
+async function fetchRuntimeState() {
+    const response = await fetch(runtimeState.url({ lab: props.lab.slug }), {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+    });
+
+    if (!response.ok) {
+        throw new Error('lab runtime state request failed');
+    }
+
+    return response.json();
+}
+
+const {
+    status: runtimeStatus,
+    queuePosition,
+    errorMessage: runtimeErrorMessage,
+    enterError,
+    stopPolling,
+} = useRuntimeSession(
+    fetchRuntimeState,
+    initialRuntimeStatus,
+    props.runtime?.queue_position ?? null,
 );
+
+// Betreiber-Korrektur (Haerten): einzige Quelle fuer die sichtbare
+// Fehlermeldung -- start()s Session-Flash (`props.runtime_error`) ODER,
+// falls das initiale `show()` bereits eine nicht erreichbare Runtime
+// gemeldet hat, dieselbe Meldung von Anfang an. Jede spaetere, vom Client
+// selbst entdeckte Nichtverfuegbarkeit (Polling, exec(), restartRuntime())
+// schreibt ueber `enterError()` hierher, statt den Lernenden mit einem
+// erklaerungslosen Retry-Button allein zu lassen.
+runtimeErrorMessage.value =
+    props.runtime_error ??
+    (props.runtime?.status === 'sandbox_unavailable' ||
+    props.runtime?.status === 'expired'
+        ? props.runtime.status
+        : null);
 
 const startButtonLabel = computed(() => {
     if (!attemptStatus.value) {
         return trans('Lab starten');
+    }
+
+    if (runtimeErrorMessage.value === 'expired') {
+        return trans('Neue Sitzung starten');
     }
 
     return runtimeErrorMessage.value
@@ -146,47 +188,92 @@ const startButtonLabel = computed(() => {
         : trans('Runtime starten');
 });
 
-let pollTimer: ReturnType<typeof setInterval> | null = null;
+const runtimeErrorLabel = computed(() =>
+    runtimeErrorMessage.value === null
+        ? null
+        : (runtimeErrorLabels[runtimeErrorMessage.value] ??
+          genericRuntimeErrorLabel),
+);
 
-function stopPolling() {
-    if (pollTimer !== null) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-    }
-}
+// PR #148, "Runtime ended/expired": eine beendete Sitzung ist kein
+// fehlgeschlagener Start -- eigener Alert-Titel statt "Runtime konnte
+// nicht gestartet werden", der bei einer vorher erfolgreich gelaufenen
+// Sitzung fachlich falsch waere.
+const runtimeErrorTitle = computed(() =>
+    runtimeErrorMessage.value === 'expired'
+        ? trans('Sitzung beendet')
+        : trans('Runtime konnte nicht gestartet werden'),
+);
+
+// PR #148, Prioritaet 1: der Rueckweg im Abschluss-Bereich -- Fallback-
+// Kette und Daten kommen vollstaendig aus `next_step` (siehe
+// `DashboardHomeService::nextStepAfterLab()`), hier nur noch Href/Label.
+const nextStepHref = computed(() =>
+    props.next_step.type === 'lesson' && props.next_step.lesson_id !== null
+        ? showLesson(props.next_step.lesson_id)
+        : labsIndex(),
+);
+
+const nextStepLabel = computed(() =>
+    props.next_step.type === 'lesson'
+        ? trans('Zurück zur Lektion :lesson', {
+              lesson:
+                  props.next_step.lesson_title ??
+                  props.next_step.lesson_id ??
+                  '',
+          })
+        : trans('Alle Labs'),
+);
 
 /**
- * Polling muss auf JEDEM Ausstiegspfad enden -- geworden zu `running`,
- * eine 404/`gone`-Antwort, das Unmounten der Komponente (siehe
- * `onBeforeUnmount`) und ein manuelles Beenden (siehe `restartRuntime`).
- * Sonst laeuft nach einem Reap ein verstecktes `setInterval()` unbemerkt
- * weiter.
+ * PR #148, Prioritaet 4: Runtime-Zustandsaenderungen sind rein visuell
+ * (Icon/Text/Terminal erscheint) und damit fuer Screenreader-Nutzer
+ * stumm -- eine einzelne `aria-live="polite"`-Region traegt jede
+ * Statusaenderung nach, ohne bei jeder einzelnen Aenderung `assertive` zu
+ * werden. Bewusst zurueckhaltend: der Warteschlangenplatz wird nur
+ * angesagt, wenn die Runtime tatsaechlich noch wartet, nicht bei jedem
+ * einzelnen Poll-Tick mit unveraendertem Wert (Vue's `watch()` feuert bei
+ * einem gleichen Ref-Wert ohnehin nicht erneut).
  */
-async function pollRuntimeState() {
-    const response = await fetch(runtimeState.url({ lab: props.lab.slug }), {
-        headers: { Accept: 'application/json' },
-        credentials: 'same-origin',
-    });
+const announcement = ref('');
 
-    if (!response.ok) {
-        stopPolling();
-        runtimeStatus.value = 'error';
-        runtimeErrorMessage.value = 'sandbox_unavailable';
-        return;
+watch(runtimeStatus, (status, previous) => {
+    if (status === 'queued') {
+        announcement.value = trans('In der Warteschlange, Platz :position', {
+            position: queuePosition.value ?? '…',
+        });
+    } else if (status === 'running' && previous !== 'running') {
+        announcement.value = trans('Runtime bereit.');
     }
+});
 
-    const result = (await response.json()) as {
-        status: 'queued' | 'running';
-        queue_position: number | null;
-    };
-
-    if (result.status === 'running') {
-        stopPolling();
-        runtimeStatus.value = 'running';
-    } else {
-        queuePosition.value = result.queue_position;
+watch(queuePosition, (position) => {
+    if (runtimeStatus.value === 'queued') {
+        announcement.value = trans('In der Warteschlange, Platz :position', {
+            position: position ?? '…',
+        });
     }
-}
+});
+
+watch(runtimeErrorLabel, (label) => {
+    if (label !== null) {
+        announcement.value = label;
+    }
+});
+
+const terminal = ref<InstanceType<typeof EngineTerminal> | null>(null);
+
+// Sobald die Runtime von Warteschlange/Start auf "bereit" wechselt, den
+// Fokus aktiv in den Arbeitsbereich legen -- beim ERSTEN Laden mit bereits
+// laufender Runtime (Reload waehrend `running`) bewusst NICHT, das waere ein
+// ueberraschender Fokusklau direkt beim Seitenaufruf. `watch()` ohne
+// `immediate` feuert von sich aus nur bei einer tatsaechlichen Aenderung.
+watch(runtimeStatus, async (status, previous) => {
+    if (status === 'running' && previous !== 'running') {
+        await nextTick();
+        terminal.value?.focus?.();
+    }
+});
 
 /**
  * `postJson()` wirft bei jeder Nicht-2xx-Antwort einen generischen Error
@@ -207,10 +294,28 @@ async function runCommand(command: string) {
             unlocked_achievements: Achievement[];
         }>(execLab.url({ lab: props.lab.slug }), { command });
 
+        const previouslyPassed = new Set(
+            assertions.value.filter((a) => a.passed).map((a) => a.index),
+        );
+        const newlyPassed = result.assertions.filter(
+            (a) => a.passed && !previouslyPassed.has(a.index),
+        );
         assertions.value = result.assertions;
+
+        if (newlyPassed.length > 0) {
+            announcement.value = newlyPassed
+                .map((a) =>
+                    trans('Erfolgskriterium :n erfüllt.', { n: a.index + 1 }),
+                )
+                .join(' ');
+        }
 
         if (result.all_satisfied) {
             attemptStatus.value = 'solved';
+            announcement.value = trans(
+                'Lab abgeschlossen. :points Punkte erhalten.',
+                { points: props.lab.points },
+            );
         }
 
         showAchievementUnlockToasts(result.unlocked_achievements);
@@ -221,9 +326,7 @@ async function runCommand(command: string) {
             exit_code: result.exit_code,
         };
     } catch {
-        stopPolling();
-        runtimeStatus.value = 'error';
-        runtimeErrorMessage.value = 'sandbox_unavailable';
+        enterError('sandbox_unavailable');
 
         return {
             stdout: '',
@@ -259,28 +362,17 @@ async function restartRuntime() {
         // router.post()-Aufruf feuerte dann nie, der Button re-aktivierte
         // sich aber wortlos wieder, ohne dass der Lernende erfuhr, warum
         // "Neustart" nichts bewirkt hat.
-        runtimeStatus.value = 'error';
-        runtimeErrorMessage.value = 'sandbox_unavailable';
+        enterError('sandbox_unavailable');
     } finally {
         destroying.value = false;
     }
 }
-
-onMounted(() => {
-    if (runtimeStatus.value === 'queued') {
-        pollTimer = setInterval(pollRuntimeState, 3000);
-    }
-});
-
-onBeforeUnmount(() => {
-    stopPolling();
-});
 </script>
 
 <template>
     <Head :title="lab.title" />
 
-    <div class="mx-auto max-w-4xl px-6 pt-10 pb-16">
+    <div class="mx-auto w-full max-w-4xl min-w-0 px-6 pt-10 pb-16">
         <h1 class="mb-1 text-2xl font-semibold">{{ props.lab.title }}</h1>
         <p v-if="props.lab.scenario_title" class="text-muted-foreground mb-4">
             {{ props.lab.scenario_title }}
@@ -305,24 +397,43 @@ onBeforeUnmount(() => {
             {{ trans('Noch keine Anleitung hinterlegt.') }}
         </p>
 
-        <Alert v-if="runtimeErrorMessage" variant="destructive" class="mt-6">
-            <AlertTitle>{{
-                trans('Runtime konnte nicht gestartet werden')
-            }}</AlertTitle>
+        <Alert v-if="runtimeErrorLabel" variant="destructive" class="mt-6">
+            <AlertTitle>{{ runtimeErrorTitle }}</AlertTitle>
             <AlertDescription>
-                {{
-                    runtimeErrorLabels[runtimeErrorMessage] ??
-                    genericRuntimeErrorLabel
-                }}
+                {{ runtimeErrorLabel }}
             </AlertDescription>
         </Alert>
 
-        <p
+        <span class="sr-only" role="status" aria-live="polite">
+            {{ announcement }}
+        </span>
+
+        <!-- Abschluss-Bereich (PR #148, Prioritaet 5): bewusst kein
+             Gamification-Feuerwerk -- nur Bestaetigung, Punkte und ein
+             konkreter naechster Schritt statt Browser-Back als einzigem
+             Rueckweg. Achievement-Toasts laufen unabhaengig davon weiter
+             (siehe runCommand()). -->
+        <div
             v-if="attemptStatus === 'solved'"
-            class="mt-6 text-sm font-medium text-green-600 dark:text-green-400"
+            class="bg-muted/40 mt-6 rounded-lg border p-4"
         >
-            {{ trans('Gelöst — gut gemacht!') }}
-        </p>
+            <p
+                class="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400"
+            >
+                <CheckCircle2 class="size-4" aria-hidden="true" />
+                {{ trans('Lab abgeschlossen') }}
+            </p>
+            <p class="text-muted-foreground mt-1 text-sm">
+                {{ trans(':points Punkte erhalten', { points: lab.points }) }}
+            </p>
+            <Link
+                :href="nextStepHref"
+                class="text-primary mt-3 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+            >
+                {{ nextStepLabel }}
+                <ArrowRight class="size-3.5" aria-hidden="true" />
+            </Link>
+        </div>
 
         <!-- Kein Attempt: einziger Einstieg ist "Lab starten". -->
         <Form
@@ -397,7 +508,7 @@ onBeforeUnmount(() => {
                 </ul>
             </div>
 
-            <EngineTerminal :on-command="runCommand" />
+            <EngineTerminal ref="terminal" :on-command="runCommand" />
 
             <!-- Betreiber-Entscheidung: Runtime nach Solve weiter nutzbar,
                  aber nicht neu startbar -- der Button existiert deshalb

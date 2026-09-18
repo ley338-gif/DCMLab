@@ -70,7 +70,7 @@ class LabController extends Controller
         ]);
     }
 
-    public function show(Request $request, Lab $lab, ContentRepository $content, RuntimeSessionService $sessions): Response
+    public function show(Request $request, Lab $lab, ContentRepository $content, RuntimeSessionService $sessions, DashboardHomeService $home): Response
     {
         $this->assertVisible($lab);
         $activity = $this->activityFor($lab);
@@ -103,6 +103,11 @@ class LabController extends Controller
             // weichen Runtime-Fehler ist dieser Redirect zurueck auf
             // show(), kein anderer Ort braucht das.
             'runtime_error' => $request->session()->get('runtime_error'),
+            // PR #148, Prioritaet 1: Labs/Show darf kein Dead-End mehr sein
+            // -- immer mitberechnet (auch ohne Activity/Attempt gibt es
+            // wenigstens den Katalog-Fallback), Vue zeigt es nur im
+            // Abschluss-Bereich eines geloesten Attempts.
+            'next_step' => $activity === null ? ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null] : $home->nextStepAfterLab($activity),
         ]);
     }
 
@@ -390,7 +395,8 @@ class LabController extends Controller
      */
     private function liveRuntimeStatus(LabAttempt $attempt, RuntimeSessionService $sessions): ?array
     {
-        $sandboxId = $attempt->currentSandboxSession?->runtime_instance_id;
+        $session = $attempt->currentSandboxSession;
+        $sandboxId = $session?->runtime_instance_id;
 
         if ($sandboxId === null) {
             return null;
@@ -399,10 +405,17 @@ class LabController extends Controller
         try {
             $state = $sessions->state($sandboxId);
         } catch (RuntimeGoneException) {
-            // Bereits reconciled (RuntimeSessionService markiert die
-            // Sitzung selbst als 'reaped') -- fuer den Lernenden bedeutet
-            // das schlicht "keine aktive Runtime".
-            return null;
+            // PR #148, "Runtime ended/expired": diesen Zweig zu erreichen
+            // bedeutet, dass RuntimeSessionService::withReconciliation() die
+            // Sitzung GERADE JETZT (in diesem Aufruf) als 'reaped' reconciled
+            // hat (CMS-8b Idle-Timeout-Cleanup) -- eine bereits explizit
+            // zerstoerte Sitzung (restartRuntime()) wird nie erneut ueber
+            // diesen Pfad erreicht, weil destroy() denselben current_
+            // sandbox_session_id-Zeiger im selben Schritt nullt
+            // (RuntimeSessionService::finishSession()); der naechste Aufruf
+            // findet dann schon oben den `$sandboxId === null`-Fruehausstieg.
+            // Keine neue Persistenz, keine Python-Aenderung noetig.
+            return ['status' => 'expired', 'queue_position' => null];
         } catch (RuntimeNotReadyException) {
             // state() repraesentiert "noch nicht bereit" normalerweise
             // schon als 200 {status: 'queued'} -- dieser Zweig ist nur

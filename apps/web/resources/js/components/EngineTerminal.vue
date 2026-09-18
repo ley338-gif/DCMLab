@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { trans } from '@/lib/trans';
 import '@xterm/xterm/css/xterm.css';
 
 /**
- * Terminal fuer Node-Simulation und (spaeter) Spielwiese (Abschnitt 6):
- * dieselbe Komponente, nur das Transport-Backend unterscheidet sich -- hier
- * ein einzelner Request/Response-Zyklus pro Befehl gegen die Engine (HTTP),
- * bei der Spielwiese wird es ein Container-Attach ueber WebSocket sein.
+ * Terminal fuer Node-Simulation, Spielwiese und Lab (Abschnitt 6): dieselbe
+ * Komponente, nur das Transport-Backend unterscheidet sich -- hier ein
+ * einzelner Request/Response-Zyklus pro Befehl gegen die Engine (HTTP).
  */
 const props = defineProps<{
     onCommand: (
@@ -22,10 +23,24 @@ const props = defineProps<{
 
 const container = ref<HTMLDivElement | null>(null);
 let term: Terminal | null = null;
+let fitAddon: FitAddon | null = null;
+let resizeObserver: ResizeObserver | null = null;
 let currentLine = '';
 let cursor = 0;
 let selection: { start: number; end: number } | null = null;
 const prompt = '$ ';
+
+/**
+ * PR #148, Prioritaet 2: ein laufender Befehl (z. B. ein echtes `echoscu`
+ * gegen Orthanc) kann durchaus ein paar Sekunden dauern -- ohne sichtbaren
+ * Status wirkt das Terminal in dieser Zeit eingefroren. Waehrend
+ * `executing` ist die Eingabe komplett gesperrt (siehe `onKey` unten), eine
+ * zweite, ueberlappende Ausfuehrung ist damit unmoeglich; `finally` in
+ * `submit()` garantiert, dass ein Fehler die Eingabe nie dauerhaft
+ * gesperrt laesst.
+ */
+const executing = ref(false);
+const busyLabel = trans('Befehl wird ausgeführt …');
 
 function redraw() {
     if (!term) return;
@@ -62,14 +77,30 @@ async function submit() {
         return;
     }
 
-    const result = await props.onCommand(command);
-    const lines = [result.stdout, result.stderr]
-        .filter((s) => s.length > 0)
-        .join('\r\n');
-    if (lines.length > 0) {
-        term?.write(lines.replaceAll('\n', '\r\n') + '\r\n');
+    executing.value = true;
+    term?.write(`\x1b[90m${busyLabel}\x1b[0m`);
+
+    try {
+        const result = await props.onCommand(command);
+
+        // Busy-Zeile durch das tatsaechliche Ergebnis ersetzen, statt sie
+        // stehen zu lassen.
+        term?.write('\r\x1b[K');
+
+        const lines = [result.stdout, result.stderr]
+            .filter((s) => s.length > 0)
+            .join('\r\n');
+        if (lines.length > 0) {
+            term?.write(lines.replaceAll('\n', '\r\n') + '\r\n');
+        }
+    } finally {
+        // Ein Fehlschlag in onCommand() darf die Eingabe nie dauerhaft
+        // sperren -- alle Aufrufer (Show.vue, SandboxPanel.vue) loesen
+        // selbst bereits auf, statt zu werfen, aber `finally` haelt diese
+        // Garantie auch dann, falls das je nicht mehr der Fall waere.
+        executing.value = false;
+        redraw();
     }
-    redraw();
 }
 
 /** Findet den fruehesten bekannten Platzhalter in `line` ab `from` (mit
@@ -149,12 +180,33 @@ onMounted(() => {
             cursor: '#e5e7eb',
         },
     });
+    fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
     term.open(container.value!);
+    // Keine fest angenommene Spaltenbreite (PR #148, Prioritaet 3) -- die
+    // tatsaechliche Container-Groesse bestimmt Zeilen/Spalten, nicht xterms
+    // Default. `open()` misst den Container zum ersten Mal aus, ein
+    // erneuter `fit()` direkt danach uebernimmt auch die reale Breite eines
+    // schmalen (mobilen) Layouts sofort, statt erst beim naechsten Resize.
+    fitAddon.fit();
+    term.textarea?.setAttribute('aria-label', trans('Terminal-Eingabe'));
     term.write(prompt);
 
+    resizeObserver = new ResizeObserver(() => fitAddon?.fit());
+    resizeObserver.observe(container.value!);
+
     term.onKey(({ key, domEvent }) => {
+        // Waehrend ein Befehl laeuft ist die Eingabe komplett gesperrt --
+        // keine zweite, ueberlappende Ausfuehrung moeglich (Prioritaet 2).
+        if (executing.value) return;
+
         if (domEvent.key === 'Enter') {
-            void submit();
+            // `submit()`s eigenes `finally` setzt `executing` immer zurueck
+            // -- dieses `catch` fängt nur eine theoretische Rejection aus
+            // `onCommand` ab (alle heutigen Aufrufer loesen selbst auf),
+            // damit ein Fehler dort nie zu einer unbehandelten Rejection
+            // wird.
+            submit().catch(() => undefined);
         } else if (domEvent.key === 'Backspace') {
             backspace();
         } else if (domEvent.key === 'Tab') {
@@ -176,6 +228,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    resizeObserver?.disconnect();
     term?.dispose();
 });
 
@@ -190,19 +243,50 @@ function insertTemplate(command: string) {
     term?.focus();
 }
 
-defineExpose({ insertTemplate });
+function focus() {
+    term?.focus();
+}
+
+defineExpose({ insertTemplate, focus });
 </script>
 
 <template>
-    <div ref="container" class="engine-terminal" />
+    <div
+        ref="container"
+        class="engine-terminal"
+        role="group"
+        :aria-label="trans('Terminal')"
+    />
+    <span class="sr-only" role="status" aria-live="polite">
+        {{ executing ? busyLabel : '' }}
+    </span>
 </template>
 
 <style scoped>
 .engine-terminal {
-    height: 22rem;
+    /* PR #148, Prioritaet 3: eine Bildschirmhoehen-Obergrenze statt einer
+       starren rem-Hoehe, damit ein niedriges mobiles Viewport nicht
+       zusaetzlich zur Breite auch in der Hoehe abgeschnitten wird -- die
+       Spaltenbreite selbst kommt ohnehin live von FitAddon, nicht von
+       dieser Hoehe. */
+    height: min(22rem, 60vh);
     border-radius: 0.5rem;
     overflow: hidden;
     background: #0a0e14;
     padding: 0.5rem;
+    /* Regressionsfix (Live-Smoke-Test PR #148): ohne dies bleibt xterms
+       intern gesetzte `.xterm-screen`-Breite (in Pixeln, vom letzten `fit()`)
+       die MIN-CONTENT-Breite dieses Containers -- in einem Flex-Vorfahren
+       (hier: <main>) verhindert das per Spec-Default (`min-width: auto`)
+       ein Schrumpfen unter diese Breite, selbst wenn der Viewport schmaler
+       wird, WEIL sich der Container dadurch nie tatsaechlich verkleinert,
+       feuert der ResizeObserver nie erneut und `fit()` passt die
+       Spaltenzahl nie neu an -- ein zirkulaerer Deadlock, der beim
+       Verkleinern des Fensters bei laufender Runtime zu echtem seitlichem
+       Clipping der ganzen Seite fuehrte (per echtem Browser-Smoke-Test
+       gegen 480px verifiziert, nicht nur vermutet). `max-width: 100%`
+       deckelt den Container selbst auf die tatsaechlich verfuegbare Breite
+       und durchbricht damit den Zirkel. */
+    max-width: 100%;
 }
 </style>

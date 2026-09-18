@@ -8,8 +8,11 @@ use App\Models\Activity;
 use App\Models\ActivityProgress;
 use App\Models\Lab;
 use App\Models\LabAttempt;
+use App\Models\Lesson;
+use App\Models\LessonElement;
 use App\Models\SandboxSession;
 use App\Models\SandboxTemplate;
+use App\Models\Track;
 use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\ProfileService;
@@ -64,10 +67,56 @@ class LabControllerTest extends TestCase
                 ->where('runtime', null)
                 ->where('assertions', [])
                 ->where('runtime_error', null)
+                ->where('next_step', ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null])
                 ->where('briefing_html', fn (string $html) => str_contains($html, 'Pruefe die Verbindung.')),
             );
 
         $this->assertDatabaseCount('lab_attempts', 0);
+    }
+
+    /**
+     * PR #148, Prioritaet 1: der Rueckweg wird ueber dieselbe Lesson-/
+     * Track-Aufloesung wie `DashboardHomeService::labsOverview()` ermittelt
+     * -- ein Lab, das ueber ein `LessonElement` an eine Lesson gehaengt
+     * ist, bekommt `next_step.type === 'lesson'` mit deren Titel, unabhaengig
+     * vom Attempt-Status (auch ohne Attempt schon berechnet, siehe
+     * `LabController::show()`).
+     */
+    public function test_show_reports_the_owning_lesson_as_the_next_step(): void
+    {
+        Lab::factory()->create(['slug' => 'c-echo-connectivity']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.6', 'track_id' => $track->id, 'title' => ['de' => 'Erste Verbindung']]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $activity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertInertia(fn ($page) => $page
+                ->where('next_step', ['type' => 'lesson', 'lesson_id' => '1.6', 'lesson_title' => 'Erste Verbindung']),
+            );
+    }
+
+    /**
+     * Ein Lab ohne Activity-Zeile (z. B. eine kaputte/veraltete Verknuepfung)
+     * bekommt trotzdem den Katalog-Fallback statt eines fehlenden Props --
+     * `show()` selbst 404et in diesem Fall zwar schon ueber `assertVisible()`
+     * fuer ein Draft-Lab, aber `next_step` darf nie ein Prop-Fehler sein.
+     */
+    public function test_next_step_falls_back_to_the_labs_catalog_without_a_lesson(): void
+    {
+        Lab::factory()->create(['slug' => 'unattached-lab']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'unattached-lab']);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/labs/unattached-lab')
+            ->assertInertia(fn ($page) => $page
+                ->where('next_step', ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null]),
+            );
     }
 
     public function test_show_reports_the_live_runtime_status_and_assertion_checklist(): void
@@ -111,7 +160,16 @@ class LabControllerTest extends TestCase
             );
     }
 
-    public function test_show_reports_no_runtime_once_the_sandbox_is_gone(): void
+    /**
+     * PR #148, "Runtime ended/expired": jede von `state()` beim Polling
+     * entdeckte, nicht explizit vom Lernenden beendete Sitzung wird von
+     * `RuntimeSessionService::reconcileGone()` als 'reaped' markiert -- im
+     * heutigen System (nur CMS-8b's Idle-Timeout-Cleanup raeumt Sitzungen
+     * ohne expliziten `destroy()`-Aufruf weg) ist das gleichbedeutend mit
+     * "wegen Inaktivitaet beendet", ohne dass Laravel eine eigene
+     * Persistenz oder Python eine neue Auskunft braucht.
+     */
+    public function test_show_reports_the_runtime_as_expired_once_it_was_reaped(): void
     {
         SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
         Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
@@ -126,7 +184,39 @@ class LabControllerTest extends TestCase
         $this->actingAs($user)
             ->get('/de/labs/c-echo-connectivity')
             ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('runtime', ['status' => 'expired', 'queue_position' => null]));
+
+        $this->assertDatabaseHas('sandbox_sessions', ['runtime_instance_id' => 'sb-1', 'status' => 'reaped']);
+    }
+
+    /**
+     * Ein vom Lernenden selbst ueber `destroyRuntime()`/`restartRuntime()`
+     * explizit beendeter Attempt darf NIE als "expired" erscheinen --
+     * `finishSession()` nullt `current_sandbox_session_id` im selben Schritt
+     * wie das Setzen von `status='destroyed'`, show()s Live-Check wird fuer
+     * diese Sitzung also gar nicht erst erneut aufgerufen (frueher
+     * `$sandboxId === null`-Ausstieg in `liveRuntimeStatus()`).
+     */
+    public function test_show_reports_no_runtime_after_an_explicit_destroy(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create(['slug' => 'c-echo-connectivity', 'runtime_template' => 'dicom-basic-tools', 'dataset' => 'ct-thorax-60']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201),
+            '*/v1/sandboxes/sb-1' => Http::response([], 204),
+        ]);
+        $this->actingAs($user)->post('/de/labs/c-echo-connectivity/start');
+        $this->actingAs($user)->deleteJson('/de/labs/c-echo-connectivity/runtime')->assertOk();
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertOk()
             ->assertInertia(fn ($page) => $page->where('runtime', null));
+
+        $this->assertDatabaseHas('sandbox_sessions', ['runtime_instance_id' => 'sb-1', 'status' => 'destroyed']);
     }
 
     /**
