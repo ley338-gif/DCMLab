@@ -43,7 +43,7 @@ scenario:
         MSA|AA|MSG8821. Was kannst du daraus jetzt sicher schließen?
       options:
         - id: accepted_verify
-          label: Die Anwendung hat die Nachricht laut ACK-Semantik akzeptiert; der erwartete fachliche Zustand im RIS sollte jetzt zusätzlich verifiziert werden.
+          label: Die antwortende Anwendung hat die Nachricht gemäß ACK-Semantik erfolgreich verarbeitet; ob der gewünschte End-to-End-Zustand in allen beteiligten Systemen erreicht wurde, wird anschließend verifiziert.
           next: success
         - id: workflow_done
           label: Der komplette Workflow ist damit sicher erfolgreich abgeschlossen.
@@ -68,9 +68,11 @@ scenario:
       terminal: true
       outcome: wrong
       prompt: >
-        AA bestätigt nur die Annahme der Nachricht laut ACK-Semantik. Ob der
-        erwartete fachliche Zustand — hier die korrigierten Stammdaten — im
-        RIS tatsächlich vorliegt, ist eine eigene, noch offene Prüfung.
+        AA bestätigt die erfolgreiche Verarbeitung dieser einen Nachricht
+        durch das RIS — mehr als eine bloße Annahme. Es beweist aber nicht
+        automatisch, dass der gewünschte End-to-End-Zustand (hier: die
+        korrigierten Stammdaten in allen beteiligten Systemen) bereits
+        erreicht ist; das prüfst du zusätzlich.
     wrong_misread:
       terminal: true
       outcome: wrong
@@ -82,10 +84,12 @@ scenario:
       outcome: correct
       reveal: AA-VERIFY-RIS
       prompt: >
-        Richtig. MSA-1 = AA heißt: Die Anwendung hat die Nachricht laut ACK-
-        Semantik akzeptiert. Das beweist noch nicht, dass der erwartete
-        fachliche Zustand im RIS vorliegt — den prüfst du zusätzlich, bevor
-        du den Vorgang als abgeschlossen betrachtest.
+        Richtig. MSA-1 = AA heißt: Die antwortende Anwendung hat die
+        Nachricht gemäß ACK-Semantik erfolgreich verarbeitet — das ist eine
+        echte, positive Aussage über diese Nachricht. Ob der gewünschte
+        End-to-End-Zustand in allen beteiligten Systemen bereits erreicht
+        ist, prüfst du trotzdem zusätzlich, bevor du den Vorgang als
+        abgeschlossen betrachtest.
 
 flag:
   type: exact

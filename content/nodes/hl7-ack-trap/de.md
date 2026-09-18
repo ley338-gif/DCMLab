@@ -24,8 +24,10 @@ Lies nicht nur die Statuszeile der Engine. Öffne den Inhalt der Antwort.
 
 ### h3
 
-Ein `AA` bestätigt die Annahme nach ACK-Semantik. Das ist nicht automatisch
-dasselbe wie ein bestätigter fachlicher Endzustand im Zielsystem.
+Ein `AA` bestätigt die erfolgreiche Verarbeitung der Nachricht durch die
+antwortende Anwendung — mehr als eine bloße Annahme. Das ist aber nicht
+automatisch dasselbe wie ein bestätigter End-to-End-Zustand in allen
+beteiligten Systemen.
 
 ## Write-up
 
@@ -50,10 +52,13 @@ MSH|^~\&|RIS|RAD|KIS|HAUS|20260916091100||ACK^A08|ACK8834|P|2.5
 MSA|AA|MSG8821
 ```
 
-**Was du daran abliest:** `AA` heißt: Die Anwendung hat die Nachricht laut
-ACK-Semantik akzeptiert. Das beweist aber noch nicht, dass die Stammdaten
-im RIS tatsächlich mit den erwarteten Werten angelegt wurden — das ist eine
-eigene, zusätzliche Prüfung im Zielsystem, keine Formalität. „Der komplette
-Workflow ist damit sicher erfolgreich abgeschlossen" wäre ein Fehlschluss:
-`AA` bestätigt die Annahme dieser einen Nachricht, nicht den Endzustand des
-gesamten Vorgangs.
+**Was du daran abliest:** `AA` heißt: Das RIS hat diese eine Nachricht gemäß
+dem vereinbarten Interface-/ACK-Verhalten erfolgreich verarbeitet — das ist
+mehr als eine bloße Empfangsbestätigung. Es beweist aber noch nicht, dass
+die Stammdaten im RIS tatsächlich mit den erwarteten Werten angelegt
+wurden, und erst recht nicht, dass alle nachgelagerten Systeme denselben
+Zustand zeigen — das prüfst du zusätzlich, keine Formalität. „Der komplette
+Workflow ist damit sicher erfolgreich abgeschlossen" wäre trotzdem ein
+Fehlschluss: `AA` bestätigt die erfolgreiche Verarbeitung dieser einen
+Nachricht durch die antwortende Anwendung, nicht automatisch den
+End-to-End-Zustand des gesamten Vorgangs.
