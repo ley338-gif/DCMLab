@@ -17,8 +17,38 @@
     --landing-navy-foreground: var(--foreground);
 }
 
+/*
+ * Variante B (Betreiber-Entscheidung nach Live-Test von Variante A): die
+ * versuchte Hero-Illustration (ein generiertes 8-Icon-"Hub"-Motiv) wirkte im
+ * echten Layout wie ein Fremdkoerper -- weicher Glow-/Blur-Unterton und
+ * glaenzende 3D-Kreise passen nicht zur sonst flachen, ruhigen Bildsprache
+ * der Seite, und die Komposition aus acht Satelliten-Icons blieb auch bei
+ * kleinerer Groesse (580px/520px getestet) unruhig statt "ruhig,
+ * professionell, hochwertig". Ersetzt durch einen sehr zurueckhaltenden,
+ * mehrschichtigen Verlauf statt eines dekorativen Bildes -- ausschliesslich
+ * vorhandene Tokens (--landing-navy, --chart-2, --landing-navy-foreground),
+ * kein neuer Hex-Wert.
+ */
 .landing-hero {
-    background: var(--landing-navy);
+    background-color: var(--landing-navy);
+    background-image:
+        radial-gradient(
+            circle at 76% 38%,
+            color-mix(in srgb, var(--chart-2) 12%, transparent) 0%,
+            color-mix(in srgb, var(--chart-2) 5%, transparent) 26%,
+            transparent 50%
+        ),
+        radial-gradient(
+            circle at 90% 15%,
+            color-mix(in srgb, var(--landing-navy-foreground) 9%, transparent)
+                0%,
+            transparent 42%
+        ),
+        radial-gradient(
+            circle at 10% 108%,
+            color-mix(in srgb, black 24%, transparent) 0%,
+            transparent 55%
+        );
     color: var(--landing-navy-foreground);
     border-bottom: 1px solid var(--border);
 }

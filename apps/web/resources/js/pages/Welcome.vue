@@ -7,7 +7,6 @@ import {
     FlaskConical,
     GraduationCap,
     Layers,
-    LineChart,
     Network,
 } from '@lucide/vue';
 import GlobalFooter from '@/components/GlobalFooter.vue';
@@ -76,67 +75,47 @@ const learningModel = [
     <Head :title="trans('DICOM, PACS und Interoperabilität lernen')" />
 
     <section class="landing-hero">
-        <div class="mx-auto max-w-5xl px-6 py-20 sm:py-28">
-            <p
-                class="text-chart-2 mb-3 text-sm font-semibold tracking-wide uppercase"
-            >
-                DCMLab
-            </p>
-            <h1 class="max-w-3xl text-4xl font-semibold sm:text-5xl">
-                {{
-                    trans(
-                        'DICOM, PACS und Interoperabilität verstehen. Nicht nur auswendig lernen.',
-                    )
-                }}
-            </h1>
-            <p class="mt-6 max-w-2xl text-lg opacity-90">
-                {{
-                    trans(
-                        'Interaktive Lessons, Nodes, Labs und Challenges für Healthcare-IT und PACS-Administration.',
-                    )
-                }}
-            </p>
+        <div class="mx-auto max-w-[1320px] px-6 py-20 sm:py-28">
+            <div class="max-w-[520px]">
+                <p
+                    class="text-chart-2 mb-3 text-sm font-semibold tracking-wide uppercase"
+                >
+                    DCMLab
+                </p>
+                <h1 class="text-4xl font-semibold sm:text-5xl">
+                    {{
+                        trans(
+                            'DICOM, PACS und Interoperabilität verstehen. Nicht nur auswendig lernen.',
+                        )
+                    }}
+                </h1>
+                <p class="mt-6 text-lg opacity-90">
+                    {{
+                        trans(
+                            'Interaktive Lessons, Nodes, Labs und Challenges für Healthcare-IT und PACS-Administration.',
+                        )
+                    }}
+                </p>
 
-            <div class="mt-8 flex flex-wrap gap-3">
-                <Link
-                    :href="register()"
-                    class="bg-background text-foreground rounded-md px-5 py-2.5 text-sm font-semibold hover:opacity-90"
-                >
-                    {{ trans('Jetzt starten') }}
-                </Link>
-                <Link
-                    :href="tracksIndex()"
-                    class="landing-hero-feature rounded-md px-5 py-2.5 text-sm font-semibold"
-                >
-                    {{ trans('Tracks entdecken') }}
-                </Link>
-            </div>
-
-            <div class="mt-12 grid gap-3 sm:grid-cols-4">
-                <div
-                    v-for="feature in [
-                        {
-                            icon: FlaskConical,
-                            label: trans('Interaktive Labs'),
-                        },
-                        {
-                            icon: Network,
-                            label: trans('Praxisnahe Szenarien'),
-                        },
-                        { icon: LineChart, label: trans('Lernfortschritt') },
-                        { icon: Award, label: trans('Achievements') },
-                    ]"
-                    :key="feature.label"
-                    class="landing-hero-feature flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm"
-                >
-                    <component :is="feature.icon" class="size-4 shrink-0" />
-                    {{ feature.label }}
+                <div class="mt-8 flex flex-wrap gap-3">
+                    <Link
+                        :href="register()"
+                        class="bg-background text-foreground rounded-md px-5 py-2.5 text-sm font-semibold hover:opacity-90"
+                    >
+                        {{ trans('Jetzt starten') }}
+                    </Link>
+                    <Link
+                        :href="tracksIndex()"
+                        class="landing-hero-feature rounded-md px-5 py-2.5 text-sm font-semibold"
+                    >
+                        {{ trans('Tracks entdecken') }}
+                    </Link>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="mx-auto max-w-5xl px-6 py-16">
+    <section class="mx-auto max-w-[1320px] px-6 py-16">
         <div class="mb-8 flex items-end justify-between gap-4">
             <div>
                 <h2 class="text-2xl font-semibold">{{ trans('Tracks') }}</h2>
@@ -197,7 +176,7 @@ const learningModel = [
     </section>
 
     <section class="border-t">
-        <div class="mx-auto max-w-5xl px-6 py-16">
+        <div class="mx-auto max-w-[1320px] px-6 py-16">
             <div class="mb-8">
                 <h2 class="text-2xl font-semibold">
                     {{ trans('Praxis statt nur Theorie') }}
@@ -259,7 +238,7 @@ const learningModel = [
         </div>
     </section>
 
-    <section class="mx-auto max-w-5xl px-6 py-16">
+    <section class="mx-auto max-w-[1320px] px-6 py-16">
         <div class="mb-10 text-center">
             <h2 class="text-2xl font-semibold">
                 {{ trans('Strukturiert lernen, nicht nur lesen') }}
@@ -274,11 +253,11 @@ const learningModel = [
         </div>
 
         <div
-            class="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-center sm:gap-3"
+            class="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center lg:justify-center lg:gap-3"
         >
             <template v-for="(step, index) in learningModel" :key="step.label">
                 <div
-                    class="landing-model-step flex flex-1 flex-col items-center gap-2 rounded-lg px-4 py-5 text-center sm:w-36 sm:flex-none"
+                    class="landing-model-step flex flex-1 flex-col items-center gap-2 rounded-lg px-4 py-5 text-center lg:w-36 lg:flex-none"
                 >
                     <component
                         :is="step.icon"
@@ -289,7 +268,7 @@ const learningModel = [
                 </div>
                 <ChevronRight
                     v-if="index < learningModel.length - 1"
-                    class="landing-model-arrow mx-auto size-5 rotate-90 sm:mx-0 sm:rotate-0"
+                    class="landing-model-arrow mx-auto size-5 rotate-90 lg:mx-0 lg:rotate-0"
                     aria-hidden="true"
                 />
             </template>
@@ -298,7 +277,7 @@ const learningModel = [
 
     <section class="landing-cta-band">
         <div
-            class="mx-auto flex max-w-5xl flex-col items-center gap-5 px-6 py-16 text-center"
+            class="mx-auto flex max-w-[1320px] flex-col items-center gap-5 px-6 py-16 text-center"
         >
             <Layers class="size-8" aria-hidden="true" />
             <h2 class="text-2xl font-semibold sm:text-3xl">
