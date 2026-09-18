@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Content\LabAssertionEvaluator;
 use App\Models\AchievementDefinition;
 use App\Models\AchievementUnlock;
 use App\Models\Activity;
@@ -154,8 +155,8 @@ class LabControllerTest extends TestCase
                 ->where('attempt.status', 'started')
                 ->where('runtime', ['status' => 'running', 'queue_position' => null])
                 ->where('assertions', [
-                    ['index' => 0, 'type' => 'command_executed', 'passed' => true],
-                    ['index' => 1, 'type' => 'command_executed', 'passed' => false],
+                    ['index' => 0, 'type' => 'command_executed', 'passed' => true, 'label' => null, 'progress' => null],
+                    ['index' => 1, 'type' => 'command_executed', 'passed' => false, 'label' => null, 'progress' => null],
                 ]),
             );
     }
@@ -829,6 +830,113 @@ class LabControllerTest extends TestCase
             AchievementUnlock::query()->where('user_id', $user->id)->whereRelation('definition', 'slug', 'c-store-badge')->count(),
         );
         $this->assertSame(1, ActivityProgress::where('user_id', $user->id)->count());
+    }
+
+    /**
+     * PR #153 (Assertion-Label-/Progress-Audit): das eigentliche
+     * Realitaets-Szenario -- ein `min_instances: 60`-Lab meldet ehrlichen
+     * Fortschritt waehrend des Uebertragens und zeigt nach dem Loesen nur
+     * noch Label+Haken, keine Zahl mehr.
+     */
+    public function test_exec_reports_progress_for_a_dicom_instance_received_assertion_until_it_is_satisfied(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-store-progress',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'assertions' => [[
+                'type' => 'dicom_instance_received',
+                'patient_id' => '4711',
+                'min_instances' => 60,
+                'label' => 'Vollständige CT-Studie übertragen',
+            ]],
+        ]);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-store-progress']);
+        $user = User::factory()->create();
+
+        $instances = fn (int $count) => array_map(
+            fn (int $i) => ['instance_id' => "inst-{$i}", 'patient_id' => '4711'],
+            range(1, $count),
+        );
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        $this->actingAs($user)->post('/de/labs/c-store-progress/start');
+
+        Http::fake([
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => '', 'stderr' => '', 'exit_code' => 0]),
+            '*/v1/sandboxes/sb-1/events' => Http::sequence()
+                ->push(['exec' => [], 'orthanc' => ['new_instances' => $instances(30)]])
+                ->push(['exec' => [], 'orthanc' => ['new_instances' => $instances(59)]])
+                ->push(['exec' => [], 'orthanc' => ['new_instances' => $instances(60)]]),
+        ]);
+
+        $atThirty = $this->actingAs($user)
+            ->postJson('/de/labs/c-store-progress/exec', ['command' => 'storescu 127.0.0.1 4242 -aec ORTHANC ~/daten/ct-thorax-60/'])
+            ->assertOk();
+        $atThirty->assertJson(['all_satisfied' => false, 'assertions' => [[
+            'index' => 0, 'passed' => false,
+            'label' => 'Vollständige CT-Studie übertragen',
+            'progress' => ['current' => 30, 'required' => 60, 'unit' => 'instances'],
+        ]]]);
+
+        $atFiftyNine = $this->actingAs($user)
+            ->postJson('/de/labs/c-store-progress/exec', ['command' => 'true'])
+            ->assertOk();
+        $atFiftyNine->assertJson(['all_satisfied' => false, 'assertions' => [[
+            'index' => 0, 'passed' => false,
+            'progress' => ['current' => 59, 'required' => 60, 'unit' => 'instances'],
+        ]]]);
+
+        $solved = $this->actingAs($user)
+            ->postJson('/de/labs/c-store-progress/exec', ['command' => 'true'])
+            ->assertOk();
+        $solved->assertJson(['all_satisfied' => true, 'assertions' => [[
+            'index' => 0, 'passed' => true,
+            'label' => 'Vollständige CT-Studie übertragen',
+            'progress' => null,
+        ]]]);
+    }
+
+    /**
+     * Monotonie ueber einen Runtime-Neustart hinweg (Betreiber-Vorgabe):
+     * eine bereits bestandene Assertion zeigt nach einem Neustart mit
+     * leerer Sandbox weiterhin nur Haken+Label, NIE ein irrefuehrendes
+     * "0 von 60".
+     */
+    public function test_show_never_reports_progress_for_an_already_passed_assertion(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-store-progress',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'assertions' => [['type' => 'dicom_instance_received', 'patient_id' => '4711', 'min_instances' => 60, 'label' => 'Vollständige CT-Studie übertragen']],
+        ]);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-store-progress']);
+        $user = User::factory()->create();
+        $attempt = LabAttempt::create([
+            'user_id' => $user->id,
+            'activity_id' => $activity->id,
+            'status' => 'solved',
+            'assertions_passed' => [LabAssertionEvaluator::identifierFor(['type' => 'dicom_instance_received', 'patient_id' => '4711', 'min_instances' => 60])],
+            'started_at' => now()->subHour(),
+            'completed_at' => now(),
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-1' => Http::response(['status' => 'running', 'queue_position' => null])]);
+        SandboxSession::factory()->create([
+            'user_id' => $user->id,
+            'runtime_instance_id' => 'sb-1',
+            'lab_attempt_id' => $attempt->id,
+        ]);
+        $attempt->update(['current_sandbox_session_id' => SandboxSession::where('lab_attempt_id', $attempt->id)->value('id')]);
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-store-progress')
+            ->assertInertia(fn ($page) => $page->where('assertions', [
+                ['index' => 0, 'type' => 'dicom_instance_received', 'passed' => true, 'label' => 'Vollständige CT-Studie übertragen', 'progress' => null],
+            ]));
     }
 
     /**

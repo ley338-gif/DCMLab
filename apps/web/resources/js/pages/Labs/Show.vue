@@ -36,10 +36,24 @@ type LabProps = {
     estimated_minutes: number;
 };
 
+type AssertionProgress = {
+    current: number;
+    required: number;
+    unit: string;
+};
+
 type AssertionState = {
     index: number;
     type: string;
     passed: boolean;
+    // PR #153: vom Autor geschriebenes, typ-uebergreifendes Label -- `null`
+    // (Bestandsfall) faellt auf das bisherige typ-basierte Standardlabel
+    // zurueck.
+    label: string | null;
+    // Reine Beobachtung/UX, kein Grading: nie gesetzt, solange `passed`
+    // (siehe LabController::checklistFor()) -- ein Haken ist die
+    // vollstaendige Aussage, keine Zahl daneben noetig.
+    progress: AssertionProgress | null;
 };
 
 const props = defineProps<{
@@ -112,11 +126,37 @@ const assertionTypeLabels: Record<string, string> = {
 };
 
 function assertionLabel(assertion: AssertionState): string {
+    // PR #153: das vom Autor geschriebene Label geht vor -- nur ohne eines
+    // (Bestandsfall) greift das bisherige, generische Typ-Label.
     const description =
+        assertion.label ??
         assertionTypeLabels[assertion.type] ??
         trans('Unbekanntes Erfolgskriterium.');
 
     return `${trans('Erfolgskriterium :n', { n: assertion.index + 1 })}: ${description}`;
+}
+
+// PR #153: nur EINE Einheit heute (`dicom_instance_received`), aber als
+// Map statt eines hartkodierten Strings, damit ein weiterer Assertion-Typ
+// mit eigener Progress-Einheit hier nur einen Eintrag ergaenzt.
+const progressUnitLabels: Record<
+    string,
+    (current: number, required: number) => string
+> = {
+    instances: (current, required) =>
+        trans(':current von :required Instanzen empfangen', {
+            current,
+            required,
+        }),
+};
+
+function progressLabel(progress: AssertionProgress): string | null {
+    return (
+        progressUnitLabels[progress.unit]?.(
+            progress.current,
+            progress.required,
+        ) ?? null
+    );
 }
 
 /**
@@ -491,7 +531,7 @@ async function restartRuntime() {
                     <li
                         v-for="assertion in assertions"
                         :key="assertion.index"
-                        class="flex items-center gap-2"
+                        class="flex items-start gap-2"
                     >
                         <span
                             :class="
@@ -502,13 +542,28 @@ async function restartRuntime() {
                         >
                             {{ assertion.passed ? '✓' : '○' }}
                         </span>
-                        <span
-                            :class="{
-                                'text-muted-foreground': !assertion.passed,
-                            }"
-                        >
-                            {{ assertionLabel(assertion) }}
-                        </span>
+                        <div>
+                            <span
+                                :class="{
+                                    'text-muted-foreground': !assertion.passed,
+                                }"
+                            >
+                                {{ assertionLabel(assertion) }}
+                            </span>
+                            <!-- PR #153: nur fuer eine noch nicht bestandene
+                                 Assertion gesetzt (siehe AssertionState) --
+                                 kein zusaetzliches aria-live noetig, der
+                                 sichtbare Text aktualisiert sich mit jeder
+                                 exec()-Antwort, die bestehende Solve-Ansage
+                                 (siehe runCommand()) bleibt der einzige
+                                 "laute" Moment. -->
+                            <p
+                                v-if="assertion.progress"
+                                class="text-muted-foreground text-xs"
+                            >
+                                {{ progressLabel(assertion.progress) }}
+                            </p>
+                        </div>
                     </li>
                 </ul>
             </div>
