@@ -52,6 +52,7 @@ final class LabAssertionEvaluator
         )));
 
         $passed = array_values(array_intersect(array_unique($alreadyPassed), $currentIds));
+        $progress = [];
 
         foreach ($lab->assertions as $assertion) {
             $id = self::identifierFor($assertion);
@@ -62,12 +63,27 @@ final class LabAssertionEvaluator
 
             if ($this->isSatisfied($assertion, $events)) {
                 $passed[] = $id;
+
+                continue;
+            }
+
+            // PR #153: Progress ist bewusst NUR fuer eine noch nicht
+            // bestandene Assertion gesetzt -- beide `continue`s oben
+            // (bereits bestanden / gerade eben bestanden) ueberspringen
+            // diesen Zweig. Nach einem Runtime-Neustart bleibt eine bereits
+            // bestandene Assertion so ohne Fortschrittszahl (nur Haken +
+            // Label), nie ein irrefuehrendes "0 von 60".
+            $assertionProgress = $this->progressFor($assertion, $events);
+
+            if ($assertionProgress !== null) {
+                $progress[$id] = $assertionProgress;
             }
         }
 
         return new LabEvaluationResult(
             passed: $passed,
             allSatisfied: collect($currentIds)->every(fn (string $id): bool => in_array($id, $passed, true)),
+            progress: $progress,
         );
     }
 
@@ -92,6 +108,30 @@ final class LabAssertionEvaluator
     }
 
     /**
+     * PR #153 (Assertion-Label-/Progress-Audit): reine Beobachtung, kein
+     * Grading -- liefert `null` fuer jeden Typ ohne sinnvolle "wie viele
+     * von wie vielen"-Semantik (z. B. `command_executed`, das nur ja/nein
+     * kennt). `evaluate()` ruft dies nur fuer eine noch NICHT bestandene
+     * Assertion auf (siehe dort), das Ergebnis landet nie fuer eine bereits
+     * bestandene Assertion im Response.
+     *
+     * @param  array<string, mixed>  $assertion
+     * @param  array<string, mixed>  $events
+     * @return array{current: int, required: int, unit: string}|null
+     */
+    private function progressFor(array $assertion, array $events): ?array
+    {
+        return match ($assertion['type']) {
+            'dicom_instance_received' => [
+                'current' => $this->matchingInstanceCount($assertion, $events),
+                'required' => self::normalizedMinInstances($assertion),
+                'unit' => 'instances',
+            ],
+            default => null,
+        };
+    }
+
+    /**
      * PR #150 (Assertion-/Grading-Audit): liest AUSSCHLIESSLICH
      * `events['orthanc']['new_instances']` (Orthancs eigene Serverwahrheit
      * ueber `docker_ops.collect_orthanc_facts()`, CMS-8b) -- nie
@@ -100,22 +140,36 @@ final class LabAssertionEvaluator
      * "ist die erwartete Instanz tatsaechlich im PACS angekommen", egal mit
      * welchem Befehl.
      *
-     * Robust gegen fehlendes `orthanc`/`new_instances`/einzelne Felder
-     * (Betreiber-Vorgabe) -- jede strukturelle Abweichung ergibt schlicht
-     * `false`, nie einen Fehler.
-     *
      * @param  array<string, mixed>  $assertion
      * @param  array<string, mixed>  $events
      */
     private function isDicomInstanceReceivedSatisfied(array $assertion, array $events): bool
     {
+        return $this->matchingInstanceCount($assertion, $events) >= self::normalizedMinInstances($assertion);
+    }
+
+    /**
+     * PR #153: aus `isDicomInstanceReceivedSatisfied()` extrahiert, damit
+     * `progressFor()` dieselbe Zaehlung wiederverwenden kann, statt sie ein
+     * zweites Mal zu implementieren -- die Grading-Entscheidung selbst
+     * (der `>=`-Vergleich oben) bleibt unveraendert, nur die reine
+     * Zaehlung ist jetzt eine eigene Methode.
+     *
+     * Robust gegen fehlendes `orthanc`/`new_instances`/einzelne Felder
+     * (Betreiber-Vorgabe) -- jede strukturelle Abweichung ergibt schlicht
+     * `0`, nie einen Fehler.
+     *
+     * @param  array<string, mixed>  $assertion
+     * @param  array<string, mixed>  $events
+     */
+    private function matchingInstanceCount(array $assertion, array $events): int
+    {
         $instances = $events['orthanc']['new_instances'] ?? null;
 
         if (! is_array($instances)) {
-            return false;
+            return 0;
         }
 
-        $minInstances = self::normalizedMinInstances($assertion);
         $seenInstanceIds = [];
         $matching = 0;
 
@@ -141,7 +195,7 @@ final class LabAssertionEvaluator
             }
         }
 
-        return $matching >= $minInstances;
+        return $matching;
     }
 
     /**

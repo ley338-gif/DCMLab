@@ -438,6 +438,139 @@ class LabAssertionEvaluatorTest extends TestCase
     }
 
     /**
+     * PR #153 (Assertion-Label-/Progress-Audit): reine Beobachtung, kein
+     * Grading -- `min_instances: 60`, keine einzige empfangene Instanz.
+     */
+    public function test_dicom_instance_received_progress_reports_zero_of_the_required_count(): void
+    {
+        $lab = $this->labWith([['type' => 'dicom_instance_received', 'min_instances' => 60]]);
+
+        $result = (new LabAssertionEvaluator)->evaluate($lab, $this->orthancEventsWith([]), []);
+
+        $id = LabAssertionEvaluator::identifierFor($lab->assertions[0]);
+        $this->assertFalse($result->allSatisfied);
+        $this->assertSame(['current' => 0, 'required' => 60, 'unit' => 'instances'], $result->progress[$id]);
+    }
+
+    public function test_dicom_instance_received_progress_reports_a_partial_count(): void
+    {
+        $lab = $this->labWith([['type' => 'dicom_instance_received', 'min_instances' => 60]]);
+        $instances = array_map(fn (int $i) => $this->dicomInstance(['instance_id' => "inst-{$i}"]), range(1, 30));
+
+        $result = (new LabAssertionEvaluator)->evaluate($lab, $this->orthancEventsWith($instances), []);
+
+        $id = LabAssertionEvaluator::identifierFor($lab->assertions[0]);
+        $this->assertFalse($result->allSatisfied);
+        $this->assertSame(['current' => 30, 'required' => 60, 'unit' => 'instances'], $result->progress[$id]);
+    }
+
+    public function test_dicom_instance_received_progress_reports_one_below_the_threshold(): void
+    {
+        $lab = $this->labWith([['type' => 'dicom_instance_received', 'min_instances' => 60]]);
+        $instances = array_map(fn (int $i) => $this->dicomInstance(['instance_id' => "inst-{$i}"]), range(1, 59));
+
+        $result = (new LabAssertionEvaluator)->evaluate($lab, $this->orthancEventsWith($instances), []);
+
+        $id = LabAssertionEvaluator::identifierFor($lab->assertions[0]);
+        $this->assertFalse($result->allSatisfied);
+        $this->assertSame(['current' => 59, 'required' => 60, 'unit' => 'instances'], $result->progress[$id]);
+    }
+
+    /**
+     * Betreiber-Vorgabe: sobald bestanden, KEIN Progress mehr -- der Haken
+     * selbst ist die vollstaendige Aussage, keine Zahl daneben noetig.
+     */
+    public function test_dicom_instance_received_reports_no_progress_once_satisfied(): void
+    {
+        $lab = $this->labWith([['type' => 'dicom_instance_received', 'min_instances' => 60]]);
+        $instances = array_map(fn (int $i) => $this->dicomInstance(['instance_id' => "inst-{$i}"]), range(1, 60));
+
+        $result = (new LabAssertionEvaluator)->evaluate($lab, $this->orthancEventsWith($instances), []);
+
+        $this->assertTrue($result->allSatisfied);
+        $this->assertSame([], $result->progress);
+    }
+
+    /**
+     * Betreiber-Vorgabe: eine zusaetzliche, aber fremdpatientenbezogene
+     * Instanz darf die Fortschrittszahl nicht erhoehen -- Progress zaehlt
+     * ausschliesslich passende Instanzen, nicht alle im PACS gespeicherten.
+     */
+    public function test_dicom_instance_received_progress_only_counts_matching_instances(): void
+    {
+        $lab = $this->labWith([['type' => 'dicom_instance_received', 'patient_id' => '4711', 'min_instances' => 2]]);
+        $events = $this->orthancEventsWith([
+            $this->dicomInstance(['instance_id' => 'inst-1', 'patient_id' => '4711']),
+            $this->dicomInstance(['instance_id' => 'inst-2', 'patient_id' => 'WRONG-ID']),
+        ]);
+
+        $result = (new LabAssertionEvaluator)->evaluate($lab, $events, []);
+
+        $id = LabAssertionEvaluator::identifierFor($lab->assertions[0]);
+        $this->assertFalse($result->allSatisfied);
+        $this->assertSame(['current' => 1, 'required' => 2, 'unit' => 'instances'], $result->progress[$id]);
+    }
+
+    /**
+     * Monotonie nach Runtime-Neustart: eine bereits bestandene Assertion
+     * bleibt bestanden (siehe bereits bestehenden Test oben), UND zeigt
+     * dabei keinen irrefuehrenden "0 von 60"-Progress, obwohl die frische
+     * Sandbox tatsaechlich leer ist.
+     */
+    public function test_an_already_passed_dicom_instance_received_assertion_reports_no_progress_even_with_empty_events(): void
+    {
+        $assertion = ['type' => 'dicom_instance_received', 'min_instances' => 60];
+        $lab = $this->labWith([$assertion]);
+        $id = LabAssertionEvaluator::identifierFor($assertion);
+
+        $result = (new LabAssertionEvaluator)->evaluate($lab, $this->orthancEventsWith([]), [$id]);
+
+        $this->assertTrue($result->allSatisfied);
+        $this->assertSame([], $result->progress);
+    }
+
+    /**
+     * PR #153: `label` ist reines UI-Feld und darf `identifierFor()` nicht
+     * beeinflussen -- ein Autor kann den Text jederzeit aendern, ohne dass
+     * `assertions_passed` eine bereits bestandene Assertion verliert.
+     */
+    public function test_label_does_not_affect_the_dicom_instance_received_identifier(): void
+    {
+        $withoutLabel = ['type' => 'dicom_instance_received', 'patient_id' => '4711'];
+        $withLabel = ['type' => 'dicom_instance_received', 'patient_id' => '4711', 'label' => 'Vollständige CT-Studie übertragen'];
+
+        $this->assertSame(
+            LabAssertionEvaluator::identifierFor($withoutLabel),
+            LabAssertionEvaluator::identifierFor($withLabel),
+        );
+    }
+
+    public function test_label_does_not_affect_the_command_executed_identifier(): void
+    {
+        $withoutLabel = ['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1'];
+        $withLabel = ['type' => 'command_executed', 'prefix' => 'echoscu 127.0.0.1', 'label' => 'Verbindung pruefen'];
+
+        $this->assertSame(
+            LabAssertionEvaluator::identifierFor($withoutLabel),
+            LabAssertionEvaluator::identifierFor($withLabel),
+        );
+    }
+
+    /**
+     * Backward Compatibility: eine Assertion ganz ohne `label` (der
+     * Bestandsfall) wertet unveraendert korrekt aus.
+     */
+    public function test_a_dicom_instance_received_assertion_without_a_label_still_evaluates_correctly(): void
+    {
+        $lab = $this->labWith([['type' => 'dicom_instance_received', 'patient_id' => '4711']]);
+        $events = $this->orthancEventsWith([$this->dicomInstance(['patient_id' => '4711'])]);
+
+        $result = (new LabAssertionEvaluator)->evaluate($lab, $events, []);
+
+        $this->assertTrue($result->allSatisfied);
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $assertions
      */
     private function labWith(array $assertions): Lab

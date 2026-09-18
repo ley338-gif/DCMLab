@@ -332,6 +332,82 @@ class LabActivityTest extends TestCase
     }
 
     /**
+     * PR #153 (Assertion-Label-/Progress-Audit): `label` ist optional und
+     * typ-uebergreifend.
+     */
+    public function test_validate_accepts_a_dicom_instance_received_assertion_with_a_label(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [[
+                'type' => 'dicom_instance_received',
+                'patient_id' => '4711',
+                'label' => 'Vollständige CT-Studie übertragen',
+            ]],
+        ]));
+
+        $this->assertSame([], $issues);
+    }
+
+    public function test_validate_accepts_a_command_executed_assertion_with_a_label(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'command_executed', 'prefix' => 'echoscu', 'label' => 'Verbindung prüfen']],
+        ]));
+
+        $this->assertSame([], $issues);
+    }
+
+    public function test_validate_rejects_an_empty_label(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'dicom_instance_received', 'label' => '']],
+        ]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'assertions[0].label'),
+        ));
+    }
+
+    public function test_validate_rejects_a_non_string_label(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'dicom_instance_received', 'label' => 42]],
+        ]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'assertions[0].label'),
+        ));
+    }
+
+    /**
+     * Backward Compatibility: eine Assertion ganz ohne `label` (der
+     * Bestandsfall) bleibt weiterhin gueltig.
+     */
+    public function test_validate_accepts_a_dicom_instance_received_assertion_without_a_label(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'dicom_instance_received']],
+        ]));
+
+        $this->assertSame([], $issues);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validPayload(array $overrides = []): array

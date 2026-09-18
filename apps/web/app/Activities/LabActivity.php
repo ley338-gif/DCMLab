@@ -243,10 +243,39 @@ final readonly class LabActivity implements ActivityContract
         // DRITTER Typ braucht hier einen eigenen, expliziten Arm VOR
         // `default`, sonst laeuft er versehentlich durch die
         // dicom_instance_received-Validierung.
-        return match ($type) {
-            'command_executed' => $this->checkCommandExecutedAssertion($file, $index, $assertion),
-            default => $this->checkDicomInstanceReceivedAssertion($file, $index, $assertion),
-        };
+        return [
+            ...$this->checkLabel($file, $index, $assertion),
+            ...match ($type) {
+                'command_executed' => $this->checkCommandExecutedAssertion($file, $index, $assertion),
+                default => $this->checkDicomInstanceReceivedAssertion($file, $index, $assertion),
+            },
+        ];
+    }
+
+    /**
+     * PR #153 (Assertion-Label-/Progress-Audit): `label` ist optional und
+     * typ-uebergreifend -- ein eigenes, vom Autor geschriebenes
+     * User-facing-Label pro Assertion-INSTANZ (nicht pro Typ), unabhaengig
+     * davon, welcher Assertion-Typ es ist. Beeinflusst bewusst NICHT
+     * `LabAssertionEvaluator::identifierFor()`/`canonicalParams()` -- die
+     * lesen `label` nicht mit in die Signatur ein, ein Autor kann den Text
+     * also jederzeit aendern, ohne dass eine bereits bestandene Assertion
+     * dadurch zurueckgesetzt wird.
+     *
+     * @param  array<string, mixed>  $assertion
+     * @return list<ContentIssue>
+     */
+    private function checkLabel(string $file, int $index, array $assertion): array
+    {
+        if (! array_key_exists('label', $assertion) || $assertion['label'] === null) {
+            return [];
+        }
+
+        if (! is_string($assertion['label']) || $assertion['label'] === '') {
+            return [new ContentIssue($file, null, "assertions[{$index}].label: muss, wenn angegeben, ein nicht-leerer String sein")];
+        }
+
+        return [];
     }
 
     /**

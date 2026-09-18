@@ -286,6 +286,12 @@ class StudioLabController extends Controller
             'assertions.*.patient_id' => 'nullable|string',
             'assertions.*.study_instance_uid' => 'nullable|string',
             'assertions.*.modality' => 'nullable|string',
+            // PR #153: ohne diese Regel wuerde Laravels validate() ein vom
+            // Autor geschriebenes `label` beim Speichern kommentarlos
+            // verwerfen (validate() liefert nur Felder zurueck, fuer die
+            // irgendeine Regel existiert) -- typ-uebergreifend, nicht nur
+            // fuer `dicom_instance_received`.
+            'assertions.*.label' => 'nullable|string',
             // Nur die grobe Form -- die eigentliche Schema-/Katalogpruefung
             // (SandboxTemplate/datasets.yml, Assertion-Feldform pro Typ,
             // RichContentValidator) laeuft ueber activity->validate($draft)

@@ -247,6 +247,12 @@ class LabController extends Controller
         $assertionsPassed = $attempt->assertions_passed;
         $allSatisfied = false;
         $progressContext = null;
+        // PR #153: Fortschritts-Metadaten (`LabEvaluationResult::$progress`)
+        // fuer die Checkliste -- reine Beobachtung/UX, siehe checklistFor().
+        // Bleibt leer, wenn nicht neu ausgewertet wird (schon geloest);
+        // checklistFor() zeigt dann ohnehin nie Progress fuer eine bereits
+        // bestandene Assertion.
+        $assertionProgress = [];
 
         // Schon geloest: nicht mehr neu auswerten (kein wiederholtes
         // persistProgress(), keine doppelten Achievement-Toasts) -- spart
@@ -272,7 +278,7 @@ class LabController extends Controller
                 return response()->json(['error' => 'sandbox_unavailable'], 503);
             }
 
-            [$assertionsPassed, $allSatisfied, $progressContext] = DB::transaction(function () use ($lab, $attempt, $events, $progressRecorder, $user) {
+            [$assertionsPassed, $allSatisfied, $progressContext, $assertionProgress] = DB::transaction(function () use ($lab, $attempt, $events, $progressRecorder, $user) {
                 // Betreiber-Korrektur: lockForUpdate() schliesst die Race
                 // zwischen zwei fast gleichzeitigen Terminal-Requests UND
                 // stellt sicher, dass ein Fehler zwischen "solved
@@ -285,7 +291,7 @@ class LabController extends Controller
                 $locked = LabAttempt::query()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
 
                 if ($locked->status !== 'started') {
-                    return [$locked->assertions_passed, $locked->status === 'solved', null];
+                    return [$locked->assertions_passed, $locked->status === 'solved', null, []];
                 }
 
                 $eval = (new LabAssertionEvaluator)->evaluate($lab, $events, $locked->assertions_passed);
@@ -311,7 +317,7 @@ class LabController extends Controller
                     $context = $progressRecorder->persistProgress('lab', $lab->slug, $user);
                 }
 
-                return [$eval->passed, $eval->allSatisfied, $context];
+                return [$eval->passed, $eval->allSatisfied, $context, $eval->progress];
             });
         }
 
@@ -328,7 +334,7 @@ class LabController extends Controller
 
         return response()->json([
             ...$result,
-            'assertions' => $this->checklistFor($lab, $assertionsPassed),
+            'assertions' => $this->checklistFor($lab, $assertionsPassed, $assertionProgress),
             'all_satisfied' => $allSatisfied,
             'unlocked_achievements' => $unlocked,
         ]);
@@ -448,18 +454,34 @@ class LabController extends Controller
      * Reihenfolge im Editor) gibt Vue bei mehreren gleichartigen
      * Assertions trotzdem eine stabile Zeilen-Identitaet.
      *
+     * PR #153: `label` ist das vom Autor geschriebene Roh-Feld (nicht
+     * geheim, dafuer gedacht, dem Lernenden gezeigt zu werden) -- fehlt es,
+     * bleibt es `null` und Vue faellt auf sein bestehendes typ-basiertes
+     * Standardlabel zurueck. `progress` kommt nur fuer eine noch NICHT
+     * bestandene Assertion an: `$progress` (aus `LabEvaluationResult`)
+     * enthaelt fuer eine bereits bestandene ID ohnehin nie einen Eintrag,
+     * der zusaetzliche `$passed`-Check haelt das auch dann korrekt, wenn
+     * diese Methode mit einer leeren `$progress`-Map aufgerufen wird (z. B.
+     * `show()`, das nie neu auswertet, oder ein schon geloester Attempt).
+     *
      * @param  list<string>  $assertionsPassed
-     * @return list<array{index: int, type: string, passed: bool}>
+     * @param  array<string, array{current: int, required: int, unit: string}>  $progress
+     * @return list<array{index: int, type: string, passed: bool, label: string|null, progress: array{current: int, required: int, unit: string}|null}>
      */
-    private function checklistFor(Lab $lab, array $assertionsPassed): array
+    private function checklistFor(Lab $lab, array $assertionsPassed, array $progress = []): array
     {
         $checklist = [];
 
         foreach ($lab->assertions as $index => $assertion) {
+            $id = LabAssertionEvaluator::identifierFor($assertion);
+            $passed = in_array($id, $assertionsPassed, true);
+
             $checklist[] = [
                 'index' => $index,
                 'type' => (string) $assertion['type'],
-                'passed' => in_array(LabAssertionEvaluator::identifierFor($assertion), $assertionsPassed, true),
+                'passed' => $passed,
+                'label' => is_string($assertion['label'] ?? null) && $assertion['label'] !== '' ? $assertion['label'] : null,
+                'progress' => $passed ? null : ($progress[$id] ?? null),
             ];
         }
 
