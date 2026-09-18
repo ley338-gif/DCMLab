@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     BookOpenText,
+    FlaskConical,
     GraduationCap,
     LayoutDashboard,
     LayoutGrid,
@@ -33,6 +34,7 @@ import { trans } from '@/lib/trans';
 import { dashboard, home, login, register } from '@/routes';
 import { index as authorPanelIndex } from '@/routes/author';
 import { index as glossaryIndex } from '@/routes/glossary';
+import { index as labsIndex } from '@/routes/labs';
 import { index as nodesIndex } from '@/routes/nodes';
 import { index as reviewIndex } from '@/routes/review';
 import { index as studioIndex } from '@/routes/studio';
@@ -109,6 +111,18 @@ function isActive(prefix: string): boolean {
                                     <span>{{
                                         trans('Herausforderungen')
                                     }}</span>
+                                </Link>
+                                <Link
+                                    :href="labsIndex()"
+                                    :class="{
+                                        'is-active': isActive('/de/labs'),
+                                    }"
+                                >
+                                    <FlaskConical
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    <span>{{ trans('Labs') }}</span>
                                 </Link>
                                 <Link
                                     v-if="user"
@@ -194,6 +208,13 @@ function isActive(prefix: string): boolean {
                 >
                     <Terminal class="size-4" aria-hidden="true" />
                     {{ trans('Herausforderungen') }}
+                </Link>
+                <Link
+                    :href="labsIndex()"
+                    :class="{ 'is-active': isActive('/de/labs') }"
+                >
+                    <FlaskConical class="size-4" aria-hidden="true" />
+                    {{ trans('Labs') }}
                 </Link>
                 <Link
                     v-if="user"

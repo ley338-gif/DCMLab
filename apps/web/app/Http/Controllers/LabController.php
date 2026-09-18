@@ -10,6 +10,7 @@ use App\Models\Activity;
 use App\Models\Lab;
 use App\Models\LabAttempt;
 use App\Models\SandboxTemplate;
+use App\Services\DashboardHomeService;
 use App\Services\ProfileService;
 use App\Services\RuntimeGoneException;
 use App\Services\RuntimeNotReadyException;
@@ -53,6 +54,22 @@ use Inertia\Response;
  */
 class LabController extends Controller
 {
+    /**
+     * Oeffentlicher Katalog aller veroeffentlichten Labs (IA-Luecke aus dem
+     * Terminologie-Audit: Herausforderungen hatten mit /de/nodes bereits
+     * eine eigene Uebersicht, Labs nicht) -- wie NodeController::index()
+     * ohne Login sichtbar, `labsOverview()` liefert fuer Gaeste dieselben
+     * Labs, nur ohne Attempt-Status (immer 'not_started'). Ein Klick auf
+     * ein Lab fuehrt Gaeste ueber die bestehende auth-Middleware auf
+     * labs/{lab} zum Login, dieselbe Redirect-Logik wie ueberall sonst.
+     */
+    public function index(DashboardHomeService $home): Response
+    {
+        return Inertia::render('Labs/Index', [
+            'labs' => $home->labsOverview(Auth::user()),
+        ]);
+    }
+
     public function show(Request $request, Lab $lab, ContentRepository $content, RuntimeSessionService $sessions): Response
     {
         $this->assertVisible($lab);

@@ -29,6 +29,7 @@ void createInertiaApp({
             case name === 'Tracks/Show':
             case name === 'Nodes/Show':
             case name === 'Nodes/Index':
+            case name === 'Labs/Index':
             case name === 'Glossary/Index':
             case name === 'Dashboard':
             case name === 'Review/Index':

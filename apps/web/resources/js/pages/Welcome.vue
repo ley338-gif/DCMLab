@@ -18,9 +18,10 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { difficultyLabels } from '@/lib/labCatalog';
 import { trans } from '@/lib/trans';
 import { register } from '@/routes';
-import { show as showLab } from '@/routes/labs';
+import { index as labsIndex, show as showLab } from '@/routes/labs';
 import { index as tracksIndex, show as showTrack } from '@/routes/tracks';
 
 type TrackHighlight = {
@@ -53,13 +54,6 @@ const levelLabels: Record<string, string> = {
     einsteiger: trans('Einsteiger'),
     aufbau: trans('Aufbau'),
     fortgeschritten: trans('Fortgeschritten'),
-};
-
-const difficultyLabels: Record<string, string> = {
-    easy: trans('Leicht'),
-    medium: trans('Mittel'),
-    hard: trans('Schwer'),
-    insane: trans('Extrem'),
 };
 
 const learningModel = [
@@ -177,17 +171,29 @@ const learningModel = [
 
     <section class="border-t">
         <div class="mx-auto max-w-[1320px] px-6 py-16">
-            <div class="mb-8">
-                <h2 class="text-2xl font-semibold">
-                    {{ trans('Praxis statt nur Theorie') }}
-                </h2>
-                <p class="text-muted-foreground mt-1 max-w-2xl">
-                    {{
-                        trans(
-                            'Echte Labs mit einer echten Orthanc-/DCMTK-Laufzeitumgebung — kein Multiple-Choice-Quiz.',
-                        )
-                    }}
-                </p>
+            <div class="mb-8 flex items-end justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-semibold">
+                        {{ trans('Praxis statt nur Theorie') }}
+                    </h2>
+                    <p class="text-muted-foreground mt-1 max-w-2xl">
+                        {{
+                            trans(
+                                'Echte Labs mit einer echten Orthanc-/DCMTK-Laufzeitumgebung — kein Multiple-Choice-Quiz.',
+                            )
+                        }}
+                    </p>
+                </div>
+                <Link
+                    :href="labsIndex()"
+                    class="text-sm font-medium whitespace-nowrap hover:underline"
+                >
+                    {{ trans('Alle Labs ansehen') }}
+                    <ChevronRight
+                        class="ml-0.5 inline size-3.5"
+                        aria-hidden="true"
+                    />
+                </Link>
             </div>
 
             <p

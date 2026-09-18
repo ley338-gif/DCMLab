@@ -72,9 +72,14 @@ class DashboardHomeService
     }
 
     /**
-     * @return list<array{slug: string, title: string, difficulty: string, estimated_minutes: int, status: string, lesson_id: string|null, track_slug: string|null}>
+     * `$user === null` (Gast auf der oeffentlichen /de/labs-Uebersicht, siehe
+     * LabController::index()) liefert dieselben Labs, aber jedes ohne
+     * Attempt -- also immer `status: 'not_started'`, wie bei
+     * NodeController::index() fuer Gaeste.
+     *
+     * @return list<array{slug: string, title: string, scenario_title: string, difficulty: string, points: int, estimated_minutes: int, status: string, lesson_id: string|null, track_slug: string|null}>
      */
-    public function labsOverview(User $user): array
+    public function labsOverview(?User $user): array
     {
         $labs = Lab::query()->where('status', 'published')->orderBy('id')->get();
 
@@ -97,11 +102,13 @@ class DashboardHomeService
             ->get()
             ->keyBy('activity_id');
 
-        $attemptsByActivityId = LabAttempt::query()
-            ->where('user_id', $user->id)
-            ->whereIn('activity_id', $activityIds)
-            ->get()
-            ->keyBy('activity_id');
+        $attemptsByActivityId = $user === null
+            ? collect()
+            : LabAttempt::query()
+                ->where('user_id', $user->id)
+                ->whereIn('activity_id', $activityIds)
+                ->get()
+                ->keyBy('activity_id');
 
         $trackSlugById = Track::query()->pluck('slug', 'id');
 
@@ -121,7 +128,9 @@ class DashboardHomeService
             $result[] = [
                 'slug' => $lab->slug,
                 'title' => $lab->title['de'] ?? $lab->slug,
+                'scenario_title' => $lab->scenario_title['de'] ?? '',
                 'difficulty' => $lab->difficulty,
+                'points' => $lab->points,
                 'estimated_minutes' => $lab->estimated_minutes,
                 // LabAttempt kennt nur started|solved (siehe LabController)
                 // -- fehlender Attempt heisst schlicht "noch nicht
@@ -161,7 +170,7 @@ class DashboardHomeService
      *
      * @param  Collection<int, Track>  $trackModels  bereits geladen mit lessons_count/completed_lessons_count (siehe DashboardController)
      * @param  array{track_slug: string, track_title_key: string, track_title: array<string,string>|null, lesson_id: string, lesson_title: string, lesson_order: int, position: int, lessons_count: int, completed_lessons_count: int}|null  $continueLearning
-     * @param  list<array{slug: string, title: string, difficulty: string, estimated_minutes: int, status: string, lesson_id: string|null, track_slug: string|null}>  $labsOverview
+     * @param  list<array{slug: string, title: string, scenario_title: string, difficulty: string, points: int, estimated_minutes: int, status: string, lesson_id: string|null, track_slug: string|null}>  $labsOverview
      * @return array{type: 'lab'|'lesson'|'track', reason_code: 'fits_current_track'|'prerequisites_met'|'track_completed'|'beginner_recommendation', title: ?string, title_key: ?string, slug: ?string, lesson_id: ?string, completed_track_title: ?string, completed_track_title_key: ?string}|null
      */
     public function recommendedNext(User $user, Collection $trackModels, ?array $continueLearning, array $labsOverview): ?array

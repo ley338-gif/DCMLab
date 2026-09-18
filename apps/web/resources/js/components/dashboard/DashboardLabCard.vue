@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { ArrowRight, CheckCircle2, FlaskConical } from '@lucide/vue';
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
+import { difficultyLabels } from '@/lib/labCatalog';
 import { trans } from '@/lib/trans';
 import { show as showLab } from '@/routes/labs';
 
@@ -17,13 +18,6 @@ type Lab = {
 const props = defineProps<{
     lab: Lab;
 }>();
-
-const difficultyLabels: Record<string, string> = {
-    easy: trans('Leicht'),
-    medium: trans('Mittel'),
-    hard: trans('Schwer'),
-    insane: trans('Extrem'),
-};
 
 const ctaLabel = computed(() =>
     props.lab.status === 'not_started' ? trans('Lab starten') : trans('Weiter'),
