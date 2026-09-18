@@ -55,9 +55,9 @@ MSA|AA|MSG8821
 **Was du daran abliest:** `AA` heißt: Das RIS hat diese eine Nachricht gemäß
 dem vereinbarten Interface-/ACK-Verhalten erfolgreich verarbeitet — das ist
 mehr als eine bloße Empfangsbestätigung. Es beweist aber noch nicht, dass
-die Stammdaten im RIS tatsächlich mit den erwarteten Werten angelegt
-wurden, und erst recht nicht, dass alle nachgelagerten Systeme denselben
-Zustand zeigen — das prüfst du zusätzlich, keine Formalität. „Der komplette
+die Stammdaten im RIS auch im erwarteten Zustand sichtbar sind, und erst
+recht nicht, dass alle nachgelagerten Systeme denselben Zustand zeigen —
+das prüfst du zusätzlich, keine Formalität. „Der komplette
 Workflow ist damit sicher erfolgreich abgeschlossen" wäre trotzdem ein
 Fehlschluss: `AA` bestätigt die erfolgreiche Verarbeitung dieser einen
 Nachricht durch die antwortende Anwendung, nicht automatisch den
