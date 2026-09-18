@@ -52,6 +52,8 @@ Ein Befund durchläuft typischerweise mehrere Ergebnisstatus (OBX-11 in einer OR
 - `F` — **Final**: abschließend freigegebener Befund
 - `C` — **Correction**: ersetzt einen zuvor finalen Befund
 
+Hier betrachten wir vereinfacht `OBX-11` auf Observation-Ebene. In realen ORU-Profilen kann zusätzlich ein Result Status auf OBR-Ebene, etwa `OBR-25`, relevant sein. Maßgeblich ist wie immer das konkrete Interface-Profil.
+
 Ein typischer zeitlicher Verlauf:
 
 ```text
