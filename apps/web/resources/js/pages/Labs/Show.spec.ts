@@ -83,7 +83,15 @@ const baseProps = {
     attempt: { status: 'started' as const },
     can_start: true,
     runtime: { status: 'running' as const, queue_position: null },
-    assertions: [{ index: 0, type: 'command_executed', passed: false }],
+    assertions: [
+        {
+            index: 0,
+            type: 'command_executed',
+            passed: false,
+            label: null,
+            progress: null,
+        },
+    ],
     runtime_error: null,
     next_step: {
         type: 'labs_index' as const,
@@ -130,7 +138,15 @@ describe('Labs/Show runCommand achievement wiring', () => {
             stdout: 'ok',
             stderr: '',
             exit_code: 0,
-            assertions: [{ index: 0, type: 'command_executed', passed: true }],
+            assertions: [
+                {
+                    index: 0,
+                    type: 'command_executed',
+                    passed: true,
+                    label: null,
+                    progress: null,
+                },
+            ],
             all_satisfied: true,
             unlocked_achievements: unlocked,
         });
@@ -156,7 +172,15 @@ describe('Labs/Show runCommand achievement wiring', () => {
             stdout: '',
             stderr: 'not found',
             exit_code: 1,
-            assertions: [{ index: 0, type: 'command_executed', passed: false }],
+            assertions: [
+                {
+                    index: 0,
+                    type: 'command_executed',
+                    passed: false,
+                    label: null,
+                    progress: null,
+                },
+            ],
             all_satisfied: false,
             unlocked_achievements: [],
         });
@@ -407,5 +431,122 @@ describe('Labs/Show runtime state rendering', () => {
         await Promise.resolve();
 
         expect(focus).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * PR #153 (Assertion-Label-/Progress-Audit): ein vom Autor geschriebenes
+ * `label` geht vor dem bisherigen typ-basierten Standardlabel, und
+ * `progress` rendert nur, solange die Assertion noch nicht bestanden ist.
+ */
+describe('Labs/Show assertion label and progress rendering', () => {
+    it('uses the custom label when the assertion provides one', () => {
+        const wrapper = mount(Show, {
+            props: {
+                ...baseProps,
+                assertions: [
+                    {
+                        index: 0,
+                        type: 'dicom_instance_received',
+                        passed: false,
+                        label: 'Vollständige CT-Studie übertragen',
+                        progress: null,
+                    },
+                ],
+            },
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        expect(wrapper.text()).toContain('Vollständige CT-Studie übertragen');
+    });
+
+    it('falls back to the generic type-based label without a custom one', () => {
+        const wrapper = mount(Show, {
+            props: {
+                ...baseProps,
+                assertions: [
+                    {
+                        index: 0,
+                        type: 'dicom_instance_received',
+                        passed: false,
+                        label: null,
+                        progress: null,
+                    },
+                ],
+            },
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        expect(wrapper.text()).toContain(
+            'Die erwartete DICOM-Instanz wurde erfolgreich im Ziel-PACS gespeichert.',
+        );
+    });
+
+    it('renders current/required progress in German for an unsatisfied assertion', () => {
+        const wrapper = mount(Show, {
+            props: {
+                ...baseProps,
+                assertions: [
+                    {
+                        index: 0,
+                        type: 'dicom_instance_received',
+                        passed: false,
+                        label: 'Vollständige CT-Studie übertragen',
+                        progress: {
+                            current: 30,
+                            required: 60,
+                            unit: 'instances',
+                        },
+                    },
+                ],
+            },
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        expect(wrapper.text()).toContain('30 von 60 Instanzen empfangen');
+    });
+
+    it('shows no progress line once the assertion is passed', () => {
+        const wrapper = mount(Show, {
+            props: {
+                ...baseProps,
+                assertions: [
+                    {
+                        index: 0,
+                        type: 'dicom_instance_received',
+                        passed: true,
+                        label: 'Vollständige CT-Studie übertragen',
+                        progress: null,
+                    },
+                ],
+            },
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        expect(wrapper.text()).toContain('Vollständige CT-Studie übertragen');
+        expect(wrapper.text()).not.toContain('von');
+        expect(wrapper.text()).not.toContain('Instanzen empfangen');
+    });
+
+    it('renders an unlabeled command_executed assertion exactly as before (no regression)', () => {
+        const wrapper = mount(Show, {
+            props: {
+                ...baseProps,
+                assertions: [
+                    {
+                        index: 0,
+                        type: 'command_executed',
+                        passed: false,
+                        label: null,
+                        progress: null,
+                    },
+                ],
+            },
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        expect(wrapper.text()).toContain(
+            'Ein passender Befehl wurde erfolgreich ausgeführt.',
+        );
     });
 });
