@@ -274,5 +274,19 @@ defineExpose({ insertTemplate, focus });
     overflow: hidden;
     background: #0a0e14;
     padding: 0.5rem;
+    /* Regressionsfix (Live-Smoke-Test PR #148): ohne dies bleibt xterms
+       intern gesetzte `.xterm-screen`-Breite (in Pixeln, vom letzten `fit()`)
+       die MIN-CONTENT-Breite dieses Containers -- in einem Flex-Vorfahren
+       (hier: <main>) verhindert das per Spec-Default (`min-width: auto`)
+       ein Schrumpfen unter diese Breite, selbst wenn der Viewport schmaler
+       wird, WEIL sich der Container dadurch nie tatsaechlich verkleinert,
+       feuert der ResizeObserver nie erneut und `fit()` passt die
+       Spaltenzahl nie neu an -- ein zirkulaerer Deadlock, der beim
+       Verkleinern des Fensters bei laufender Runtime zu echtem seitlichem
+       Clipping der ganzen Seite fuehrte (per echtem Browser-Smoke-Test
+       gegen 480px verifiziert, nicht nur vermutet). `max-width: 100%`
+       deckelt den Container selbst auf die tatsaechlich verfuegbare Breite
+       und durchbricht damit den Zirkel. */
+    max-width: 100%;
 }
 </style>

@@ -372,7 +372,7 @@ async function restartRuntime() {
 <template>
     <Head :title="lab.title" />
 
-    <div class="mx-auto max-w-4xl px-6 pt-10 pb-16">
+    <div class="mx-auto w-full max-w-4xl min-w-0 px-6 pt-10 pb-16">
         <h1 class="mb-1 text-2xl font-semibold">{{ props.lab.title }}</h1>
         <p v-if="props.lab.scenario_title" class="text-muted-foreground mb-4">
             {{ props.lab.scenario_title }}
