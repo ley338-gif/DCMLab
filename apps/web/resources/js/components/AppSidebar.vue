@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     BookOpenText,
+    FlaskConical,
     GraduationCap,
     LayoutDashboard,
     LayoutGrid,
@@ -25,6 +26,7 @@ import { trans } from '@/lib/trans';
 import { dashboard, home } from '@/routes';
 import { index as authorPanelIndex } from '@/routes/author';
 import { index as glossaryIndex } from '@/routes/glossary';
+import { index as labsIndex } from '@/routes/labs';
 import { index as nodesIndex } from '@/routes/nodes';
 import { index as studioIndex } from '@/routes/studio';
 import { index as tracksIndex } from '@/routes/tracks';
@@ -49,6 +51,11 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: trans('Herausforderungen'),
             href: nodesIndex(),
             icon: Terminal,
+        },
+        {
+            title: trans('Labs'),
+            href: labsIndex(),
+            icon: FlaskConical,
         },
         {
             title: trans('Glossar'),

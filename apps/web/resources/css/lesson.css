@@ -197,7 +197,14 @@
     }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1279px) {
+    /* Selbe Schwelle wie .lesson-app-drawer-trigger oben (Abschnitt 9,
+       Labs-Nav-Eintrag): mit acht moeglichen Eintraegen (inkl. Autoren-/
+       Studio-Rollen) wurde die Inline-Navigation zwischen 900-1279px eng
+       genug, um den Header sichtbar zu ueberfuellen (Logo/Icons wurden
+       abgeschnitten) -- ab jetzt dieselbe Schwelle wie der Hamburger, statt
+       Schrift/Abstaende zu verkleinern, um die Eintraege doch noch
+       hineinzuquetschen. */
     .lesson-app-nav {
         display: none;
     }

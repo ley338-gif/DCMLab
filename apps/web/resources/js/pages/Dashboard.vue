@@ -16,6 +16,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { trans } from '@/lib/trans';
+import { index as labsIndex } from '@/routes/labs';
 import { show as showLesson } from '@/routes/lessons';
 import { index as reviewIndex } from '@/routes/review';
 import { index as tracksIndex, show as showTrack } from '@/routes/tracks';
@@ -201,9 +202,17 @@ function formatDate(iso: string): string {
                 </section>
 
                 <section aria-labelledby="your-labs-heading">
-                    <h2 id="your-labs-heading" class="mb-3 font-semibold">
-                        {{ trans('Deine Labs') }}
-                    </h2>
+                    <div class="mb-3 flex items-center justify-between">
+                        <h2 id="your-labs-heading" class="font-semibold">
+                            {{ trans('Deine Labs') }}
+                        </h2>
+                        <Link
+                            :href="labsIndex()"
+                            class="text-sm font-medium hover:underline"
+                        >
+                            {{ trans('Alle Labs ansehen') }}
+                        </Link>
+                    </div>
                     <p
                         v-if="labs.length === 0"
                         class="text-muted-foreground text-sm"

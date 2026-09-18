@@ -47,6 +47,7 @@ Route::prefix('de')->group(function () {
     Route::get('leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');
     Route::get('glossar', [GlossaryController::class, 'index'])->name('glossary.index');
     Route::get('nodes', [NodeController::class, 'index'])->name('nodes.index');
+    Route::get('labs', [LabController::class, 'index'])->name('labs.index');
     Route::get('profiles/{slug}', [PublicProfileController::class, 'show'])->name('profiles.show');
     Route::get('profiles/{slug}/export', [PublicProfileController::class, 'exportPdf'])->name('profiles.export');
 

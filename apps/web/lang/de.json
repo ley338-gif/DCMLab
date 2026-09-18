@@ -360,6 +360,12 @@
     "Erklärt in Lektion :lesson": "Erklärt in Lektion :lesson",
 
     "Labs": "Labs",
+    "Arbeite in echten DICOM-Testumgebungen mit Orthanc und DCMTK.": "Arbeite in echten DICOM-Testumgebungen mit Orthanc und DCMTK.",
+    "Derzeit sind keine Labs verfügbar.": "Derzeit sind keine Labs verfügbar.",
+    "Starten": "Starten",
+    "Fortsetzen": "Fortsetzen",
+    "Erneut öffnen": "Erneut öffnen",
+    "Alle Labs ansehen": "Alle Labs ansehen",
     "Kaputte Umgebungen zum Reparieren — jede Herausforderung ist ein eigenständiges Szenario mit Flag und Punkten.": "Kaputte Umgebungen zum Reparieren — jede Herausforderung ist ein eigenständiges Szenario mit Flag und Punkten.",
     ":minutes Min.": ":minutes Min.",
     "Netzwerk": "Netzwerk",
