@@ -32,6 +32,14 @@ HL7-v2-Nachrichten werden häufig über TCP mit MLLP-Rahmung transportiert. MLLP
 
 ## Das ACK lesen
 
+Drei Application-Acknowledgement-Codes stehen in MSA-1:
+
+- `AA` — **Application Accept**: die antwortende Anwendung hat die Nachricht gemäß dem vereinbarten Interface-/ACK-Verhalten erfolgreich verarbeitet
+- `AE` — **Application Error**: bei der Verarbeitung trat ein Fehler auf
+- `AR` — **Application Reject**: die Nachricht wurde grundsätzlich abgelehnt
+
+> Im Enhanced-Mode-Acknowledgement gibt es zusätzlich Commit-ACKs wie `CA`/`CE`/`CR`, die die Übernahme in eine Warteschlange bestätigen, bevor die eigentliche fachliche Verarbeitung überhaupt läuft. Für den Einstieg reicht: Sie sind eine weitere, vorgelagerte Ebene — nicht dein Hauptlernziel hier.
+
 Ein vereinfachtes ACK:
 
 ```text
@@ -39,7 +47,7 @@ MSH|^~\&|RIS|RAD|KIS|HAUS|20260916081600||ACK^O01|ACK7711|P|2.5
 MSA|AA|MSG4711
 ```
 
-**Was du daran abliest:** `AA` in MSA-1 steht für akzeptiert — die Nachricht wurde transportiert und fachlich angenommen.
+**Was du daran abliest:** `AA` bestätigt, dass die antwortende Anwendung — hier das RIS — diese eine Nachricht gemäß dem vereinbarten Interface-/ACK-Verhalten erfolgreich verarbeitet hat. Das ist mehr als eine bloße Empfangsbestätigung. Es beweist aber noch nicht automatisch, dass nachgelagerte Systeme oder der gesamte klinische End-to-End-Workflow bereits den erwarteten Zustand erreicht haben.
 
 Ein Fehlerfall:
 
@@ -50,6 +58,17 @@ ERR|||OBR^4^1|103^Table value not found
 ```
 
 **Was du daran abliest:** In beiden Fällen kam ein ACK zurück. Erst `MSA` und gegebenenfalls `ERR` sagen dir, ob die Nachricht akzeptiert wurde.
+
+## Vier Ebenen, die du nicht verwechseln darfst
+
+```text
+1. Transport / MLLP funktioniert
+2. Empfänger antwortet
+3. Application ACK beschreibt die Verarbeitung der Nachricht durch die antwortende Anwendung
+4. Nachgelagerte Systeme bzw. der klinische End-to-End-Zustand können zusätzlich geprüft werden
+```
+
+**Was du daran abliest:** Ein `AA` auf Ebene 3 ist eine echte, positive Aussage — die antwortende Anwendung hat diese eine Nachricht erfolgreich verarbeitet. Das beantwortet aber nicht automatisch Ebene 4: Ob der Auftrag auch in allen nachgelagerten Systemen mit den richtigen Werten angekommen ist, bleibt bei kritischen Vorgängen eine eigene, zusätzliche Prüfung.
 
 ## Warum Message Control ID so wertvoll ist
 
@@ -122,7 +141,7 @@ Bei jedem HL7-Fehler beantwortest du vier Fragen:
 
 ## Lab
 
-Im Lab erhältst du zwei „erfolgreich versendete“ Nachrichten. Nur eine wurde fachlich akzeptiert. Deine Aufgabe ist, das anhand des ACKs zu erkennen.
+Im Lab bewertest du eine Nachricht anhand ihres ACKs — und danach, was ein zweites ACK nach einer Korrektur tatsächlich beweist und was nicht.
 
 ## Selbstcheck
 

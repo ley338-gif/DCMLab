@@ -13,9 +13,10 @@ scenario:
   steps:
     ticket:
       prompt: >
-        CT-5 zeigt den Patienten 4711 nicht in der Worklist. Im KIS ist der
-        Auftrag ORD93821 sichtbar. C-ECHO und eine allgemeine MWL-Abfrage zum
-        Broker funktionieren.
+        Am CT-9 fehlt der Patient 8842 in der Worklist. Andere Patienten
+        erscheinen normal, eine allgemeine MWL-Abfrage an den Broker
+        funktioniert. Im KIS ist der Auftrag ORD-77410 sichtbar und
+        freigegeben.
       options:
         - id: device_reconfigure
           label: Den Scheduled Station AE Title am CT sofort ändern.
@@ -29,28 +30,48 @@ scenario:
 
     interface:
       prompt: >
-        In der Interface Engine findest du MSG4711. Der RIS antwortete mit
-        MSA|AE|MSG4711 und ERR ... OBR^4 ... Unknown procedure code CTTHX2.
-        Was ist die wahrscheinlichste Ursache?
+        In der Interface Engine findest du den Eingang der Nachricht
+        MSG55902 aus dem KIS, bestätigt um 09:12. Im
+        Outbound-Transferprotokoll zum RIS existiert für dieselbe Nachricht
+        kein Eintrag mit Status SENT — der letzte Eintrag zeigt
+        State: ERROR. An welcher Systemgrenze ist der Auftrag zuerst
+        verloren gegangen?
       options:
-        - id: network
-          label: DICOM-Netzwerkfehler zwischen CT und PACS.
-          next: wrong_network
-        - id: mapping
-          label: Der Prozedurcode aus OBR-4 ist im RIS/Mapping nicht bekannt.
-          next: mapping_found
-        - id: uid
-          label: Die Study Instance UID ist doppelt vergeben.
-          next: wrong_uid
+        - id: kis_ie
+          label: Zwischen KIS und Interface Engine — die Nachricht ist nie angekommen.
+          next: wrong_kis_ie
+        - id: ie_ris
+          label: Zwischen Interface Engine und RIS — der Outbound-Transfer ist fehlgeschlagen.
+          next: mapping_detail
+        - id: ris_mwl
+          label: Zwischen RIS und MWL Provider — der Broker hat keinen Eintrag erzeugt.
+          next: wrong_ris_mwl
 
-    mapping_found:
+    mapping_detail:
       prompt: >
-        Das Mapping wird ergänzt und die fehlgeschlagene Nachricht gezielt
-        erneut verarbeitet. Das RIS legt den Auftrag an und der Broker liefert
-        ihn anschließend in der MWL. Welche Fehlerdomäne war ursächlich?
+        Der fehlgeschlagene Transfer-Log-Eintrag zeigt: Procedure code:
+        CTA_EXT, Mapping: no target mapping, State: ERROR. Was ist die
+        wahrscheinlichste Ursache?
       options:
         - id: confirm_mapping
-          label: Auftrags-/Prozedurcode-Mapping zwischen HL7-Schnittstelle und RIS.
+          label: Für den Prozedurcode CTA_EXT existiert kein Ziel-Mapping zwischen Interface Engine und RIS.
+          next: reprocess
+        - id: network2
+          label: Ein Netzwerkfehler zwischen Interface Engine und RIS.
+          next: wrong_network
+        - id: uid2
+          label: Eine doppelt vergebene Study Instance UID.
+          next: wrong_uid
+
+    reprocess:
+      prompt: >
+        Nach Ergänzung des Ziel-Mappings für CTA_EXT wird der
+        Outbound-Transfer gezielt erneut angestoßen. Das RIS legt danach
+        den Auftrag ORD-77410 an, der Broker erzeugt einen MWL-Eintrag für
+        CT-9. Welche Fehlerdomäne war ursächlich?
+      options:
+        - id: confirm_domain
+          label: Auftrags-/Prozedurcode-Mapping zwischen Interface Engine und RIS.
           next: success
 
     wrong_device:
@@ -65,31 +86,44 @@ scenario:
       prompt: >
         Eine manuelle Eingabe umgeht den Fehler nur. Auftrag, Accession und spätere
         Zuordnung bleiben inkonsistent.
+    wrong_kis_ie:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Eingang aus dem KIS ist im Interface-Engine-Log bereits bestätigt —
+        die Nachricht ist dort angekommen. Der Fehler liegt danach.
+    wrong_ris_mwl:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ohne erfolgreichen Outbound-Transfer zum RIS kennt das RIS den Auftrag
+        noch gar nicht. Der Broker kann dann folgerichtig keinen MWL-Eintrag
+        erzeugen — das ist eine Folge, nicht die erste Fehlerstelle.
     wrong_network:
       terminal: true
       outcome: wrong
       prompt: >
-        Der Auftrag ist bereits vor der DICOM-Worklist-Kette gescheitert: das RIS hat
-        die HL7-Nachricht fachlich abgewiesen.
+        Der Log zeigt einen Mapping-Fehlerstatus für den Prozedurcode, keinen
+        Verbindungsabbruch.
     wrong_uid:
       terminal: true
       outcome: wrong
       prompt: >
-        Vor der Bildentstehung existiert noch keine Study Instance UID, an der dieser
-        Auftrag scheitern könnte.
+        Vor der Bildentstehung existiert noch keine Study Instance UID, an der
+        dieser Auftrag scheitern könnte.
     success:
       terminal: true
       outcome: correct
-      reveal: OBR-4-MAPPING
+      reveal: CTA-EXT-MAPPING
       prompt: >
         Richtig. Der Auftrag verschwand an der Grenze Interface Engine → RIS, weil der
-        Prozedurcode aus OBR-4 nicht gemappt war. Erst nach Korrektur und gezieltem
+        Prozedurcode CTA_EXT nicht gemappt war. Erst nach Korrektur und gezieltem
         Reprocessing konnte die MWL den Auftrag zeigen.
 
 flag:
   type: exact
   source_tag: scenario
-  hash: "sha256:046132d28e4207c877da3e56cb8fc959d26d9e7996dce803d1e836c20ef61666"
+  hash: "sha256:6b0cd8124e8095be1fa894fdf76fabab0ffd38dda7cfc9ea44d16f4a93950c4f"
   case_sensitive: false
 
 hints:
@@ -102,4 +136,4 @@ hints:
 
 stuck_timeout_minutes: 10
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-18"

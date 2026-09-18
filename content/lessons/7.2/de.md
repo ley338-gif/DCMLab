@@ -35,7 +35,19 @@ Die ersten drei Zeichen sagen, welche Art Information folgt:
 
 ## `|`, `^`, `~`, `\`, `&`
 
-HL7 v2 benutzt Trennzeichen. In einer typischen ER7-Nachricht ist `|` der Feldtrenner und `^` trennt Komponenten innerhalb eines Feldes.
+`MSH-1` definiert den Feldtrenner `|`. `MSH-2` enthält in unserem HL7-v2.5-Beispiel die vier Encoding Characters `^~\&`: Component, Repetition, Escape und Subcomponent.
+
+Insgesamt benutzt HL7 v2 damit fünf Trennzeichen:
+
+- `|` — **Feld** (MSH-1, Field Separator): trennt die Felder innerhalb eines Segments
+- `^` — **Komponente** (Component Separator): trennt Bestandteile innerhalb eines Feldes
+- `~` — **Wiederholung** (Repetition Separator): trennt mehrere Wiederholungen desselben Feldes
+- `\` — **Escape** (Escape Character): leitet ein Escape-Zeichen ein, z. B. um einen der obigen Trenner als reinen Text darzustellen
+- `&` — **Subkomponente** (Subcomponent Separator): trennt Bestandteile innerhalb einer Komponente
+
+Für den Einstieg brauchst du vor allem `|` und `^` sicher. `~` und `&` begegnen dir seltener, `\` fast nur beim Escaping von Sonderzeichen — wichtig ist zunächst, alle fünf wiederzuerkennen, nicht sie auswendig zu produzieren.
+
+> Neuere HL7-v2-Versionen können zusätzliche Encoding Characters definieren — für die hier gezeigten v2.5-Beispiele reicht dieses Bild.
 
 Nimm diese Zeile:
 
@@ -108,17 +120,26 @@ PID|1||4711^^^KLINIK-B^MR||MUSTER^ERIKA
 
 **Was du daran abliest:** Beide tragen den numerischen Wert `4711`, aber unterschiedliche Assigning Authorities. Wer beim Abgleich nur die Ziffern betrachtet, kann Patienten falsch zusammenführen.
 
-## Die fünf Suchanker für den PACS-Admin
+## Suchanker nach Fehlerdomäne
 
-Wenn du ein Problem über mehrere Systeme verfolgst, notiere dir:
+Nicht jeder Identifikator ist in jeder Fehlerdomäne nützlich. Ordne sie danach, wo sie herkommen:
 
-1. Message Control ID
-2. Patient Identifier plus Assigning Authority
-3. Placer/Filler Order Number
-4. Accession Number, wenn im Profil vorhanden
-5. später Study Instance UID
+```text
+Transport-/Nachrichtenebene:
+  Message Control ID
 
-Damit kannst du einen Fall über Interface Engine, RIS und PACS korrelieren.
+Patientenkontext:
+  Patient Identifier + Assigning Authority
+
+Auftragskontext:
+  Placer/Filler Order Number und/oder Accession Number
+  (welche davon zählt, hängt vom Profil ab)
+
+Imaging:
+  Study Instance UID, sobald eine Study existiert
+```
+
+**Was du daran abliest:** Die Message Control ID findest du in Interface-Engine-Logs, aber nicht im RIS-Auftragsbestand. Der Patient Identifier korreliert über Systeme hinweg nur zusammen mit seiner Assigning Authority. Order- und Accession-Nummer gehören dem Auftragskontext, nicht dem Patientenkontext. Die Study Instance UID existiert erst, sobald eine DICOM-Studie erzeugt wurde — vorher ist sie kein sinnvoller Suchanker.
 
 ## Im Alltag heißt das
 

@@ -46,17 +46,32 @@ OBX|1|TX|RADREPORT^Radiologischer Befund||Kein Nachweis eines fokalen Infiltrats
 
 ## Status ist Teil des Workflows
 
-Ein Befund kann vorläufig, korrigiert oder final sein. Das konkrete Profil entscheidet, wie diese Zustände transportiert werden.
+Ein Befund durchläuft typischerweise mehrere Ergebnisstatus (OBX-11 in einer ORU-Nachricht, vereinfacht):
 
-Für die Administration ist wichtig:
+- `P` — **Preliminary**: vorläufiger Befund, noch nicht abschließend freigegeben
+- `F` — **Final**: abschließend freigegebener Befund
+- `C` — **Correction**: ersetzt einen zuvor finalen Befund
+
+Hier betrachten wir vereinfacht `OBX-11` auf Observation-Ebene. In realen ORU-Profilen kann zusätzlich ein Result Status auf OBR-Ebene, etwa `OBR-25`, relevant sein. Maßgeblich ist wie immer das konkrete Interface-Profil.
+
+Ein typischer zeitlicher Verlauf:
 
 ```text
-Befundsystem: FINAL
-Interface Engine: SENT
-KIS: PRELIMINARY
+10:42  P  Preliminary
+11:03  F  Final
+11:18  C  Corrected
 ```
 
-**Was du daran abliest:** „Nachricht zugestellt“ und „richtiger Befundzustand im KIS“ sind unterschiedliche Prüfungen.
+**Was du daran abliest:** Der Status ist kein Nebendetail, sondern Teil des fachlichen Zustands. Drei Nachrichten zu demselben Auftrag können nacheinander gültig sein, ohne sich zu widersprechen — solange das Zielsystem jede davon verarbeitet und den jeweils aktuellen Status übernimmt.
+
+Genau hier entsteht ein typisches Fehlerbild:
+
+```text
+RIS: zeigt den korrigierten Befund (C, 11:18)
+KIS: zeigt weiterhin den vorherigen finalen Befund (F, 11:03)
+```
+
+**Was du daran abliest:** Die Correction-Nachricht ist im RIS sichtbar, aber offenbar nicht im KIS angekommen oder dort nicht übernommen worden. Das ist kein DICOM-/PACS-Problem — die Bilder sind unverändert korrekt im PACS. Zu untersuchen ist die Ergebnisstrecke: Wurde die Correction-Nachricht überhaupt erzeugt und geroutet, und wie hat das KIS sie verarbeitet?
 
 ## Der systemübergreifende Trace
 
@@ -99,6 +114,7 @@ Die Frage „Ist der Befund da?“ benötigt einen zweiten Trace. Ein guter PACS
 1. Warum beweist eine sichtbare Studie im PACS nicht, dass der Befundweg funktioniert?
 2. Welche IDs würdest du für den Trace eines fehlenden Befunds verwenden?
 3. Wo prüfst du nach, wenn das RIS „gesendet“ meldet, das KIS aber nichts anzeigt?
+4. Das RIS zeigt einen korrigierten Befund, das KIS noch den vorherigen finalen Befund. Warum ist das kein PACS-Problem, und wo beginnst du die Suche?
 
 ## Quiz
 

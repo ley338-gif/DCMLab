@@ -31,7 +31,7 @@ MWL Provider
 Modalität
 ```
 
-**Was du daran abliest:** Eine leere Modality Worklist hat mindestens vier mögliche Fehlerdomänen, bevor du überhaupt über Netzwerkprobleme nachdenkst.
+**Was du daran abliest:** Eine leere Modality Worklist kann an mehreren Stellen dieser Kette entstehen. Welche davon du zuerst prüfst, entscheidest du nicht nach einer festen Liste, sondern nach der bereits vorhandenen Evidenz.
 
 ## ORC und OBR
 
@@ -102,6 +102,8 @@ Prüfreihenfolge:
 
 Diese Reihenfolge verhindert, dass du zehn Minuten am CT konfigurierst, obwohl die Nachricht seit einer Stunde in einer Error Queue liegt.
 
+**Die Prüfreihenfolge folgt der bereits vorhandenen Evidenz, nicht einer starren Checkliste.** Wenn allgemeine MWL-Abfragen und die Connectivity zur Modalität nachweislich funktionieren — andere Aufträge erscheinen korrekt —, ist eine vorgelagerte Auftrags-/Mappingstörung für genau diesen einen Auftrag die stärkere Hypothese als ein neues Netzwerk- oder Konfigurationsproblem.
+
 ## Im Alltag heißt das
 
 Nutze **eine Korrelationskarte** für jeden Fall:
@@ -139,11 +141,11 @@ Nach der Untersuchung ergänzt du die Study Instance UID. Damit kannst du densel
 
 *Wissenskarten — kommen später zur Wiederholung zurück.*
 
-**q1 — Ein Auftrag steht im KIS, aber die Modalität zeigt ihn nicht in der Worklist. Wie viele mögliche Fehlerdomänen liegen laut Lektion mindestens dazwischen, bevor Netzwerkprobleme überhaupt relevant werden?**
-1. Eine
-2. Zwei
-3. Mindestens vier
-4. Keine, Netzwerk ist immer zuerst zu prüfen
+**q1 — Ein Techniker meldet: „Die MWL-Verbindung ist grundsätzlich stabil, mehrere andere Patienten erscheinen korrekt in der Worklist. Nur der heute neu angelegte Auftrag für einen bestimmten Patienten fehlt.“ Was ist der sinnvollste nächste Prüfschritt?**
+1. Den DICOM-Port am CT neu konfigurieren
+2. Prüfen, ob genau dieser eine Auftrag die Interface Engine und das RIS erreicht hat
+3. Die gesamte MWL-Verbindung neu aufsetzen
+4. Den Patienten manuell an der Modalität anlegen
 
 **q2 — Welche Aussagen stimmen?** *(Mehrfachauswahl)*
 1. ORC beschreibt Auftrag und Status, OBR die angeforderte Leistung

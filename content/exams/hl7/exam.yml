@@ -30,7 +30,7 @@ questions:
     type: multi
     answer: [0, 1, 3]
     lesson: "7.1"
-    review: { lesson: "7.1", anchor: "drei-identitaeten-die-du-auseinanderhalten-musst" }
+    review: { lesson: "7.1", anchor: "vier-ebenen-die-du-auseinanderhalten-musst" }
     difficulty: 2
     tags: [integration]
 
@@ -62,7 +62,7 @@ questions:
     type: truefalse
     answer: false
     lesson: "7.2"
-    review: { lesson: "7.2", anchor: "die-fuenf-suchanker-fuer-den-pacs-admin" }
+    review: { lesson: "7.2", anchor: "suchanker-nach-fehlerdomaene" }
     difficulty: 1
     tags: [integration]
 
