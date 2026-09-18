@@ -316,6 +316,14 @@ def collect_orthanc_facts(
     nur das betroffene Feld leer. Vorher wurde eine Instanz komplett
     uebersprungen, wenn ausgerechnet `simplified-tags` fehlschlug, obwohl
     `header?simplify` (Transfer-Syntax) durchaus verfuegbar gewesen waere.
+
+    PR #150 (Assertion-/Grading-Audit): `patient_id`/`study_instance_uid`/
+    `modality` kommen additiv aus DEMSELBEN bereits abgerufenen
+    `simplified-tags`-Response dazu (PatientID/StudyInstanceUID/Modality
+    liegen dort bereits vollstaendig vor, wurden bisher nur verworfen) --
+    keine zusaetzliche Orthanc-Anfrage noetig. Fehlt ein Tag (z. B. weil
+    `simplified-tags` insgesamt fehlschlug), bleibt das Feld "" statt zu
+    crashen, symmetrisch zu `sop_class`/`transfer_syntax` oben.
     """
 
     changes = _orthanc_get(docker_client, toolbox_container_id, "/changes")
@@ -351,11 +359,17 @@ def collect_orthanc_facts(
 
         sop_class = tags.get("SOPClassUID", "") if tags is not None else ""
         transfer_syntax = header.get("TransferSyntaxUID", "") if header is not None else ""
+        patient_id = tags.get("PatientID", "") if tags is not None else ""
+        study_instance_uid = tags.get("StudyInstanceUID", "") if tags is not None else ""
+        modality = tags.get("Modality", "") if tags is not None else ""
 
         instances.append({
             "instance_id": instance_id,
             "sop_class": str(sop_class),
             "transfer_syntax": str(transfer_syntax),
+            "patient_id": str(patient_id),
+            "study_instance_uid": str(study_instance_uid),
+            "modality": str(modality),
         })
 
     return instances
