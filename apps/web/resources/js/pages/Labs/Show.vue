@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Form, Head, router } from '@inertiajs/vue3';
-import { Loader2, Square } from '@lucide/vue';
+import { Form, Head, Link, router } from '@inertiajs/vue3';
+import { ArrowRight, CheckCircle2, Loader2, Square } from '@lucide/vue';
 import { computed, nextTick, ref, watch } from 'vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -13,7 +13,12 @@ import {
 import { showAchievementUnlockToasts } from '@/lib/achievementToast';
 import { deleteJson, postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
-import { exec as execLab, start as startLab } from '@/routes/labs';
+import { show as showLesson } from '@/routes/lessons';
+import {
+    exec as execLab,
+    index as labsIndex,
+    start as startLab,
+} from '@/routes/labs';
 import {
     destroy as destroyRuntime,
     state as runtimeState,
@@ -50,6 +55,13 @@ const props = defineProps<{
     // Betreiber-Korrektur: lokales Prop statt globalem Flash-Sharing --
     // start()s einziger Rückkanal ist der Redirect zurück auf show().
     runtime_error: string | null;
+    // PR #148, Prioritaet 1: immer berechnet (siehe LabController::show()),
+    // aber nur im Abschluss-Bereich eines geloesten Attempts gezeigt.
+    next_step: {
+        type: 'lesson' | 'labs_index';
+        lesson_id: string | null;
+        lesson_title: string | null;
+    };
 }>();
 
 const runtimeErrorLabels: Record<string, string> = {
@@ -71,8 +83,13 @@ const genericRuntimeErrorLabel = trans(
     'Die Runtime konnte nicht gestartet werden. Bitte später erneut versuchen.',
 );
 
+// Betreiber-Vorgabe (Status-Terminologie): dieselben drei lernenden-
+// facing Begriffe wie Labs/Index.vue ("Nicht gestartet" braucht hier keinen
+// Badge -- fehlt attemptStatus, wird gar kein Badge gezeigt). Die
+// internen Enum-Werte (`started`/`solved`/`abandoned`) bleiben unveraendert,
+// nur das angezeigte Label wechselt von "Begonnen" zu "In Bearbeitung".
 const statusLabels: Record<AttemptStatus, string> = {
-    started: trans('Begonnen'),
+    started: trans('In Bearbeitung'),
     solved: trans('Abgeschlossen'),
     abandoned: trans('Abgebrochen'),
 };
@@ -168,6 +185,26 @@ const runtimeErrorLabel = computed(() =>
           genericRuntimeErrorLabel),
 );
 
+// PR #148, Prioritaet 1: der Rueckweg im Abschluss-Bereich -- Fallback-
+// Kette und Daten kommen vollstaendig aus `next_step` (siehe
+// `DashboardHomeService::nextStepAfterLab()`), hier nur noch Href/Label.
+const nextStepHref = computed(() =>
+    props.next_step.type === 'lesson' && props.next_step.lesson_id !== null
+        ? showLesson(props.next_step.lesson_id)
+        : labsIndex(),
+);
+
+const nextStepLabel = computed(() =>
+    props.next_step.type === 'lesson'
+        ? trans('Zurück zur Lektion :lesson', {
+              lesson:
+                  props.next_step.lesson_title ??
+                  props.next_step.lesson_id ??
+                  '',
+          })
+        : trans('Alle Labs'),
+);
+
 /**
  * PR #148, Prioritaet 4: Runtime-Zustandsaenderungen sind rein visuell
  * (Icon/Text/Terminal erscheint) und damit fuer Screenreader-Nutzer
@@ -237,10 +274,28 @@ async function runCommand(command: string) {
             unlocked_achievements: Achievement[];
         }>(execLab.url({ lab: props.lab.slug }), { command });
 
+        const previouslyPassed = new Set(
+            assertions.value.filter((a) => a.passed).map((a) => a.index),
+        );
+        const newlyPassed = result.assertions.filter(
+            (a) => a.passed && !previouslyPassed.has(a.index),
+        );
         assertions.value = result.assertions;
+
+        if (newlyPassed.length > 0) {
+            announcement.value = newlyPassed
+                .map((a) =>
+                    trans('Erfolgskriterium :n erfüllt.', { n: a.index + 1 }),
+                )
+                .join(' ');
+        }
 
         if (result.all_satisfied) {
             attemptStatus.value = 'solved';
+            announcement.value = trans(
+                'Lab abgeschlossen. :points Punkte erhalten.',
+                { points: props.lab.points },
+            );
         }
 
         showAchievementUnlockToasts(result.unlocked_achievements);
@@ -335,12 +390,32 @@ async function restartRuntime() {
             {{ announcement }}
         </span>
 
-        <p
+        <!-- Abschluss-Bereich (PR #148, Prioritaet 5): bewusst kein
+             Gamification-Feuerwerk -- nur Bestaetigung, Punkte und ein
+             konkreter naechster Schritt statt Browser-Back als einzigem
+             Rueckweg. Achievement-Toasts laufen unabhaengig davon weiter
+             (siehe runCommand()). -->
+        <div
             v-if="attemptStatus === 'solved'"
-            class="mt-6 text-sm font-medium text-green-600 dark:text-green-400"
+            class="bg-muted/40 mt-6 rounded-lg border p-4"
         >
-            {{ trans('Gelöst — gut gemacht!') }}
-        </p>
+            <p
+                class="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400"
+            >
+                <CheckCircle2 class="size-4" aria-hidden="true" />
+                {{ trans('Lab abgeschlossen') }}
+            </p>
+            <p class="text-muted-foreground mt-1 text-sm">
+                {{ trans(':points Punkte erhalten', { points: lab.points }) }}
+            </p>
+            <Link
+                :href="nextStepHref"
+                class="text-primary mt-3 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+            >
+                {{ nextStepLabel }}
+                <ArrowRight class="size-3.5" aria-hidden="true" />
+            </Link>
+        </div>
 
         <!-- Kein Attempt: einziger Einstieg ist "Lab starten". -->
         <Form

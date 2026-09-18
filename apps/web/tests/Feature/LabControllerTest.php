@@ -8,8 +8,11 @@ use App\Models\Activity;
 use App\Models\ActivityProgress;
 use App\Models\Lab;
 use App\Models\LabAttempt;
+use App\Models\Lesson;
+use App\Models\LessonElement;
 use App\Models\SandboxSession;
 use App\Models\SandboxTemplate;
+use App\Models\Track;
 use App\Models\User;
 use App\Services\AchievementService;
 use App\Services\ProfileService;
@@ -64,10 +67,56 @@ class LabControllerTest extends TestCase
                 ->where('runtime', null)
                 ->where('assertions', [])
                 ->where('runtime_error', null)
+                ->where('next_step', ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null])
                 ->where('briefing_html', fn (string $html) => str_contains($html, 'Pruefe die Verbindung.')),
             );
 
         $this->assertDatabaseCount('lab_attempts', 0);
+    }
+
+    /**
+     * PR #148, Prioritaet 1: der Rueckweg wird ueber dieselbe Lesson-/
+     * Track-Aufloesung wie `DashboardHomeService::labsOverview()` ermittelt
+     * -- ein Lab, das ueber ein `LessonElement` an eine Lesson gehaengt
+     * ist, bekommt `next_step.type === 'lesson'` mit deren Titel, unabhaengig
+     * vom Attempt-Status (auch ohne Attempt schon berechnet, siehe
+     * `LabController::show()`).
+     */
+    public function test_show_reports_the_owning_lesson_as_the_next_step(): void
+    {
+        Lab::factory()->create(['slug' => 'c-echo-connectivity']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.6', 'track_id' => $track->id, 'title' => ['de' => 'Erste Verbindung']]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $activity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertInertia(fn ($page) => $page
+                ->where('next_step', ['type' => 'lesson', 'lesson_id' => '1.6', 'lesson_title' => 'Erste Verbindung']),
+            );
+    }
+
+    /**
+     * Ein Lab ohne Activity-Zeile (z. B. eine kaputte/veraltete Verknuepfung)
+     * bekommt trotzdem den Katalog-Fallback statt eines fehlenden Props --
+     * `show()` selbst 404et in diesem Fall zwar schon ueber `assertVisible()`
+     * fuer ein Draft-Lab, aber `next_step` darf nie ein Prop-Fehler sein.
+     */
+    public function test_next_step_falls_back_to_the_labs_catalog_without_a_lesson(): void
+    {
+        Lab::factory()->create(['slug' => 'unattached-lab']);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'unattached-lab']);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/labs/unattached-lab')
+            ->assertInertia(fn ($page) => $page
+                ->where('next_step', ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null]),
+            );
     }
 
     public function test_show_reports_the_live_runtime_status_and_assertion_checklist(): void

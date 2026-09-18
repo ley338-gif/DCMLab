@@ -149,6 +149,48 @@ class DashboardHomeService
     }
 
     /**
+     * Der fachlich passende Rueckweg von einem Lab (PR #148, Prioritaet 1:
+     * "Labs/Show darf kein Dead-End mehr sein") -- dieselbe Lesson-/Track-
+     * Aufloesung wie `labsOverview()` (ueber `LessonElement` mit
+     * `type=activity`), hier fuer genau EIN Lab statt gebuendelt ueber
+     * alle. `LabController::show()` berechnet das immer mit, zeigt es aber
+     * nur im Abschluss-Bereich eines geloesten Attempts.
+     *
+     * Nur zwei tatsaechlich erreichbare Faelle im heutigen Schema: eine
+     * Lesson ist bekannt (dann zwangslaeufig auch deren Track, aber die
+     * Lesson selbst ist der naeherliegende Rueckweg), oder gar keine (ein
+     * frei im Katalog stehendes Lab, siehe PR #147) -- ein Track ganz ohne
+     * Lesson kann `labsOverview()`s eigene Aufloesung nicht liefern (der
+     * Track-Slug kommt dort selbst nur ueber `$lesson->track_id`). Der
+     * Katalog-Fallback deckt diesen Fall wie vorgegeben ab.
+     *
+     * @return array{type: 'lesson'|'labs_index', lesson_id: string|null, lesson_title: string|null}
+     */
+    public function nextStepAfterLab(Activity $activity): array
+    {
+        $lesson = LessonElement::query()
+            ->where('type', 'activity')
+            ->where('activity_id', $activity->id)
+            ->with('lesson')
+            ->first()
+            ?->lesson;
+
+        if ($lesson !== null) {
+            return [
+                'type' => 'lesson',
+                'lesson_id' => $lesson->lesson_id,
+                'lesson_title' => $lesson->title['de'] ?? $lesson->lesson_id,
+            ];
+        }
+
+        return [
+            'type' => 'labs_index',
+            'lesson_id' => null,
+            'lesson_title' => null,
+        ];
+    }
+
+    /**
      * Deterministische Empfehlung, keine KI: die erste zutreffende Regel
      * gewinnt. Bewusst kein Duplikat von "Weiterlernen" -- schlaegt
      * entweder ein zum aktuellen Fortschritt passendes Lab vor, den

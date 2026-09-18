@@ -70,7 +70,7 @@ class LabController extends Controller
         ]);
     }
 
-    public function show(Request $request, Lab $lab, ContentRepository $content, RuntimeSessionService $sessions): Response
+    public function show(Request $request, Lab $lab, ContentRepository $content, RuntimeSessionService $sessions, DashboardHomeService $home): Response
     {
         $this->assertVisible($lab);
         $activity = $this->activityFor($lab);
@@ -103,6 +103,11 @@ class LabController extends Controller
             // weichen Runtime-Fehler ist dieser Redirect zurueck auf
             // show(), kein anderer Ort braucht das.
             'runtime_error' => $request->session()->get('runtime_error'),
+            // PR #148, Prioritaet 1: Labs/Show darf kein Dead-End mehr sein
+            // -- immer mitberechnet (auch ohne Activity/Attempt gibt es
+            // wenigstens den Katalog-Fallback), Vue zeigt es nur im
+            // Abschluss-Bereich eines geloesten Attempts.
+            'next_step' => $activity === null ? ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null] : $home->nextStepAfterLab($activity),
         ]);
     }
 

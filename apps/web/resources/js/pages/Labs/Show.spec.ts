@@ -20,6 +20,20 @@ vi.mock('@inertiajs/vue3', async (importOriginal) => ({
             );
         },
     },
+    Link: {
+        props: ['href'],
+        render(this: { $slots: Record<string, () => unknown>; href: unknown }) {
+            // Wayfinder-Routen sind {url, method}-Objekte, keine reinen
+            // Strings -- die echte Inertia-`<Link>` loest das selbst auf,
+            // dieser Stub bildet nur exakt das nach.
+            const href =
+                typeof this.href === 'string'
+                    ? this.href
+                    : (this.href as { url: string }).url;
+
+            return h('a', { href }, this.$slots.default?.() as never);
+        },
+    },
 }));
 
 /**
@@ -71,6 +85,11 @@ const baseProps = {
     runtime: { status: 'running' as const, queue_position: null },
     assertions: [{ index: 0, type: 'command_executed', passed: false }],
     runtime_error: null,
+    next_step: {
+        type: 'labs_index' as const,
+        lesson_id: null,
+        lesson_title: null,
+    },
 };
 
 function mountShow() {
@@ -116,13 +135,20 @@ describe('Labs/Show runCommand achievement wiring', () => {
             unlocked_achievements: unlocked,
         });
 
-        const { onCommand } = mountShow();
+        const { wrapper, onCommand } = mountShow();
         const result = await onCommand('echoscu 127.0.0.1 4242 -aec ORTHANC');
 
         expect(showAchievementUnlockToastsMock).toHaveBeenCalledExactlyOnceWith(
             unlocked,
         );
         expect(result).toEqual({ stdout: 'ok', stderr: '', exit_code: 0 });
+        // PR #148, Prioritaet 4/5: der Solve wird sowohl live (aria-live)
+        // als auch im sichtbaren Abschluss-Bereich angesagt/gezeigt.
+        expect(wrapper.find('[role="status"]').text()).toContain(
+            'Lab abgeschlossen. 20 Punkte erhalten.',
+        );
+        await wrapper.vm.$nextTick();
+        expect(wrapper.text()).toContain('Lab abgeschlossen');
     });
 
     it('calls showAchievementUnlockToasts with an empty list when nothing unlocked', async () => {
@@ -219,7 +245,7 @@ describe('Labs/Show runtime state rendering', () => {
         expect(wrapper.findComponent(EngineTerminal).exists()).toBe(true);
     });
 
-    it('shows the solved confirmation once the attempt is solved', () => {
+    it('shows the completion area with points and a catalog fallback link once solved', () => {
         const wrapper = mount(Show, {
             props: {
                 ...baseProps,
@@ -228,10 +254,43 @@ describe('Labs/Show runtime state rendering', () => {
             global: { stubs: { EngineTerminal: true } },
         });
 
-        expect(wrapper.text()).toContain('Gelöst — gut gemacht!');
+        expect(wrapper.text()).toContain('Lab abgeschlossen');
+        expect(wrapper.text()).toContain('20 Punkte erhalten');
+        const link = wrapper.find('a');
+        expect(link.text()).toContain('Alle Labs');
+        expect(link.attributes('href')).toBe('/de/labs');
         // Betreiber-Entscheidung (LabController::destroyRuntime()-Doc): kein
         // Neustart-Button mehr, sobald geloest.
         expect(wrapper.text()).not.toContain('Runtime neu starten');
+    });
+
+    it('links back to the owning lesson when one is known', () => {
+        const wrapper = mount(Show, {
+            props: {
+                ...baseProps,
+                attempt: { status: 'solved' as const },
+                next_step: {
+                    type: 'lesson' as const,
+                    lesson_id: '1.6',
+                    lesson_title: 'Erste Verbindung',
+                },
+            },
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        const link = wrapper.find('a');
+        expect(link.text()).toContain('Zurück zur Lektion Erste Verbindung');
+        expect(link.attributes('href')).toBe('/de/lessons/1.6');
+    });
+
+    it('labels an in-progress attempt with the unified status terminology', () => {
+        const wrapper = mount(Show, {
+            props: baseProps,
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        expect(wrapper.text()).toContain('In Bearbeitung');
+        expect(wrapper.text()).not.toContain('Begonnen');
     });
 
     it('switches from queued to running once polling reports the runtime is ready', async () => {
