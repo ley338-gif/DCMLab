@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
 import { Loader2, Square } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    type RuntimeStatus,
+    useRuntimeSession,
+} from '@/composables/useRuntimeSession';
 import { showAchievementUnlockToasts } from '@/lib/achievementToast';
 import { deleteJson, postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
@@ -17,16 +21,6 @@ import {
 import type { Achievement } from '@/types/achievement';
 
 type AttemptStatus = 'started' | 'solved' | 'abandoned';
-
-/**
- * Wie bei SandboxPanel.vue: `idle` (keine/keine mehr bekannte Runtime),
- * `starting` (Formular-Submit laeuft, von Inertias eigenem `processing`
- * abgedeckt -- hier nur der Vollstaendigkeit halber im Typ), `queued`,
- * `running`, `error` (Runtime nicht mehr erreichbar -- Polling/Exec haben
- * das festgestellt, nicht dasselbe wie `idle`, aber UI-seitig dieselbe
- * Reaktion: kein Terminal, ggf. ein Retry-Button).
- */
-type RuntimeStatus = 'idle' | 'starting' | 'queued' | 'running' | 'error';
 
 type LabProps = {
     slug: string;
@@ -109,32 +103,53 @@ function assertionLabel(assertion: AssertionState): string {
  * Lab-Slug, nie über eine Sitzungs-ID.
  */
 const attemptStatus = ref<AttemptStatus | null>(props.attempt?.status ?? null);
-const runtimeStatus = ref<RuntimeStatus>(
+const assertions = ref<AssertionState[]>(props.assertions);
+const destroying = ref(false);
+
+const initialRuntimeStatus: RuntimeStatus =
     props.runtime === null
         ? 'idle'
         : props.runtime.status === 'sandbox_unavailable'
           ? 'error'
-          : props.runtime.status,
-);
-const queuePosition = ref<number | null>(props.runtime?.queue_position ?? null);
-const assertions = ref<AssertionState[]>(props.assertions);
-const destroying = ref(false);
+          : props.runtime.status;
 
-/**
- * Betreiber-Korrektur (Haerten): einzige Quelle fuer die sichtbare
- * Fehlermeldung -- start()s Session-Flash (`props.runtime_error`) ODER,
- * falls das initiale `show()` bereits eine nicht erreichbare Runtime
- * gemeldet hat, dieselbe Meldung von Anfang an. Jede spaetere, vom
- * Client selbst entdeckte Nichtverfuegbarkeit (Polling, exec(),
- * restartRuntime()) schreibt hierher, statt den Lernenden mit einem
- * erklaerungslosen Retry-Button allein zu lassen.
- */
-const runtimeErrorMessage = ref<string | null>(
-    props.runtime_error ??
-        (props.runtime?.status === 'sandbox_unavailable'
-            ? 'sandbox_unavailable'
-            : null),
+async function fetchRuntimeState() {
+    const response = await fetch(runtimeState.url({ lab: props.lab.slug }), {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+    });
+
+    if (!response.ok) {
+        throw new Error('lab runtime state request failed');
+    }
+
+    return response.json();
+}
+
+const {
+    status: runtimeStatus,
+    queuePosition,
+    errorMessage: runtimeErrorMessage,
+    enterError,
+    stopPolling,
+} = useRuntimeSession(
+    fetchRuntimeState,
+    initialRuntimeStatus,
+    props.runtime?.queue_position ?? null,
 );
+
+// Betreiber-Korrektur (Haerten): einzige Quelle fuer die sichtbare
+// Fehlermeldung -- start()s Session-Flash (`props.runtime_error`) ODER,
+// falls das initiale `show()` bereits eine nicht erreichbare Runtime
+// gemeldet hat, dieselbe Meldung von Anfang an. Jede spaetere, vom Client
+// selbst entdeckte Nichtverfuegbarkeit (Polling, exec(), restartRuntime())
+// schreibt ueber `enterError()` hierher, statt den Lernenden mit einem
+// erklaerungslosen Retry-Button allein zu lassen.
+runtimeErrorMessage.value =
+    props.runtime_error ??
+    (props.runtime?.status === 'sandbox_unavailable'
+        ? 'sandbox_unavailable'
+        : null);
 
 const startButtonLabel = computed(() => {
     if (!attemptStatus.value) {
@@ -145,48 +160,6 @@ const startButtonLabel = computed(() => {
         ? trans('Erneut versuchen')
         : trans('Runtime starten');
 });
-
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-function stopPolling() {
-    if (pollTimer !== null) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-    }
-}
-
-/**
- * Polling muss auf JEDEM Ausstiegspfad enden -- geworden zu `running`,
- * eine 404/`gone`-Antwort, das Unmounten der Komponente (siehe
- * `onBeforeUnmount`) und ein manuelles Beenden (siehe `restartRuntime`).
- * Sonst laeuft nach einem Reap ein verstecktes `setInterval()` unbemerkt
- * weiter.
- */
-async function pollRuntimeState() {
-    const response = await fetch(runtimeState.url({ lab: props.lab.slug }), {
-        headers: { Accept: 'application/json' },
-        credentials: 'same-origin',
-    });
-
-    if (!response.ok) {
-        stopPolling();
-        runtimeStatus.value = 'error';
-        runtimeErrorMessage.value = 'sandbox_unavailable';
-        return;
-    }
-
-    const result = (await response.json()) as {
-        status: 'queued' | 'running';
-        queue_position: number | null;
-    };
-
-    if (result.status === 'running') {
-        stopPolling();
-        runtimeStatus.value = 'running';
-    } else {
-        queuePosition.value = result.queue_position;
-    }
-}
 
 /**
  * `postJson()` wirft bei jeder Nicht-2xx-Antwort einen generischen Error
@@ -221,9 +194,7 @@ async function runCommand(command: string) {
             exit_code: result.exit_code,
         };
     } catch {
-        stopPolling();
-        runtimeStatus.value = 'error';
-        runtimeErrorMessage.value = 'sandbox_unavailable';
+        enterError('sandbox_unavailable');
 
         return {
             stdout: '',
@@ -259,22 +230,11 @@ async function restartRuntime() {
         // router.post()-Aufruf feuerte dann nie, der Button re-aktivierte
         // sich aber wortlos wieder, ohne dass der Lernende erfuhr, warum
         // "Neustart" nichts bewirkt hat.
-        runtimeStatus.value = 'error';
-        runtimeErrorMessage.value = 'sandbox_unavailable';
+        enterError('sandbox_unavailable');
     } finally {
         destroying.value = false;
     }
 }
-
-onMounted(() => {
-    if (runtimeStatus.value === 'queued') {
-        pollTimer = setInterval(pollRuntimeState, 3000);
-    }
-});
-
-onBeforeUnmount(() => {
-    stopPolling();
-});
 </script>
 
 <template>
