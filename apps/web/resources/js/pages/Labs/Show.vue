@@ -104,6 +104,11 @@ const assertionTypeLabels: Record<string, string> = {
     command_executed: trans(
         'Ein passender Befehl wurde erfolgreich ausgeführt.',
     ),
+    // PR #150: werkzeugunabhängig, prüft das PACS selbst statt des
+    // Befehls, der den Transfer ausgelöst hat.
+    dicom_instance_received: trans(
+        'Die erwartete DICOM-Instanz wurde erfolgreich im Ziel-PACS gespeichert.',
+    ),
 };
 
 function assertionLabel(assertion: AssertionState): string {
