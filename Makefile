@@ -44,6 +44,13 @@ lint:
 seed:
 	$(COMPOSE_DEV) exec app php artisan migrate:fresh --seed
 	$(COMPOSE_DEV) exec app php artisan content:sync
+	# PR #152 (Lab Content Deployment): nur der Initial-Bootstrap-Pfad --
+	# `labs:import` ist idempotent und ruehrt nie Nutzerfortschritt an, ist
+	# hier aber bewusst NICHT Teil des laufenden Production-Update-Wegs
+	# (docs/betrieb.md: git pull -> migrate --force -> content:sync). Ein
+	# frisch importiertes/geaendertes Lab dort mit auszurollen ist ein
+	# separater, spaeterer Schritt.
+	$(COMPOSE_DEV) exec app php artisan labs:import
 
 content-validate:
 	cd apps/web && php artisan content:validate

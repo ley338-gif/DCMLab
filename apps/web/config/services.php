@@ -51,4 +51,20 @@ return [
         'key' => env('DCMLAB_INTERNAL_KEY'),
     ],
 
+    // Lab-Content-Deployment (PR #152, Lab-Content-Lifecycle-Audit): das
+    // git-versionierte Export-/Import-Artefakt lebt bewusst unter
+    // `deploy/labs/` im Repo-ROOT (Geschwister von `content/`), nicht unter
+    // `apps/web/storage/**` (Runtime-/Framework-Storage, keine Content-Quelle)
+    // und nicht unter `content/**` (das blieb bewusst Node/Lesson vorbehalten,
+    // siehe PR-Beschreibung). Der Default geht zwei Ebenen ueber den
+    // Laravel-App-Pfad hinaus (apps/web -> apps -> Repo-Root) -- korrekt fuer
+    // Host-/CI-Ausfuehrung, wo `apps/web` tatsaechlich im Repo verschachtelt
+    // ist. Der lokale Dev-Container sieht diese Verschachtelung nicht (nur
+    // einzelne apps/web-Unterordner sind gebindet, siehe
+    // infra/docker-compose.dev.yml) und ueberschreibt deshalb per
+    // LABS_DEPLOY_PATH auf den dort zusaetzlich gebindeten Pfad.
+    'labs_deploy' => [
+        'path' => env('LABS_DEPLOY_PATH', base_path('../../deploy/labs')),
+    ],
+
 ];

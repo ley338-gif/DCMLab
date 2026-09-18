@@ -122,6 +122,40 @@ final class ContentVersioningService
     }
 
     /**
+     * PR #152 (Lab Content Deployment): eine Version, die direkt als
+     * veroeffentlicht gilt, ohne den draft -> review -> publish-Dreischritt
+     * zu durchlaufen. Ein automatisierter Deployment-Import hat keinen
+     * separaten menschlichen Reviewer -- `publish()` einen zweiten,
+     * vorgetaeuschten Review-Schritt durchlaufen zu lassen waere
+     * irrefuehrend (siehe `LabDeploymentImporter`-Klassendoc fuer die volle
+     * Begruendung). `$actor` ist bewusst sowohl `created_by` als auch
+     * `reviewed_by` -- klar als EIN automatisierter Vorgang identifizierbar,
+     * nicht als zwei verschiedene Personen. Dieselbe `is_current`-Umhaenge-
+     * Logik wie `publish()`, in derselben Transaktion.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function publishSnapshot(Activity $activity, array $payload, User $actor): ContentVersion
+    {
+        return DB::transaction(function () use ($activity, $payload, $actor): ContentVersion {
+            ContentVersion::query()
+                ->where('activity_id', $activity->id)
+                ->where('is_current', true)
+                ->update(['is_current' => false]);
+
+            return ContentVersion::create([
+                'activity_id' => $activity->id,
+                'status' => 'published',
+                'payload' => $payload,
+                'is_current' => true,
+                'created_by' => $actor->id,
+                'reviewed_by' => $actor->id,
+                'published_at' => now(),
+            ]);
+        });
+    }
+
+    /**
      * Aktivitaeten ohne jede Versionshistorie sind Bestandscontent von vor
      * W3 und bleiben sichtbar, wie sie es vorher waren (ADR 0075) -- diese
      * Methode veraendert deshalb fuer keine heute existierende Aktivitaet

@@ -1,0 +1,134 @@
+{
+    "schema_version": 1,
+    "slug": "c-store-live",
+    "lab": {
+        "title": "C-STORE: CT-Studie an das PACS uebertragen",
+        "scenario_title": "Vollstaendige Studie ans Testarchiv senden",
+        "difficulty": "medium",
+        "points": 20,
+        "estimated_minutes": 15,
+        "runtime_template": "dicom-basic-tools",
+        "dataset": "ct-thorax-60",
+        "assertions": [
+            {
+                "type": "dicom_instance_received",
+                "patient_id": "4711",
+                "modality": "CT",
+                "sop_class": "1.2.840.10008.5.1.4.1.1.2",
+                "min_instances": 60
+            }
+        ],
+        "rich_content": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {
+                    "type": "paragraph",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Eine vollstaendige CT-Untersuchung liegt lokal auf deinem System bereit, wurde aber noch nicht an das Ziel-PACS uebertragen. Die Fachabteilung braucht die komplette Studie im Archiv -- nicht nur einzelne Bilder."
+                        }
+                    ]
+                },
+                {
+                    "type": "paragraph",
+                    "content": []
+                },
+                {
+                    "type": "paragraph",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Die Bilddateien liegen im Verzeichnis "
+                        },
+                        {
+                            "type": "text",
+                            "text": "~/daten/ct-thorax-60/",
+                            "marks": [
+                                {
+                                    "type": "code"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "text": ". Das Ziel-PACS ist unter Host "
+                        },
+                        {
+                            "type": "text",
+                            "text": "127.0.0.1",
+                            "marks": [
+                                {
+                                    "type": "code"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "text": ", Port "
+                        },
+                        {
+                            "type": "text",
+                            "text": "4242",
+                            "marks": [
+                                {
+                                    "type": "code"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "text": " unter dem AE-Titel "
+                        },
+                        {
+                            "type": "text",
+                            "text": "ORTHANC",
+                            "marks": [
+                                {
+                                    "type": "code"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "text": " erreichbar. Deine eigene Workstation firmiert dabei wie gewohnt als "
+                        },
+                        {
+                            "type": "text",
+                            "text": "MEINE-WS",
+                            "marks": [
+                                {
+                                    "type": "code"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "text": "."
+                        }
+                    ]
+                },
+                {
+                    "type": "paragraph",
+                    "content": []
+                },
+                {
+                    "type": "paragraph",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Stelle sicher, dass wirklich die gesamte Studie ankommt, nicht nur ein Teil davon -- ein Uebertragungslog ist erst dann wirklich ausgewertet, wenn du weisst, wie viele Objekte tatsaechlich beim PACS eingetroffen sind."
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "placements": [
+        {
+            "lesson_id": "2.2",
+            "position": 2
+        }
+    ]
+}
