@@ -12,9 +12,17 @@ services:
       - ../apps/web/routes:/var/www/html/routes
       - ../apps/web/resources:/var/www/html/resources
       - ../apps/web/database:/var/www/html/database
+      # PR #152 (Lab Content Deployment): `deploy/` liegt im Repo-Root, nicht
+      # unter apps/web -- der Container sieht sonst nur apps/web-Unterpfade
+      # (siehe die Bind-Mounts oben), `base_path('../../deploy/labs')` (der
+      # Standardpfad, siehe config/services.php) wuerde ohne dieses Mount ins
+      # Leere (/var) zeigen. LABS_DEPLOY_PATH unten ueberschreibt den
+      # Standardpfad entsprechend fuer den Container.
+      - ../deploy:/var/deploy
     environment:
       APP_DEBUG: "true"
       LOG_LEVEL: debug
+      LABS_DEPLOY_PATH: /var/deploy/labs
 
   engine:
     volumes:
