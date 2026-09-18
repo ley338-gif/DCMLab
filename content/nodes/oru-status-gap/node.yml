@@ -1,0 +1,135 @@
+slug: oru-status-gap
+difficulty: hard
+points: 50
+category: integration
+themenfeld: interoperabilitaet
+interaction: scenario
+skills: [integration]
+related_lessons: ["7.2", "7.4", "7.5", "7.6"]
+estimated_minutes: 18
+
+scenario:
+  start: ticket
+  steps:
+    ticket:
+      prompt: >
+        Im PACS ist die Study zu Patient 6620 (Study Instance UID
+        1.2.276.0.7230010.3.1.4.556291043) vollständig vorhanden. Das
+        Befundsystem/RIS zeigt zum Auftrag ORD-40118 einen korrigierten
+        Befund (C, 11:47). Im KIS erscheint für denselben Auftrag weiterhin
+        der vorherige finale Befund (F, 11:20). Im selben Log-Ausschnitt
+        findet sich außerdem eine Ergebnisnachricht zu Patient 6631 /
+        Auftrag ORD-40125.
+      options:
+        - id: resend_images
+          label: Die Bildserie erneut vom PACS an den Viewer senden.
+          next: wrong_resend
+        - id: manual_patient_fix
+          label: Den Patienten im KIS manuell korrigieren.
+          next: wrong_manual_patient
+        - id: overwrite_kis_text
+          label: Den Befundtext direkt im KIS überschreiben.
+          next: wrong_overwrite
+        - id: correlate
+          label: Erst die vorhandenen Ergebnisnachrichten korrekt den richtigen Aufträgen zuordnen.
+          next: correlate
+
+    correlate:
+      prompt: >
+        Im Log stehen drei Ergebnisnachrichten: RES60110 (OBR ORD-40118,
+        OBX-11 F, 11:20), RES60119 (OBR ORD-40118, OBX-11 C, 11:47) und
+        RES60122 (OBR ORD-40125, OBX-11 F, 11:31). Welche Nachrichten
+        gehören zum gemeldeten Fall?
+      options:
+        - id: correct_pair
+          label: RES60110 und RES60119 — beide zu ORD-40118 / Patient 6620.
+          next: trace
+        - id: wrong_pair
+          label: RES60119 und RES60122 — beide sind die zeitlich neuesten Nachrichten.
+          next: wrong_correlation
+
+    trace:
+      prompt: >
+        RES60110 (Final) wurde laut Interface-Engine-Log erfolgreich an das
+        KIS übertragen (Outbound: SENT). RES60119 (Corrected) zeigt im
+        selben Log für den Outbound-Transfer zum KIS: State: ERROR — Grund:
+        kein Routing-/Status-Mapping für Ergebnisstatus C. Wo liegt die
+        erste fehlerhafte Systemgrenze?
+      options:
+        - id: confirm_boundary
+          label: Zwischen Interface Engine und KIS — der Ergebnisstatus C wird dort nicht geroutet.
+          next: success
+        - id: pacs_boundary
+          label: Zwischen PACS und Befundsystem.
+          next: wrong_pacs_boundary
+        - id: ris_never_created
+          label: Das RIS hat den korrigierten Befund nie erzeugt.
+          next: wrong_ris_never
+
+    wrong_resend:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Bilder sind bereits vollständig und korrekt im PACS. Ein
+        erneuter Versand ändert nichts am Ergebnisweg, der hier gestört ist.
+    wrong_manual_patient:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Es gibt keinen Hinweis auf ein Patientenidentitätsproblem. Eine
+        manuelle Patientenkorrektur behebt die eigentliche Ursache nicht und
+        kann neue Inkonsistenzen erzeugen.
+    wrong_overwrite:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Den Befundtext direkt im KIS zu überschreiben umgeht die
+        Ergebnisstrecke und hinterlässt keinen nachvollziehbaren Ursprung —
+        die nächste reguläre Correction würde denselben Fehler erneut zeigen.
+    wrong_correlation:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        RES60122 gehört zu einem anderen Auftrag und Patienten. Zeitliche
+        Nähe ist kein Korrelationskriterium — Order/Accession und Patient
+        Identifier sind es.
+    wrong_pacs_boundary:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        PACS und Befundsystem sind hier nicht betroffen: Die Study ist
+        vollständig, und der finale Befund kam bereits im KIS an. Das
+        Problem liegt in der Ergebnisstrecke danach.
+    wrong_ris_never:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das RIS zeigt die Correction bereits an — sie wurde dort erzeugt.
+        Der Fehler liegt im Transport/Routing danach, nicht im RIS selbst.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: C-STATUS-ROUTING-KIS
+      prompt: >
+        Richtig. RES60119 wurde vom RIS erzeugt, aber wegen eines fehlenden
+        Routing-/Status-Mappings für den Ergebnisstatus C nicht an das KIS
+        übertragen. Bilder und ursprünglicher Final-Befund waren nie
+        betroffen.
+
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:504a4dfce16b79510f77a6bc0ac1da33baec77bed23fcfd53382d8d0069f25f9"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 15
+status: draft
+updated: "2026-09-18"
