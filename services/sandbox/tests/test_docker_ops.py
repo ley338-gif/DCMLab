@@ -36,6 +36,9 @@ def test_collect_orthanc_facts_discovers_and_enriches_new_instances(
     }
     tags_payload = {
         "SOPClassUID": "1.2.840.10008.5.1.4.1.1.2",
+        "PatientID": "4711",
+        "StudyInstanceUID": "1.2.3.4.5",
+        "Modality": "CT",
     }
     # `simplified-tags` deckt nachweislich NICHT die File Meta Information
     # ab -- TransferSyntaxUID kommt aus einer zweiten Abfrage.
@@ -63,6 +66,9 @@ def test_collect_orthanc_facts_discovers_and_enriches_new_instances(
             "instance_id": "inst-1",
             "sop_class": "1.2.840.10008.5.1.4.1.1.2",
             "transfer_syntax": "1.2.840.10008.1.2.1",
+            "patient_id": "4711",
+            "study_instance_uid": "1.2.3.4.5",
+            "modality": "CT",
         },
     ]
 
@@ -108,7 +114,14 @@ def test_collect_orthanc_facts_leaves_transfer_syntax_empty_when_header_query_fa
     instances = docker_ops.collect_orthanc_facts(None, "toolbox-1")
 
     assert instances == [
-        {"instance_id": "inst-1", "sop_class": "1.2.840.10008.5.1.4.1.1.2", "transfer_syntax": ""},
+        {
+            "instance_id": "inst-1",
+            "sop_class": "1.2.840.10008.5.1.4.1.1.2",
+            "transfer_syntax": "",
+            "patient_id": "",
+            "study_instance_uid": "",
+            "modality": "",
+        },
     ]
 
 
@@ -144,6 +157,9 @@ def test_collect_orthanc_facts_leaves_sop_class_empty_when_tags_query_fails(
             "instance_id": "inst-1",
             "sop_class": "",
             "transfer_syntax": "1.2.840.10008.1.2.1",
+            "patient_id": "",
+            "study_instance_uid": "",
+            "modality": "",
         },
     ]
 
@@ -172,5 +188,12 @@ def test_collect_orthanc_facts_keeps_the_discovery_fact_when_both_enrichment_que
     instances = docker_ops.collect_orthanc_facts(None, "toolbox-1")
 
     assert instances == [
-        {"instance_id": "inst-1", "sop_class": "", "transfer_syntax": ""},
+        {
+            "instance_id": "inst-1",
+            "sop_class": "",
+            "transfer_syntax": "",
+            "patient_id": "",
+            "study_instance_uid": "",
+            "modality": "",
+        },
     ]
