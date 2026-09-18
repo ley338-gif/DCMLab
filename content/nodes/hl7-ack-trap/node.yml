@@ -5,7 +5,7 @@ category: integration
 themenfeld: interoperabilitaet
 interaction: scenario
 skills: [integration]
-related_lessons: ["7.3", "7.5"]
+related_lessons: ["7.5"]
 estimated_minutes: 8
 
 scenario:
@@ -33,7 +33,24 @@ scenario:
           next: wrong_type
         - id: msa
           label: MSA-1 mit dem Wert AE.
-          next: correct
+          next: reprocessed
+
+    reprocessed:
+      prompt: >
+        Richtig erkannt: MSA-1 = AE signalisiert einen Application Error. Die
+        Identifier-Domäne wird korrigiert und dieselbe Nachricht MSG8821
+        gezielt erneut verarbeitet. Die Interface Engine erhält jetzt:
+        MSA|AA|MSG8821. Was kannst du daraus jetzt sicher schließen?
+      options:
+        - id: accepted_verify
+          label: Die Anwendung hat die Nachricht laut ACK-Semantik akzeptiert; der erwartete fachliche Zustand im RIS sollte jetzt zusätzlich verifiziert werden.
+          next: success
+        - id: workflow_done
+          label: Der komplette Workflow ist damit sicher erfolgreich abgeschlossen.
+          next: wrong_overclaim
+        - id: still_error
+          label: Es bleibt ein Application Error, AA ändert daran nichts.
+          next: wrong_misread
 
     wrong_ack:
       terminal: true
@@ -47,18 +64,33 @@ scenario:
       prompt: >
         Dass die Antwort ein ACK ist, sagt noch nichts über Erfolg. Lies den
         Acknowledgement Code im MSA-Segment.
-    correct:
+    wrong_overclaim:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        AA bestätigt nur die Annahme der Nachricht laut ACK-Semantik. Ob der
+        erwartete fachliche Zustand — hier die korrigierten Stammdaten — im
+        RIS tatsächlich vorliegt, ist eine eigene, noch offene Prüfung.
+    wrong_misread:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        AA steht für Application Accept, nicht für einen fortbestehenden
+        Fehler. Das zweite ACK unterscheidet sich vom ersten.
+    success:
       terminal: true
       outcome: correct
-      reveal: MSA-AE
+      reveal: AA-VERIFY-RIS
       prompt: >
-        Richtig. MSA-1 = AE signalisiert einen Application Error. Die Nachricht
-        wurde transportiert, aber nicht erfolgreich fachlich verarbeitet.
+        Richtig. MSA-1 = AA heißt: Die Anwendung hat die Nachricht laut ACK-
+        Semantik akzeptiert. Das beweist noch nicht, dass der erwartete
+        fachliche Zustand im RIS vorliegt — den prüfst du zusätzlich, bevor
+        du den Vorgang als abgeschlossen betrachtest.
 
 flag:
   type: exact
   source_tag: scenario
-  hash: "sha256:452a5844fc54dc15f7c2699e667c80630c9db597697f150fa08a2aa1b8e7bcbb"
+  hash: "sha256:5df43fb79d4ad1c2f33e25049f8555366139570a81aa08cd1f0999f9f9ec7fe3"
   case_sensitive: false
 
 hints:
@@ -66,7 +98,9 @@ hints:
     cost: 1
   - id: h2
     cost: 2
+  - id: h3
+    cost: 4
 
 stuck_timeout_minutes: 10
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-18"
