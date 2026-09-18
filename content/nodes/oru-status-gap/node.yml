@@ -6,7 +6,7 @@ themenfeld: interoperabilitaet
 interaction: scenario
 skills: [integration]
 related_lessons: ["7.2", "7.4", "7.5", "7.6"]
-estimated_minutes: 18
+estimated_minutes: 20
 
 scenario:
   start: ticket
@@ -43,21 +43,42 @@ scenario:
       options:
         - id: correct_pair
           label: RES60110 und RES60119 — beide zu ORD-40118 / Patient 6620.
-          next: trace
+          next: evidence
         - id: wrong_pair
           label: RES60119 und RES60122 — beide sind die zeitlich neuesten Nachrichten.
           next: wrong_correlation
 
-    trace:
+    evidence:
       prompt: >
-        RES60110 (Final) wurde laut Interface-Engine-Log erfolgreich an das
-        KIS übertragen (Outbound: SENT). RES60119 (Corrected) zeigt im
-        selben Log für den Outbound-Transfer zum KIS: State: ERROR — Grund:
-        kein Routing-/Status-Mapping für Ergebnisstatus C. Wo liegt die
-        erste fehlerhafte Systemgrenze?
+        Du sammelst getrennte Evidenz. RIS: RES60119 / ORD-40118 / Status C
+        erzeugt, 11:47. Interface Engine inbound: RES60119 vorhanden, 11:47.
+        Route RAD_RESULTS_TO_KIS: allowed_status = P,F. KIS outbound:
+        RES60110 vorhanden (11:20), RES60119 fehlt. Zum Vergleich: RES60110
+        (Final) → Outbound zu KIS: SENT, ACK: AA. RES60119 (Correction) →
+        kein entsprechender Outbound-/ACK-Eintrag. Welche Aussage lässt sich
+        aus dieser Evidenz am ehesten ableiten?
+      options:
+        - id: kis_rejected
+          label: Das KIS hat die Correction empfangen, aber inhaltlich abgelehnt.
+          next: wrong_kis_rejected
+        - id: ris_internal_only
+          label: Das RIS hat nur den internen Status geändert, ohne eine Result-Nachricht zu erzeugen.
+          next: wrong_ris_internal
+        - id: ack_covers_all
+          label: Das AA-ACK für RES60110 bestätigt, dass auch die spätere Correction RES60119 verarbeitet wurde.
+          next: wrong_ack_scope
+        - id: route_filters_status
+          label: Die Routing-Regel RAD_RESULTS_TO_KIS lässt nur die Status P und F passieren — C wird deshalb nicht weitergeleitet.
+          next: boundary_confirm
+
+    boundary_confirm:
+      prompt: >
+        allowed_status der Route RAD_RESULTS_TO_KIS enthält nur P und F,
+        nicht C. Wo liegt damit die erste fehlerhafte Systemgrenze in dieser
+        Kette?
       options:
         - id: confirm_boundary
-          label: Zwischen Interface Engine und KIS — der Ergebnisstatus C wird dort nicht geroutet.
+          label: Zwischen Interface Engine und KIS, im Outbound-/Routing-Schritt für den Ergebnisstatus C.
           next: success
         - id: pacs_boundary
           label: Zwischen PACS und Befundsystem.
@@ -93,6 +114,28 @@ scenario:
         RES60122 gehört zu einem anderen Auftrag und Patienten. Zeitliche
         Nähe ist kein Korrelationskriterium — Order/Accession und Patient
         Identifier sind es.
+    wrong_kis_rejected:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Es gibt keine Evidenz, dass die Nachricht das KIS überhaupt erreicht
+        hat — im KIS-Outbound-Log fehlt RES60119 vollständig. Ein
+        abgelehnter Import sähe anders aus als ein fehlender Eintrag. Der
+        Fehler liegt davor.
+    wrong_ris_internal:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Interface Engine bestätigt den Eingang von RES60119 — das RIS
+        hat also tatsächlich eine Result-Nachricht erzeugt und versendet,
+        nicht nur einen internen Status geändert.
+    wrong_ack_scope:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein ACK bezieht sich immer nur auf die konkrete Nachricht, zu der es
+        gehört. Das AA für RES60110 (Final) trifft keine Aussage über
+        RES60119 (Correction) — dafür existiert hier gar kein ACK-Eintrag.
     wrong_pacs_boundary:
       terminal: true
       outcome: wrong
@@ -111,10 +154,13 @@ scenario:
       outcome: correct
       reveal: C-STATUS-ROUTING-KIS
       prompt: >
-        Richtig. RES60119 wurde vom RIS erzeugt, aber wegen eines fehlenden
-        Routing-/Status-Mappings für den Ergebnisstatus C nicht an das KIS
-        übertragen. Bilder und ursprünglicher Final-Befund waren nie
-        betroffen.
+        Richtig. Die Correction RES60119 wurde vom RIS erzeugt und erreichte
+        die Interface Engine (Inbound bestätigt). Die Routing-Regel
+        RAD_RESULTS_TO_KIS lässt aber nur die Status P und F passieren — C
+        fehlt in allowed_status, deshalb blieb der Outbound-Transfer zum KIS
+        aus. Das frühere AA-ACK für RES60110 bezieht sich ausschließlich auf
+        den Final-Befund und sagt nichts über die spätere Correction aus.
+        Bilder und ursprünglicher Final-Befund waren nie betroffen.
 
 flag:
   type: exact
@@ -132,4 +178,4 @@ hints:
 
 stuck_timeout_minutes: 15
 status: draft
-updated: "2026-09-18"
+updated: "2026-09-19"

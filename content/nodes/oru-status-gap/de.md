@@ -36,16 +36,16 @@ gehört zum selben Fall — zeitliche Nähe ist kein Korrelationskriterium.
 
 ### h2
 
-Vergleiche für die Nachricht, die im KIS fehlt, gezielt **Eingang** und
-**Outbound-Transfer** im Interface-Engine-Log — genau wie bei einer
-fehlenden Worklist, nur diesmal auf dem Rückweg.
+Ein ACK bezieht sich immer nur auf die Nachricht, zu der es gehört — die
+Annahme einer früheren Nachricht sagt nichts über eine spätere aus. Prüfe
+für die fehlende Nachricht getrennt: Wurde sie vom RIS erzeugt? Kam sie in
+der Interface Engine an? Wurde sie von dort auch Richtung KIS
+weitergeschickt?
 
 ### h3
 
-Ein Outbound-Transfer mit `State: ERROR` und fehlendem
-Routing-/Status-Mapping für den Ergebnisstatus zeigt auf die
-Statusverarbeitung zwischen Interface Engine und KIS — nicht auf PACS
-oder RIS.
+Vergleiche die Routing-Konfiguration (`allowed_status`) der Route
+Richtung KIS mit dem tatsächlichen Ergebnisstatus der fehlenden Nachricht.
 
 ## Write-up
 
@@ -62,25 +62,42 @@ beide zu Auftrag ORD-40118 und Patient 6620. `RES60122` gehört zu einem
 anderen Auftrag (ORD-40125) und ist für diesen Fall irrelevant, obwohl
 sie zeitlich dazwischenliegt.
 
-### Dann die Kette prüfen
+### Dann die Evidenz getrennt sammeln — nicht raten
 
 ```text
-RES60110 → Outbound zu KIS: SENT
-RES60119 → Outbound zu KIS: ERROR
-  Grund: kein Routing-/Status-Mapping für Ergebnisstatus C
+RIS:                RES60119 / ORD-40118 / Status C erzeugt, 11:47
+IE inbound:          RES60119 vorhanden, 11:47
+Route RAD_RESULTS_TO_KIS: allowed_status = P,F
+KIS outbound:        RES60110 vorhanden (11:20), RES60119 fehlt
+
+RES60110 (Final)     → Outbound zu KIS: SENT, ACK: AA
+RES60119 (Correction) → kein Outbound-/ACK-Eintrag
 ```
 
-**Was du daran abliest:** Der finale Befund (`F`) kam beim KIS an — das
-ist der Zustand, den der behandelnde Arzt noch sieht. Die Correction
-(`C`) wurde vom RIS erzeugt und von der Interface Engine angenommen, blieb
-aber beim ausgehenden Transfer zum KIS hängen, weil der Ergebnisstatus `C`
-dort kein Routing-Ziel hatte.
+**Was du daran abliest:** Drei naheliegende, aber falsche Schlüsse lassen
+sich mit dieser Evidenz sofort widerlegen: Das KIS kann die Correction
+nicht „abgelehnt" haben — sie fehlt im KIS-Outbound-Log vollständig, sie
+kam dort nie an. Das RIS hat auch nicht nur einen internen Status
+geändert — die Interface Engine bestätigt den Eingang einer echten
+Result-Nachricht. Und das `AA` für RES60110 sagt nichts über RES60119 aus,
+denn ein ACK bezieht sich immer nur auf die Nachricht, zu der es gehört.
+
+Übrig bleibt die Routing-Konfiguration: `allowed_status` der Route
+`RAD_RESULTS_TO_KIS` enthält nur `P` und `F`, nicht `C`. Der finale Befund
+(`F`) kam beim KIS an — das ist der Zustand, den der behandelnde Arzt noch
+sieht. Die Correction (`C`) wurde vom RIS erzeugt und von der Interface
+Engine angenommen, blieb aber beim ausgehenden Transfer zum KIS hängen,
+weil die Routing-Regel ihren Ergebnisstatus nicht durchlässt. Die erste
+fehlerhafte Systemgrenze liegt damit zwischen Interface Engine und KIS, im
+Outbound-/Routing-Schritt.
 
 ### Was du mitnimmst
 
 Weder die Bilder neu zu senden noch den Patienten manuell zu ändern noch
 den Befundtext direkt im KIS zu überschreiben behebt die Ursache — keines
-davon betrifft die eigentlich gestörte Stelle: das Status-/Routing-Mapping
+davon betrifft die eigentlich gestörte Stelle: die Routing-Konfiguration
 zwischen Interface Engine und KIS für den Ergebnisstatus `C`. Erst wenn
-dieses Mapping korrigiert ist und die Correction gezielt erneut übertragen
-wird, zeigt das KIS denselben Befundstand wie das RIS.
+`allowed_status` korrigiert ist und die Correction gezielt erneut
+übertragen wird, zeigt das KIS denselben Befundstand wie das RIS. Und ein
+positives ACK für eine ältere Nachricht ersetzt nie die Prüfung der
+konkreten Nachricht, um die es gerade geht.
