@@ -48,7 +48,7 @@ const props = defineProps<{
     attempt: { status: AttemptStatus } | null;
     can_start: boolean;
     runtime: {
-        status: 'queued' | 'running' | 'sandbox_unavailable';
+        status: 'queued' | 'running' | 'sandbox_unavailable' | 'expired';
         queue_position: number | null;
     } | null;
     assertions: AssertionState[];
@@ -75,6 +75,10 @@ const runtimeErrorLabels: Record<string, string> = {
     sandbox_unavailable: trans(
         'Die Runtime-Umgebung ist gerade nicht erreichbar. Bitte später erneut versuchen.',
     ),
+    // PR #148, "Runtime ended/expired": vom Idle-Timeout-Cleanup beendet
+    // (CMS-8b), kein Fehler des Lernenden -- eigener Text statt der
+    // generischen "nicht erreichbar"-Meldung.
+    expired: trans('Deine Sitzung wurde wegen Inaktivität beendet.'),
 };
 
 // Betreiber-Vorgabe: ein unbekannter Fehlerschlüssel bekommt nur eine
@@ -126,7 +130,8 @@ const destroying = ref(false);
 const initialRuntimeStatus: RuntimeStatus =
     props.runtime === null
         ? 'idle'
-        : props.runtime.status === 'sandbox_unavailable'
+        : props.runtime.status === 'sandbox_unavailable' ||
+            props.runtime.status === 'expired'
           ? 'error'
           : props.runtime.status;
 
@@ -164,13 +169,18 @@ const {
 // erklaerungslosen Retry-Button allein zu lassen.
 runtimeErrorMessage.value =
     props.runtime_error ??
-    (props.runtime?.status === 'sandbox_unavailable'
-        ? 'sandbox_unavailable'
+    (props.runtime?.status === 'sandbox_unavailable' ||
+    props.runtime?.status === 'expired'
+        ? props.runtime.status
         : null);
 
 const startButtonLabel = computed(() => {
     if (!attemptStatus.value) {
         return trans('Lab starten');
+    }
+
+    if (runtimeErrorMessage.value === 'expired') {
+        return trans('Neue Sitzung starten');
     }
 
     return runtimeErrorMessage.value
@@ -183,6 +193,16 @@ const runtimeErrorLabel = computed(() =>
         ? null
         : (runtimeErrorLabels[runtimeErrorMessage.value] ??
           genericRuntimeErrorLabel),
+);
+
+// PR #148, "Runtime ended/expired": eine beendete Sitzung ist kein
+// fehlgeschlagener Start -- eigener Alert-Titel statt "Runtime konnte
+// nicht gestartet werden", der bei einer vorher erfolgreich gelaufenen
+// Sitzung fachlich falsch waere.
+const runtimeErrorTitle = computed(() =>
+    runtimeErrorMessage.value === 'expired'
+        ? trans('Sitzung beendet')
+        : trans('Runtime konnte nicht gestartet werden'),
 );
 
 // PR #148, Prioritaet 1: der Rueckweg im Abschluss-Bereich -- Fallback-
@@ -378,9 +398,7 @@ async function restartRuntime() {
         </p>
 
         <Alert v-if="runtimeErrorLabel" variant="destructive" class="mt-6">
-            <AlertTitle>{{
-                trans('Runtime konnte nicht gestartet werden')
-            }}</AlertTitle>
+            <AlertTitle>{{ runtimeErrorTitle }}</AlertTitle>
             <AlertDescription>
                 {{ runtimeErrorLabel }}
             </AlertDescription>

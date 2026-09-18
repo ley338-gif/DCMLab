@@ -222,6 +222,23 @@ describe('Labs/Show runtime state rendering', () => {
         );
     });
 
+    it('offers a fresh-session button and explains an idle-timeout expiry distinctly', () => {
+        const wrapper = mount(Show, {
+            props: {
+                ...baseProps,
+                runtime: { status: 'expired', queue_position: null },
+            },
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        expect(wrapper.text()).toContain('Sitzung beendet');
+        expect(wrapper.text()).toContain(
+            'Deine Sitzung wurde wegen Inaktivität beendet.',
+        );
+        expect(wrapper.text()).toContain('Neue Sitzung starten');
+        expect(wrapper.text()).not.toContain('Erneut versuchen');
+    });
+
     it('shows the queue position while the runtime is queued', () => {
         const wrapper = mount(Show, {
             props: {
