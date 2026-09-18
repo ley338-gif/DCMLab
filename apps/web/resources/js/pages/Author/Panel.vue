@@ -76,7 +76,7 @@ function goToNewAchievement() {
         <div class="grid gap-4 md:grid-cols-2">
             <Card v-if="canReview">
                 <CardHeader>
-                    <CardTitle>{{ trans('Review-Queue') }}</CardTitle>
+                    <CardTitle>{{ trans('Freigabe-Warteschlange') }}</CardTitle>
                 </CardHeader>
                 <CardContent class="flex flex-col gap-3">
                     <p class="text-muted-foreground text-sm">
@@ -88,7 +88,7 @@ function goToNewAchievement() {
                     </p>
                     <Link :href="reviewQueueIndex()">
                         <Button variant="outline">{{
-                            trans('Zur Review-Queue')
+                            trans('Zur Freigabe-Warteschlange')
                         }}</Button>
                     </Link>
                 </CardContent>

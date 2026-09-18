@@ -42,7 +42,7 @@ function publishVersion(versionId: number) {
 </script>
 
 <template>
-    <Head :title="trans('Review-Queue')" />
+    <Head :title="trans('Freigabe-Warteschlange')" />
 
     <PageContainer>
         <Breadcrumbs
@@ -50,12 +50,12 @@ function publishVersion(versionId: number) {
             :breadcrumbs="[
                 { title: trans('Tracks'), href: tracksIndex() },
                 { title: trans('Autoren-Panel'), href: authorIndex() },
-                { title: trans('Review-Queue'), href: '' },
+                { title: trans('Freigabe-Warteschlange'), href: '' },
             ]"
         />
 
         <h1 class="mb-6 text-2xl font-semibold">
-            {{ trans('Review-Queue') }}
+            {{ trans('Freigabe-Warteschlange') }}
         </h1>
 
         <p

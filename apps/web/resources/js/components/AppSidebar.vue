@@ -2,11 +2,11 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     BookOpenText,
-    FlaskConical,
     GraduationCap,
     LayoutDashboard,
     LayoutGrid,
     ShieldCheck,
+    Terminal,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -48,7 +48,7 @@ const mainNavItems = computed<NavItem[]>(() => {
         {
             title: trans('Herausforderungen'),
             href: nodesIndex(),
-            icon: FlaskConical,
+            icon: Terminal,
         },
         {
             title: trans('Glossar'),

@@ -39,7 +39,7 @@ import { home } from '@/routes';
                 <p class="text-muted-foreground">
                     {{
                         trans(
-                            'Kontodaten (Name, E-Mail-Adresse), Lernfortschritt (gelöste Lektionen und Nodes, Punkte, Rang) sowie technische Protokolle für den Betrieb (siehe docs/betrieb.md im Quellcode). Keine echten Patientendaten — die Übungsdaten in Lektionen und der Spielwiese sind ausschließlich synthetisch erzeugt (Abschnitt 1 des Projektauftrags).',
+                            'Kontodaten (Name, E-Mail-Adresse), Lernfortschritt (gelöste Lektionen und Herausforderungen, Punkte, Rang) sowie technische Protokolle für den Betrieb (siehe docs/betrieb.md im Quellcode). Keine echten Patientendaten — die Übungsdaten in Lektionen und der Spielwiese sind ausschließlich synthetisch erzeugt (Abschnitt 1 des Projektauftrags).',
                         )
                     }}
                 </p>

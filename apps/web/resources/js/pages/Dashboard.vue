@@ -284,7 +284,7 @@ function formatDate(iso: string): string {
                 <Card>
                     <CardHeader>
                         <CardTitle class="text-base">{{
-                            trans('Wissen auffrischen')
+                            trans('Wiederholen')
                         }}</CardTitle>
                     </CardHeader>
                     <CardContent>

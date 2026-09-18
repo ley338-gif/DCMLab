@@ -105,7 +105,7 @@ function next(card: ReviewCard) {
 </script>
 
 <template>
-    <Head :title="trans('Wiederholung')" />
+    <Head :title="trans('Wissen wiederholen')" />
 
     <PageContainer>
         <div class="mx-auto max-w-2xl space-y-6">

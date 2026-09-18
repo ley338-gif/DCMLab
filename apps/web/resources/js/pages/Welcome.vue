@@ -65,7 +65,7 @@ const difficultyLabels: Record<string, string> = {
 const learningModel = [
     { icon: GraduationCap, label: trans('Track') },
     { icon: BookOpenText, label: trans('Lesson') },
-    { icon: Network, label: trans('Node') },
+    { icon: Network, label: trans('Herausforderung') },
     { icon: FlaskConical, label: trans('Lab') },
     { icon: Award, label: trans('Achievement') },
 ];
@@ -92,7 +92,7 @@ const learningModel = [
                 <p class="mt-6 text-lg opacity-90">
                     {{
                         trans(
-                            'Interaktive Lessons, Nodes, Labs und Challenges für Healthcare-IT und PACS-Administration.',
+                            'Interaktive Lektionen, Herausforderungen und Labs für Healthcare-IT und PACS-Administration.',
                         )
                     }}
                 </p>

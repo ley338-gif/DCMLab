@@ -105,10 +105,10 @@ function toNavNeighbor(neighbor: NodeNeighbor, label: string): NavNeighbor {
 }
 
 const prevNav = computed(() =>
-    toNavNeighbor(props.prev, trans('Vorherige Node')),
+    toNavNeighbor(props.prev, trans('Vorherige Herausforderung')),
 );
 const nextNav = computed(() =>
-    toNavNeighbor(props.next, trans('Nächste Node')),
+    toNavNeighbor(props.next, trans('Nächste Herausforderung')),
 );
 
 const state = ref<EngineState>(props.state);
@@ -267,7 +267,7 @@ async function submitFlag() {
         <nav
             v-if="prev || next"
             class="text-muted-foreground mb-6 flex items-center justify-between text-sm"
-            :aria-label="trans('Node-Navigation')"
+            :aria-label="trans('Herausforderungs-Navigation')"
         >
             <Link
                 v-if="prev"
@@ -275,7 +275,7 @@ async function submitFlag() {
                 class="hover:text-foreground inline-flex items-center gap-1"
             >
                 <ArrowLeft class="size-3.5" aria-hidden="true" />
-                {{ trans('Vorherige Node') }}
+                {{ trans('Vorherige Herausforderung') }}
             </Link>
             <span v-else />
 
@@ -284,7 +284,7 @@ async function submitFlag() {
                 :href="showNode(next.slug)"
                 class="hover:text-foreground inline-flex items-center gap-1"
             >
-                {{ trans('Nächste Node') }}
+                {{ trans('Nächste Herausforderung') }}
                 <ArrowRight class="size-3.5" aria-hidden="true" />
             </Link>
         </nav>

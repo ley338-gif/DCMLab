@@ -2,7 +2,6 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     BookOpenText,
-    FlaskConical,
     GraduationCap,
     LayoutDashboard,
     LayoutGrid,
@@ -11,6 +10,7 @@ import {
     Moon,
     ShieldCheck,
     Sun,
+    Terminal,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -102,7 +102,7 @@ function isActive(prefix: string): boolean {
                                         'is-active': isActive('/de/nodes'),
                                     }"
                                 >
-                                    <FlaskConical
+                                    <Terminal
                                         class="size-4"
                                         aria-hidden="true"
                                     />
@@ -121,7 +121,7 @@ function isActive(prefix: string): boolean {
                                         class="size-4"
                                         aria-hidden="true"
                                     />
-                                    <span>{{ trans('Wissen testen') }}</span>
+                                    <span>{{ trans('Wiederholen') }}</span>
                                 </Link>
                                 <Link
                                     v-if="user && user.role !== 'learner'"
@@ -192,7 +192,7 @@ function isActive(prefix: string): boolean {
                     :href="nodesIndex()"
                     :class="{ 'is-active': isActive('/de/nodes') }"
                 >
-                    <FlaskConical class="size-4" aria-hidden="true" />
+                    <Terminal class="size-4" aria-hidden="true" />
                     {{ trans('Herausforderungen') }}
                 </Link>
                 <Link
@@ -201,7 +201,7 @@ function isActive(prefix: string): boolean {
                     :class="{ 'is-active': isActive('/de/review') }"
                 >
                     <ListChecks class="size-4" aria-hidden="true" />
-                    {{ trans('Wissen testen') }}
+                    {{ trans('Wiederholen') }}
                 </Link>
                 <Link
                     v-if="user && user.role !== 'learner'"
