@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
 import { Loader2, Square } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -161,6 +161,63 @@ const startButtonLabel = computed(() => {
         : trans('Runtime starten');
 });
 
+const runtimeErrorLabel = computed(() =>
+    runtimeErrorMessage.value === null
+        ? null
+        : (runtimeErrorLabels[runtimeErrorMessage.value] ??
+          genericRuntimeErrorLabel),
+);
+
+/**
+ * PR #148, Prioritaet 4: Runtime-Zustandsaenderungen sind rein visuell
+ * (Icon/Text/Terminal erscheint) und damit fuer Screenreader-Nutzer
+ * stumm -- eine einzelne `aria-live="polite"`-Region traegt jede
+ * Statusaenderung nach, ohne bei jeder einzelnen Aenderung `assertive` zu
+ * werden. Bewusst zurueckhaltend: der Warteschlangenplatz wird nur
+ * angesagt, wenn die Runtime tatsaechlich noch wartet, nicht bei jedem
+ * einzelnen Poll-Tick mit unveraendertem Wert (Vue's `watch()` feuert bei
+ * einem gleichen Ref-Wert ohnehin nicht erneut).
+ */
+const announcement = ref('');
+
+watch(runtimeStatus, (status, previous) => {
+    if (status === 'queued') {
+        announcement.value = trans('In der Warteschlange, Platz :position', {
+            position: queuePosition.value ?? '…',
+        });
+    } else if (status === 'running' && previous !== 'running') {
+        announcement.value = trans('Runtime bereit.');
+    }
+});
+
+watch(queuePosition, (position) => {
+    if (runtimeStatus.value === 'queued') {
+        announcement.value = trans('In der Warteschlange, Platz :position', {
+            position: position ?? '…',
+        });
+    }
+});
+
+watch(runtimeErrorLabel, (label) => {
+    if (label !== null) {
+        announcement.value = label;
+    }
+});
+
+const terminal = ref<InstanceType<typeof EngineTerminal> | null>(null);
+
+// Sobald die Runtime von Warteschlange/Start auf "bereit" wechselt, den
+// Fokus aktiv in den Arbeitsbereich legen -- beim ERSTEN Laden mit bereits
+// laufender Runtime (Reload waehrend `running`) bewusst NICHT, das waere ein
+// ueberraschender Fokusklau direkt beim Seitenaufruf. `watch()` ohne
+// `immediate` feuert von sich aus nur bei einer tatsaechlichen Aenderung.
+watch(runtimeStatus, async (status, previous) => {
+    if (status === 'running' && previous !== 'running') {
+        await nextTick();
+        terminal.value?.focus?.();
+    }
+});
+
 /**
  * `postJson()` wirft bei jeder Nicht-2xx-Antwort einen generischen Error
  * (kein Statuscode) -- `EngineTerminal` erwartet aber immer ein aufgelöstes
@@ -265,17 +322,18 @@ async function restartRuntime() {
             {{ trans('Noch keine Anleitung hinterlegt.') }}
         </p>
 
-        <Alert v-if="runtimeErrorMessage" variant="destructive" class="mt-6">
+        <Alert v-if="runtimeErrorLabel" variant="destructive" class="mt-6">
             <AlertTitle>{{
                 trans('Runtime konnte nicht gestartet werden')
             }}</AlertTitle>
             <AlertDescription>
-                {{
-                    runtimeErrorLabels[runtimeErrorMessage] ??
-                    genericRuntimeErrorLabel
-                }}
+                {{ runtimeErrorLabel }}
             </AlertDescription>
         </Alert>
+
+        <span class="sr-only" role="status" aria-live="polite">
+            {{ announcement }}
+        </span>
 
         <p
             v-if="attemptStatus === 'solved'"
@@ -357,7 +415,7 @@ async function restartRuntime() {
                 </ul>
             </div>
 
-            <EngineTerminal :on-command="runCommand" />
+            <EngineTerminal ref="terminal" :on-command="runCommand" />
 
             <!-- Betreiber-Entscheidung: Runtime nach Solve weiter nutzbar,
                  aber nicht neu startbar -- der Button existiert deshalb

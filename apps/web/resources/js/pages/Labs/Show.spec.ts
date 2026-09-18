@@ -258,4 +258,78 @@ describe('Labs/Show runtime state rendering', () => {
 
         vi.useRealTimers();
     });
+
+    it('announces the runtime status via the sr-only live region once it changes', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValueOnce(
+            fakeResponse(200, { status: 'running', queue_position: null }),
+        );
+
+        const wrapper = mount(Show, {
+            props: {
+                ...baseProps,
+                runtime: { status: 'queued', queue_position: 2 },
+                assertions: [],
+            },
+            global: { stubs: { EngineTerminal: true } },
+        });
+
+        // Keine Ansage fuer einen bereits beim Laden bekannten Zustand --
+        // nur fuer eine tatsaechliche, live erlebte Aenderung.
+        expect(wrapper.find('[role="status"]').text()).toBe('');
+
+        await vi.advanceTimersByTimeAsync(3000);
+
+        expect(wrapper.find('[role="status"]').text()).toContain(
+            'Runtime bereit.',
+        );
+
+        vi.useRealTimers();
+    });
+
+    it('moves focus into the terminal once the runtime transitions to running', async () => {
+        vi.useFakeTimers();
+        const focus = vi.fn();
+        fetchMock.mockResolvedValueOnce(
+            fakeResponse(200, { status: 'running', queue_position: null }),
+        );
+
+        mount(Show, {
+            props: {
+                ...baseProps,
+                runtime: { status: 'queued', queue_position: 1 },
+                assertions: [],
+            },
+            global: {
+                stubs: {
+                    EngineTerminal: { template: '<div />', methods: { focus } },
+                },
+            },
+        });
+
+        expect(focus).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(3000);
+
+        expect(focus).toHaveBeenCalledOnce();
+
+        vi.useRealTimers();
+    });
+
+    it('does not steal focus when the runtime is already running on initial load', async () => {
+        const focus = vi.fn();
+
+        mount(Show, {
+            props: baseProps,
+            global: {
+                stubs: {
+                    EngineTerminal: { template: '<div />', methods: { focus } },
+                },
+            },
+        });
+
+        await Promise.resolve();
+
+        expect(focus).not.toHaveBeenCalled();
+    });
 });

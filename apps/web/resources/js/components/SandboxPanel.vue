@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FlaskConical, Loader2, Square } from '@lucide/vue';
-import { ref } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
 import { Button } from '@/components/ui/button';
 import { useRuntimeSession } from '@/composables/useRuntimeSession';
@@ -48,6 +48,45 @@ const {
     enterIdle,
     stopPolling,
 } = useRuntimeSession(fetchRuntimeState);
+
+// PR #148, Prioritaet 4: dieselbe Live-Region/Fokus-Behandlung wie
+// Labs/Show.vue -- beide teilen denselben Composable/dieselbe
+// Zustandsmaschine, eine Spielwiese verdient keine schlechtere
+// Accessibility als ein Lab.
+const announcement = ref('');
+
+watch(status, (value, previous) => {
+    if (value === 'queued') {
+        announcement.value = trans('In der Warteschlange, Platz :position', {
+            position: queuePosition.value ?? '…',
+        });
+    } else if (value === 'running' && previous !== 'running') {
+        announcement.value = trans('Runtime bereit.');
+    }
+});
+
+watch(queuePosition, (position) => {
+    if (status.value === 'queued') {
+        announcement.value = trans('In der Warteschlange, Platz :position', {
+            position: position ?? '…',
+        });
+    }
+});
+
+watch(errorMessage, (message) => {
+    if (message !== null) {
+        announcement.value = message;
+    }
+});
+
+const terminal = ref<InstanceType<typeof EngineTerminal> | null>(null);
+
+watch(status, async (value, previous) => {
+    if (value === 'running' && previous !== 'running') {
+        await nextTick();
+        terminal.value?.focus?.();
+    }
+});
 
 async function start() {
     enterStarting();
@@ -162,11 +201,15 @@ async function stop() {
         </div>
 
         <div v-if="status === 'running'" class="space-y-2">
-            <EngineTerminal :on-command="runCommand" />
+            <EngineTerminal ref="terminal" :on-command="runCommand" />
             <Button type="button" variant="ghost" size="sm" @click="stop">
                 <Square class="size-4" />
                 {{ trans('Spielwiese beenden') }}
             </Button>
         </div>
+
+        <span class="sr-only" role="status" aria-live="polite">
+            {{ announcement }}
+        </span>
     </div>
 </template>
