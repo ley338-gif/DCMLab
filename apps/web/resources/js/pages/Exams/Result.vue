@@ -91,7 +91,7 @@ function retryUrl(): string {
                 <p class="text-sm">
                     {{
                         trans(
-                            'Du hast das Abschluss-Badge für diesen Track und :points Punkte erhalten.',
+                            'Du hast das Achievement für diesen Track und :points Punkte erhalten.',
                             { points: attempt.points_awarded },
                         )
                     }}

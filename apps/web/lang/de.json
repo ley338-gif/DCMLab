@@ -25,7 +25,7 @@
     "Datenschutz": "Datenschutz",
     "Platzhalter — hier steht die vollständige Datenschutzerklärung (Verantwortlicher, Zwecke und Rechtsgrundlagen der Verarbeitung, Speicherdauer, Betroffenenrechte, Auftragsverarbeiter), sobald DCM Lab von einer echten Rechtsperson betrieben wird.": "Platzhalter — hier steht die vollständige Datenschutzerklärung (Verantwortlicher, Zwecke und Rechtsgrundlagen der Verarbeitung, Speicherdauer, Betroffenenrechte, Auftragsverarbeiter), sobald DCM Lab von einer echten Rechtsperson betrieben wird.",
     "Was diese Plattform speichert": "Was diese Plattform speichert",
-    "Kontodaten (Name, E-Mail-Adresse), Lernfortschritt (gelöste Lektionen und Nodes, Punkte, Rang) sowie technische Protokolle für den Betrieb (siehe docs/betrieb.md im Quellcode). Keine echten Patientendaten — die Übungsdaten in Lektionen und der Spielwiese sind ausschließlich synthetisch erzeugt (Abschnitt 1 des Projektauftrags).": "Kontodaten (Name, E-Mail-Adresse), Lernfortschritt (gelöste Lektionen und Nodes, Punkte, Rang) sowie technische Protokolle für den Betrieb (siehe docs/betrieb.md im Quellcode). Keine echten Patientendaten — die Übungsdaten in Lektionen und der Spielwiese sind ausschließlich synthetisch erzeugt (Abschnitt 1 des Projektauftrags).",
+    "Kontodaten (Name, E-Mail-Adresse), Lernfortschritt (gelöste Lektionen und Herausforderungen, Punkte, Rang) sowie technische Protokolle für den Betrieb (siehe docs/betrieb.md im Quellcode). Keine echten Patientendaten — die Übungsdaten in Lektionen und der Spielwiese sind ausschließlich synthetisch erzeugt (Abschnitt 1 des Projektauftrags).": "Kontodaten (Name, E-Mail-Adresse), Lernfortschritt (gelöste Lektionen und Herausforderungen, Punkte, Rang) sowie technische Protokolle für den Betrieb (siehe docs/betrieb.md im Quellcode). Keine echten Patientendaten — die Übungsdaten in Lektionen und der Spielwiese sind ausschließlich synthetisch erzeugt (Abschnitt 1 des Projektauftrags).",
 
     "Nutzungsbedingungen": "Nutzungsbedingungen",
     "Platzhalter — hier steht die vollständige rechtliche Fassung, sobald DCM Lab von einer echten Rechtsperson betrieben wird. Der folgende Hinweis zur Spielwiese gilt schon jetzt inhaltlich, unabhängig vom endgültigen Wortlaut.": "Platzhalter — hier steht die vollständige rechtliche Fassung, sobald DCM Lab von einer echten Rechtsperson betrieben wird. Der folgende Hinweis zur Spielwiese gilt schon jetzt inhaltlich, unabhängig vom endgültigen Wortlaut.",
@@ -247,7 +247,7 @@
 
     "Prüfungsergebnis": "Prüfungsergebnis",
     ":correct von :total richtig — :percent %": ":correct von :total richtig — :percent %",
-    "Du hast das Abschluss-Badge für diesen Track und :points Punkte erhalten.": "Du hast das Abschluss-Badge für diesen Track und :points Punkte erhalten.",
+    "Du hast das Achievement für diesen Track und :points Punkte erhalten.": "Du hast das Achievement für diesen Track und :points Punkte erhalten.",
     "Deine Fehler nach Lektion": "Deine Fehler nach Lektion",
     ":count falsch": ":count falsch",
     "Alle übrigen Lektionen vollständig richtig.": "Alle übrigen Lektionen vollständig richtig.",
@@ -318,7 +318,7 @@
 
     "Tracks": "Tracks",
     "Dashboard": "Dashboard",
-    "Wissen testen": "Wissen testen",
+    "Wiederholen": "Wiederholen",
     "Navigation": "Navigation",
     "Navigation öffnen": "Navigation öffnen",
     "Hauptnavigation": "Hauptnavigation",
@@ -360,7 +360,7 @@
     "Erklärt in Lektion :lesson": "Erklärt in Lektion :lesson",
 
     "Labs": "Labs",
-    "Kaputte Umgebungen zum Reparieren — jede Node ist ein eigenständiges Szenario mit Flag und Punkten.": "Kaputte Umgebungen zum Reparieren — jede Node ist ein eigenständiges Szenario mit Flag und Punkten.",
+    "Kaputte Umgebungen zum Reparieren — jede Herausforderung ist ein eigenständiges Szenario mit Flag und Punkten.": "Kaputte Umgebungen zum Reparieren — jede Herausforderung ist ein eigenständiges Szenario mit Flag und Punkten.",
     ":minutes Min.": ":minutes Min.",
     "Netzwerk": "Netzwerk",
     "Datenmodell": "Datenmodell",
@@ -416,7 +416,7 @@
     "Strukturiert lernen, nicht nur lesen": "Strukturiert lernen, nicht nur lesen",
     "Track": "Track",
     "Lesson": "Lesson",
-    "Node": "Node",
+    "Herausforderung": "Herausforderung",
     "Lab": "Lab",
     "Achievement": "Achievement",
     "Bereit, dein erstes DICOM-Problem zu lösen?": "Bereit, dein erstes DICOM-Problem zu lösen?",
@@ -442,7 +442,6 @@
     "Du hast :track abgeschlossen.": "Du hast :track abgeschlossen.",
     "Ein guter Einstieg für Neulinge.": "Ein guter Einstieg für Neulinge.",
     "Dein Status": "Dein Status",
-    "Wissen auffrischen": "Wissen auffrischen",
     ":count Wiederholung fällig": ":count Wiederholung fällig",
     "Alles aktuell – momentan ist keine Wiederholung fällig.": "Alles aktuell – momentan ist keine Wiederholung fällig.",
     "Dein erstes Achievement wartet schon.": "Dein erstes Achievement wartet schon.",

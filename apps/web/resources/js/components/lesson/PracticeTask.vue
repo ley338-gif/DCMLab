@@ -53,7 +53,7 @@ defineProps<{
         >
             <span>
                 {{
-                    trans('Verknüpfte Node: „:title"', {
+                    trans('Verknüpfte Herausforderung: „:title"', {
                         title: relatedNode.title,
                     })
                 }}

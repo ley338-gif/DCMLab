@@ -63,7 +63,7 @@ const groups = computed(() => {
         <p class="text-muted-foreground mb-8">
             {{
                 trans(
-                    'Kaputte Umgebungen zum Reparieren — jede Node ist ein eigenständiges Szenario mit Flag und Punkten.',
+                    'Kaputte Umgebungen zum Reparieren — jede Herausforderung ist ein eigenständiges Szenario mit Flag und Punkten.',
                 )
             }}
         </p>

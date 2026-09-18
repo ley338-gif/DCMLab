@@ -574,7 +574,7 @@ function restore() {
                         <p class="text-muted-foreground mt-2 text-xs">
                             {{
                                 trans(
-                                    'Wird angezeigt, bevor der Lernende die Challenge beginnt.',
+                                    'Wird angezeigt, bevor der Lernende die Herausforderung beginnt.',
                                 )
                             }}
                         </p>
@@ -673,7 +673,7 @@ function restore() {
                         <p class="text-muted-foreground mt-2 text-xs">
                             {{
                                 trans(
-                                    'Wird automatisch gezeigt, sobald die Challenge gelöst ist.',
+                                    'Wird automatisch gezeigt, sobald die Herausforderung gelöst ist.',
                                 )
                             }}
                         </p>
