@@ -248,6 +248,90 @@ class LabActivityTest extends TestCase
     }
 
     /**
+     * PR #150: anders als `command_executed` ist kein Tag-Filter Pflicht --
+     * eine Assertion ganz ohne `sop_class`/`patient_id`/`study_instance_uid`/
+     * `modality` ist gueltig.
+     */
+    public function test_validate_accepts_a_dicom_instance_received_assertion_without_any_filter(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'dicom_instance_received']],
+        ]));
+
+        $this->assertSame([], $issues);
+    }
+
+    public function test_validate_accepts_a_dicom_instance_received_assertion_with_filters(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [[
+                'type' => 'dicom_instance_received',
+                'patient_id' => 'LAB-0042',
+                'modality' => 'CT',
+                'min_instances' => 3,
+            ]],
+        ]));
+
+        $this->assertSame([], $issues);
+    }
+
+    public function test_validate_rejects_a_dicom_instance_received_assertion_with_a_non_positive_min_instances(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'dicom_instance_received', 'min_instances' => 0]],
+        ]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'assertions[0].min_instances'),
+        ));
+    }
+
+    public function test_validate_rejects_a_dicom_instance_received_assertion_with_a_non_string_tag_filter(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [['type' => 'dicom_instance_received', 'patient_id' => 42]],
+        ]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'assertions[0].patient_id'),
+        ));
+    }
+
+    /**
+     * Dieselbe Duplikatspruefung wie bei `command_executed`, aber ueber die
+     * kanonische Parameter-Signatur -- Schluesselreihenfolge und
+     * Modality-Schreibweise duerfen keinen Unterschied machen.
+     */
+    public function test_validate_rejects_duplicate_dicom_instance_received_assertions_with_identical_parameters(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $activity = $this->makeActivity();
+
+        $issues = $activity->validate($this->validPayload([
+            'assertions' => [
+                ['type' => 'dicom_instance_received', 'patient_id' => 'LAB-01', 'modality' => 'ct'],
+                ['modality' => 'CT', 'type' => 'dicom_instance_received', 'patient_id' => 'LAB-01'],
+            ],
+        ]));
+
+        $this->assertTrue(collect($issues)->contains(
+            fn ($issue) => str_contains($issue->message, 'doppelte Erfolgskriterien'),
+        ));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validPayload(array $overrides = []): array

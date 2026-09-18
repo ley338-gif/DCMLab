@@ -277,6 +277,15 @@ class StudioLabController extends Controller
             'assertions' => 'array',
             'assertions.*.type' => 'required|string',
             'assertions.*.prefix' => 'nullable|string',
+            // PR #150 (`dicom_instance_received`): dieselbe "nur grobe Form"-
+            // Strategie wie `prefix` -- alle Felder optional/nullable, die
+            // eigentliche Pflicht-/Typpruefung pro Assertion-Typ laeuft
+            // ausschliesslich ueber LabActivity::checkAssertion() unten.
+            'assertions.*.min_instances' => 'nullable|integer|min:1',
+            'assertions.*.sop_class' => 'nullable|string',
+            'assertions.*.patient_id' => 'nullable|string',
+            'assertions.*.study_instance_uid' => 'nullable|string',
+            'assertions.*.modality' => 'nullable|string',
             // Nur die grobe Form -- die eigentliche Schema-/Katalogpruefung
             // (SandboxTemplate/datasets.yml, Assertion-Feldform pro Typ,
             // RichContentValidator) laeuft ueber activity->validate($draft)

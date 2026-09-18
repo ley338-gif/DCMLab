@@ -105,13 +105,13 @@ final readonly class LabActivity implements ActivityContract
     private const DIFFICULTIES = ['easy', 'medium', 'hard', 'insane'];
 
     /**
-     * Geschlossener Assertion-Typ-Katalog (CMS-8c, Betreiber-Korrektur):
-     * nur `command_executed` ist heute authoringfaehig -- ein zweiter Typ
-     * (z. B. `c_store_received`) ist bewusst "spaeter" (CMS-8d/8e). Neue
-     * Typen kommen als weiterer `match()`-Zweig in `checkAssertion()` dazu,
-     * kein Umbau der Liste selbst.
+     * Geschlossener Assertion-Typ-Katalog. Seit PR #150 zwei Typen:
+     * `command_executed` (Exec-Fact) und `dicom_instance_received`
+     * (Orthanc-Fact, Assertion-/Grading-Audit). Ein weiterer Typ kommt als
+     * weiterer `match()`-Zweig in `checkAssertion()` dazu, kein Umbau der
+     * Liste selbst.
      */
-    private const ASSERTION_TYPES = ['command_executed'];
+    private const ASSERTION_TYPES = ['command_executed', 'dicom_instance_received'];
 
     /**
      * Kein Dateibestand, gegen den geprueft werden koennte -- die Pruefung
@@ -185,17 +185,18 @@ final readonly class LabActivity implements ActivityContract
             }
 
             // CMS-8d, Betreiber-Review: zwei Assertions mit identischem
-            // type+prefix sind ein Autorenfehler (zwei Checklisten-Zeilen
+            // Typ+Parametern sind ein Autorenfehler (zwei Checklisten-Zeilen
             // fuer fachlich dasselbe Kriterium) -- derselbe Identifier, den
             // LabAssertionEvaluator zur Laufzeit fuer assertions_passed
-            // verwendet.
+            // verwendet (PR #150: identifierFor() kanonisiert Parameter
+            // typ-spezifisch, nicht mehr nur `prefix`).
             $identifiers = array_map(
                 fn (mixed $assertion): string => LabAssertionEvaluator::identifierFor(is_array($assertion) ? $assertion : []),
                 $assertions,
             );
 
             if (count($identifiers) !== count(array_unique($identifiers))) {
-                $issues[] = new ContentIssue($file, null, 'assertions: doppelte Erfolgskriterien (gleicher type+prefix) sind nicht erlaubt');
+                $issues[] = new ContentIssue($file, null, 'assertions: doppelte Erfolgskriterien (gleicher Typ mit identischen Parametern) sind nicht erlaubt');
             }
         }
 
@@ -215,8 +216,8 @@ final readonly class LabActivity implements ActivityContract
     /**
      * Dispatcher-Stil wie `ContentValidator::checkAchievementUnlockWhen()`
      * -- ein geschlossener Typ-Katalog (`self::ASSERTION_TYPES`), pro Typ
-     * seine eigenen Pflichtfelder. Ein zweiter Typ kommt hier als weiterer
-     * Zweig dazu, keine Neuarchitektur.
+     * seine eigenen Pflichtfelder. Ein weiterer Typ kommt hier als
+     * weiterer `match()`-Zweig dazu, keine Neuarchitektur.
      *
      * @return list<ContentIssue>
      */
@@ -235,17 +236,64 @@ final readonly class LabActivity implements ActivityContract
             )];
         }
 
-        // Nur EIN Typ heute (self::ASSERTION_TYPES) -- der in_array()-Check
-        // oben hat $type bereits auf genau diesen Wert eingegrenzt, ein
-        // erneuter Typ-Vergleich waere PHPStan-seitig ein toter Zweig
-        // (identical.alwaysTrue). Ein zweiter Typ (CMS-8d/8e) macht daraus
-        // wieder einen echten `match($type)`-Dispatcher, ohne diese Methode
-        // umzubauen -- die if/elseif-Kette unten waechst dann einfach.
+        // `default` statt eines zweiten literalen Vergleichs (PHPStan:
+        // nach dem in_array()-Check oben ist $type bereits auf genau die
+        // beiden self::ASSERTION_TYPES-Werte eingegrenzt, ein zweiter
+        // Literal-Vergleich waere ein toter Zweig, match.alwaysTrue). Ein
+        // DRITTER Typ braucht hier einen eigenen, expliziten Arm VOR
+        // `default`, sonst laeuft er versehentlich durch die
+        // dicom_instance_received-Validierung.
+        return match ($type) {
+            'command_executed' => $this->checkCommandExecutedAssertion($file, $index, $assertion),
+            default => $this->checkDicomInstanceReceivedAssertion($file, $index, $assertion),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $assertion
+     * @return list<ContentIssue>
+     */
+    private function checkCommandExecutedAssertion(string $file, int $index, array $assertion): array
+    {
         if (! is_string($assertion['prefix'] ?? null) || $assertion['prefix'] === '') {
             return [new ContentIssue($file, null, "assertions[{$index}].prefix: muss ein nicht-leerer String sein")];
         }
 
         return [];
+    }
+
+    /**
+     * PR #150 (Assertion-/Grading-Audit): anders als `command_executed`
+     * ist HIER kein Tag-Filter (`sop_class`/`patient_id`/
+     * `study_instance_uid`/`modality`) Pflicht -- eine Assertion ganz ohne
+     * Filter ist bewusst gueltig und bedeutet "mindestens `min_instances`
+     * DICOM-Instanzen wurden ueberhaupt vom Ziel-PACS empfangen" (kein
+     * Always-True-Fall, siehe `LabAssertionEvaluator`). Nur die TYPEN der
+     * angegebenen Werte werden hier geprueft, nicht ihre Kataloghaftigkeit
+     * (es gibt keinen SOP-Klassen-/Modalitaets-Katalog gegen den geprueft
+     * werden koennte).
+     *
+     * @param  array<string, mixed>  $assertion
+     * @return list<ContentIssue>
+     */
+    private function checkDicomInstanceReceivedAssertion(string $file, int $index, array $assertion): array
+    {
+        $issues = [];
+
+        if (array_key_exists('min_instances', $assertion)
+            && (! is_int($assertion['min_instances']) || $assertion['min_instances'] < 1)) {
+            $issues[] = new ContentIssue($file, null, "assertions[{$index}].min_instances: muss eine ganze Zahl >= 1 sein");
+        }
+
+        foreach (['sop_class', 'patient_id', 'study_instance_uid', 'modality'] as $key) {
+            $value = $assertion[$key] ?? null;
+
+            if ($value !== null && ! is_string($value)) {
+                $issues[] = new ContentIssue($file, null, "assertions[{$index}].{$key}: muss ein String sein");
+            }
+        }
+
+        return $issues;
     }
 
     /**

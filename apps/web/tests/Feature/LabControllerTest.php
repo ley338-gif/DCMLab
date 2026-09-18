@@ -744,6 +744,94 @@ class LabControllerTest extends TestCase
     }
 
     /**
+     * PR #150 (Assertion-/Grading-Audit): derselbe Solve-/Progress-/
+     * Achievement-Weg wie bei `command_executed`, aber die Assertion selbst
+     * prueft nicht den ausgefuehrten Befehl, sondern Orthancs eigene
+     * Serverwahrheit (`events()['orthanc']['new_instances']`) --
+     * werkzeugunabhaengig, kein Sonderfall im Controller noetig.
+     */
+    public function test_exec_that_satisfies_a_dicom_instance_received_assertion_solves_the_attempt_and_records_progress_idempotently(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        Lab::factory()->create([
+            'slug' => 'c-store-verification',
+            'runtime_template' => 'dicom-basic-tools',
+            'dataset' => 'ct-thorax-60',
+            'points' => 15,
+            'assertions' => [[
+                'type' => 'dicom_instance_received',
+                'patient_id' => '4711',
+                'modality' => 'CT',
+            ]],
+        ]);
+        Activity::factory()->create(['type' => 'lab', 'key' => 'c-store-verification']);
+        AchievementDefinition::create([
+            'slug' => 'c-store-badge', 'name' => 'C-STORE', 'description' => 'Test',
+            'image' => 'c-store-badge.png', 'category' => 'test', 'points' => 0,
+            'is_hidden' => false, 'sort_order' => 100,
+            'unlock_when' => ['type' => 'activity_completed', 'activity_type' => 'lab', 'key' => 'c-store-verification'],
+        ]);
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201),
+            '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
+            '*/v1/sandboxes/sb-1/events' => Http::response([
+                'exec' => [['command' => 'storescu 127.0.0.1 4242 -aec ORTHANC file.dcm', 'exit_code' => 0, 'timestamp' => 't1', 'stdout_preview' => '']],
+                'orthanc' => ['new_instances' => [[
+                    'instance_id' => 'inst-1',
+                    'sop_class' => '1.2.840.10008.5.1.4.1.1.2',
+                    'transfer_syntax' => '1.2.840.10008.1.2.1',
+                    'patient_id' => '4711',
+                    'study_instance_uid' => '1.2.3.4.5',
+                    'modality' => 'CT',
+                ]]],
+            ]),
+        ]);
+
+        $this->actingAs($user)->post('/de/labs/c-store-verification/start');
+
+        $response = $this->actingAs($user)
+            ->postJson('/de/labs/c-store-verification/exec', ['command' => 'storescu 127.0.0.1 4242 -aec ORTHANC file.dcm'])
+            ->assertOk();
+
+        $response->assertJson(['all_satisfied' => true]);
+        $response->assertJson(['assertions' => [['index' => 0, 'type' => 'dicom_instance_received', 'passed' => true]]]);
+        $this->assertSame(['c-store-badge'], array_column($response->json('unlocked_achievements'), 'slug'));
+        // Betreiber-Vorgabe: kein interner Identifier im Response-Body.
+        $this->assertStringNotContainsString('dicom_instance_received:', (string) $response->getContent());
+
+        $attempt = LabAttempt::where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('solved', $attempt->status);
+        $this->assertNotNull($attempt->completed_at);
+
+        $progress = ActivityProgress::where('user_id', $user->id)->firstOrFail();
+        $this->assertTrue($progress->completed);
+        $this->assertSame(15, $progress->score);
+        $this->assertSame(15, $progress->max_score);
+
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()->where('user_id', $user->id)->whereRelation('definition', 'slug', 'c-store-badge')->count(),
+        );
+        $this->assertSame(15, (new ProfileService)->totalPoints($user));
+
+        // Zweiter exec()-Aufruf nach dem Loesen: kein doppeltes Punkte-/
+        // Achievement-Vergeben (dieselbe Idempotenz-Garantie wie bei
+        // command_executed).
+        $second = $this->actingAs($user)
+            ->postJson('/de/labs/c-store-verification/exec', ['command' => 'storescu 127.0.0.1 4242 -aec ORTHANC file.dcm'])
+            ->assertOk();
+
+        $this->assertSame([], $second->json('unlocked_achievements'));
+        $this->assertSame(
+            1,
+            AchievementUnlock::query()->where('user_id', $user->id)->whereRelation('definition', 'slug', 'c-store-badge')->count(),
+        );
+        $this->assertSame(1, ActivityProgress::where('user_id', $user->id)->count());
+    }
+
+    /**
      * Checkliste "Runtime events() Fehler -> kein teilweise gespeicherter
      * Solve": events() wird bewusst AUSSERHALB der Transaktion aufgerufen
      * (siehe exec()-Klassendoc) -- ein Fehler dort darf die Transaktion
