@@ -44,19 +44,27 @@ final readonly class LabDeploymentImporter
     /**
      * @param  array<string, mixed>  $artifact
      *
-     * @throws RuntimeException wenn das Artefakt gegen LabActivity::validate()
-     *                          nicht besteht -- wirft VOR jeder Schreib-
-     *                          operation, es entsteht nie eine teilweise
-     *                          importierte Ressource. Der restliche Import
-     *                          selbst laeuft in einer Transaktion, damit ein
-     *                          unerwarteter Fehler dabei ebenfalls nichts
-     *                          Halbes hinterlaesst.
+     * @throws RuntimeException wenn die Artefakt-STRUKTUR selbst nicht dem
+     *                          erwarteten Schema entspricht (fehlende/falsch
+     *                          typisierte Top-Level-Keys, unbekannte
+     *                          `schema_version`), ODER wenn das Artefakt
+     *                          gegen LabActivity::validate() nicht besteht --
+     *                          in beiden Faellen wirft dies VOR jeder
+     *                          Schreiboperation, es entsteht nie eine
+     *                          teilweise importierte Ressource. Der
+     *                          restliche Import selbst laeuft in einer
+     *                          Transaktion, damit ein unerwarteter Fehler
+     *                          dabei ebenfalls nichts Halbes hinterlaesst.
      */
     public function import(array $artifact): void
     {
+        $this->assertStructurallyValid($artifact);
+
         $slug = (string) $artifact['slug'];
         /** @var array<string, mixed> $payload */
         $payload = $artifact['lab'];
+        /** @var list<array{lesson_id: string, position: int}> $placements */
+        $placements = $artifact['placements'];
 
         $issues = $this->validate($slug, $payload);
 
@@ -66,7 +74,7 @@ final readonly class LabDeploymentImporter
             throw new RuntimeException("Import von \"{$slug}\" abgebrochen: {$summary}");
         }
 
-        DB::transaction(function () use ($slug, $payload, $artifact): void {
+        DB::transaction(function () use ($slug, $payload, $placements): void {
             $activity = Activity::query()->firstOrCreate(
                 ['type' => 'lab', 'key' => $slug],
                 ['status' => 'draft', 'title' => ['de' => $payload['title']]],
@@ -95,8 +103,59 @@ final readonly class LabDeploymentImporter
 
             $this->publishVersionIfChanged($activity, $payload);
 
-            $this->syncPlacement($activity, $artifact['placement'] ?? null);
+            $this->syncPlacements($activity, $placements);
         });
+    }
+
+    /**
+     * Betreiber-Vorgabe: die Top-Level-Struktur explizit pruefen, BEVOR
+     * irgendein Schluessel gelesen wird -- ein syntaktisch gueltiges, aber
+     * strukturell falsches JSON darf nie mit einer PHP-Warnung/einem
+     * TypeError (fehlender Array-Schluessel, falscher Typ) den gesamten
+     * `labs:import`-Lauf zum Absturz bringen, sondern immer mit genau dieser
+     * verstaendlichen RuntimeException abbrechen. Jede einzelne Pruefung
+     * steht bewusst VOR dem naechsten Zugriff auf denselben Schluessel.
+     *
+     * @param  array<string, mixed>  $artifact
+     */
+    private function assertStructurallyValid(array $artifact): void
+    {
+        if (! array_key_exists('schema_version', $artifact)) {
+            throw new RuntimeException('Ungueltiges Lab-Artefakt: "schema_version" fehlt.');
+        }
+
+        if (! is_int($artifact['schema_version']) || $artifact['schema_version'] !== LabDeploymentExporter::SCHEMA_VERSION) {
+            $given = is_scalar($artifact['schema_version']) ? (string) $artifact['schema_version'] : gettype($artifact['schema_version']);
+
+            throw new RuntimeException(
+                "Nicht unterstuetzte Lab-Artifact-Version: {$given} (unterstuetzt: ".LabDeploymentExporter::SCHEMA_VERSION.')',
+            );
+        }
+
+        if (! array_key_exists('slug', $artifact)
+            || ! is_string($artifact['slug'])
+            || $artifact['slug'] === ''
+            || ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $artifact['slug'])) {
+            throw new RuntimeException('Ungueltiges Lab-Artefakt: "slug" fehlt oder ist kein gueltiger Slug.');
+        }
+
+        if (! array_key_exists('lab', $artifact) || ! is_array($artifact['lab'])) {
+            throw new RuntimeException('Ungueltiges Lab-Artefakt: "lab" fehlt oder ist kein Objekt.');
+        }
+
+        if (! array_key_exists('placements', $artifact) || ! is_array($artifact['placements']) || ! array_is_list($artifact['placements'])) {
+            throw new RuntimeException('Ungueltiges Lab-Artefakt: "placements" fehlt oder ist keine Liste.');
+        }
+
+        foreach ($artifact['placements'] as $index => $placement) {
+            if (! is_array($placement)
+                || ! array_key_exists('lesson_id', $placement) || ! is_string($placement['lesson_id']) || $placement['lesson_id'] === ''
+                || ! array_key_exists('position', $placement) || ! is_int($placement['position'])) {
+                throw new RuntimeException(
+                    "Ungueltiges Lab-Artefakt: placements[{$index}] hat nicht die erwartete Struktur (lesson_id: string, position: int).",
+                );
+            }
+        }
     }
 
     /**
@@ -141,51 +200,63 @@ final readonly class LabDeploymentImporter
     }
 
     /**
-     * Eigentuemerschaft ueber `activity_id`, nicht ueber `lesson_id`: dieses
-     * Lab darf ausschliesslich SEINE EIGENE `lesson_elements`-Zeile anfassen,
-     * nie eine fremde. Beim Verschieben (Artefakt zeigt jetzt auf eine
-     * andere Lesson/Position) wird dieselbe Zeile aktualisiert, nicht
-     * geloescht+neu angelegt -- so bleibt zu jedem Zeitpunkt hoechstens eine
-     * Zeile pro Lab-Aktivitaet uebrig, nie eine verwaiste alte. Wird
-     * `placement` auf `null` gesetzt (Lab soll standalone sein), wird die
-     * eigene Zeile entfernt.
+     * `LabActivity::supports()->reusable === true` -- ein Lab kann aus
+     * mehreren Lektionen heraus verlinkt sein, `placements` ist deshalb seit
+     * der Betreiber-Korrektur eine Liste, kein Singular mehr. Eigentuemer-
+     * schaft ueber `activity_id`, nicht ueber `lesson_id`: dieses Lab darf
+     * ausschliesslich SEINE EIGENEN `lesson_elements`-Zeilen anfassen, nie
+     * eine fremde. Diff nach Ziel-`lesson_id` (der numerischen `lessons.id`,
+     * nicht dem Natural Key): eine im Artefakt weiterhin vorhandene
+     * Verknuepfung wird an Ort und Stelle aktualisiert (nur bei
+     * tatsaechlicher Aenderung der Position), eine nicht mehr enthaltene
+     * wird geloescht, eine neu hinzugekommene angelegt -- so entsteht nie
+     * eine verwaiste alte Zeile und nie ein Duplikat bei wiederholtem
+     * Import. Eine leere Liste bedeutet: Lab wird (wieder) standalone.
      *
      * Bewusst NICHT geprueft: ob die Ziel-Lesson/-Position bereits von einem
      * ANDEREN LessonElement belegt ist (Kollisionsvermeidung/Renumbering
      * anderer Elemente) -- ausserhalb des #152-Scopes, siehe PR-Beschreibung
      * und Testabdeckung.
      *
-     * @param  array{lesson_id: string, position: int}|null  $placement
+     * @param  list<array{lesson_id: string, position: int}>  $placements
      */
-    private function syncPlacement(Activity $activity, ?array $placement): void
+    private function syncPlacements(Activity $activity, array $placements): void
     {
         $owned = LessonElement::query()
             ->where('type', 'activity')
             ->where('activity_id', $activity->id)
-            ->first();
+            ->get()
+            ->keyBy('lesson_id');
 
-        if ($placement === null) {
-            $owned?->delete();
+        $desiredLessonIds = [];
 
-            return;
-        }
+        foreach ($placements as $placement) {
+            $lesson = Lesson::query()->where('lesson_id', $placement['lesson_id'])->firstOrFail();
+            $desiredLessonIds[$lesson->id] = true;
 
-        $lesson = Lesson::query()->where('lesson_id', $placement['lesson_id'])->firstOrFail();
+            $existing = $owned->get($lesson->id);
 
-        if ($owned !== null) {
-            if ($owned->lesson_id !== $lesson->id || $owned->position !== $placement['position']) {
-                $owned->update(['lesson_id' => $lesson->id, 'position' => $placement['position']]);
+            if ($existing !== null) {
+                if ($existing->position !== $placement['position']) {
+                    $existing->update(['position' => $placement['position']]);
+                }
+
+                continue;
             }
 
-            return;
+            LessonElement::query()->create([
+                'lesson_id' => $lesson->id,
+                'type' => 'activity',
+                'position' => $placement['position'],
+                'activity_id' => $activity->id,
+            ]);
         }
 
-        LessonElement::query()->create([
-            'lesson_id' => $lesson->id,
-            'type' => 'activity',
-            'position' => $placement['position'],
-            'activity_id' => $activity->id,
-        ]);
+        foreach ($owned as $lessonId => $element) {
+            if (! array_key_exists($lessonId, $desiredLessonIds)) {
+                $element->delete();
+            }
+        }
     }
 
     /**

@@ -58,35 +58,41 @@ final class LabDeploymentExporter
                 'assertions' => $lab->assertions,
                 'rich_content' => $lab->rich_content,
             ],
-            'placement' => $activity === null ? null : $this->placementFor($activity),
+            'placements' => $activity === null ? [] : $this->placementsFor($activity),
         ];
     }
 
     /**
-     * Betreiber-Vorgabe: nur `lesson_id` (der stabile Natural Key), niemals
-     * die numerische `lesson_id`-Spalte/`lessons.id` oder `activity_id` --
-     * ein Artefakt darf keine Quell-DB-IDs voraussetzen.
+     * Betreiber-Korrektur: `LabActivity::supports()->reusable === true` --
+     * ein Lab kann aus mehreren Lektionen heraus verlinkt sein, `first()`
+     * auf die `lesson_elements`-Zeilen dieser Activity waere verlustbehaftet
+     * fuer jedes Lab mit mehr als einer Verknuepfung. Nimmt deshalb ALLE
+     * Zeilen dieser Activity auf, sortiert deterministisch nach `lesson_id`
+     * (Natural Key) dann `position`, damit dieselbe DB-Lage immer dieselbe
+     * Artefakt-Reihenfolge ergibt. Nur `lesson_id` (der stabile Natural
+     * Key), niemals die numerische `lessons.id`/`activity_id` -- ein
+     * Artefakt darf keine Quell-DB-IDs voraussetzen.
      *
-     * @return array{lesson_id: string, position: int}|null
+     * @return list<array{lesson_id: string, position: int}>
      */
-    private function placementFor(Activity $activity): ?array
+    private function placementsFor(Activity $activity): array
     {
-        $element = LessonElement::query()
+        $elements = LessonElement::query()
             ->where('type', 'activity')
             ->where('activity_id', $activity->id)
-            ->first();
+            ->with('lesson:id,lesson_id')
+            ->get();
 
-        if ($element === null) {
-            return null;
-        }
+        $sorted = $elements
+            ->filter(fn (LessonElement $element): bool => $element->lesson !== null)
+            ->map(fn (LessonElement $element): array => [
+                'lesson_id' => $element->lesson->lesson_id,
+                'position' => $element->position,
+            ])
+            ->sort(fn (array $a, array $b): int => $a['lesson_id'] <=> $b['lesson_id'] ?: $a['position'] <=> $b['position'])
+            ->all();
 
-        $lesson = Lesson::query()->find($element->lesson_id);
-
-        if ($lesson === null) {
-            return null;
-        }
-
-        return ['lesson_id' => $lesson->lesson_id, 'position' => $element->position];
+        return array_values($sorted);
     }
 
     /**

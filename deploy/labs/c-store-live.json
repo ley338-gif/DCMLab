@@ -125,8 +125,10 @@
             ]
         }
     },
-    "placement": {
-        "lesson_id": "2.2",
-        "position": 2
-    }
+    "placements": [
+        {
+            "lesson_id": "2.2",
+            "position": 2
+        }
+    ]
 }

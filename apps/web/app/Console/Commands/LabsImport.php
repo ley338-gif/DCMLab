@@ -53,6 +53,23 @@ class LabsImport extends Command
 
             try {
                 $artifact = json_decode(File::get($file), true, flags: JSON_THROW_ON_ERROR);
+
+                if (! is_array($artifact)) {
+                    throw new RuntimeException("Ungueltiges Lab-Artefakt in {$file}: JSON-Wurzel ist kein Objekt.");
+                }
+
+                // Betreiber-Vorgabe: bei explizitem `labs:import <slug>` muss
+                // das Artefakt tatsaechlich diesen Slug deklarieren -- sonst
+                // koennte ein falsch benannter/verschobener/kopierter
+                // Artefakt-Dateiname ueberraschend ein anderes Lab deployen.
+                if ($slug !== null && ($artifact['slug'] ?? null) !== $slug) {
+                    $declared = is_string($artifact['slug'] ?? null) ? $artifact['slug'] : 'unbekannt';
+
+                    throw new RuntimeException(
+                        "Artefakt \"{$file}\" deklariert slug \"{$declared}\", erwartet \"{$slug}\" (Dateiname).",
+                    );
+                }
+
                 $importer->import($artifact);
                 $this->components->info("Importiert: {$file}");
             } catch (JsonException $e) {
