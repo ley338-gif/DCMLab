@@ -45,6 +45,8 @@ class CStoreLiveLabTest extends TestCase
 
     private const MIN_INSTANCES = 60;
 
+    private const LABEL = 'Vollständige CT-Studie übertragen';
+
     /**
      * @return array<string, mixed>
      */
@@ -56,6 +58,7 @@ class CStoreLiveLabTest extends TestCase
             'modality' => self::MODALITY,
             'sop_class' => self::SOP_CLASS,
             'min_instances' => self::MIN_INSTANCES,
+            'label' => self::LABEL,
         ];
     }
 
@@ -160,6 +163,23 @@ class CStoreLiveLabTest extends TestCase
 
         $progress = ActivityProgress::where('user_id', $user->id)->firstOrFail();
         $this->assertSame(20, $progress->score);
+    }
+
+    /**
+     * PR #153 (Assertion-Label-/Progress-Audit): das Label wurde ueber den
+     * echten Studio/ContentVersioning-Pfad gesetzt (nicht direkt im
+     * Deployment-JSON editiert, siehe PR-Beschreibung) und danach per
+     * `labs:export` neu in das committete Artefakt geschrieben -- dieser
+     * Test liest exakt diese Datei, kein DB-Zustand.
+     */
+    public function test_the_committed_deployment_artifact_includes_the_assertion_label(): void
+    {
+        $path = dirname(__DIR__, 5).'/deploy/labs/'.self::SLUG.'.json';
+        $this->assertFileExists($path, 'deploy/labs/c-store-live.json sollte im Repo committet sein');
+
+        $artifact = json_decode(file_get_contents($path), true);
+
+        $this->assertSame(self::LABEL, $artifact['lab']['assertions'][0]['label']);
     }
 
     /**

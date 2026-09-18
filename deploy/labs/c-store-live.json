@@ -15,7 +15,8 @@
                 "patient_id": "4711",
                 "modality": "CT",
                 "sop_class": "1.2.840.10008.5.1.4.1.1.2",
-                "min_instances": 60
+                "min_instances": 60,
+                "label": "Vollständige CT-Studie übertragen"
             }
         ],
         "rich_content": {
