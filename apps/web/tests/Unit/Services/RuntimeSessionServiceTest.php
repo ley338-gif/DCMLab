@@ -16,6 +16,7 @@ use App\Services\RuntimeSessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -136,9 +137,13 @@ class RuntimeSessionServiceTest extends TestCase
      * als 'reaped' reconciled werden, obwohl Python fuer denselben
      * `runtime_key` spaeter denselben `sandbox_id` wieder auflebt (z. B.
      * sobald ein Kontingent-Slot frei wird). Die wiederverwendete Zeile
-     * darf danach nicht weiter eine tote Sitzung vortaeuschen.
+     * darf danach nicht weiter eine tote Sitzung vortaeuschen -- geprueft
+     * fuer beide moeglichen Provider-Antworten (Betreiber-Review zu PR
+     * #149: der urspruengliche Fehler trat unter Queue-/Concurrency-Druck
+     * auf, `running` allein deckt den `queued`-Fall nicht ab).
      */
-    public function test_start_revives_a_reaped_session_when_python_reuses_the_runtime_instance_id(): void
+    #[DataProvider('reusedRuntimeStatuses')]
+    public function test_start_refreshes_state_when_python_reuses_the_runtime_instance_id(string $providerStatus): void
     {
         SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
         $user = User::factory()->create();
@@ -152,7 +157,7 @@ class RuntimeSessionServiceTest extends TestCase
             'finished_at' => now()->subMinutes(5),
         ]);
 
-        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => $providerStatus, 'sandbox_id' => 'sb-1'], 201)]);
 
         $result = $this->service()->start(new RuntimeRequest(
             userId: (string) $user->id,
@@ -165,8 +170,19 @@ class RuntimeSessionServiceTest extends TestCase
         $this->assertSame($session->id, $result['session_id']);
 
         $session->refresh();
-        $this->assertSame('running', $session->status);
+        $this->assertSame($providerStatus, $session->status);
         $this->assertNull($session->finished_at);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function reusedRuntimeStatuses(): array
+    {
+        return [
+            'running' => ['running'],
+            'queued' => ['queued'],
+        ];
     }
 
     public function test_start_throws_when_the_runtime_instance_id_belongs_to_a_different_owner(): void
