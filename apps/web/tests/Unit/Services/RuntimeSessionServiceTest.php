@@ -131,6 +131,44 @@ class RuntimeSessionServiceTest extends TestCase
         $this->assertSame($first['session_id'], $second['session_id']);
     }
 
+    /**
+     * Live-Smoke-Test PR #148: unter Warteschlangen-Druck kann eine Zeile
+     * als 'reaped' reconciled werden, obwohl Python fuer denselben
+     * `runtime_key` spaeter denselben `sandbox_id` wieder auflebt (z. B.
+     * sobald ein Kontingent-Slot frei wird). Die wiederverwendete Zeile
+     * darf danach nicht weiter eine tote Sitzung vortaeuschen.
+     */
+    public function test_start_revives_a_reaped_session_when_python_reuses_the_runtime_instance_id(): void
+    {
+        SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);
+        $user = User::factory()->create();
+
+        $session = SandboxSession::factory()->create([
+            'user_id' => $user->id,
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+            'lab_attempt_id' => null,
+            'status' => 'reaped',
+            'finished_at' => now()->subMinutes(5),
+        ]);
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1'], 201)]);
+
+        $result = $this->service()->start(new RuntimeRequest(
+            userId: (string) $user->id,
+            datasetSlug: 'ct-thorax-60',
+            templateSlug: 'dicom-basic-tools',
+            runtimeKey: 'sandbox:user:'.$user->id,
+        ));
+
+        $this->assertSame(1, SandboxSession::query()->count());
+        $this->assertSame($session->id, $result['session_id']);
+
+        $session->refresh();
+        $this->assertSame('running', $session->status);
+        $this->assertNull($session->finished_at);
+    }
+
     public function test_start_throws_when_the_runtime_instance_id_belongs_to_a_different_owner(): void
     {
         // Zweite, Laravel-seitige Verteidigungslinie (Pythons runtime_key

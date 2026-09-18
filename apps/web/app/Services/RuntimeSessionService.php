@@ -89,6 +89,22 @@ final readonly class RuntimeSessionService
                 throw new RuntimeSessionOwnerMismatchException($runtimeId);
             }
 
+            // Betreiber-Review (Live-Smoke-Test PR #148): eine wiederverwendete
+            // Zeile kann von einem frueheren Lebenszyklus noch `status='reaped'`
+            // (oder `'destroyed'`) samt `finished_at` tragen -- Pythons
+            // `runtime_key`-Idempotenz kann denselben `sandbox_id` liefern,
+            // obwohl die Sitzung zwischenzeitlich unter Warteschlangen-Druck
+            // reconciled wurde und jetzt (z. B. nach Freiwerden eines
+            // Kontingent-Slots) tatsaechlich wieder aktiv ist. Ohne dieses
+            // Update wuerde die Zeile eine tote Sitzung vortaeuschen, obwohl
+            // `state()` sie beim naechsten Aufruf laengst wieder als laufend
+            // meldet.
+            $existing->update([
+                'status' => $result['status'] ?? 'running',
+                'finished_at' => null,
+                'last_activity_at' => now(),
+            ]);
+
             return $existing;
         }
 
