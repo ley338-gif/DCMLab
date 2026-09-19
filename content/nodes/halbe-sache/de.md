@@ -28,10 +28,10 @@ Vorkenntnisse: Lektion 1.7. Rechne mit 15 Minuten.
 ### h1
 
 Ein teilweiser Erfolg schließt bestimmte Fehlerdomänen von vornherein
-aus. Prüfe zuerst, ob die Verbindung selbst grundsätzlich steht, und
-sende danach jedes Objekt einzeln statt alle auf einmal — eine
-abgelehnte Presentation-Context-Verhandlung betrifft immer nur das eine
-Objekt, für das sie gerade versucht wird.
+aus. Prüfe zuerst, ob die Verbindung selbst grundsätzlich steht. Sende
+in diesem Lab jedes Objekt einzeln — so kannst du erkennen, ob nur ein
+bestimmter Objekttyp an seiner benötigten Presentation Context
+scheitert.
 
 ### h2
 
@@ -106,9 +106,13 @@ nicht kennt (PS3.8 Table 9-18, Result 3). Ein C-STORE für dieses Objekt
 kann dadurch gar nicht erst stattfinden — es handelt sich nicht um eine
 abgelehnte C-STORE-Antwort nach erfolgter Übertragung, sondern um ein
 Objekt, das mangels akzeptiertem Presentation Context nie übertragen
-wird. Die drei CT-Schichten sind davon unberührt, weil jedes Objekt in
-einer eigenen Association-Verhandlung einzeln gegen die unterstützten
-SOP Classes geprüft wird.
+wird. In diesem Lab wird jedes Objekt mit einem separaten
+`storescu`-Aufruf übertragen. Dadurch wird für jeden Versuch eine neue
+Association ausgehandelt; die Ablehnung des Dosisberichts verhindert
+deshalb nicht die drei vorherigen CT-Transfers. Das ist keine
+allgemeine DICOM-Regel — innerhalb einer einzelnen Association können
+mehrere Presentation Contexts ausgehandelt werden, und mehrere Objekte
+können dieselbe Association gemeinsam nutzen.
 
 ### Saubere betriebliche Maßnahme
 
