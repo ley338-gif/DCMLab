@@ -77,15 +77,17 @@ Und besonders wichtig: ImagingStudy enthält **Informationen über** die Studie.
   "resourceType": "Endpoint",
   "id": "ep-wado-1",
   "status": "active",
-  "connectionType": {
-    "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
-    "code": "dicom-wado-rs"
-  },
+  "connectionType": [{
+    "coding": [{
+      "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
+      "code": "dicom-wado-rs"
+    }]
+  }],
   "address": "https://pacs.example/dicom-web"
 }
 ```
 
-**Was du daran abliest:** `connectionType` sagt, welches Protokoll am `address`-Wert spricht — hier `dicom-wado-rs`, also DICOMweb-Retrieve. Ohne diese Ressource weißt du zwar, dass eine Studie existiert, aber nicht, an welche Basis-URL du für den Bildabruf überhaupt eine Anfrage stellen sollst. Wie aus Study Instance UID und Endpoint-Adresse eine konkrete Abfrage wird, zeigt 8.3.
+**Was du daran abliest:** `connectionType` (eine Liste von `CodeableConcept`, nicht ein einzelner Code) sagt, welches Protokoll am `address`-Wert spricht — hier `dicom-wado-rs`, also DICOMweb-Retrieve. Ohne diese Ressource weißt du zwar, dass eine Studie existiert, aber nicht, an welche Basis-URL du für den Bildabruf überhaupt eine Anfrage stellen sollst. Wie aus Study Instance UID und Endpoint-Adresse eine konkrete Abfrage wird, zeigt 8.3.
 
 ## DiagnosticReport: das Ergebnis
 
@@ -98,12 +100,12 @@ FHIR R5 kann einen DiagnosticReport mit dem Auftrag und der ImagingStudy verbind
   "status": "final",
   "subject": {"reference": "Patient/pat-4711"},
   "basedOn": [{"reference": "ServiceRequest/sr-93821"}],
-  "imagingStudy": [{"reference": "ImagingStudy/img-93821"}],
+  "study": [{"reference": "ImagingStudy/img-93821"}],
   "conclusion": "Kein Nachweis eines fokalen Infiltrats."
 }
 ```
 
-**Was du daran abliest:** Auftrag, Studie und Befund bleiben getrennte Ressourcen und werden über References verbunden — das verbindende Feld im DiagnosticReport heißt `imagingStudy`, nicht `study`.
+**Was du daran abliest:** Auftrag, Studie und Befund bleiben getrennte Ressourcen und werden über References verbunden. In FHIR R5 heißt das verbindende Feld `study` (es kann auf `ImagingStudy` oder `GenomicStudy` verweisen) — in R4/R4B trug dasselbe Konzept noch den Namen `imagingStudy`. Für eine reale Schnittstelle zählt wie immer die tatsächlich eingesetzte FHIR-Version.
 
 > Versionshinweis: Das Beispiel ist bewusst FHIR R5. Bei einer realen Schnittstelle prüfst du immer die tatsächlich eingesetzte FHIR-Version und das Implementation Guide/Profile, bevor du Feldnamen oder Kardinalitäten übernimmst.
 

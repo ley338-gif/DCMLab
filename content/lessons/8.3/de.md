@@ -41,7 +41,7 @@ GET https://pacs.example/dicom-web/studies/1.2.276.0.7230010.3.1.2.93821
 Accept: multipart/related; type="application/dicom"
 ```
 
-**Was du daran abliest:** Weder die Study Instance UID allein noch die Endpoint-Adresse allein reichen. Erst die Kombination ergibt eine gültige WADO-RS-Anfrage: Basis-URL aus `Endpoint.address`, Pfad aus der Study Instance UID, `Accept` passend zum `connectionType`. Ein Retrieve auf Study- oder Series-Ebene liefert dabei laut PS3.18 immer eine `multipart/related`-Antwort — nicht ein einzelnes `application/dicom`-Objekt ohne Umschlag, selbst wenn die Studie nur eine Instanz enthält.
+**Was du daran abliest:** Weder die Study Instance UID allein noch die Endpoint-Adresse allein reichen. Erst die Kombination ergibt eine gültige WADO-RS-Anfrage: Basis-URL aus `Endpoint.address`, Pfad aus der Study Instance UID, `Accept` passend zur gewünschten WADO-RS-Repräsentation. `connectionType` sagt dir nur, welcher Dienst am Endpoint hängt (hier WADO-RS) — der konkrete Media Type wird über `Accept` ausgehandelt und hängt von der gewünschten Repräsentation und den Serverfähigkeiten ab. Ein Retrieve auf Study- oder Series-Ebene liefert dabei laut PS3.18 immer eine `multipart/related`-Antwort — nicht ein einzelnes `application/dicom`-Objekt ohne Umschlag, selbst wenn die Studie nur eine Instanz enthält.
 
 Die vorhandene Orthanc-Spielwiese kann genau diese Anfrage bereits demonstrieren, jetzt gegen echte Testdaten statt der fiktiven Beispiel-IDs aus 8.2.
 
