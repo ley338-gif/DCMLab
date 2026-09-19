@@ -169,6 +169,10 @@ Abschlussmeldung, nicht die eigentliche Antwort mit den Werten.
 - **Eine leere Antwort für einen Fehler halten.** `Success` ohne
   Treffer ist ein gültiges Ergebnis, kein technisches Problem.
 
+## Lab
+
+Im Node **„Serie ohne Studie"** bekommst du eine Abfrage, die scheitert, obwohl die gesuchte Untersuchung nachweislich im Archiv liegt. Finde heraus, welcher Teil der Anfrage nicht zum gewählten Query-Level passt.
+
 ## Selbstcheck
 
 1. Worin unterscheidet sich ein Matching-Key von einem Rückgabefeld in

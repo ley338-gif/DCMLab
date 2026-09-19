@@ -1,0 +1,13 @@
+Ticket #4471 — von Kollege Radiologie
+
+Patient HOFFMANN, Lars, MR Kopf vom 01.03., Auftrag A66210.
+Ich brauche die Serien und ihre SeriesInstanceUIDs fuer den Viewer-Import.
+
+Direkt versucht:
+
+$ findscu -S -k QueryRetrieveLevel=SERIES -k AccessionNumber=A66210 \
+          -k SeriesInstanceUID -k SeriesDescription \
+          -aet DCMLAB-WS -aec NEURO-PACS 10.33.0.10 104
+
+Kommt mit einem Fehler zurueck, keine Serien. Das Archiv-Team sagt,
+die Untersuchung ist definitiv da. Was mache ich falsch?
