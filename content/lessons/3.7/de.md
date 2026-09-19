@@ -36,7 +36,7 @@ den auch ein einfacher Structured Report melden würde. Erst
 SR/RDSR in Lektion 3.5). Diese Zeile beantwortet aber nur „was ist es"
 — nicht „was kann dieses System damit tatsächlich anfangen".
 
-## Sechs unabhängige Fähigkeiten
+## Sechs getrennt zu prüfende Stufen
 
 <!-- kein-beispiel -->
 ```text
@@ -99,9 +99,11 @@ Viewer oder ein konkretes Dose-System eine bestimmte SOP Class
 unterstützt, ist eine Frage an das jeweilige Conformance Statement,
 keine allgemeine Aussage über „DICOM-Systeme". Diese Lektion nennt
 deshalb bewusst keine echten Produktnamen — nur abstrakte Rollen
-(`PACS`, `Viewer`, `Router`, `Dose-System`), weil dir für dein eigenes
-Haus ohnehin nur die konkrete, überprüfte Konformitätserklärung deiner
-Systeme etwas nützt.
+(`PACS`, `Viewer`, `Router`, `Dose-System`). Ein Conformance Statement
+beschreibt dabei immer ein einzelnes Produkt, nie das Zusammenspiel
+mehrerer Systeme: Für jedes beteiligte Produkt und dessen
+Softwarestand muss das aktuelle Conformance Statement geprüft und das
+Zusammenspiel anschließend praktisch verifiziert werden.
 
 ## Im Alltag heißt das
 
@@ -133,8 +135,8 @@ Systeme etwas nützt.
    ausdrücklich nicht?
 2. Ein KOS ist im Archiv vorhanden, aber eine referenzierte Instance
    fehlt. Ist das automatisch ein Fehler im KOS selbst?
-3. Nenne zwei der sechs unabhängigen Fähigkeiten aus der Kette dieser
-   Lektion.
+3. Nenne zwei der sechs getrennt zu prüfenden Stufen aus der Kette
+   dieser Lektion.
 4. Warum reicht `SOPClassUID` allein nicht aus, um zu wissen, ob ein
    Viewer ein Objekt auch darstellen kann?
 
