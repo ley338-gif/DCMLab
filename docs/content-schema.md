@@ -1,6 +1,6 @@
 # Content-Schemas — DCM Lab
 
-Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Alles liegt im Git-Repo, nicht in der Datenbank — mit einer wichtigen Ausnahme, siehe die Warnung direkt darunter. Die Plattform liest diese Dateien ein — solange sich das Schema nicht ändert, ist geschriebener Content nie verloren.
+Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Metadaten (Titel, Lernziele, Werkzeuge, Voraussetzungen, Schwierigkeit, Punkte, …) liegen immer im Git-Repo und werden bei jedem `content:sync`-Lauf aus den Dateien geschrieben — unabhängig vom Migrationsstatus einer Lektion/Node. Für die eigentliche **Prosa** gilt das nur mit einer wichtigen Ausnahme, siehe die Warnung direkt darunter.
 
 > ### ⚠️ Prosa-Änderungen an bereits migrierten Lektionen/Nodes bleiben wirkungslos
 >
@@ -8,12 +8,20 @@ Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Alles liegt i
 > Prosa (Briefing/Erklärung/Stolperfallen/Selbstcheck bzw. Briefing/Hints/
 > Write-up) einer Lektion oder Node **aus der DB-Spalte `rich_content`**,
 > sobald diese gesetzt ist — `LearnerViewBuilder`/`NodeController::show()`
-> lesen `body` dann überhaupt nicht mehr. `content:sync` schreibt `body` bei
-> jedem Lauf trotzdem unverändert aus `de.md`/`node.yml` — das aktualisiert
-> nur eine ungenutzte Legacy-Spalte, **nicht** das, was Lernende sehen.
+> lesen den Prosa-Teil von `body` dann überhaupt nicht mehr.
+>
+> `body` ist dabei aber **keine rein ungenutzte Legacy-Spalte**: `content:sync`
+> schreibt sie bei jedem Lauf weiterhin vollständig aus der Datei, und bei
+> Lektionen wird der `## Quiz`-Abschnitt (`quiz_raw`) laut ADR 0118 bewusst
+> **immer** aus `body` gelesen, auch nach dem Cutover — nur der Prosa-Teil
+> davor bzw. danach ist betroffen. Bei Nodes betrifft es `body` vollständig
+> (Briefing/Hints/Write-up), da Nodes keinen Quiz-Sonderfall haben.
+>
 > `content:sync` warnt seit dieser Erkenntnis (`ContentSync.php`), wenn sich
-> die Datei einer bereits migrierten Ressource ändert, aber genau diese
-> Warnung ist der einzige Hinweis — es gibt keinen Validierungsfehler.
+> **der Prosa-Anteil** einer bereits migrierten Ressource ändert (reine
+> Metadaten- oder Quiz-Änderungen lösen die Warnung bewusst nicht aus, weil
+> sie weiterhin normal wirksam werden) — das ist der einzige Hinweis, es
+> gibt keinen Validierungsfehler.
 >
 > **Vor jeder inhaltlichen Änderung an einer bestehenden Lektion/Node
 > prüfen**, ob `rich_content` bereits gesetzt ist (z. B.
