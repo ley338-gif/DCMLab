@@ -313,22 +313,58 @@ def test_worklist_query_empty_is_solvable_from_the_real_content() -> None:
 
 
 def test_halbe_sache_is_solvable_from_the_real_content() -> None:
-    """P10, Feature 7: beide Dateien liegen in derselben verlustbehafteten
-    Transfer Syntax vor, aber nur eine traegt das dafuer pflichtige
-    LossyImageCompression-Feld -- die andere ist die "halbe Sache"."""
+    """PR #158: echter Partial-C-STORE-Incident -- drei CT-Schichten kommen
+    an, der automatisch miterzeugte Dosisbericht (RDSR) wird wegen einer
+    nicht registrierten SOP Class abgelehnt (Result 3, nicht 4 -- die
+    Transfer Syntax unterscheidet sich absichtlich von den CT-Schichten,
+    genau das beweist fuer sich genommen nichts ueber die Ursache).
+    Flag ist der Dateiname des abgelehnten Objekts, kein Wert aus der
+    Fehlermeldung."""
 
     node = content.load_node("halbe-sache")
     state = rules.initial_state(node)
 
-    flagged = rules.exec_command(node, state, "workstation", "dcmdump schicht-01.dcm")
-    assert "1.2.840.10008.1.2.4.50" in flagged.stdout
-    assert "(0028,2110)" in flagged.stdout
+    echo = rules.exec_command(
+        node, state, "workstation", "echoscu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104",
+    )
+    assert echo.exit_code == 0
 
-    unflagged = rules.exec_command(node, state, "workstation", "dcmdump schicht-02.dcm")
-    assert "1.2.840.10008.1.2.4.50" in unflagged.stdout
-    assert "(0028,2110)" not in unflagged.stdout
+    bild_1 = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 bild-1.dcm",
+    )
+    assert bild_1.exit_code == 0
 
-    assert rules.check_flag(node, state, "schicht-02.dcm") is True
+    bild_2 = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 bild-2.dcm",
+    )
+    assert bild_2.exit_code == 0
+
+    bild_3 = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 bild-3.dcm",
+    )
+    assert bild_3.exit_code == 0
+
+    dosisbericht = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 dosisbericht.dcm",
+    )
+    assert dosisbericht.exit_code == 1
+    assert "abstract-syntax-not-supported" in dosisbericht.stderr
+
+    dump_bild_1 = rules.exec_command(node, state, "workstation", "dcmdump bild-1.dcm")
+    assert "1.2.840.10008.1.2.4.70" in dump_bild_1.stdout
+
+    dump_dosisbericht = rules.exec_command(
+        node, state, "workstation", "dcmdump dosisbericht.dcm",
+    )
+    assert "1.2.840.10008.1.2.1" in dump_dosisbericht.stdout
+    assert "1.2.840.10008.5.1.4.1.1.88.67" in dump_dosisbericht.stdout
+
+    assert state["bestand"]["archive"] == {"studies": 1, "series": 1, "instances": 3}
+    assert rules.check_flag(node, state, "dosisbericht.dcm") is True
 
 
 def test_first_contact_is_solvable_from_the_real_content() -> None:
