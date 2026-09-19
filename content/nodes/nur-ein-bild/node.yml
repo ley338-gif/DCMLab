@@ -1,0 +1,324 @@
+slug: nur-ein-bild
+difficulty: hard
+points: 50
+category: bildgebung
+interaction: scenario
+skills: [bildgebung]
+related_lessons: ["3.4"]
+estimated_minutes: 20
+
+# Diagnose-Node zu Lektion 3.4 (Multiframe, Enhanced IODs). interaction:
+# scenario statt terminal/simulated: services/engine's dcmdump-Simulation
+# kennt ein festes, kleines Feld-Set (DCMDUMP_FIELD_ORDER in
+# services/engine/app/rules.py, dokumentiert in docs/content-schema.md
+# Abschnitt 6g-6i) -- NumberOfFrames, SharedFunctionalGroupsSequence und
+# PerFrameFunctionalGroupsSequence sind darin nicht enthalten, und auch
+# sonst an keiner Stelle im Python-Quellcode von services/engine simuliert
+# (verifiziert per Volltextsuche). Diese drei Felder fuer genau einen
+# Node neu in die Engine aufzunehmen waere keine kleine, bereits mehrfach
+# benoetigte Erweiterung, sondern neue, nur hierfuer gebaute Spezial-
+# logik -- also kein Kandidat fuer eine Engine-Erweiterung. Ein
+# Scenario-Node mit kuratierter, standardkonformer dcmdump-/Log-Evidenz
+# vermittelt denselben Diagnose-Anspruch ohne neue Engine-Arbeit.
+#
+# Bewusste Abgrenzung zu Lektion 3.7/3.8 und Node halbe-sache: Die SOP
+# Class (Enhanced CT Image Storage) wird hier durchgaengig akzeptiert --
+# Association, C-STORE und die Downstream-Annahme ("Import accepted")
+# gelingen alle. Der Fehler liegt NICHT im SOP-Class-Support, sondern in
+# der Frame-Verarbeitung NACH erfolgreicher Annahme der Instance. Ebenso
+# keine Windowing-/Photometric-Ursache (das waeren 3.2/3.3) und keine
+# RDSR-Inhalte (3.8) -- reine Instance-vs-Frame-Objektstruktur.
+scenario:
+  start: ticket
+  steps:
+    ticket:
+      prompt: >
+        Ticket aus der Voxel-Analytics-Abteilung: Für Patient 73915
+        (Auftrag A93044, CT Thorax, Study Instance UID
+        1.2.276.0.7230010.3.1.4.550331987214) meldet das neue
+        Analyse-/Exportsystem VOLUME-EXPORT nach der Verarbeitung „1 Bild
+        verarbeitet". Im PACS ist die Study als vollständig markiert,
+        und ein Radiologe kann im Viewer denselben CT-Datensatz
+        vollständig als Volumen öffnen und durchscrollen. Was ist der
+        sinnvollste erste Schritt?
+      options:
+        - id: resend
+          label: Die Study vorsichtshalber erneut an VOLUME-EXPORT senden.
+          next: wrong_resend
+        - id: study_incomplete
+          label: Die Study im PACS als unvollständig markieren und neu anfordern.
+          next: wrong_study_incomplete
+        - id: restart
+          label: Viewer und PACS neu starten.
+          next: wrong_restart
+        - id: evidence
+          label: Vorhandene Evidenz systematisch sammeln (PACS-Bestand, Objektstruktur, Downstream-Verarbeitung) statt sofort einzugreifen.
+          next: store_check
+
+    store_check:
+      prompt: >
+        PACS-Log: C-STORE Success für das gesendete Objekt. Bestand für
+        die Study: Expected SOP Instances 1, Stored SOP Instances 1 —
+        laut Archiv vollständig. Was folgt daraus?
+      options:
+        - id: store_blamed
+          label: Ein Speicher-/Transferproblem ist die Fehlerursache.
+          next: wrong_store_blamed
+        - id: premature_close
+          label: Eine gespeicherte Instance ist ein Bild — der Fall ist damit geklärt.
+          next: wrong_premature_close
+        - id: proceed
+          label: Speicherung/Transfer als Fehlerdomäne ausschließen, aber noch nichts über die Bildzahl annehmen, und die Query-Ebene prüfen.
+          next: query_check
+
+    query_check:
+      prompt: >
+        C-FIND auf STUDY-Ebene gegen das PACS:
+        NumberOfStudyRelatedInstances = 1. Was folgt daraus?
+      options:
+        - id: lost_299
+          label: Das PACS hat beim Speichern 299 Bilder verloren — nur eine von 300 erwarteten Instanzen ist noch vorhanden.
+          next: wrong_lost_299
+        - id: proceed
+          label: NumberOfStudyRelatedInstances zählt Instances, nicht zwangsläufig Bilder — das Objekt selbst inspizieren.
+          next: object_inspect
+
+    object_inspect:
+      prompt: >
+        dcmdump-Auszug der einen gespeicherten Instance: SOPClassUID =
+        EnhancedCTImageStorage, NumberOfFrames = 300. Was folgt daraus?
+      options:
+        - id: ts_swallowed
+          label: Die Transfer Syntax hat beim Dekodieren 299 der 300 Frames verschluckt.
+          next: wrong_ts_swallowed
+        - id: enhanced_invalid
+          label: Ein Enhanced-CT-Objekt mit 300 Frames in einer Instance ist grundsätzlich nicht standardkonform.
+          next: wrong_enhanced_invalid
+        - id: frames_imply_enhanced
+          label: NumberOfFrames 300 beweist bereits für sich, dass es sich um ein Enhanced-Objekt handelt.
+          next: wrong_frames_imply_enhanced
+        - id: proceed
+          label: Prüfen, ob die Per-Frame Functional Groups tatsächlich frame-spezifische Metadaten enthalten, statt nur die Frame-Zahl zu glauben.
+          next: frame_evidence
+
+    frame_evidence:
+      prompt: >
+        Weiterer dcmdump-Auszug: SharedFunctionalGroupsSequence mit
+        einem Item vorhanden (u. a. PixelSpacing, für alle Frames
+        gleich). PerFrameFunctionalGroupsSequence mit 300 Items —
+        stichprobenartig geprüft: Frame 1 trägt ImagePositionPatient
+        (0,0,-120.0), Frame 150 (0,0,-45.0), Frame 300 (0,0,29.5),
+        jeweils unterschiedlich. Was folgt daraus?
+      options:
+        - id: frames_fake
+          label: NumberOfFrames 300 ist wahrscheinlich nur ein falsch gesetzter Deklarationswert, real steckt nur ein Bild darin.
+          next: wrong_frames_fake
+        - id: proceed
+          label: Damit besitzt die Instance tatsächlich frame-spezifische Metadaten (unterschiedliche räumliche Positionen), nicht nur eine behauptete Frame-Zahl — die Downstream-Verarbeitung prüfen.
+          next: downstream_check
+
+    downstream_check:
+      prompt: >
+        Verarbeitungslog von VOLUME-EXPORT: "Import accepted. SOP
+        instances received: 1. declared frames: 300. frames processed:
+        1." Die Adapter-Konfiguration von VOLUME-EXPORT zeigt zusätzlich
+        frame_mode: single-image-per-instance. Was folgt daraus?
+      options:
+        - id: sop_rejected
+          label: VOLUME-EXPORT hat die SOP Class Enhanced CT Image Storage abgelehnt.
+          next: wrong_sop_rejected
+        - id: viewer_blamed
+          label: Der Viewer stellt das Volumen falsch dar, deshalb weicht die Downstream-Zahl ab.
+          next: wrong_viewer_blamed
+        - id: proceed
+          label: Aus der gesamten Evidenz eine Diagnose ableiten.
+          next: diagnosis
+
+    diagnosis:
+      prompt: >
+        Welche Diagnose passt zur gesamten gesammelten Evidenz?
+      options:
+        - id: hyp_transfer
+          label: Der Bildtransfer zum PACS ist unvollständig geblieben.
+          next: wrong_hyp_transfer
+        - id: hyp_study_incomplete
+          label: Die Study im PACS ist unvollständig.
+          next: wrong_hyp_study_incomplete
+        - id: hyp_ts
+          label: Die Transfer Syntax wird falsch dekodiert.
+          next: wrong_hyp_ts
+        - id: hyp_sop_support
+          label: VOLUME-EXPORT unterstützt die SOP Class Enhanced CT Image Storage nicht.
+          next: wrong_hyp_sop_support
+        - id: hyp_single_frame
+          label: VOLUME-EXPORT setzt intern eine SOP Instance mit einem Bild gleich und verarbeitet deshalb nur den ersten Frame der Enhanced-CT-Instance.
+          next: success
+
+    wrong_resend:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das Objekt wurde laut PACS-Log bereits vollständig mit Status
+        Success gespeichert; ein erneutes Senden würde nur ein zweites,
+        identisches Objekt erzeugen, ohne die Zählweise von
+        VOLUME-EXPORT zu berühren.
+    wrong_study_incomplete:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Study ist laut PACS-Bestand bereits vollständig (Expected =
+        Stored SOP Instances) — sie als unvollständig zu markieren
+        widerspricht der vorliegenden Evidenz.
+    wrong_restart:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein Neustart ändert nichts an der Zahl der im Objekt enthaltenen
+        Frames oder an der Zählweise von VOLUME-EXPORT — danach würde
+        exakt dasselbe Objekt exakt gleich verarbeitet.
+    wrong_store_blamed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        C-STORE meldet Status Success, und der PACS-Bestand entspricht
+        der erwarteten Instanzzahl — ein Speicher- oder Transferproblem
+        erklärt das Symptom nicht.
+    wrong_premature_close:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Eine gespeicherte Instance ist nicht automatisch ein Bild — ob
+        die eine Instance ein einzelnes Bild oder, wie bei Multiframe-
+        /Enhanced-Objekten möglich, mehrere hundert Frames enthält, ist
+        damit noch nicht geklärt.
+    wrong_lost_299:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        NumberOfStudyRelatedInstances zählt Instances (Objekte), keine
+        Frames — ein Wert von 1 bedeutet, dass genau eine Instance zur
+        Study gehört, nicht, dass 299 von 300 erwarteten Instanzen
+        verloren gegangen sind. Es gab nie 300 separate Instanzen, gegen
+        die verglichen werden könnte.
+    wrong_ts_swallowed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das Objekt lässt sich vollständig als gültiges Enhanced-CT-
+        Objekt mit deklarierten 300 Frames auslesen — eine gestörte
+        Transfer-Syntax-Dekodierung hätte das schon beim Einlesen selbst
+        sichtbar gemacht, nicht erst als abweichende Downstream-Zählung.
+    wrong_enhanced_invalid:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Enhanced CT Image Storage ist eine reguläre, im Standard
+        definierte SOP Class, für die die Multi-frame Functional Groups
+        Module sogar verpflichtend vorgesehen ist. Ein Objekt mit 300
+        Frames in einer Instance ist für diese SOP Class normkonform,
+        kein Verstoß.
+    wrong_frames_imply_enhanced:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        NumberOfFrames größer 1 sagt für sich allein nichts über
+        Enhanced aus — auch klassische Multiframe-IODs wie Secondary
+        Capture können mehrere Frames in einer Instance tragen (siehe
+        Lektion 3.4). Dass dieses Objekt tatsächlich Enhanced CT ist,
+        folgt aus SOPClassUID und der vorhandenen Functional-Groups-
+        Struktur, nicht aus der Frame-Zahl allein.
+    wrong_frames_fake:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Per-Frame Functional Groups zeigen für mehrere
+        Stichproben-Frames tatsächlich unterschiedliche
+        ImagePositionPatient-Werte — das belegt eine reale
+        frame-spezifische Struktur mit unterschiedlichen Positionen;
+        zusammen mit NumberOfFrames = 300 und der vollständigen
+        Darstellung im Viewer spricht das gegen die Hypothese eines
+        bloß falsch gesetzten Zählwerts.
+    wrong_sop_rejected:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        VOLUME-EXPORT hat die Instance laut Log angenommen ("Import
+        accepted", SOP instances received: 1) — eine abgelehnte SOP
+        Class würde das Objekt gar nicht erst in die Verarbeitung
+        gelangen lassen.
+    wrong_viewer_blamed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Derselbe Datensatz wird im Viewer vollständig und korrekt als
+        kompletter Volumendatensatz dargestellt — der Viewer verarbeitet
+        die 300 Frames also bereits richtig. Der Unterschied liegt in
+        VOLUME-EXPORT, nicht in der Bilddarstellung.
+    wrong_hyp_transfer:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        C-STORE meldet Status Success, und der PACS-Bestand entspricht
+        der erwarteten Instanzzahl — der Bildtransfer ist nicht die
+        Ursache.
+    wrong_hyp_study_incomplete:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Expected und Stored SOP Instances stimmen überein, und das eine
+        gespeicherte Objekt enthält nachweislich alle 300 Frames
+        vollständig — die Study ist nicht unvollständig.
+    wrong_hyp_ts:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das Objekt lässt sich vollständig und fehlerfrei mit allen 300
+        deklarierten Frames auslesen — eine fehlerhafte
+        Transfer-Syntax-Dekodierung ist damit nicht die Ursache.
+    wrong_hyp_sop_support:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        VOLUME-EXPORT hat die Instance laut Log angenommen und beginnt
+        die Verarbeitung ("Import accepted") — die SOP Class wird
+        grundsätzlich unterstützt; das Problem liegt in der
+        Frame-Verarbeitung danach, nicht im Support der SOP Class
+        selbst.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: SINGLE-FRAME-ASSUMPTION
+      prompt: >
+        Richtig. Association, C-STORE und Speicherung sind vollständig
+        erfolgreich — die Study ist im PACS mit genau der erwarteten
+        einen SOP Instance vollständig vorhanden, und
+        NumberOfStudyRelatedInstances = 1 beschreibt das korrekt: Es
+        gibt eine Instance, keine 300. Diese eine Instance ist aber ein
+        Enhanced-CT-Objekt mit NumberOfFrames = 300 und einer echten Per-
+        Frame Functional Groups Sequence mit frame-spezifischen
+        Positionsangaben — der Viewer stellt entsprechend den
+        vollständigen Volumendatensatz dar. VOLUME-EXPORT dagegen setzt
+        intern SOP Instance mit Bild gleich (frame_mode:
+        single-image-per-instance) und verarbeitet deshalb nur den
+        ersten von 300 Frames. Der Fehler liegt nicht in Storage,
+        Transfer Syntax, SOP-Class-Support oder der Study-
+        Vollständigkeit, sondern in der Single-Frame-Annahme im
+        Downstream-Adapter.
+
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:2a950963b6e73fc3977f51a4a51fb1c89ff2e893e2a1a53ae383704add1e0f1e"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 2
+  - id: h2
+    cost: 4
+  - id: h3
+    cost: 6
+
+stuck_timeout_minutes: 20
+status: draft
+updated: "2026-09-20"
