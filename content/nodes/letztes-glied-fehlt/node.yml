@@ -1,0 +1,246 @@
+slug: letztes-glied-fehlt
+difficulty: hard
+points: 50
+category: integration
+skills: [integration]
+related_lessons: ["4.8", "2.6", "2.7"]
+estimated_minutes: 22
+
+# Multi-System/Operational-Incident-Node (MPPS + C-STORE + Storage
+# Commitment). interaction: scenario bewusst statt terminal/simulated
+# oder eines echten Sandbox-Pfads -- Begruendung siehe PR-Beschreibung:
+# services/engine hat keinerlei N-CREATE/N-SET/N-ACTION/N-EVENT-REPORT-
+# Unterstuetzung (Feature waere neue Engine-Arbeit), und Nodes haben
+# ueberhaupt keinen Ausfuehrungspfad zur echten Lesson-Sandbox
+# (EngineClientResolver kennt nur terminal->services/engine und
+# scenario->services/scenario-engine, kein dritter Pfad). Ein Scenario-
+# Node mit realistischen, standardkonformen Evidenzdaten reproduziert
+# denselben Diagnose-Anspruch ohne neue Plattformfunktion.
+scenario:
+  start: ticket
+  steps:
+    ticket:
+      prompt: >
+        Ticket aus dem RIS: Patient 51902, Auftrag A88370 (CT
+        Wirbelsäule, Study Instance UID
+        1.2.276.0.7230010.3.1.4.881205337102). Die Bilder sind im PACS
+        sichtbar und ein Radiologe kann die Study öffnen. Trotzdem
+        markiert das RIS den Vorgang weiterhin als nicht abgeschlossen.
+        Was ist der sinnvollste erste Schritt?
+      options:
+        - id: resend
+          label: Die Bilder vorsichtshalber erneut senden.
+          next: wrong_resend
+        - id: restart
+          label: Das PACS neu starten.
+          next: wrong_restart
+        - id: patient
+          label: Die Patientendaten der Untersuchung korrigieren.
+          next: wrong_patient
+        - id: evidence
+          label: Vorhandene Workflow-Evidenz systematisch sammeln (C-STORE, MPPS, Storage Commitment) statt sofort einzugreifen.
+          next: store_check
+
+    store_check:
+      prompt: >
+        C-STORE-Log: 60 Objekte gesendet, 60× Status Success. PACS-
+        Bestand für Study 1.2.276.0.7230010.3.1.4.881205337102: 60 von
+        60 erwarteten Instanzen vorhanden (Series
+        1.2.276.0.7230010.3.1.3.881205337150, SOP Instance UIDs
+        1.2.276.0.7230010.3.1.2.881205337201 bis .881205337260). Was
+        folgt daraus?
+      options:
+        - id: store_blamed
+          label: Der Bildtransfer ist die Fehlerursache.
+          next: wrong_store_blamed
+        - id: premature_close
+          label: Der Vorgang ist damit bereits vollständig abgeschlossen.
+          next: wrong_premature_close
+        - id: proceed
+          label: Bildtransfer als primäre Fehlerdomäne ausschließen und die Statuskette weiterprüfen (MPPS).
+          next: mpps_check
+
+    mpps_check:
+      prompt: >
+        MPPS-Log (Gegenstelle MPPS-BROKER, eine Assoziation): N-CREATE
+        für SOP Instance 1.2.276.0.7230010.3.1.5.881205337301 mit
+        PerformedProcedureStepStatus=IN PROGRESS, Status 0x0. N-SET
+        auf derselben Assoziation mit
+        PerformedProcedureStepStatus=COMPLETED, Status 0x0. Was
+        bestätigt das?
+      options:
+        - id: proves_storage
+          label: Damit ist auch bestätigt, dass alle Bilder dauerhaft im Archiv gesichert sind.
+          next: wrong_mpps_overclaim
+        - id: mpps_blamed
+          label: MPPS ist die Fehlerursache, weil IN PROGRESS nie sauber beendet wurde.
+          next: wrong_mpps_blamed
+        - id: proceed
+          label: MPPS ist ordnungsgemäß abgeschlossen, sagt aber nichts über Storage Commitment aus — weiterprüfen.
+          next: commitment_evidence
+
+    commitment_evidence:
+      prompt: >
+        Storage-Commitment-Log: N-ACTION für alle 60 SOP Instance UIDs
+        gestellt, Transaction UID
+        2.25.309481726354019283746510293847561029384, vom Archiv
+        angenommen (Request akzeptiert). Commitment-Listener (Gegenstelle
+        RAD-CALLBACK): seit 40 Minuten kein N-EVENT-REPORT für diese
+        Transaction UID empfangen — laut Lektion 2.7 kommt die
+        Rückmeldung normalerweise innerhalb von Sekunden. Registrierung
+        im Archiv: AE RAD-CALLBACK, Host 10.44.0.77, Port 8104,
+        AllowStorageCommitment=true. Betriebsnotiz: Seit der
+        Systemmigration am 12.03. läuft der tatsächliche
+        Storage-Commitment-Listener unter derselben AE RAD-CALLBACK auf
+        Port 8114 — der Registrierungseintrag im Archiv wurde bei der
+        Migration nicht aktualisiert. Was ist der nächste Schritt?
+      options:
+        - id: naction_sufficient
+          label: Kein Handlungsbedarf — N-ACTION war erfolgreich, das reicht.
+          next: wrong_naction_sufficient
+        - id: blind_retry
+          label: Sofort eine neue Storage-Commitment-Anfrage stellen, ohne die Registrierung zu prüfen.
+          next: wrong_blind_retry
+        - id: diagnose
+          label: Aus der gesamten Evidenz eine Diagnose ableiten.
+          next: diagnosis
+
+    diagnosis:
+      prompt: >
+        Welche Diagnose passt zur gesamten gesammelten Evidenz?
+      options:
+        - id: hyp_store
+          label: C-STORE ist fehlgeschlagen, deshalb bleibt der Vorgang offen.
+          next: wrong_hyp_store
+        - id: hyp_mpps
+          label: MPPS wurde nie ordnungsgemäß abgeschlossen.
+          next: wrong_hyp_mpps
+        - id: hyp_never_requested
+          label: Storage Commitment wurde nie angefordert.
+          next: wrong_hyp_never_requested
+        - id: hyp_callback
+          label: Storage Commitment wurde angefordert, aber die Bestätigung (N-EVENT-REPORT) kam wegen einer fehlerhaften Rückruf-Registrierung nie an.
+          next: success
+
+    wrong_resend:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Alle 60 Instanzen sind laut PACS-Bestand bereits vorhanden, und
+        die C-STORE-Antworten waren durchgehend Success — ein erneuter
+        Versand würde nur unnötig Duplikate erzeugen, ohne die
+        eigentliche Lücke (Storage Commitment) zu schließen.
+    wrong_restart:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein PACS-Neustart betrifft weder MPPS (läuft über eine eigene
+        Gegenstelle, MPPS-BROKER) noch die ausstehende Storage-
+        Commitment-Rückmeldung (die vom Requestor-seitigen Listener
+        RAD-CALLBACK abhängt, nicht vom PACS selbst).
+    wrong_patient:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Es gibt keinen Hinweis auf fehlerhafte Patientendaten — Patient
+        ID und Study-Zuordnung stimmen in C-STORE-, MPPS- und
+        Storage-Commitment-Log übereinstimmend überein.
+    wrong_store_blamed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Alle erwarteten 60 SOP Instance UIDs wurden mit Success bestätigt
+        und sind im PACS-Bestand vorhanden. Damit erklärt ein
+        fehlgeschlagener C-STORE nicht das verbleibende Symptom.
+    wrong_premature_close:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein vollständiger Bildtransfer ist nur eine von drei
+        unabhängigen Aussagen in dieser Kette — weder MPPS noch Storage
+        Commitment wurden damit bereits geprüft.
+    wrong_mpps_overclaim:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        MPPS bestätigt nur, dass die Modalität das Ende der
+        Untersuchung gemeldet hat (N-SET, COMPLETED) — das ist eine
+        Aussage über den Workflow-Status, keine über die dauerhafte
+        Objektspeicherung.
+    wrong_mpps_blamed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        N-SET zeigt PerformedProcedureStepStatus=COMPLETED mit
+        DIMSE-Status 0x0 — die Meldung wurde korrekt zugestellt, und
+        COMPLETED ist ein gültiger Endzustand, kein hängengebliebenes
+        IN PROGRESS.
+    wrong_naction_sufficient:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        N-ACTION Success bestätigt nur, dass die Prüfanfrage
+        angenommen wurde — nicht, dass bereits ein positives Ergebnis
+        (N-EVENT-REPORT) vorliegt. Genau das unterscheidet die beiden
+        Nachrichten dieses Diensts.
+    wrong_blind_retry:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Eine neue Anfrage ohne geprüfte Rückruf-Registrierung würde
+        denselben Fehler wahrscheinlich wiederholen, statt die Ursache
+        zu beheben.
+    wrong_hyp_store:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Alle 60 SOP Instance UIDs wurden mit Success übertragen und
+        sind im PACS-Bestand vorhanden — ein C-STORE-Fehler ist damit
+        nicht die Ursache.
+    wrong_hyp_mpps:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        N-CREATE und N-SET wurden beide mit Status 0x0 beantwortet,
+        N-SET meldet PerformedProcedureStepStatus=COMPLETED — MPPS ist
+        damit ordnungsgemäß abgeschlossen.
+    wrong_hyp_never_requested:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die N-ACTION-Anfrage mit Transaction UID
+        2.25.309481726354019283746510293847561029384 wurde nachweislich
+        gestellt und vom Archiv angenommen — Storage Commitment wurde
+        also sehr wohl angefordert.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: COMMITMENT-CALLBACK
+      prompt: >
+        Richtig. C-STORE (60/60) und MPPS (N-CREATE/N-SET, COMPLETED)
+        sind beide ordnungsgemäß abgeschlossen. Die Storage-Commitment-
+        Anfrage (N-ACTION) wurde ebenfalls angenommen — aber die
+        Registrierung der Rückruf-Gegenstelle RAD-CALLBACK verweist seit
+        der Systemmigration auf den falschen Port (8104 statt 8114).
+        Das Archiv kann das N-EVENT-REPORT deshalb nie zustellen, obwohl
+        die Prüfung selbst vermutlich längst durchgelaufen ist. Für den
+        Requestor sieht das identisch aus wie "nie bestätigt" — nicht
+        wie "abgelehnt".
+
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:499d31f2dad075c43ca8db9c4f5c8757f2f454322ac5b56bef28dfe62da390c0"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 2
+  - id: h2
+    cost: 4
+  - id: h3
+    cost: 6
+
+stuck_timeout_minutes: 20
+status: draft
+updated: "2026-09-19"
