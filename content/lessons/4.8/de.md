@@ -205,6 +205,13 @@ Sendeverbindung stehen kann.
   erfolgreiches C-STORE beweist nur, dass die Bytes angekommen sind —
   nichts über MPPS-Status oder Commitment-Bestätigung.
 
+## Lab
+
+Im Node **„Das letzte Glied fehlt"** bekommst du genau diese drei
+Ebenen als Evidenz zu einem neuen Fall — finde heraus, an welcher
+Stelle die Kette tatsächlich reißt, statt nur einen der drei Dienste
+zu beschuldigen.
+
 ## Selbstcheck
 
 1. Ein C-STORE ist erfolgreich, das RIS zeigt die Untersuchung trotzdem
