@@ -98,7 +98,7 @@ scenario:
           label: NumberOfFrames 300 beweist bereits für sich, dass es sich um ein Enhanced-Objekt handelt.
           next: wrong_frames_imply_enhanced
         - id: proceed
-          label: Prüfen, ob die 300 Frames tatsächlich unterschiedlichen Bildinhalt tragen, statt nur die Zahl zu glauben.
+          label: Prüfen, ob die Per-Frame Functional Groups tatsächlich frame-spezifische Metadaten enthalten, statt nur die Frame-Zahl zu glauben.
           next: frame_evidence
 
     frame_evidence:
@@ -114,7 +114,7 @@ scenario:
           label: NumberOfFrames 300 ist wahrscheinlich nur ein falsch gesetzter Deklarationswert, real steckt nur ein Bild darin.
           next: wrong_frames_fake
         - id: proceed
-          label: Damit ist belegt, dass tatsächlich 300 unterschiedliche Frames vorliegen — die Downstream-Verarbeitung prüfen.
+          label: Damit besitzt die Instance tatsächlich frame-spezifische Metadaten (unterschiedliche räumliche Positionen), nicht nur eine behauptete Frame-Zahl — die Downstream-Verarbeitung prüfen.
           next: downstream_check
 
     downstream_check:
@@ -233,8 +233,11 @@ scenario:
       prompt: >
         Die Per-Frame Functional Groups zeigen für mehrere
         Stichproben-Frames tatsächlich unterschiedliche
-        ImagePositionPatient-Werte — das belegt echten, unterschiedlichen
-        Bildinhalt pro Frame, keinen bloßen Deklarationsfehler.
+        ImagePositionPatient-Werte — das belegt eine reale
+        frame-spezifische Struktur mit unterschiedlichen Positionen;
+        zusammen mit NumberOfFrames = 300 und der vollständigen
+        Darstellung im Viewer spricht das gegen die Hypothese eines
+        bloß falsch gesetzten Zählwerts.
     wrong_sop_rejected:
       terminal: true
       outcome: wrong
@@ -292,8 +295,8 @@ scenario:
         NumberOfStudyRelatedInstances = 1 beschreibt das korrekt: Es
         gibt eine Instance, keine 300. Diese eine Instance ist aber ein
         Enhanced-CT-Objekt mit NumberOfFrames = 300 und einer echten Per-
-        Frame Functional Groups Sequence mit unterschiedlichem
-        Bildinhalt pro Frame — der Viewer stellt entsprechend den
+        Frame Functional Groups Sequence mit frame-spezifischen
+        Positionsangaben — der Viewer stellt entsprechend den
         vollständigen Volumendatensatz dar. VOLUME-EXPORT dagegen setzt
         intern SOP Instance mit Bild gleich (frame_mode:
         single-image-per-instance) und verarbeitet deshalb nur den

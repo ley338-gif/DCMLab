@@ -96,9 +96,11 @@ Bildzahl — sie kann, wie in diesem Fall, mehrere hundert Frames tragen.
   `ImagePositionPatient` unterscheidet sich zwischen Frame 1, Frame 150
   und Frame 300.
 
-  **Was du daran abliest:** Die 300 Frames tragen nachweislich
-  unterschiedlichen Bildinhalt (unterschiedliche Schichtposition) — kein
-  Deklarationsfehler, der nur eine Zahl ohne realen Inhalt setzt.
+  **Was du daran abliest:** Die Per-Frame Functional Groups enthalten
+  für verschiedene Frames unterschiedliche räumliche Positionen. Damit
+  ist die Multi-frame-Struktur nicht nur durch `NumberOfFrames`
+  behauptet, sondern besitzt tatsächlich frame-spezifische Metadaten —
+  kein Deklarationsfehler, der nur eine Zahl ohne realen Inhalt setzt.
 
 - **VOLUME-EXPORT-Log**: „Import accepted. SOP instances received: 1.
   declared frames: 300. frames processed: 1." Adapter-Konfiguration:
@@ -132,9 +134,9 @@ Bildzahl — sie kann, wie in diesem Fall, mehrere hundert Frames tragen.
 PACS-Bestand und Query-Antwort sind durch positive Evidenz bestätigt
 (Success-Status, übereinstimmende Instanzzahl) — Storage und Transfer
 scheiden als Ursache aus. Das Objekt selbst dekodiert vollständig und
-enthält nachweislich 300 unterschiedliche Frames — weder eine
-Transfer-Syntax-Störung noch ein Deklarationsfehler ohne realen Inhalt
-erklären das Symptom. VOLUME-EXPORT nimmt die Instance an und erkennt
+enthält nachweislich frame-spezifische Metadaten für alle 300 deklarierten
+Frames — weder eine Transfer-Syntax-Störung noch ein Deklarationsfehler
+ohne realen Inhalt erklären das Symptom. VOLUME-EXPORT nimmt die Instance an und erkennt
 die deklarierte Frame-Zahl — ein SOP-Class-Support-Problem scheidet
 damit ebenfalls aus. Übrig bleibt die tatsächliche Frame-Verarbeitung
 nach der Annahme.
@@ -166,8 +168,11 @@ tatsächlich gestörte Stelle.
 
 ### Was du mitnimmst
 
-„Instance", „Frame" und „Bild" sind drei unterschiedliche Zähleinheiten.
-`NumberOfStudyRelatedInstances` zählt Instances, nicht Frames — ein
+SOP Instance und Frame sind unterschiedliche DICOM-Zählebenen. Der
+Begriff „Bild" ist in Logs und Benutzeroberflächen dagegen oft
+mehrdeutig — deshalb immer prüfen, ob damit eine Instance oder ein
+einzelner Frame gemeint ist. `NumberOfStudyRelatedInstances` zählt
+Instances, nicht Frames — ein
 Wert von 1 ist bei einem Multiframe-/Enhanced-Objekt weder ein Fehler
 noch ein Beleg für Datenverlust. Und `NumberOfFrames > 1` beweist für
 sich allein nicht Enhanced — das entscheiden SOP Class und
