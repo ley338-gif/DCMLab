@@ -142,6 +142,10 @@ Lektion.
   identische Objekte verändern den Bestand am Archiv nicht — das ist
   kein Systemversagen, sondern korrektes Verhalten.
 
+## Lab
+
+Im Node **„Geteilte Studie"** bekommst du zwei Einträge, die auf den ersten Blick nach Duplikat aussehen. Wende genau das Split-vs-Dublette-Modell aus dieser Lektion an, um zu entscheiden, was wirklich vorliegt.
+
 ## Selbstcheck
 
 1. `findscu` liefert für einen Patienten zwei getrennte Study-Einträge

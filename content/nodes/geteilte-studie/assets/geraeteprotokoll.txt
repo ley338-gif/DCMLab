@@ -1,0 +1,10 @@
+MR-3 — Geraeteprotokoll (Auszug), 2026-03-04
+
+09:14  Untersuchung gestartet, Auftrag A50231, Patient 9310
+09:17  Systemfehler, Geraet startet neu
+09:18  Untersuchung an MR-3 fortgesetzt, Auftrag A50231, Patient 9310
+09:41  Untersuchung abgeschlossen
+
+Hinweis Technik: Nach einem Neustart uebernimmt MR-3 die vor dem
+Neustart bereits vergebene Study Instance UID nicht automatisch --
+ein neuer Untersuchungsteil beginnt technisch als neue Study.
