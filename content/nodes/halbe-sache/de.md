@@ -29,22 +29,25 @@ Vorkenntnisse: Lektion 1.7. Rechne mit 15 Minuten.
 
 Ein teilweiser Erfolg schließt bestimmte Fehlerdomänen von vornherein
 aus. Prüfe zuerst, ob die Verbindung selbst grundsätzlich steht, und
-sende danach jedes Objekt einzeln statt alle auf einmal — eine Ablehnung
-auf C-STORE-Ebene betrifft immer nur das eine Objekt.
+sende danach jedes Objekt einzeln statt alle auf einmal — eine
+abgelehnte Presentation-Context-Verhandlung betrifft immer nur das eine
+Objekt, für das sie gerade versucht wird.
 
 ### h2
 
 `dcmdump <datei>` zeigt dir Transfer Syntax und SOP Class jedes Objekts,
-ohne es erst zu senden. Vergleiche gezielt ein angenommenes mit dem
-abgelehnten Objekt — sind sie wirklich in derselben Kodierung? Wirf
-zusätzlich einen Blick in `sop-class-liste.txt`.
+ohne es erst zu senden. Lies bei der Ablehnung genau den Presentation-
+Context-Result-Code — PS3.8 Table 9-18 unterscheidet zwischen einem
+Objekttyp- und einem Kodierungsproblem. Wirf zusätzlich einen Blick in
+`sop-class-liste.txt`.
 
 ### h3
 
-Alle vier Objekte liegen in derselben Transfer Syntax vor — das lässt
-sich mit `dcmdump` an jedem einzelnen Objekt nachprüfen. Vergleiche
-stattdessen die SOP Class UID des abgelehnten Objekts mit den in
-`sop-class-liste.txt` registrierten SOP Classes.
+Der Result-Code der Ablehnung ist 3 (abstract-syntax-not-supported),
+nicht 4 (transfer-syntaxes-not-supported) — das zeigt auf den
+Objekttyp, nicht auf die Kodierung. Vergleiche die SOP Class UID des
+abgelehnten Objekts mit den in `sop-class-liste.txt` registrierten SOP
+Classes.
 
 ## Write-up
 
@@ -61,34 +64,51 @@ F:   Presentation Context Result: 3 (abstract-syntax-not-supported)
 ```
 
 **Was du daran abliest:** `echoscu` und drei von vier `storescu`-Aufrufen
-laufen fehlerfrei durch. Erst `dosisbericht.dcm` wird abgelehnt — und
-zwar erst beim eigentlichen Sendeversuch, nicht schon beim
-Verbindungsaufbau.
+laufen fehlerfrei durch. Erst für `dosisbericht.dcm` scheitert bereits
+die Presentation-Context-Verhandlung für dieses eine Objekt — nicht
+eine laufende Datenübertragung. Ein C-STORE für dieses Objekt findet
+dadurch gar nicht erst statt.
 
 ### Welche Hypothesen möglich waren
 
 1. **Netzwerkverbindung während der Übertragung abgebrochen.** Widerlegt
    durch `echoscu` und drei erfolgreiche `storescu`-Läufe direkt davor
-   und danach — die Verbindung ist während der gesamten Sitzung stabil.
+   und danach — die Verbindung ist während der gesamten Sitzung stabil,
+   und die Ablehnung tritt bereits bei der Association-Verhandlung für
+   dieses eine Objekt auf, nicht mitten in einer laufenden Übertragung.
 2. **Die Transfer Syntax wird für diese SOP Class nicht akzeptiert.**
-   Naheliegend, weil Lektion 1.7 genau davon handelt — aber
-   `dcmdump bild-1.dcm` und `dcmdump dosisbericht.dcm` zeigen exakt
-   dieselbe `TransferSyntaxUID`. Wäre die Kodierung das Problem, hätte
-   sie alle vier Objekte gleichermaßen betroffen.
+   Naheliegend, weil Lektion 1.7 genau davon handelt. Aber der
+   zurückgegebene Result-Code ist 3 (abstract-syntax-not-supported),
+   nicht 4 (transfer-syntaxes-not-supported, PS3.8 Table 9-18) — der
+   Standard unterscheidet beide Ablehnungsgründe ausdrücklich, und die
+   Meldung nennt eindeutig den Objekttyp, nicht die Kodierung. Dass
+   `dcmdump bild-1.dcm` und `dcmdump dosisbericht.dcm` sogar
+   unterschiedliche `TransferSyntaxUID`-Werte zeigen (JPEG Lossless für
+   die CT-Schichten, Explicit VR Little Endian für den Dosisbericht —
+   realistisch, weil Dose-SR-Objekte keine Bildkompressionssyntax
+   nutzen), beweist für sich genommen nichts: Ein Presentation Context
+   koppelt Abstract Syntax und Transfer Syntax gemeinsam, daher entscheidet
+   der Result-Code, nicht ein bloßer TS-Vergleich zwischen zwei
+   verschiedenen SOP Classes.
 3. **Eine einzelne SOP Class wird vom Archiv nicht unterstützt.**
    `dcmdump dosisbericht.dcm` zeigt `SOPClassUID
    1.2.840.10008.5.1.4.1.1.88.67` (X-Ray Radiation Dose SR) —
    `sop-class-liste.txt` bestätigt, dass nur Verification und CT Image
-   Storage registriert sind. Genau das erklärt die Ablehnung.
+   Storage registriert sind. Zusammen mit Result 3 erklärt genau das
+   die Ablehnung.
 
 ### Wo die erste fehlerhafte Stelle liegt
 
-Nicht Netzwerk, nicht Association, nicht Kodierung — die Presentation-
-Context-Aushandlung für dieses eine Objekt scheitert am Abstract Syntax
-(PS3.8 Table 9-18, Result 3), weil das Archiv den Dosisbericht als
-Objekttyp nie registriert hat. Die drei CT-Schichten sind davon völlig
-unberührt, weil jedes Objekt in einer Association einzeln gegen die
-unterstützten SOP Classes geprüft wird.
+Nicht Netzwerk, nicht Transfer Syntax — die Presentation-Context-
+Verhandlung für den Dosisbericht scheitert bereits bei der Association
+Negotiation, weil das Archiv seinen Abstract Syntax (die SOP Class)
+nicht kennt (PS3.8 Table 9-18, Result 3). Ein C-STORE für dieses Objekt
+kann dadurch gar nicht erst stattfinden — es handelt sich nicht um eine
+abgelehnte C-STORE-Antwort nach erfolgter Übertragung, sondern um ein
+Objekt, das mangels akzeptiertem Presentation Context nie übertragen
+wird. Die drei CT-Schichten sind davon unberührt, weil jedes Objekt in
+einer eigenen Association-Verhandlung einzeln gegen die unterstützten
+SOP Classes geprüft wird.
 
 ### Saubere betriebliche Maßnahme
 
@@ -102,11 +122,14 @@ Dosisbericht sucht und ihn nicht findet.
 
 ### Was du mitnimmst
 
-Ein teilweise erfolgreicher C-STORE-Transfer beweist, dass Netzwerk und
-Association grundsätzlich funktionieren — Fehler ab diesem Punkt sind
-objekt- oder Presentation-Context-spezifisch, nie pauschal. Wer nur
-zählt, ob überhaupt etwas angekommen ist, übersieht genau diesen Fall:
-Die Study wirkt vorhanden, ein einzelnes Objekt fehlt trotzdem.
+Ein teilweise erfolgreicher Transfer beweist, dass Netzwerk und
+Association-Mechanismus grundsätzlich funktionieren — eine Ablehnung ab
+diesem Punkt ist objekt- bzw. Presentation-Context-spezifisch, nie
+pauschal. Ein einzelnes Objekt kann dabei schon an der Verhandlung
+scheitern, bevor überhaupt ein C-STORE für dieses Objekt versucht wird.
+Wer nur zählt, ob überhaupt etwas angekommen ist, übersieht genau
+diesen Fall: Die Study wirkt vorhanden, ein einzelnes Objekt fehlt
+trotzdem.
 
 ### Verwandte Inhalte
 
