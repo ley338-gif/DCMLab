@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Content\ContentRepository;
+use App\Content\QuizContent;
 use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\LessonElement;
@@ -153,6 +154,32 @@ class ContentSync extends Command
             // ersten Sync ueberhaupt erst einen Wert bekommen muessen -- es
             // gibt (noch) keinen rein-Studio-seitigen Lesson-Anlageweg.
             $existingLesson = Lesson::query()->where('lesson_id', $id)->first();
+
+            // CMS-7d.3 (ADR 0118) hat den Lernpfad auf `rich_content` als
+            // kanonische PROSA-Quelle umgestellt -- `LearnerViewBuilder`
+            // rendert die Prosa nur noch aus `body`, wenn `rich_content`
+            // NULL ist. Das betrifft NICHT die Metadaten-Spalten weiter
+            // unten (title/objectives/tools/requires/... werden immer aus
+            // der Datei geschrieben, unabhaengig vom Cutover-Status) und
+            // NICHT den Quiz-Abschnitt (`quiz_raw` kommt laut ADR 0118
+            // bewusst immer aus `body`, auch nach dem Cutover). Ein Vergleich
+            // gegen den vollen `source_hash` (meta.yml + de.md) waere daher
+            // sowohl zu breit (warnt bei reinen Metadaten-/Quiz-Aenderungen,
+            // die sehr wohl wirksam werden) als auch am eigentlichen Risiko
+            // vorbei -- verglichen wird deshalb ausschliesslich der
+            // Prosa-Anteil von `body` (vor einem etwaigen `## Quiz`-
+            // Abschnitt plus der Fusstext danach, siehe `QuizContent::
+            // splitBody()`), zwischen dem zuletzt synchronisierten Stand und
+            // der aktuellen Datei.
+            if ($existingLesson !== null
+                && $existingLesson->rich_content !== null
+                && self::proseOf($existingLesson->body) !== self::proseOf($lesson['body'] ?? null)) {
+                $this->warn(
+                    "Lektion {$id}: Die Prosa dieser Lektion wird aus rich_content gerendert. ".
+                    'Änderungen am Prosa-Teil von de.md werden nicht übernommen; strukturierte '.
+                    'Metadaten (meta.yml) und der Quiz-Abschnitt bleiben weiterhin datei-/sync-geführt.',
+                );
+            }
 
             $lessonAttributes = [
                 'level' => $lesson['meta']['level'] ?? 'einsteiger',
@@ -334,6 +361,28 @@ class ContentSync extends Command
             $title = ['de' => $node['frontmatter']['title'] ?? ''];
             $sourceHash = hash('sha256', $node['def_raw'].$node['md_raw']);
 
+            // Node-Gegenstueck zur Lesson-Warnung oben -- derselbe Cutover
+            // (ADR 0118) gilt fuer Nodes identisch (NodeContentPublisher
+            // schreibt `rich_content`, nicht mehr `body`; NodeController::
+            // show() bevorzugt `rich_content`). Nodes haben keinen
+            // Quiz-Sonderfall, aber `node.yml`-Metadaten (difficulty/
+            // points/interaction/skills/related_lessons/hints[*].cost/...)
+            // bleiben genau wie bei Lessons immer datei-/sync-gefuehrt --
+            // verglichen wird deshalb ausschliesslich `body` (Briefing/
+            // Hints/Write-up aus de.md), nicht der volle `source_hash`
+            // (der auch node.yml einschliesst).
+            $existingNode = Node::query()->where('slug', $slug)->first();
+
+            if ($existingNode !== null
+                && $existingNode->rich_content !== null
+                && $existingNode->body !== ($node['body'] ?? null)) {
+                $this->warn(
+                    "Node {$slug}: Die Prosa dieser Node wird aus rich_content gerendert. ".
+                    'Änderungen am Prosa-Teil von de.md (Briefing/Hints/Write-up) werden nicht '.
+                    'übernommen; strukturierte Metadaten (node.yml) bleiben weiterhin datei-/sync-geführt.',
+                );
+            }
+
             Node::updateOrCreate(
                 ['slug' => $slug],
                 [
@@ -438,5 +487,24 @@ class ContentSync extends Command
                 'source_hash' => hash('sha256', $raw),
             ],
         );
+    }
+
+    /**
+     * Reine Prosa eines Lesson-`body` (vor einem etwaigen `## Quiz`-
+     * Abschnitt plus der Fusstext danach) -- dieselbe Extraktion wie
+     * `LessonPayloadNormalizer`/`LearnerViewBuilder`, hier nur zum
+     * Vergleichen zweier Body-Staende genutzt (rich_content-Warnung oben),
+     * nie zum Schreiben. `null` bleibt `null`, damit "kein Body" nicht mit
+     * "leere Prosa" verwechselt wird.
+     */
+    private static function proseOf(?string $body): ?string
+    {
+        if ($body === null) {
+            return null;
+        }
+
+        $split = QuizContent::splitBody($body);
+
+        return trim($split['after'] !== '' ? $split['before']."\n\n".$split['after'] : $split['before']);
     }
 }

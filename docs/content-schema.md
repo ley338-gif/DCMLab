@@ -1,6 +1,47 @@
 # Content-Schemas — DCM Lab
 
-Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Alles liegt im Git-Repo, nicht in der Datenbank. Die Plattform liest diese Dateien ein — solange sich das Schema nicht ändert, ist geschriebener Content nie verloren.
+Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Metadaten (Titel, Lernziele, Werkzeuge, Voraussetzungen, Schwierigkeit, Punkte, …) liegen immer im Git-Repo und werden bei jedem `content:sync`-Lauf aus den Dateien geschrieben — unabhängig vom Migrationsstatus einer Lektion/Node. Für die eigentliche **Prosa** gilt das nur mit einer wichtigen Ausnahme, siehe die Warnung direkt darunter.
+
+> ### ⚠️ Prosa-Änderungen an bereits migrierten Lektionen/Nodes bleiben wirkungslos
+>
+> Seit dem Rich-Content-Cutover (ADR 0118) rendert der Lernpfad die eigentliche
+> Prosa (Briefing/Erklärung/Stolperfallen/Selbstcheck bzw. Briefing/Hints/
+> Write-up) einer Lektion oder Node **aus der DB-Spalte `rich_content`**,
+> sobald diese gesetzt ist — `LearnerViewBuilder`/`NodeController::show()`
+> lesen den Prosa-Teil von `body` dann überhaupt nicht mehr.
+>
+> `body` ist dabei aber **keine rein ungenutzte Legacy-Spalte**: `content:sync`
+> schreibt sie bei jedem Lauf weiterhin vollständig aus der Datei, und bei
+> Lektionen wird der `## Quiz`-Abschnitt (`quiz_raw`) laut ADR 0118 bewusst
+> **immer** aus `body` gelesen, auch nach dem Cutover — nur der Prosa-Teil
+> davor bzw. danach ist betroffen. Bei Nodes betrifft es `body` vollständig
+> (Briefing/Hints/Write-up), da Nodes keinen Quiz-Sonderfall haben.
+>
+> `content:sync` warnt seit dieser Erkenntnis (`ContentSync.php`), wenn sich
+> **der Prosa-Anteil** einer bereits migrierten Ressource ändert (reine
+> Metadaten- oder Quiz-Änderungen lösen die Warnung bewusst nicht aus, weil
+> sie weiterhin normal wirksam werden) — das ist der einzige Hinweis, es
+> gibt keinen Validierungsfehler.
+>
+> **Vor jeder inhaltlichen Änderung an einer bestehenden Lektion/Node
+> prüfen**, ob `rich_content` bereits gesetzt ist (z. B.
+> `App\Models\Lesson::where('lesson_id', '3.2')->value('rich_content')`,
+> oder `php artisan rich-content:coverage` für den Gesamtüberblick). Ist es
+> gesetzt, führt eine reine Datei-Änderung **nicht** zum Ziel — die
+> Änderung muss über den Studio-Rich-Content-Editor (oder programmgesteuert
+> über dieselben Klassen: `ContentVersioningService::createDraft()` →
+> `submitForReview()` → `ContentPublishingService::publish()`, NIEMALS über
+> ein direktes Schreiben der Spalte) veröffentlicht werden.
+>
+> Betrifft aktuell (Stand ADR 0118 + Backfill) den Großteil des Bestands —
+> track 7/8 (Interoperabilität/FHIR) und alle nach dem Backfill neu
+> angelegten Lektionen/Nodes sind noch datei-basiert (`rich_content` ist
+> dort `null`); dort funktioniert der klassische
+> `de.md`/`node.yml` → `content:sync`-Weg wie in diesem Dokument beschrieben
+> unverändert. `meta.yml`/`node.yml`-Felder wie `title`, `objectives`,
+> `requires`, `tools`, `hints[*].cost`, `points`, `difficulty` bleiben
+> **immer** datei-/`content:sync`-geführt, unabhängig vom Cutover-Status —
+> nur die Prosa selbst wechselt die Quelle.
 
 **Track und Themenfeld:** `Themenfeld` ist die Track-übergreifende Ebene (Abschnitt 13), `Track` bleibt das Kapitel innerhalb eines Themenfelds. Jeder Track referenziert per `themenfeld:`-Feld genau ein Themenfeld aus `themenfelder.yml`. Aktuell gibt es ein einziges Themenfeld (`dicom`), dem alle fünf Tracks angehören — die Ebene existiert bereits im Datenmodell, damit eine spätere Erweiterung auf weitere Themenfelder (siehe `docs/konzept-lernplattform.md` Abschnitt 13, "Mehr als DICOM") kein Schema-Bruch ist, keine neue Migration von Bestandsdaten erfordert.
 

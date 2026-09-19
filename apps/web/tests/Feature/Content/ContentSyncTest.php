@@ -234,6 +234,159 @@ class ContentSyncTest extends TestCase
     }
 
     /**
+     * Guardrail gegen den Fehler, der zur Entdeckung der rich_content-
+     * Cutover-Luecke fuehrte (ADR 0118): eine bereits auf `rich_content`
+     * umgestellte Lektion/Node zeigt Lernenden diesen Inhalt, nicht `body`
+     * -- ein content:sync-Lauf schreibt `body` trotzdem weiter unveraendert
+     * aus der Datei und muss deshalb warnen, wenn sich der PROSA-Anteil
+     * seit dem letzten Sync tatsaechlich geaendert hat. Betreiber-Review:
+     * ein Vergleich gegen den vollen `source_hash` waere zu breit gewesen
+     * (meta.yml/node.yml-Metadaten UND bei Lessons der Quiz-Abschnitt
+     * bleiben unabhaengig vom Cutover-Status wirksam ueber content:sync) --
+     * die folgenden fuenf Tests decken beide Richtungen ab: Prosa-Aenderung
+     * warnt, reine Metadaten-/Quiz-Aenderung warnt nicht.
+     */
+    private function contentDirForRichContentGuardrail(): string
+    {
+        $dir = storage_path('framework/testing/sync-'.uniqid());
+
+        File::ensureDirectoryExists($dir.'/lessons/1.0');
+        File::put($dir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: t\n  status: published\n");
+        File::put($dir.'/tracks.yml', "- slug: fundamente\n  themenfeld: dicom\n  order: 1\n  title_key: t\n  level: einsteiger\n  hours: 1\n  status: published\n");
+
+        return $dir;
+    }
+
+    private function richContentLessonMeta(): string
+    {
+        return "id: \"1.0\"\ntrack: fundamente\norder: 0\nduration_minutes: 5\nlevel: einsteiger\nobjectives_count: 1\nrequires: []\ntools: []\nglossary_terms: []\nquiz:\n  - id: q1\n    type: single\n    answer: 0\nstatus: draft\n";
+    }
+
+    public function test_it_warns_when_a_rich_content_lessons_prose_changes(): void
+    {
+        $dir = $this->contentDirForRichContentGuardrail();
+        File::put($dir.'/lessons/1.0/meta.yml', $this->richContentLessonMeta());
+        File::put($dir.'/lessons/1.0/de.md', "---\ntitle: Test\nteaser: Test\nobjectives:\n  - Eins\n---\n\nAlter Text.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n");
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+        Lesson::where('lesson_id', '1.0')->update([
+            'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+        ]);
+
+        // Nur die Prosa aendert sich.
+        File::put($dir.'/lessons/1.0/de.md', "---\ntitle: Test\nteaser: Test\nobjectives:\n  - Eins\n---\n\nNeuer Text.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n");
+
+        Artisan::call('content:sync');
+
+        $this->assertStringContainsString('Lektion 1.0: Die Prosa dieser Lektion wird aus rich_content gerendert', Artisan::output());
+
+        File::deleteDirectory($dir);
+    }
+
+    public function test_it_does_not_warn_when_only_a_rich_content_lessons_metadata_changes(): void
+    {
+        $dir = $this->contentDirForRichContentGuardrail();
+        File::put($dir.'/lessons/1.0/meta.yml', $this->richContentLessonMeta());
+        File::put($dir.'/lessons/1.0/de.md', "---\ntitle: Test\nteaser: Test\nobjectives:\n  - Eins\n---\n\nUnveraenderter Text.\n\n## Quiz\n\n**q1 — Frage?**\n1. A\n2. B\n");
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+        Lesson::where('lesson_id', '1.0')->update([
+            'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+        ]);
+
+        // Nur meta.yml aendert sich (duration_minutes 5 -> 12), Prosa und
+        // Quiz bleiben unveraendert.
+        File::put($dir.'/lessons/1.0/meta.yml', str_replace('duration_minutes: 5', 'duration_minutes: 12', $this->richContentLessonMeta()));
+
+        Artisan::call('content:sync');
+
+        $this->assertStringNotContainsString('wird aus rich_content gerendert', Artisan::output());
+        $this->assertSame(12, Lesson::where('lesson_id', '1.0')->value('duration_minutes'), 'Metadaten-Aenderungen muessen trotz gesetztem rich_content weiterhin synchronisiert werden.');
+
+        File::deleteDirectory($dir);
+    }
+
+    public function test_it_does_not_warn_when_only_a_rich_content_lessons_quiz_changes(): void
+    {
+        $dir = $this->contentDirForRichContentGuardrail();
+        File::put($dir.'/lessons/1.0/meta.yml', $this->richContentLessonMeta());
+        File::put($dir.'/lessons/1.0/de.md', "---\ntitle: Test\nteaser: Test\nobjectives:\n  - Eins\n---\n\nUnveraenderter Text.\n\n## Quiz\n\n**q1 — Alte Frage?**\n1. A\n2. B\n");
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+        Lesson::where('lesson_id', '1.0')->update([
+            'rich_content' => ['type' => 'doc', 'version' => 1, 'content' => []],
+        ]);
+
+        // Nur der Quiz-Abschnitt aendert sich, die Prosa davor bleibt gleich.
+        File::put($dir.'/lessons/1.0/de.md', "---\ntitle: Test\nteaser: Test\nobjectives:\n  - Eins\n---\n\nUnveraenderter Text.\n\n## Quiz\n\n**q1 — Neue Frage?**\n1. A\n2. B\n");
+
+        Artisan::call('content:sync');
+
+        $this->assertStringNotContainsString('wird aus rich_content gerendert', Artisan::output());
+        $this->assertStringContainsString('Neue Frage', Lesson::where('lesson_id', '1.0')->value('body'), 'Der Quiz-Text muss trotz gesetztem rich_content weiterhin aus body gelesen werden (quiz_raw).');
+
+        File::deleteDirectory($dir);
+    }
+
+    public function test_it_does_not_warn_when_only_a_rich_content_nodes_config_changes(): void
+    {
+        $dir = storage_path('framework/testing/sync-'.uniqid());
+
+        File::ensureDirectoryExists($dir.'/nodes/test-node');
+        File::put($dir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: t\n  status: published\n");
+        File::put($dir.'/nodes/test-node/node.yml', "slug: test-node\ndifficulty: easy\npoints: 10\ncategory: netzwerk\nskills: []\nrelated_lessons: []\nestimated_minutes: 5\nenvironment:\n  engine: simulated\n  hosts: []\nhints: []\nstuck_timeout_minutes: 10\nstatus: draft\nupdated: \"2026-09-20\"\n");
+        File::put($dir.'/nodes/test-node/de.md', "---\ntitle: Test-Node\nscenario_title: Test\n---\n\n## Briefing\n\nUnveraenderter Text.\n\n## Write-up\n\nText.\n");
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+        Node::where('slug', 'test-node')->update([
+            'rich_content' => ['type' => 'node_content', 'version' => 1, 'briefing' => ['type' => 'doc', 'version' => 1, 'content' => []], 'hints' => [], 'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []]],
+        ]);
+
+        // Nur node.yml aendert sich (points 10 -> 25), de.md bleibt gleich.
+        File::put($dir.'/nodes/test-node/node.yml', "slug: test-node\ndifficulty: easy\npoints: 25\ncategory: netzwerk\nskills: []\nrelated_lessons: []\nestimated_minutes: 5\nenvironment:\n  engine: simulated\n  hosts: []\nhints: []\nstuck_timeout_minutes: 10\nstatus: draft\nupdated: \"2026-09-20\"\n");
+
+        Artisan::call('content:sync');
+
+        $this->assertStringNotContainsString('wird aus rich_content gerendert', Artisan::output());
+        $this->assertSame(25, Node::where('slug', 'test-node')->value('points'), 'node.yml-Aenderungen muessen trotz gesetztem rich_content weiterhin synchronisiert werden.');
+
+        File::deleteDirectory($dir);
+    }
+
+    public function test_it_warns_when_a_rich_content_nodes_prose_changes(): void
+    {
+        $dir = storage_path('framework/testing/sync-'.uniqid());
+
+        File::ensureDirectoryExists($dir.'/nodes/test-node');
+        File::put($dir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: t\n  status: published\n");
+        File::put($dir.'/nodes/test-node/node.yml', "slug: test-node\ndifficulty: easy\npoints: 10\ncategory: netzwerk\nskills: []\nrelated_lessons: []\nestimated_minutes: 5\nenvironment:\n  engine: simulated\n  hosts: []\nhints: []\nstuck_timeout_minutes: 10\nstatus: draft\nupdated: \"2026-09-20\"\n");
+        File::put($dir.'/nodes/test-node/de.md', "---\ntitle: Test-Node\nscenario_title: Test\n---\n\n## Briefing\n\nAlter Text.\n\n## Write-up\n\nText.\n");
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+        Node::where('slug', 'test-node')->update([
+            'rich_content' => ['type' => 'node_content', 'version' => 1, 'briefing' => ['type' => 'doc', 'version' => 1, 'content' => []], 'hints' => [], 'write_up' => ['type' => 'doc', 'version' => 1, 'content' => []]],
+        ]);
+
+        File::put($dir.'/nodes/test-node/de.md', "---\ntitle: Test-Node\nscenario_title: Test\n---\n\n## Briefing\n\nNeuer Text.\n\n## Write-up\n\nText.\n");
+
+        Artisan::call('content:sync');
+
+        $this->assertStringContainsString('Node test-node: Die Prosa dieser Node wird aus rich_content gerendert', Artisan::output());
+
+        File::deleteDirectory($dir);
+    }
+
+    /**
      * ADR 0104 (CMS-6a): quiz-Metadaten (id/type/answer) werden aus
      * derselben Datei befuellt wie body/objectives.
      */
