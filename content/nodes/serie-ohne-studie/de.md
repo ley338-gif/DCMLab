@@ -115,10 +115,14 @@ die der Kollege für den Viewer-Import brauchte.
 
 Nicht im Archiv, nicht im Datenbestand und nicht in der Verbindung — die
 ursprüngliche Abfrage selbst war für ihr gewähltes Query/Retrieve-Level
-strukturell unvollständig. `SERIES` verlangt die Study Instance UID als
-Matching Key; ohne sie ist die Anfrage nach dem DICOM-Modell nicht
-auswertbar, ganz gleich, wie eindeutig die übrigen Matching-Keys
-fachlich wären.
+strukturell unvollständig. Im Baseline- (hierarchischen) Query/Retrieve-
+Modell verlangt `SERIES` die Study Instance UID des darüberliegenden
+Levels als Matching Key; ohne sie ist die Anfrage nicht auswertbar, ganz
+gleich, wie eindeutig die übrigen Matching-Keys fachlich wären. Dieses
+Archiv unterstützt nur das Baseline-Verhalten — DICOM kennt daneben
+optional Relational Queries (per Extended Negotiation), die genau diese
+Hierarchie lockern können, aber das ist eine gesondert auszuhandelnde
+Fähigkeit, keine Selbstverständlichkeit.
 
 ### Saubere betriebliche Maßnahme
 
