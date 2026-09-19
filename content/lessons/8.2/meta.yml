@@ -11,7 +11,7 @@ related_node:
   node: null
   optional: true
 
-glossary_terms: [service-request, imaging-study, diagnostic-report]
+glossary_terms: [service-request, imaging-study, diagnostic-report, endpoint]
 quiz:
   - id: q1
     type: single
@@ -21,4 +21,4 @@ quiz:
     answer: [0, 2]
 status: draft
 authors: ["draft-ai"]
-updated: "2026-09-17"
+updated: "2026-09-19"

@@ -60,14 +60,32 @@ Vereinfacht, FHIR R5:
     "system": "urn:dicom:uid",
     "value": "urn:oid:1.2.276.0.7230010.3.1.2.93821"
   }],
+  "endpoint": [{"reference": "Endpoint/ep-wado-1"}],
   "numberOfSeries": 3,
   "numberOfInstances": 412
 }
 ```
 
-**Was du daran abliest:** `img-93821` ist eine FHIR Resource ID. Die DICOM Study Instance UID ist ein separater Identifier.
+**Was du daran abliest:** `img-93821` ist eine FHIR Resource ID. Die DICOM Study Instance UID ist ein separater Identifier (System `urn:dicom:uid`, Wert `urn:oid:<UID>`). `endpoint` verweist zusätzlich auf eine `Endpoint`-Ressource — dort steht, **wo** und **über welchen Dienst** die Studie tatsächlich abrufbar ist.
 
 Und besonders wichtig: ImagingStudy enthält **Informationen über** die Studie. Die DICOM-Instanzen selbst liegen nicht einfach als Pixelblöcke in dieser Ressource.
+
+## Endpoint: die Zieladresse für den Bildabruf
+
+```json
+{
+  "resourceType": "Endpoint",
+  "id": "ep-wado-1",
+  "status": "active",
+  "connectionType": {
+    "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
+    "code": "dicom-wado-rs"
+  },
+  "address": "https://pacs.example/dicom-web"
+}
+```
+
+**Was du daran abliest:** `connectionType` sagt, welches Protokoll am `address`-Wert spricht — hier `dicom-wado-rs`, also DICOMweb-Retrieve. Ohne diese Ressource weißt du zwar, dass eine Studie existiert, aber nicht, an welche Basis-URL du für den Bildabruf überhaupt eine Anfrage stellen sollst. Wie aus Study Instance UID und Endpoint-Adresse eine konkrete Abfrage wird, zeigt 8.3.
 
 ## DiagnosticReport: das Ergebnis
 
@@ -80,12 +98,12 @@ FHIR R5 kann einen DiagnosticReport mit dem Auftrag und der ImagingStudy verbind
   "status": "final",
   "subject": {"reference": "Patient/pat-4711"},
   "basedOn": [{"reference": "ServiceRequest/sr-93821"}],
-  "study": [{"reference": "ImagingStudy/img-93821"}],
+  "imagingStudy": [{"reference": "ImagingStudy/img-93821"}],
   "conclusion": "Kein Nachweis eines fokalen Infiltrats."
 }
 ```
 
-**Was du daran abliest:** Auftrag, Studie und Befund bleiben getrennte Ressourcen und werden über References verbunden.
+**Was du daran abliest:** Auftrag, Studie und Befund bleiben getrennte Ressourcen und werden über References verbunden — das verbindende Feld im DiagnosticReport heißt `imagingStudy`, nicht `study`.
 
 > Versionshinweis: Das Beispiel ist bewusst FHIR R5. Bei einer realen Schnittstelle prüfst du immer die tatsächlich eingesetzte FHIR-Version und das Implementation Guide/Profile, bevor du Feldnamen oder Kardinalitäten übernimmst.
 
@@ -96,7 +114,7 @@ Ein Administrator sieht parallel:
 ```text
 HL7 / RIS order:        ORD93821
 FHIR ServiceRequest:    ServiceRequest/sr-93821
-DICOM Study UID:        1.2.276.0.7230010.3.1.2.93821
+DICOM Study Instance UID: 1.2.276.0.7230010.3.1.2.93821
 FHIR ImagingStudy:      ImagingStudy/img-93821
 FHIR DiagnosticReport:  DiagnosticReport/dr-93821
 ```
