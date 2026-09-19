@@ -243,12 +243,12 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 ### f32 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
-1. Ein Structured Report kann technisch korrekt im Archiv liegen, obwohl der Viewer ihn nicht darstellt
-2. Ein RDSR ist im Kern ein Screenshot der Dosisanzeige
-3. Ein KOS verweist auf andere Instances, statt sie zu duplizieren
-4. Ein Encapsulated PDF kann von einem Archiv gespeichert werden, auch ohne dass es einen PDF-Renderer besitzt
+1. Ein erfolgreicher C-STORE beweist, dass ein Viewer das Objekt auch darstellen kann
+2. Storage-, Query-, Display- und Routing-Unterstützung sind unabhängige Fähigkeiten
+3. Ein KOS kann im Archiv vorhanden sein, obwohl eine referenzierte Instance fehlt oder gerade nicht verfügbar ist
+4. Unterstützt ein System eine SOP Class beim Speichern, unterstützt es dieselbe SOP Class automatisch auch beim Routing
 
-**Erklärung:** Ein SR kann gespeichert, aber vom Viewer nicht darstellbar sein — Storage-Support und Display-Support sind getrennte Fähigkeiten. Ein KOS dupliziert referenzierte Bilder nicht, sondern verweist nur auf sie. Ein RDSR ist dagegen kein Screenshot, sondern strukturiert und automatisch auswertbar — Option 2 ist deshalb falsch, Option 4 richtig, weil Speicherung und Darstellung ebenfalls getrennte Fähigkeiten sind.
+**Erklärung:** Storage-, Query-, Display- und Routing-Unterstützung sind vier unabhängige Fähigkeiten (Option 2 richtig) — ein System kann eine SOP Class an einer Stelle unterstützen und an einer anderen nicht, deshalb ist Option 4 falsch. Ein KOS kann technisch vollständig gespeichert sein, obwohl eine referenzierte Instance fehlt oder gerade nicht verfügbar ist (Option 3 richtig) — das macht das KOS selbst nicht ungültig, nur seine Referenz ins Leere laufend. Ein erfolgreicher C-STORE sagt nichts über die Display-Fähigkeit eines Viewers aus, deshalb ist Option 1 falsch.
 
 ### f33 — Ein erfolgreicher C-STORE beweist, dass der Viewer das gespeicherte Objekt auch darstellen kann.
 

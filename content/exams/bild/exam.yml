@@ -266,15 +266,15 @@ questions:
     type: single
     answer: 1
     lesson: "3.7"
-    review: { lesson: "3.7", anchor: "die-sop-class-sagt-was-ein-objekt-fachlich-ist" }
+    review: { lesson: "3.7", anchor: "sopclassuid-ist-praezise-modality-nur-grob" }
     difficulty: 1
     tags: [datenmodell]
 
   - id: f32
     type: multi
-    answer: [0, 2]
+    answer: [1, 2]
     lesson: "3.7"
-    review: { lesson: "3.7", anchor: "vier-objektarten-die-pacs-admins-regelmaessig-begegnen" }
+    review: { lesson: "3.7", anchor: "storage-support-display-support" }
     difficulty: 3
     tags: [datenmodell]
 
@@ -290,7 +290,7 @@ questions:
     type: input
     answer: "SR"
     lesson: "3.7"
-    review: { lesson: "3.7", anchor: "die-sop-class-sagt-was-ein-objekt-fachlich-ist" }
+    review: { lesson: "3.7", anchor: "sopclassuid-ist-praezise-modality-nur-grob" }
     difficulty: 1
     tags: [datenmodell]
 
