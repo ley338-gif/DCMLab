@@ -154,6 +154,24 @@ class ContentSync extends Command
             // gibt (noch) keinen rein-Studio-seitigen Lesson-Anlageweg.
             $existingLesson = Lesson::query()->where('lesson_id', $id)->first();
 
+            // CMS-7d.3 (ADR 0118) hat den Lernpfad auf `rich_content` als
+            // kanonische Prosa-Quelle umgestellt -- `LearnerViewBuilder`
+            // rendert `body` nur noch, wenn `rich_content` NULL ist. Ein
+            // erneuter content:sync-Lauf schreibt `body` trotzdem immer
+            // unveraendert aus der Datei (siehe unten), damit ein Autor
+            // (oder ein Coding Agent) nicht faelschlich annimmt, eine
+            // Aenderung an de.md/meta.yml sei fuer Lernende sichtbar, sobald
+            // fuer diese Lektion bereits ein `rich_content` existiert.
+            if ($existingLesson !== null
+                && $existingLesson->rich_content !== null
+                && $existingLesson->source_hash !== $sourceHash) {
+                $this->warn(
+                    "Lektion {$id}: rich_content ist bereits gesetzt -- Aenderungen an de.md/meta.yml ".
+                    'wirken sich NICHT auf den Lernpfad aus (LearnerViewBuilder bevorzugt rich_content). '.
+                    'Nur ueber den Studio-Editor bzw. ContentPublishingService aktualisieren.',
+                );
+            }
+
             $lessonAttributes = [
                 'level' => $lesson['meta']['level'] ?? 'einsteiger',
                 'duration_minutes' => $lesson['meta']['duration_minutes'] ?? 0,
@@ -333,6 +351,22 @@ class ContentSync extends Command
             $status = $node['def']['status'] ?? 'draft';
             $title = ['de' => $node['frontmatter']['title'] ?? ''];
             $sourceHash = hash('sha256', $node['def_raw'].$node['md_raw']);
+
+            // Node-Gegenstueck zur Lesson-Warnung oben -- derselbe
+            // Cutover (ADR 0118) gilt fuer Nodes identisch
+            // (NodeContentPublisher schreibt `rich_content`, nicht mehr
+            // `body`; `NodeController::show()` bevorzugt `rich_content`).
+            $existingNode = Node::query()->where('slug', $slug)->first();
+
+            if ($existingNode !== null
+                && $existingNode->rich_content !== null
+                && $existingNode->source_hash !== $sourceHash) {
+                $this->warn(
+                    "Node {$slug}: rich_content ist bereits gesetzt -- Aenderungen an node.yml/de.md ".
+                    'wirken sich NICHT auf den Lernpfad aus (NodeController bevorzugt rich_content). '.
+                    'Nur ueber den Studio-Editor bzw. ContentPublishingService aktualisieren.',
+                );
+            }
 
             Node::updateOrCreate(
                 ['slug' => $slug],
