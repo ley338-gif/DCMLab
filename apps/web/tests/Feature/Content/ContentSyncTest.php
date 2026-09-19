@@ -279,6 +279,31 @@ class ContentSyncTest extends TestCase
     }
 
     /**
+     * Regressionstest fuer PR #159: `letztes-glied-fehlt` hatte einen
+     * `scenario:`-Baum ohne explizites `interaction: scenario` im node.yml
+     * -- ContentSync defaultete klaglos auf "terminal", wodurch der Node
+     * am falschen Engine-Client (services/engine statt
+     * services/scenario-engine) gelandet waere. Siehe auch
+     * NodeControllerScenarioTest fuer den vollen Ende-zu-Ende-Pfad.
+     */
+    public function test_it_syncs_a_scenario_node_with_the_declared_interaction_from_real_content(): void
+    {
+        $dir = base_path('../../content');
+
+        if (! is_dir($dir.'/nodes/letztes-glied-fehlt')) {
+            $this->markTestSkipped('content/nodes/letztes-glied-fehlt nicht gefunden.');
+        }
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+
+        Artisan::call('content:sync');
+
+        $node = Node::where('slug', 'letztes-glied-fehlt')->first();
+        $this->assertNotNull($node);
+        $this->assertSame('scenario', $node->interaction);
+    }
+
+    /**
      * ADR 0107 (CMS-6d): body/hints werden aus derselben Datei befuellt,
      * die auch title/scenario_title liefert.
      */
