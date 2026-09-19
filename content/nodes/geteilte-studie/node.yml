@@ -65,7 +65,7 @@ environment:
 
 flag:
   type: exact
-  hash: "sha256:6bf81b81a6713f0d83b3e7dddd61e9db53fd5050689434d6b2ba053f8b131a60"
+  hash: "sha256:f23cc0b82c443485a608c4f713c338520f4715e339bdb3af76848a0d517c56a9"
   case_sensitive: false
 
 hints:

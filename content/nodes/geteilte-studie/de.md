@@ -19,8 +19,8 @@ Deine Umgebung:
 
 Deine Aufgabe: Entscheide, ob es sich um denselben Study-Kontext, zwei
 echte unterschiedliche Studies, einen Study-Split oder eine andere
-Ursache handelt — und gib die Study Instance UID des dabei entstandenen
-Fragments als Flag ein.
+Ursache handelt — und gib deine Diagnose als Flag ein (`STUDY-SPLIT`,
+wenn du zu diesem Schluss kommst).
 
 Vorkenntnisse: Lektion 4.5. Rechne mit 18 Minuten.
 
@@ -41,8 +41,9 @@ Frage für jede der beiden Study Instance UIDs gezielt die Serien ab
 ### h3
 
 `geraeteprotokoll.txt` zeigt einen Geräteneustart mitten in der
-Untersuchung. Vergleiche, welche der beiden Study Instance UIDs nur
-eine einzelne Serie trägt — das ist das dabei entstandene Fragment.
+Untersuchung. Zusammen mit der gemeinsamen Accession Number und der
+Serienverteilung (1 Serie gegenüber 3) ergibt das eine eindeutige
+Diagnose — genau die ist das Flag, nicht eine der beiden UIDs.
 
 ## Write-up
 
@@ -84,13 +85,19 @@ zwei echte, eigenständige Studies.
    Unwahrscheinlich: Zwei unabhängige Untersuchungen teilen sich
    normalerweise keine Accession Number und liegen selten fast auf die
    Minute zusammen. Beide sprechen dagegen.
-3. **PACS-Duplikat durch eine zweite Patientenidentität.** Widerlegt:
-   Patient ID und Patientenname sind bei beiden Einträgen identisch —
-   eine zweite Identität würde sich hier gerade nicht zeigen.
-4. **Study-Split.** Bestätigt durch die Kombination aus gemeinsamer
-   Accession Number, nahezu identischem Zeitpunkt und
-   `geraeteprotokoll.txt`, das einen Geräteneustart mitten in der
-   Untersuchung dokumentiert.
+3. **PACS-Duplikat durch eine zweite Patientenidentität.** Nicht mit
+   letzter Sicherheit ausschließbar: Patient ID allein ist laut Standard
+   nicht global eindeutig — erst zusammen mit dem Issuer of Patient ID
+   (0010,0021) ist sie es. Für diesen Fall gibt es aber keinerlei Hinweis
+   auf eine zweite Identitätsdomäne (keine widersprüchliche Registrierung,
+   kein zweiter Issuer im Umlauf), während gemeinsame Accession Number,
+   Zeitpunkt und Geräteprotokoll klar in eine andere Richtung zeigen —
+   diese Hypothese bleibt deshalb unbelegt, nicht bewiesen falsch.
+4. **Study-Split.** Am besten belegt: durch die Kombination aus
+   gemeinsamer Accession Number, nahezu identischem Zeitpunkt,
+   `geraeteprotokoll.txt` (Geräteneustart mitten in der Untersuchung)
+   und der Serienverteilung (1 gegenüber 3) — keine dieser vier
+   Beobachtungen allein würde reichen.
 
 ### Welche Evidenz die Hypothesen trennt
 
@@ -140,9 +147,15 @@ Vorgangs, nicht dieses Nodes.
 
 Split und Dublette erzeugen am Archiv fundamental unterschiedliche
 Bilder, obwohl sie sich für einen Menschen fast identisch lesen. Die
-Study Instance UID ist das einzige Merkmal, das zuverlässig zwischen
-beiden unterscheidet — Patient ID, Beschreibung, Datum und sogar die
-Accession Number können bei einem Split trotzdem übereinstimmen.
+Study Instance UID sagt dir zuverlässig, ob zwei Einträge dieselbe oder
+zwei unterschiedliche Study-Identitäten tragen — Patient ID,
+Beschreibung, Datum und sogar die Accession Number können bei einem
+Split trotzdem übereinstimmen. Sie beweist damit aber noch nicht, *wie*
+zwei unterschiedliche Identitäten entstanden sind: Die Split-Diagnose
+selbst ergibt sich erst aus der Kombination mehrerer Beobachtungen —
+gemeinsame Accession Number, zeitlicher Zusammenhang, Serienverteilung
+und ein dokumentierter Geräteneustart. Genau diese Kombination macht den
+Unterschied zwischen "zwei verschiedene UIDs" und "das war ein Split".
 
 ### Verwandte Inhalte
 
