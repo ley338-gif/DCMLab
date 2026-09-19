@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Activities\ActivityProgressRecorder;
 use App\Content\LearnerViewBuilder;
+use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,6 +26,19 @@ class LessonController extends Controller
      */
     public function show(Lesson $lesson, LearnerViewBuilder $builder): Response
     {
+        // Seit ADR 0119 (Lesson-Sichtbarkeit gehaertet, analog ADR 0110 fuer
+        // Node): eine nicht veroeffentlichte Lektion (draft/review, sowie
+        // archiviert) ist fuer normale Lernende gesperrt -- nur wer die
+        // zugehoerige Activity bearbeiten darf (zugewiesener Autor oder
+        // Reviewer/Administrator, ActivityPolicy) sieht sie trotzdem, das
+        // ist die "Vorschau" aus dem Studio-Editor (LessonEditorController::
+        // preview() ruft denselben Gate::authorize() bereits explizit auf),
+        // keine zweite Route.
+        if ($lesson->status !== 'published') {
+            $activity = Activity::query()->where('type', 'lesson')->where('key', $lesson->lesson_id)->first();
+            abort_unless($activity !== null && Gate::allows('update', $activity), 404);
+        }
+
         return Inertia::render('Lessons/Show', $builder->lessonProps($lesson, Auth::user(), trackProgress: true));
     }
 
