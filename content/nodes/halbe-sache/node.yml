@@ -1,58 +1,96 @@
 slug: halbe-sache
-difficulty: easy
-points: 10
-category: bildgebung
-skills: [bildgebung]
+difficulty: medium
+points: 15
+category: integration
+skills: [integration, bildgebung]
 related_lessons: ["1.7"]
-estimated_minutes: 10
+estimated_minutes: 15
 
 environment:
   engine: simulated
   hosts:
     - name: workstation
-      ip: 10.55.0.50
+      ip: 10.77.0.50
       role: shell
+    - name: archive
+      ip: 10.77.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: RAD-ARCHIV
+          accepts: [verification, ct-image-storage]
+          # Nur klassisches CT Image Storage registriert -- der vom CT seit
+          # dem Update automatisch mitgesendete Dosisbericht (SR) ist keine
+          # registrierte SOP Class, siehe sop-class-liste.txt.
+          accepted_sop_classes: ["1.2.840.10008.5.1.4.1.1.2"]
+      config_visible: false
 
-  tools: [dcmdump]
+  known_calling_aets: [DCMLAB-WS]
 
-  # Beide Dateien wurden nachtraeglich verlustbehaftet komprimiert (JPEG
-  # Baseline) -- nur eine davon traegt das dafuer PS3.3-C.7.6.1.1.5-pflichtige
-  # LossyImageCompression-Flag. Die andere sieht dadurch unangetastet aus,
-  # obwohl sie denselben Verlust hat.
+  tools: [echoscu, storescu, dcmdump]
+
+  files:
+    - sop-class-liste.txt   # Auszug aus der Konformitaetserklaerung des Archivs
+
+  # Drei echte CT-Schichten plus ein vom Geraet seit dem Software-Update
+  # automatisch miterzeugter Dosisbericht (SR) -- alle vier in derselben
+  # (verlustfreien) Transfer Syntax, damit sich eine Transfer-Syntax-Ursache
+  # durch reinen Vergleich zuverlaessig ausschliessen laesst (Feature 5 aus
+  # P10, ADR 0020 -- dieselbe pro-Objekt-SOP-Class-Pruefung wie "Teiltransfer",
+  # hier mit eigenem, unabhaengigem Fall).
   objects:
-    - filename: "schicht-01.dcm"
-      bytes: 52224
-      transfer_syntax: "1.2.840.10008.1.2.4.50"
-      lossy_image_compression: "01"
-    - filename: "schicht-02.dcm"
-      bytes: 51968
-      transfer_syntax: "1.2.840.10008.1.2.4.50"
+    - filename: "bild-1.dcm"
+      bytes: 524288
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"
+      transfer_syntax: "1.2.840.10008.1.2.4.70"
+    - filename: "bild-2.dcm"
+      bytes: 524288
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"
+      transfer_syntax: "1.2.840.10008.1.2.4.70"
+    - filename: "bild-3.dcm"
+      bytes: 524288
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"
+      transfer_syntax: "1.2.840.10008.1.2.4.70"
+    - filename: "dosisbericht.dcm"
+      bytes: 8192
+      sop_class: "1.2.840.10008.5.1.4.1.1.88.67"
+      transfer_syntax: "1.2.840.10008.1.2.4.70"
 
   templates:
     - label_key: tpl.help
       command: "help"
     - label_key: tpl.ls
       command: "ls"
-    - label_key: tpl.dcmdump_01
-      command: "dcmdump schicht-01.dcm"
-    - label_key: tpl.dcmdump_02
-      command: "dcmdump schicht-02.dcm"
+    - label_key: tpl.echo
+      command: "echoscu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104"
+    - label_key: tpl.store_bild_1
+      command: "storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 bild-1.dcm"
+    - label_key: tpl.store_bild_2
+      command: "storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 bild-2.dcm"
+    - label_key: tpl.store_bild_3
+      command: "storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 bild-3.dcm"
+    - label_key: tpl.store_dosisbericht
+      command: "storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 dosisbericht.dcm"
+    - label_key: tpl.dcmdump_bild_1
+      command: "dcmdump bild-1.dcm"
+    - label_key: tpl.dcmdump_dosisbericht
+      command: "dcmdump dosisbericht.dcm"
   placeholders: []
 
 flag:
   type: exact
-  hash: "sha256:64ab1dbfc314bcd856532dfb700927acc76d1f94866a9bae5b558c097f78ab2c"
+  hash: "sha256:f4027125a721bcb47972813c2ef20880ce8b830856a738b352115cdbf533f002"
   case_sensitive: false
 
 hints:
   - id: h1
     cost: 1
   - id: h2
-    cost: 1
-  - id: h3
     cost: 2
+  - id: h3
+    cost: 4
 
-stuck_timeout_minutes: 8
+stuck_timeout_minutes: 12
 
 status: published
-updated: "2026-09-13"
+updated: "2026-09-19"

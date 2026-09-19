@@ -152,7 +152,7 @@ Die erste Zeile ist Lektion 4.2, die zweite 4.3. Diese Lektion ist die Vorausset
 
 ## Dein Lab
 
-Im Lab **Halbe Sache** nimmt das Archiv von einer Modalität nur einen Teil der Serien an. Deine Aufgabe: herausfinden, welche Eigenschaft die abgelehnten Serien gemeinsam haben — und einen Weg zeigen, wie die Übertragung trotzdem gelingt, ohne die Bilder zu verändern.
+Im Lab **Halbe Sache** kommt von einer Modalität nur ein Teil einer Study am Archiv an. Deine Aufgabe: herausfinden, ob Netzwerk und Verbindung grundsätzlich funktionieren, welches Objekt fehlt — und warum genau dieses abgelehnt wird.
 
 ## Selbstcheck
 

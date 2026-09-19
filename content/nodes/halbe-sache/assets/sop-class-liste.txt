@@ -1,0 +1,10 @@
+RAD-ARCHIV — Konformitaetserklaerung (Auszug)
+Abschnitt: unterstuetzte SOP Classes als SCP
+
+Verification              1.2.840.10008.1.1
+CT Image Storage          1.2.840.10008.5.1.4.1.1.2
+
+Hinweis: X-Ray Radiation Dose SR Storage (1.2.840.10008.5.1.4.1.1.88.67)
+ist nicht registriert. Anfragen fuer nicht registrierte SOP Classes
+werden mit "Abstract Syntax Not Supported" abgelehnt, unabhaengig von
+Transfer Syntax oder Groesse des Objekts.
