@@ -99,6 +99,14 @@ final class ContentValidator
                 $this->checkNodeAchievements($node);
                 $this->checkNodeThemenfeld($node, $themenfelder);
 
+                if (data_get($node['def'], 'scenario') !== null && data_get($node['def'], 'interaction') !== 'scenario') {
+                    $this->issue(
+                        $node['def_file'],
+                        LineFinder::firstLineContaining($node['def_raw'] ?? '', 'scenario'),
+                        'Node hat einen scenario:-Baum, deklariert aber nicht "interaction: scenario" -- ContentSync defaultet sonst auf "terminal" und EngineClientResolver routet den Node an den falschen Engine-Client.',
+                    );
+                }
+
                 if (data_get($node['def'], 'interaction') === 'scenario') {
                     $this->checkScenarioStructure($node);
                 }

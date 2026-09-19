@@ -8,6 +8,7 @@ use App\Models\NodeAttempt;
 use App\Models\User;
 use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -125,6 +126,109 @@ class NodeControllerScenarioTest extends TestCase
 
         Http::assertSent(fn ($request) => $request->url() === $this->engineUrl('/v1/sessions'));
         Http::assertNotSent(fn ($request) => str_contains($request->url(), $this->scenarioEngineUrl('')));
+    }
+
+    /**
+     * Regressionstest fuer PR #159 (letztes-glied-fehlt): ein `scenario:`-Baum
+     * ohne explizites `interaction: scenario` im node.yml wurde von
+     * ContentSync klaglos auf den Default "terminal" synchronisiert -- der
+     * Node landete dadurch am DICOM-Engine-Client statt am
+     * ScenarioEngineClient. Die anderen Tests in dieser Klasse setzen
+     * `interaction` direkt per Factory und ueberspringen damit genau den
+     * Schritt, in dem der Fehler entstand (ContentSync liest die Datei).
+     * Dieser Test durchlaeuft die volle Kette: Datei -> content:sync -> DB
+     * -> NodeController -> EngineClientResolver -> HTTP-Aufruf.
+     */
+    public function test_a_scenario_node_synced_from_content_routes_to_the_scenario_engine_not_dicom(): void
+    {
+        $dir = storage_path('framework/testing/node-scenario-sync-'.Str::random(12));
+        File::ensureDirectoryExists($dir.'/nodes/sync-scenario-check');
+        File::put($dir.'/themenfelder.yml', "- slug: dicom\n  order: 1\n  title_key: t\n  status: published\n");
+        File::put($dir.'/nodes/sync-scenario-check/node.yml', <<<'YAML'
+        slug: sync-scenario-check
+        difficulty: easy
+        points: 10
+        category: security
+        interaction: scenario
+        skills: [security]
+        related_lessons: []
+        estimated_minutes: 10
+
+        scenario:
+          start: frage
+          steps:
+            frage:
+              prompt: Testfrage.
+              options:
+                - id: richtig
+                  label: Richtige Antwort.
+                  next: ende_richtig
+            ende_richtig:
+              terminal: true
+              outcome: correct
+              reveal: test-flag-klartext
+
+        flag:
+          type: exact
+          source_tag: scenario
+          hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          case_sensitive: false
+
+        hints: []
+        stuck_timeout_minutes: 10
+        status: published
+        updated: "2026-09-21"
+        YAML);
+        File::put($dir.'/nodes/sync-scenario-check/de.md', <<<'MD'
+        ---
+        title: Sync-Szenario-Check
+        scenario_title: Ein Test-Dialog
+        ---
+
+        ## Briefing
+
+        Testauftrag.
+
+        ## Write-up
+
+        Die Loesung steht hier.
+        MD);
+
+        $this->app->instance(ContentRepository::class, new ContentRepository($dir));
+        Artisan::call('content:sync');
+        File::deleteDirectory($dir);
+
+        $node = Node::where('slug', 'sync-scenario-check')->firstOrFail();
+        $this->assertSame(
+            'scenario',
+            $node->interaction,
+            'content:sync muss "interaction: scenario" aus der Datei uebernehmen, nicht auf "terminal" defaulten.',
+        );
+
+        $user = User::factory()->create();
+
+        $syncedState = [
+            'node_slug' => 'sync-scenario-check',
+            'scenario' => [
+                'step_id' => 'frage', 'prompt' => 'Testfrage.',
+                'options' => [['id' => 'richtig', 'label' => 'Richtige Antwort.']],
+                'terminal' => false, 'outcome' => null, 'log' => [],
+            ],
+            'hints_used' => [], 'write_up_seen' => false, 'solved' => false,
+            'points' => 10, 'stuck' => false, 'created_at' => now()->toIso8601String(),
+        ];
+
+        Http::fake([
+            $this->scenarioEngineUrl('/v1/sessions') => Http::response(
+                ['session_id' => 'sess-sync-1', 'state' => $syncedState], 201,
+            ),
+            $this->scenarioEngineUrl('/v1/sessions/sess-sync-1/state') => Http::response($syncedState),
+        ]);
+
+        $this->actingAs($user)->get('/de/nodes/sync-scenario-check')->assertOk();
+
+        Http::assertSent(fn ($request) => $request->url() === $this->scenarioEngineUrl('/v1/sessions'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), $this->engineUrl('')));
     }
 
     /**

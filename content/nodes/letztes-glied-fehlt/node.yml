@@ -2,6 +2,7 @@ slug: letztes-glied-fehlt
 difficulty: hard
 points: 50
 category: integration
+interaction: scenario
 skills: [integration]
 related_lessons: ["4.8", "2.6", "2.7"]
 estimated_minutes: 22

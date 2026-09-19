@@ -359,6 +359,52 @@ class ContentValidateTest extends TestCase
     }
 
     /**
+     * Regressionstest fuer PR #159: ein `scenario:`-Baum ohne explizites
+     * `interaction: scenario` wurde bislang von content:validate nicht
+     * bemaengelt, obwohl ContentSync in diesem Fall auf den Default
+     * "terminal" faellt und der Node damit am falschen Engine-Client
+     * landet (siehe EngineClientResolver).
+     */
+    public function test_node_scenario_tree_without_interaction_scenario_fails(): void
+    {
+        $dir = $this->buildContentDir($this->nodeFiles([
+            'nodes/sample/node.yml' => $this->validNodeDef()."\n".<<<'YAML'
+            scenario:
+              start: frage
+              steps:
+                frage:
+                  terminal: true
+                  outcome: correct
+                  reveal: test-flag
+            YAML,
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('deklariert aber nicht "interaction: scenario"', $result['output']);
+    }
+
+    public function test_node_scenario_tree_with_interaction_scenario_passes(): void
+    {
+        $dir = $this->buildContentDir($this->nodeFiles([
+            'nodes/sample/node.yml' => str_replace('category: netzwerk', "category: netzwerk\ninteraction: scenario", $this->validNodeDef())."\n".<<<'YAML'
+            scenario:
+              start: frage
+              steps:
+                frage:
+                  terminal: true
+                  outcome: correct
+                  reveal: test-flag
+            YAML,
+        ]));
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(0, $result['exitCode'], $result['output']);
+    }
+
+    /**
      * Achievement-System (Auftrag Abschnitt 7): node.yml darf optional
      * Achievement-Slugs deklarieren, aber nur solche, die in der zentralen
      * Registry existieren.
