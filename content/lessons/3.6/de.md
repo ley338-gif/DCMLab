@@ -106,6 +106,13 @@ sie, Orthancs REST-API rät und korrigiert still. Kein Werkzeug ist hier
 > anderes Tool (z. B. ein strikter Report-Export) dieselbe Datei
 > ebenso verarbeitet.
 
+## Lab
+
+Im Node **„Name ohne Schlüssel"** reagieren drei Werkzeuge
+unterschiedlich auf denselben gespeicherten Namen — finde heraus, ob
+die Daten wirklich falsch sind oder nur die Kodierungsdeklaration
+fehlt.
+
 ## Selbstcheck
 
 1. Ein Objekt hat keine `SpecificCharacterSet`-Angabe. Welche Kodierung

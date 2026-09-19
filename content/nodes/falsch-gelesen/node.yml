@@ -1,0 +1,287 @@
+slug: falsch-gelesen
+difficulty: medium
+points: 25
+category: bildgebung
+interaction: scenario
+skills: [bildgebung]
+related_lessons: ["3.2"]
+estimated_minutes: 15
+
+# Diagnose-Node zu Lektion 3.2 (Pixeldaten / Photometric Interpretation).
+# interaction: scenario statt terminal/simulated: die Spielwiese hat
+# keinen Bild-Viewer (siehe content/tools/de.yml, ADR 0050 -- empirisch
+# gegen den echten Stack bestaetigt, kein Node-Viewer existiert), und
+# services/engine's dcmdump-Simulation kennt nur ein festes Feld-Set
+# (DCMDUMP_FIELD_ORDER in services/engine/app/rules.py, dokumentiert in
+# docs/content-schema.md Abschnitt 6g-6i) -- keines der Image-Pixel-
+# Module-Felder (PhotometricInterpretation, SamplesPerPixel,
+# BitsAllocated/Stored/HighBit, PixelRepresentation) ist darin
+# enthalten. Ein Scenario-Node mit kuratierter, standardkonformer
+# dcmdump-Evidenz im Prompt-Text vermittelt denselben Diagnose-Anspruch
+# ohne neue, nur fuer diesen einen Node gebaute Engine-Funktion.
+#
+# Bewusste Trennung (siehe Lektion 3.2, "MONOCHROME1 gegen MONOCHROME2"):
+# MONOCHROME1 ist hier NICHT der Fehler. Der Fehler ist, dass ein
+# Bildgateway pauschal MONOCHROME2 in jedes durchlaufende Objekt
+# schreibt, unabhaengig von der nativen Konvention der Quelle -- belegt
+# durch die Konformitaetserklaerung des Geraets plus ein Vergleichsbild
+# von vor dem Gateway-Update.
+scenario:
+  start: ticket
+  steps:
+    ticket:
+      prompt: >
+        Ticket aus der Diagnostik-Workstation: Neues Thorax-Bild vom
+        mobilen Röntgengerät MOBIL-CR-9 (Patient 60214, Auftrag A55029,
+        Study Instance UID 1.2.276.0.7230010.3.1.4.774112038815) wirkt
+        komplett invertiert — Knochen erscheinen dunkel, Luft hell, wie
+        ein fotografisches Negativ. Das Bild lässt sich vollständig
+        öffnen, nichts fehlt sichtbar. Ein älteres Bild derselben
+        Modalität aus der letzten Woche sieht normal aus. Was ist der
+        sinnvollste erste Schritt?
+      options:
+        - id: resend
+          label: Das Bild vorsichtshalber erneut vom Gerät senden.
+          next: wrong_resend
+        - id: recompress
+          label: Das Bild lokal neu komprimieren, um einen Übertragungsfehler auszuschließen.
+          next: wrong_recompress
+        - id: viewer_neustart
+          label: Die Diagnostik-Workstation neu starten.
+          next: wrong_viewer_neustart
+        - id: evidence
+          label: Vorhandene Evidenz systematisch sammeln (Transfer, Kodierung, Bild-Metadaten, Vergleichsbild) statt sofort einzugreifen.
+          next: store_check
+
+    store_check:
+      prompt: >
+        C-STORE-Log: Bild erfolgreich übertragen (Status Success),
+        Objektgröße entspricht exakt der erwarteten Pixelmatrix. PACS-
+        Bestand: Study vorhanden, 1 von 1 erwarteter Instanz. Was folgt
+        daraus?
+      options:
+        - id: store_blamed
+          label: Der Bildtransfer ist die Fehlerursache.
+          next: wrong_store_blamed
+        - id: premature_close
+          label: Damit ist der Fall geklärt — die Datei ist technisch in Ordnung.
+          next: wrong_premature_close
+        - id: proceed
+          label: Bildtransfer als Fehlerdomäne ausschließen und die Kodierungsebene (Transfer Syntax) prüfen.
+          next: ts_check
+
+    ts_check:
+      prompt: >
+        File-Meta-Information: TransferSyntaxUID = Explicit VR Little
+        Endian (unkomprimiert) — identisch mit der Transfer Syntax des
+        unauffälligen Vergleichsbilds von letzter Woche. Rows, Columns
+        und die gesamte Pixelmatrix lassen sich vollständig und ohne
+        Dekodierfehler lesen. Was folgt daraus?
+      options:
+        - id: ts_blamed
+          label: Die Transfer Syntax wird falsch dekodiert.
+          next: wrong_ts_blamed
+        - id: ts_covers_photometric
+          label: Da Transfer Syntax und Bilddarstellung eng zusammenhängen, ist mit ausgeschlossener Transfer Syntax auch die spätere Darstellung sauber.
+          next: wrong_ts_covers_photometric
+        - id: proceed
+          label: Transfer-Syntax-Dekodierung ausschließen und das Image Pixel Module selbst prüfen.
+          next: pixel_module_check
+
+    pixel_module_check:
+      prompt: >
+        dcmdump des Image Pixel Module (auffälliges Bild): SamplesPerPixel
+        1, PhotometricInterpretation MONOCHROME2, BitsAllocated 16,
+        BitsStored 12, HighBit 11, PixelRepresentation 0 — Pixeldaten
+        vollständig lesbar, keine Auffälligkeit in Rows/Columns.
+        Vergleichsbild derselben Modalität von vor einer Woche: identische
+        Struktur, aber PhotometricInterpretation MONOCHROME1. Was folgt
+        daraus?
+      options:
+        - id: monochrome1_is_bug
+          label: MONOCHROME1 im Vergleichsbild ist der eigentliche Fehler — korrekt wäre immer MONOCHROME2.
+          next: wrong_monochrome1_is_bug
+        - id: pixel_data_corrupt
+          label: Die Pixeldaten selbst sind beschädigt.
+          next: wrong_pixel_data_corrupt
+        - id: proceed
+          label: Der unterschiedlichen PhotometricInterpretation zwischen beiden Bildern nachgehen (Gerätedokumentation, Bildgateway-Log).
+          next: comparison_evidence
+
+    comparison_evidence:
+      prompt: >
+        Konformitätserklärung von MOBIL-CR-9 (Auszug): "Das Gerät liefert
+        Rohbilder nativ in inverser Graustufen-Konvention (photometrische
+        Bedeutung entspricht MONOCHROME1)." Log des Bildgateways
+        BRIDGE-IMG: Seit einem Versions-Update vor zwei Wochen schreibt
+        das Gateway beim Weiterleiten pauschal PhotometricInterpretation
+        = MONOCHROME2 in jedes durchlaufende Objekt, unabhängig vom
+        Quellgerät — Teil einer Standard-Vorlage, die mit dem Update
+        eingeführt wurde. Das auffällige Bild wurde nach diesem Update
+        aufgenommen, das unauffällige Vergleichsbild davor. Was folgt
+        daraus?
+      options:
+        - id: viewer_blamed
+          label: Die Diagnostik-Workstation hat einen Darstellungsfehler.
+          next: wrong_viewer_blamed
+        - id: proceed
+          label: Aus der gesamten Evidenz eine Diagnose ableiten.
+          next: diagnosis
+
+    diagnosis:
+      prompt: >
+        Welche Diagnose passt zur gesamten gesammelten Evidenz?
+      options:
+        - id: hyp_transport
+          label: Der C-STORE-Transfer hat Pixeldaten abgeschnitten oder beschädigt.
+          next: wrong_hyp_transport
+        - id: hyp_ts
+          label: Die Transfer Syntax wird falsch dekodiert.
+          next: wrong_hyp_ts
+        - id: hyp_viewer
+          label: Ein Viewer verarbeitet eine gültige DICOM-Eigenschaft falsch.
+          next: wrong_hyp_viewer
+        - id: hyp_pixel_meta
+          label: Die Pixel-Interpretationsmetadaten (PhotometricInterpretation) passen nicht zum tatsächlichen Bildinhalt — das Bildgateway hat sie beim Weiterleiten pauschal falsch gesetzt.
+          next: success
+
+    wrong_resend:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Transfer war laut C-STORE-Log bereits erfolgreich, und die
+        Objektgröße stimmt mit der erwarteten Pixelmatrix überein — ein
+        erneuter Versand würde nur ein zweites, identisches Objekt
+        erzeugen, ohne die eigentliche Ursache zu berühren.
+    wrong_recompress:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Es gibt keinen Hinweis auf ein Kompressions- oder
+        Übertragungsproblem — die Transfer Syntax ist unkomprimiert und
+        lässt sich vollständig dekodieren. Eine lokale Neukompression
+        würde ein neues Objekt mit dem gleichen, unveränderten Fehler
+        erzeugen.
+    wrong_viewer_neustart:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein Neustart ändert nichts an den Metadaten des Objekts selbst
+        — falls die Ursache in einem falsch gesetzten Tag liegt, zeigt
+        auch eine frisch gestartete Workstation dasselbe Bild wieder
+        falsch an.
+    wrong_store_blamed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Transfer war laut C-STORE-Log erfolgreich (Status Success),
+        und die Objektgröße entspricht exakt der erwarteten Pixelmatrix
+        — ein Transferfehler erklärt das Symptom nicht.
+    wrong_premature_close:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein erfolgreicher Transfer ist nur eine von mehreren
+        unabhängigen Aussagen — weder die Transfer-Syntax-Dekodierung
+        noch das Image Pixel Module wurden damit bereits geprüft.
+        Erfolgreich gespeichert heißt nicht automatisch korrekt
+        interpretierbar.
+    wrong_ts_blamed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Transfer Syntax ist unkomprimiert (Explicit VR Little
+        Endian) und lässt sich vollständig und fehlerfrei dekodieren —
+        identisch mit der Transfer Syntax des unauffälligen
+        Vergleichsbilds. Eine Dekodierstörung liegt nicht vor.
+    wrong_ts_covers_photometric:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Transfer Syntax beschreibt die Kodierung des Datenstroms bzw.
+        der Pixeldaten — sie sagt nichts darüber aus, wie die
+        dekodierten Pixelwerte semantisch zu lesen sind (Graustufen vs.
+        Farbe, welche Richtung hell/dunkel bedeutet). Das regeln eigene,
+        unabhängige Attribute im Image Pixel Module wie
+        PhotometricInterpretation.
+    wrong_monochrome1_is_bug:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        MONOCHROME1 ist eine gültige, im Standard vorgesehene
+        Konvention, keine grundsätzlich falsche Angabe. Die
+        Konformitätserklärung des Geräts belegt sogar, dass MONOCHROME1
+        seiner nativen Bildkonvention entspricht — nicht MONOCHROME2.
+    wrong_pixel_data_corrupt:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Pixeldaten selbst lassen sich vollständig und ohne
+        Dekodierfehler lesen, Rows/Columns sind unauffällig — es gibt
+        keinen Beleg für beschädigte Rohdaten, nur für ein abweichendes
+        Interpretations-Tag.
+    wrong_viewer_blamed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Dieselbe Diagnostik-Workstation zeigt das unauffällige
+        Vergleichsbild korrekt an — sie honoriert
+        PhotometricInterpretation also grundsätzlich richtig. Der
+        Unterschied liegt im Objekt selbst (dem vom Gateway
+        überschriebenen Tag), nicht in der Darstellung durch den Viewer.
+    wrong_hyp_transport:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der C-STORE-Transfer war erfolgreich, die Objektgröße entspricht
+        der erwarteten Pixelmatrix vollständig — ein Transportfehler ist
+        damit nicht die Ursache.
+    wrong_hyp_ts:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Transfer Syntax ist unkomprimiert und dekodiert vollständig
+        fehlerfrei, identisch mit dem unauffälligen Vergleichsbild — die
+        Dekodierung der Transfer Syntax ist nicht die Ursache.
+    wrong_hyp_viewer:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Dieselbe Workstation zeigt das unauffällige Vergleichsbild
+        korrekt an, honoriert PhotometricInterpretation also
+        grundsätzlich richtig — kein Beleg für einen Darstellungsfehler
+        des Viewers.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: PHOTOMETRIC-MISMATCH
+      prompt: >
+        Richtig. C-STORE-Transfer und Transfer-Syntax-Dekodierung sind
+        beide ordnungsgemäß — das Bild ist vollständig und unbeschädigt
+        angekommen. Der Fehler liegt in der Bildinterpretation: Das
+        Bildgateway BRIDGE-IMG schreibt seit einem Versions-Update
+        pauschal PhotometricInterpretation = MONOCHROME2 in jedes
+        Objekt, unabhängig von der nativen Konvention der Quelle. Die
+        Konformitätserklärung von MOBIL-CR-9 belegt aber, dass dessen
+        Rohbilder nativ MONOCHROME1 entsprechen. MONOCHROME1 selbst ist
+        kein Fehler — der Fehler liegt darin, dass das Gateway einen
+        pauschalen Wert schreibt, der zur tatsächlichen Bildquelle nicht
+        mehr passt.
+
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:9393c0946ce515c1fcbb4c5761ef97fd98cef28c32eb4685195be48195f4eed4"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 2
+  - id: h2
+    cost: 4
+  - id: h3
+    cost: 6
+
+stuck_timeout_minutes: 15
+status: draft
+updated: "2026-09-19"
