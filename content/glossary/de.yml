@@ -428,6 +428,13 @@ diagnostic-report:
   see_also: [service-request, imaging-study]
   lesson: "8.2"
 
+endpoint:
+  term: Endpoint
+  expansion: FHIR Endpoint
+  short: FHIR-Ressource mit Zieladresse und Protokoll (`connectionType`) für einen Dienst, z. B. einen DICOMweb-Server.
+  see_also: [imaging-study, wado-rs]
+  lesson: "8.2"
+
 qido-rs:
   term: QIDO-RS
   expansion: Query based on ID for DICOM Objects by RESTful Services

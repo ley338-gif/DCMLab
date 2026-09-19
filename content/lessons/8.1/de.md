@@ -19,9 +19,10 @@ Patient
 ServiceRequest
 ImagingStudy
 DiagnosticReport
-Observation
 Endpoint
 ```
+
+Diese fünf begleiten dich durch 8.1–8.3: Patient und ServiceRequest in dieser Lektion, ImagingStudy und DiagnosticReport in 8.2, Endpoint als Bindeglied zum tatsächlichen Bildabruf in 8.3.
 
 Das bedeutet nicht, dass FHIR „HL7 v2 in JSON“ ist. Das Denkmodell ist anders.
 
