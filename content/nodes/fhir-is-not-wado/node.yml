@@ -6,77 +6,127 @@ themenfeld: interoperabilitaet
 interaction: scenario
 skills: [integration]
 related_lessons: ["8.2", "8.3"]
-estimated_minutes: 10
+estimated_minutes: 15
 
 scenario:
-  start: viewer
+  start: ticket
   steps:
-    viewer:
+    ticket:
       prompt: >
-        Ein Portal lädt erfolgreich ImagingStudy/img-93821 aus dem FHIR-Server.
-        Patient, Study UID und Serienanzahl stimmen. Beim Öffnen der Bilder
-        ruft der Client GET /fhir/ImagingStudy/img-93821/pixels auf und erhält
-        404. Was ist die beste Erklärung?
+        Ein neues Portal zeigt Patient 2290, den Auftrag und die
+        ImagingStudy img-55814 korrekt an — auch die referenzierte
+        Endpoint-Ressource ist sichtbar. Trotzdem schlägt der eigentliche
+        Bildabruf im Viewer fehl (404). Was ist der sinnvollste erste
+        Schritt?
       options:
-        - id: missing_pixels
-          label: Die ImagingStudy ist beschädigt, weil sie keine Pixel enthält.
-          next: wrong_pixels
-        - id: wrong_layer
-          label: Der Client benutzt die falsche API-Schicht für den Bildabruf.
-          next: endpoint
-        - id: resend_hl7
-          label: Der HL7-Auftrag muss erneut gesendet werden.
-          next: wrong_hl7
-    endpoint:
-      prompt: >
-        Die ImagingStudy enthält die DICOM Study UID. Welcher Dienst ist für
-        den Abruf der DICOM-Objekte vorgesehen?
-      options:
-        - id: qido
-          label: QIDO-RS
-          next: wrong_qido
-        - id: wado
-          label: WADO-RS
-          next: correct
-        - id: stow
-          label: STOW-RS
-          next: wrong_stow
+        - id: new_viewer
+          label: Einen anderen Viewer installieren und erneut versuchen.
+          next: wrong_viewer
+        - id: resend_order
+          label: Den Auftrag im RIS erneut anstoßen.
+          next: wrong_resend
+        - id: inspect_resources
+          label: ImagingStudy und die referenzierte Endpoint-Ressource genau ansehen, bevor am Client etwas geändert wird.
+          next: resolve_endpoint
 
-    wrong_pixels:
+    resolve_endpoint:
+      prompt: >
+        Du liest die Ressourcen: ImagingStudy.identifier zeigt
+        urn:dicom:uid / urn:oid:1.2.276.0.7230010.3.1.2.771205,
+        ImagingStudy.endpoint verweist auf Endpoint/ep-55, dessen
+        connectionType dicom-wado-rs ist und dessen address
+        https://bildarchiv.example/dicomweb lautet. Welche Basis-URL und
+        welcher Dienst sind für den eigentlichen Bildabruf zuständig?
+      options:
+        - id: fhir_base
+          label: Dieselbe Basis-URL wie der FHIR-Server selbst (also .../fhir/...).
+          next: wrong_fhir_base
+        - id: endpoint_base
+          label: Die in Endpoint.address hinterlegte Basis-URL, laut connectionType über WADO-RS.
+          next: build_request
+        - id: no_hint
+          label: Es gibt keinen Hinweis, welcher Dienst zuständig ist.
+          next: wrong_no_hint
+
+    build_request:
+      prompt: >
+        Welche der folgenden Anfragen ruft die Studie tatsächlich korrekt
+        über WADO-RS ab?
+      options:
+        - id: option_a
+          label: 'GET https://bildarchiv.example/dicomweb/studies/1.2.276.0.7230010.3.1.2.771205 — Accept: application/dicom'
+          next: wrong_accept_header
+        - id: option_b
+          label: 'GET https://bildarchiv.example/dicomweb/studies/1.2.276.0.7230010.3.1.2.771205 — Accept: multipart/related; type="application/dicom"'
+          next: success
+        - id: option_c
+          label: GET https://bildarchiv.example/fhir/ImagingStudy/img-55814/pixels
+          next: wrong_fhir_pixels
+        - id: option_d
+          label: 'GET https://bildarchiv.example/dicomweb/studies?StudyInstanceUID=1.2.276.0.7230010.3.1.2.771205 — Accept: multipart/related; type="application/dicom"'
+          next: wrong_query_syntax
+
+    wrong_viewer:
       terminal: true
       outcome: wrong
       prompt: >
-        ImagingStudy beschreibt die DICOM-Studie; sie ist nicht der Speicherort
-        der kompletten DICOM-Pixelobjekte.
-    wrong_hl7:
+        Der Fehler liegt nicht am Viewer-Produkt, sondern an der Anfrage,
+        die gestellt wird. Ein anderer Viewer würde denselben falschen
+        Endpunkt ansprechen.
+    wrong_resend:
       terminal: true
       outcome: wrong
       prompt: >
-        Auftrag und ImagingStudy sind vorhanden. Das Problem liegt beim
-        Bildabruf, nicht beim vorgelagerten Order-Transport.
-    wrong_qido:
+        Auftrag und ImagingStudy sind bereits vorhanden und korrekt
+        verknüpft. Das Problem liegt beim Bildabruf, nicht bei der
+        Auftragskette.
+    wrong_fhir_base:
       terminal: true
       outcome: wrong
       prompt: >
-        QIDO-RS dient der Suche. Für den Abruf der Objekte brauchst du WADO-RS.
-    wrong_stow:
+        Der FHIR-Server und der DICOMweb-Dienst sind unterschiedliche
+        Endpunkte — genau das zeigt die separate Endpoint-Ressource.
+    wrong_no_hint:
       terminal: true
       outcome: wrong
       prompt: >
-        STOW-RS dient dem Speichern/Übertragen zum Server, nicht dem Abruf.
-    correct:
+        Endpoint.address und connectionType sind genau dieser Hinweis —
+        er steht bereits in der Ressource.
+    wrong_accept_header:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein Retrieve auf Study-Ebene liefert laut PS3.18 immer eine
+        multipart/related-Antwort, kein einzelnes application/dicom-Objekt
+        ohne Umschlag.
+    wrong_fhir_pixels:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das ist derselbe Fehler wie am Anfang: ein vermeintlicher
+        Bild-Unterpfad des FHIR-Servers, den es nicht gibt.
+    wrong_query_syntax:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das ist die Syntax einer QIDO-RS-Suche (Query-Parameter), nicht
+        eines WADO-RS-Retrieve. WADO-RS adressiert die Study Instance UID
+        im Pfad, nicht als Query-Parameter.
+    success:
       terminal: true
       outcome: correct
-      reveal: WADO-RS
+      reveal: WADO-RS-STUDY-RETRIEVE
       prompt: >
-        Richtig. Die FHIR ImagingStudy liefert Kontext und Identifikatoren;
-        die DICOM-Objekte werden über einen Imaging-Endpunkt wie WADO-RS
-        abgerufen.
+        Richtig. Die korrekte Anfrage kombiniert die in Endpoint.address
+        hinterlegte Basis-URL, die Study Instance UID im Pfad
+        (WADO-RS-Struktur, keine Query-Parameter wie bei QIDO-RS) und den
+        Accept-Header multipart/related; type="application/dicom", wie
+        ihn ein Study-Retrieve laut PS3.18 immer liefert.
 
 flag:
   type: exact
   source_tag: scenario
-  hash: "sha256:220a8fc886276773a74e5d57a63ef7934b6594047d8495c582527ad5b9c2fce1"
+  hash: "sha256:532a9a5a36f79f88206e4479731d7afa69c2dadb6cc100d6d95566f913020826"
   case_sensitive: false
 
 hints:
@@ -89,4 +139,4 @@ hints:
 
 stuck_timeout_minutes: 10
 status: draft
-updated: "2026-09-16"
+updated: "2026-09-19"
