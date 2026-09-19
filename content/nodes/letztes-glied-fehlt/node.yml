@@ -219,13 +219,17 @@ scenario:
       prompt: >
         Richtig. C-STORE (60/60) und MPPS (N-CREATE/N-SET, COMPLETED)
         sind beide ordnungsgemäß abgeschlossen. Die Storage-Commitment-
-        Anfrage (N-ACTION) wurde ebenfalls angenommen — aber die
-        Registrierung der Rückruf-Gegenstelle RAD-CALLBACK verweist seit
-        der Systemmigration auf den falschen Port (8104 statt 8114).
-        Das Archiv kann das N-EVENT-REPORT deshalb nie zustellen, obwohl
-        die Prüfung selbst vermutlich längst durchgelaufen ist. Für den
-        Requestor sieht das identisch aus wie "nie bestätigt" — nicht
-        wie "abgelehnt".
+        Anfrage (N-ACTION) wurde vom Archiv erfolgreich angenommen — das
+        bestätigt nur den Empfang der Prüfanfrage, nicht deren Ergebnis.
+        Ob die Commitment-Prüfung selbst erfolgreich oder mit Fehlern
+        abgeschlossen wurde, kann der Requestor ohne N-EVENT-REPORT
+        nicht wissen. Sicher belegt ist dagegen, dass die Registrierung
+        der Rückruf-Gegenstelle RAD-CALLBACK seit der Systemmigration
+        auf den falschen Port (8104 statt 8114) verweist, sodass ein
+        N-EVENT-REPORT über diesen Rückweg den Listener nie erreichen
+        kann. Für den Requestor sieht das identisch aus wie "nie
+        bestätigt" — unabhängig davon, was das Archiv intern tatsächlich
+        ermittelt hat.
 
 flag:
   type: exact

@@ -10,6 +10,15 @@ Bilder sind im PACS sichtbar, ein Radiologe kann die Study öffnen.
 Trotzdem markiert das RIS den Vorgang weiterhin als nicht
 abgeschlossen.
 
+In dieser Umgebung wertet der Integrationsbroker neben MPPS auch das
+Storage-Commitment-Ergebnis aus. Erst wenn für die übertragenen Objekte
+ein Commitment-Ergebnis eingegangen ist, setzt er den lokalen
+Archivierungsstatus des Vorgangs auf abgeschlossen. Das ist eine lokale
+Workflow-Regel, keine allgemeine DICOM-Vorgabe — Storage Commitment
+selbst bestätigt nur die dauerhafte Aufbewahrung konkreter SOP
+Instances, nichts darüber, wann ein RIS einen Vorgang als
+abgeschlossen führt.
+
 Drei unabhängige Meldewege können für denselben Vorgang stehen: C-STORE
 (Bildtransfer), MPPS (Verfahrensstatus der Modalität) und Storage
 Commitment (dauerhafte Übernahme durch das Archiv). Deine Aufgabe: aus
@@ -113,13 +122,17 @@ Rückmeldung selbst.
 
 ### Erste fehlerhafte Stelle
 
-Die Storage-Commitment-Prüfung wurde gestellt und vermutlich auch
-durchgeführt — aber die Registrierung der Rückruf-Gegenstelle
-RAD-CALLBACK verweist auf einen falschen Port. Das Archiv kann das
-`N-EVENT-REPORT` deshalb nie zustellen. Für den Requestor sieht das
-identisch aus wie "nie bestätigt", obwohl weder C-STORE noch MPPS noch
-die eigentliche Commitment-Prüfung selbst das Problem sind — die erste
-fehlerhafte Stelle liegt im Rückweg, nicht im Vorgang.
+Die `N-ACTION`-Anfrage wurde vom Archiv erfolgreich angenommen — das
+bestätigt nur den Empfang der Prüfanfrage, nicht deren Ergebnis. Ob die
+Commitment-Prüfung selbst erfolgreich oder mit Fehlern abgeschlossen
+wurde, kann der Requestor ohne `N-EVENT-REPORT` nicht wissen. Sicher
+belegt ist dagegen, dass die Registrierung der Rückruf-Gegenstelle
+RAD-CALLBACK seit der Systemmigration auf den falschen Port verweist,
+sodass ein `N-EVENT-REPORT` über diesen Rückweg den Listener nie
+erreichen kann. Für den Requestor sieht das identisch aus wie "nie
+bestätigt" — unabhängig davon, was das Archiv intern tatsächlich
+ermittelt hat. Die erste nachweislich fehlerhafte Stelle liegt im
+Rückweg, nicht im Vorgang.
 
 ### Betriebliche Maßnahme
 
