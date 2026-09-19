@@ -28,7 +28,11 @@ class LessonFactory extends Factory
             'related_node' => null,
             'glossary_terms' => [],
             'tools_checked' => now(),
-            'status' => 'draft',
+            // Wie jede real veroeffentlichte Lektion (ADR 0119, analog zu
+            // NodeFactory/ADR 0110: LessonController zeigt Lernenden nur
+            // "published") -- ein Test, der explizit eine noch nicht
+            // freigegebene Lektion braucht, ueberschreibt das gezielt.
+            'status' => 'published',
             'legacy_authors' => [],
             'content_updated_at' => now(),
             'title' => ['de' => fake()->sentence()],

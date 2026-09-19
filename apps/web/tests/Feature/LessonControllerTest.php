@@ -52,6 +52,59 @@ class LessonControllerTest extends TestCase
         $this->get('/de/lessons/1.0')->assertRedirect('/de/login');
     }
 
+    /**
+     * Seit ADR 0119 (Lesson-Sichtbarkeit gehaertet, analog ADR 0110 fuer
+     * Node): eine noch nicht freigegebene Lektion ist fuer eine normale
+     * Lernende gesperrt -- vorher war show() ueberhaupt nicht gegen den
+     * Status geprueft, ein Entwurf war also sofort fuer jeden angemeldeten
+     * Nutzer per Direktlink sichtbar.
+     */
+    public function test_a_learner_cannot_open_a_lesson_that_is_not_yet_published(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft']);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get('/de/lessons/1.0')->assertNotFound();
+    }
+
+    /**
+     * "Vorschau" (LessonEditorController::preview()) ist keine zweite
+     * Route -- ein Autor/Reviewer, der die zugehoerige Activity bearbeiten
+     * darf, sieht denselben Lerner-Renderer trotzdem, auch bevor die
+     * Lektion freigegeben ist.
+     */
+    public function test_an_assigned_author_can_preview_a_lesson_that_is_not_yet_published(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft', 'body' => 'Prosa-Inhalt der Lektion.']);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $author = User::factory()->author()->create();
+        $activity->authorUsers()->attach($author);
+
+        $this->actingAs($author)->get('/de/lessons/1.0')->assertOk();
+    }
+
+    public function test_an_unassigned_author_cannot_preview_a_lesson_that_is_not_yet_published(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $author = User::factory()->author()->create();
+
+        $this->actingAs($author)->get('/de/lessons/1.0')->assertNotFound();
+    }
+
+    public function test_a_reviewer_can_preview_a_lesson_that_is_not_yet_published(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'review', 'body' => 'Prosa-Inhalt der Lektion.']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($reviewer)->get('/de/lessons/1.0')->assertOk();
+    }
+
     public function test_it_renders_the_lesson_with_toolbar_and_marks_new_tools(): void
     {
         $track = Track::factory()->create(['order' => 1]);
