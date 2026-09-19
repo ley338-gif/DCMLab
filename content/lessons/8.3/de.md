@@ -21,7 +21,29 @@ In DICOM PS3.18 gehören zu den zentralen Webtransaktionen:
 - **WADO-RS** — Retrieve
 - **STOW-RS** — Store
 
-Die vorhandene Orthanc-Spielwiese kann DICOMweb bereits demonstrieren.
+## Vom FHIR-Endpoint zur WADO-RS-Anfrage
+
+Die `ImagingStudy` aus 8.2 verweist über `endpoint` auf eine `Endpoint`-Ressource:
+
+<!-- kein-beispiel -->
+```text
+ImagingStudy.identifier:   urn:dicom:uid / urn:oid:1.2.276.0.7230010.3.1.2.93821
+ImagingStudy.endpoint  →   Endpoint/ep-wado-1
+Endpoint.connectionType:   dicom-wado-rs
+Endpoint.address:          https://pacs.example/dicom-web
+```
+
+Daraus ergibt sich die konkrete WADO-RS-Anfrage für die gesamte Studie:
+
+<!-- kein-beispiel -->
+```http
+GET https://pacs.example/dicom-web/studies/1.2.276.0.7230010.3.1.2.93821
+Accept: multipart/related; type="application/dicom"
+```
+
+**Was du daran abliest:** Weder die Study Instance UID allein noch die Endpoint-Adresse allein reichen. Erst die Kombination ergibt eine gültige WADO-RS-Anfrage: Basis-URL aus `Endpoint.address`, Pfad aus der Study Instance UID, `Accept` passend zum `connectionType`. Ein Retrieve auf Study- oder Series-Ebene liefert dabei laut PS3.18 immer eine `multipart/related`-Antwort — nicht ein einzelnes `application/dicom`-Objekt ohne Umschlag, selbst wenn die Studie nur eine Instanz enthält.
+
+Die vorhandene Orthanc-Spielwiese kann genau diese Anfrage bereits demonstrieren, jetzt gegen echte Testdaten statt der fiktiven Beispiel-IDs aus 8.2.
 
 ### Suchen mit QIDO-RS
 
@@ -47,7 +69,7 @@ HTTP/1.1 200 OK
 Content-Type: multipart/related; type="application/dicom"; boundary=9c27af7e-...
 ```
 
-**Was du daran abliest:** Der Bildabruf passiert über den DICOMweb-Endpunkt mit `Accept: multipart/related`, nicht durch `GET /fhir/ImagingStudy/.../pixels` — genau der Fehler, den die Node „FHIR ist nicht WADO“ zeigt. Ein `HEAD`-Request auf dieselbe URL liefert dagegen `404`, weil das WADO-RS-Retrieve nur auf `GET` reagiert.
+**Was du daran abliest:** Genau wie eben aus Endpoint-Adresse und Study Instance UID hergeleitet, liefert der reale Abruf gegen die Spielwiese dieselbe `multipart/related`-Antwort mit den angeforderten DICOM-Objekten. Der Bildabruf gehört an diesen DICOMweb-Endpunkt — nicht an einen vermeintlichen Bild-Unterpfad des FHIR-Servers.
 
 ## FHIR liefert Kontext, DICOMweb liefert Imaging
 
@@ -57,7 +79,7 @@ Ein nützliches Denkmodell:
 FHIR
   Patient ── ServiceRequest ── ImagingStudy ── DiagnosticReport
                               │
-                              │ DICOM Study UID / Endpoint
+                              │ DICOM Study Instance UID / Endpoint
                               ▼
 DICOMweb
   QIDO-RS ── findet Studie
@@ -113,7 +135,7 @@ Für jede Integration stellst du vier Fragen:
 
 ## Lab
 
-In „FHIR ist nicht WADO“ bekommst du eine valide ImagingStudy und einen funktionierenden Viewer-Link — trotzdem versucht ein Client, die Pixel über den FHIR-Endpunkt zu laden. Du musst die falsche Schicht identifizieren.
+In „FHIR ist nicht WADO” bekommst du eine valide ImagingStudy mit eigenem Endpoint. Du musst nicht nur die falsche Schicht erkennen, sondern aus Endpoint-Adresse, Study Instance UID und `connectionType` den tatsächlich korrekten Abruf rekonstruieren.
 
 ## Selbstcheck
 
