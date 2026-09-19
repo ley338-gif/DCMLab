@@ -1,0 +1,76 @@
+slug: serie-ohne-studie
+difficulty: medium
+points: 20
+category: datenmodell
+skills: [datenmodell, netzwerk]
+related_lessons: ["2.3"]
+estimated_minutes: 15
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.33.0.50
+      role: shell
+    - name: archive
+      ip: 10.33.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: NEURO-PACS
+          accepts: [verification, study-root-find]
+      config_visible: false
+      # Die Study liegt von Anfang an im Archiv (Feature 1 aus P10, kein
+      # neuer Engine-Code) -- der Fehler liegt in der Anfrage, nicht im
+      # Datenbestand. Eine SERIES-Abfrage ohne StudyInstanceUID scheitert
+      # in der echten Engine strukturell (0xa900), unabhaengig von allen
+      # anderen Matching-Keys -- siehe services/engine/app/rules.py,
+      # MSG_SERIES_WITHOUT_STUDY.
+      records:
+        - patient_id: "7734"
+          patient_name: "HOFFMANN^LARS"
+          study_uid: "1.2.276.0.7230010.3.1.4.660412998215"
+          study_description: "MR Kopf nativ"
+          study_date: "20260301"
+          accession_number: "A66210"
+          series:
+            - series_uid: "1.2.276.0.7230010.3.1.3.660412998301"
+              series_description: "T1 sag"
+            - series_uid: "1.2.276.0.7230010.3.1.3.660412998302"
+              series_description: "T2 tra"
+
+  known_calling_aets: [DCMLAB-WS]
+
+  tools: [findscu]
+
+  files:
+    - ticket.txt   # die Anfrage des Kollegen samt der bereits gescheiterten Abfrage
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.find_series_broken
+      command: "findscu -S -k QueryRetrieveLevel=SERIES -k AccessionNumber=A66210 -k SeriesInstanceUID -k SeriesDescription -aet DCMLAB-WS -aec NEURO-PACS 10.33.0.10 104"
+    - label_key: tpl.find_study
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k AccessionNumber=A66210 -k PatientID -k PatientName -k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec NEURO-PACS 10.33.0.10 104"
+    - label_key: tpl.find_series_corrected
+      command: "findscu -S -k QueryRetrieveLevel=SERIES -k StudyInstanceUID=ZIEL_UID -k SeriesInstanceUID -k SeriesDescription -aet DCMLAB-WS -aec NEURO-PACS 10.33.0.10 104"
+  placeholders: [ZIEL_UID]
+
+flag:
+  type: exact
+  hash: "sha256:93891f6e4ea44fe08961a4273b8eef98e5cd04f55358009fdb9260e7c4f4cc3b"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 10
+
+status: draft
+updated: "2026-09-19"

@@ -1,0 +1,82 @@
+slug: geteilte-studie
+difficulty: medium
+points: 20
+category: datenmodell
+skills: [datenmodell]
+related_lessons: ["4.5"]
+estimated_minutes: 18
+
+environment:
+  engine: simulated
+  hosts:
+    - name: workstation
+      ip: 10.20.0.50
+      role: shell
+    - name: archive
+      ip: 10.20.0.10
+      services:
+        - port: 104
+          type: scp
+          ae_title: MR-ARCHIV
+          accepts: [verification, study-root-find]
+      config_visible: false
+      # Zwei Studies mit derselben Accession Number, aber unterschiedlichen
+      # Study Instance UIDs -- ein Split, keine Dublette (Feature 1 aus P10,
+      # kein neuer Engine-Code, unabhaengiger Fall gegenueber Lektion 4.5).
+      records:
+        - patient_id: "9310"
+          patient_name: "KELLER^ANNA"
+          study_uid: "1.2.276.0.7230010.3.1.4.410205118834"
+          study_description: "MR Wirbelsaeule nativ"
+          study_date: "20260304"
+          accession_number: "A50231"
+          series:
+            - series_uid: "1.2.276.0.7230010.3.1.3.410205118901"
+              series_description: "Sag T2"
+        - patient_id: "9310"
+          patient_name: "KELLER^ANNA"
+          study_uid: "1.2.276.0.7230010.3.1.4.410288227741"
+          study_description: "MR Wirbelsaeule nativ"
+          study_date: "20260304"
+          accession_number: "A50231"
+          series:
+            - series_uid: "1.2.276.0.7230010.3.1.3.410288227801"
+              series_description: "Sag T1"
+            - series_uid: "1.2.276.0.7230010.3.1.3.410288227802"
+              series_description: "Tra T2"
+            - series_uid: "1.2.276.0.7230010.3.1.3.410288227803"
+              series_description: "Cor STIR"
+
+  known_calling_aets: [DCMLAB-WS]
+
+  tools: [findscu]
+
+  files:
+    - geraeteprotokoll.txt   # Auszug aus dem Geraeteprotokoll von MR-3
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.find_accession
+      command: "findscu -S -k QueryRetrieveLevel=STUDY -k AccessionNumber=A50231 -k PatientID -k PatientName -k StudyInstanceUID -k StudyDescription -k StudyDate -aet DCMLAB-WS -aec MR-ARCHIV 10.20.0.10 104"
+    - label_key: tpl.find_series
+      command: "findscu -S -k QueryRetrieveLevel=SERIES -k StudyInstanceUID=ZIEL_UID -k SeriesInstanceUID -k SeriesDescription -aet DCMLAB-WS -aec MR-ARCHIV 10.20.0.10 104"
+  placeholders: [ZIEL_UID]
+
+flag:
+  type: exact
+  hash: "sha256:f23cc0b82c443485a608c4f713c338520f4715e339bdb3af76848a0d517c56a9"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 1
+  - id: h2
+    cost: 2
+  - id: h3
+    cost: 4
+
+stuck_timeout_minutes: 12
+
+status: draft
+updated: "2026-09-19"
