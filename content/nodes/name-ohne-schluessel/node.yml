@@ -193,13 +193,14 @@ scenario:
       terminal: true
       outcome: wrong
       prompt: >
-        PatientName (VR PN) ist nicht auf ein festes Basis-Repertoire
-        beschränkt — welche Zeichen zulässig sind, legt gerade
-        SpecificCharacterSet für das gesamte Objekt fest. Fehlt die
-        Deklaration, gilt der Standard-Default (reines 7-Bit-ASCII),
-        aber das macht vorhandene Bytes über 127 nicht automatisch zu
-        einem ungültigen, zu verwerfenden Objekt — es fehlt die Angabe,
-        wie sie zu lesen sind.
+        PatientName (VR PN) darf durchaus erweiterte Zeichen enthalten
+        — aber nur, wenn das verwendete Repertoire über
+        SpecificCharacterSet korrekt deklariert ist. Genau das fehlt
+        hier: Die Textkodierung dieses Objekts ist damit nicht
+        DICOM-konform. Daraus folgt aber nicht, dass jedes Archiv das
+        Objekt deshalb zwingend ablehnen muss — Orthancs Annahme des
+        Objekts ist tolerantes Implementierungsverhalten, kein Beleg
+        dafür, dass die Kodierung selbst in Ordnung wäre.
     wrong_not_relevant:
       terminal: true
       outcome: wrong
@@ -235,11 +236,13 @@ scenario:
       terminal: true
       outcome: wrong
       prompt: >
-        PatientName ist nicht durch ein festes Zeichen-Repertoire
-        begrenzt — welche Zeichen gültig sind, hängt von
-        SpecificCharacterSet ab. Fehlende Deklaration macht die
-        vorhandenen Bytes nicht automatisch ungültig, nur ihre
-        Interpretation uneindeutig.
+        PatientName darf durchaus erweiterte Zeichen enthalten, wenn
+        das verwendete Repertoire über SpecificCharacterSet korrekt
+        deklariert ist. Genau das fehlt hier — die Textkodierung dieses
+        Objekts ist damit nicht DICOM-konform. Das ist aber ein
+        Deklarationsfehler, kein Beleg dafür, dass "ungültige Zeichen"
+        im Namen stecken, die jedes Archiv zwingend zurückweisen
+        müsste.
     success:
       terminal: true
       outcome: correct
@@ -249,14 +252,17 @@ scenario:
         Name ist byteidentisch mit dem Registrierungssystem angekommen
         und vollständig gespeichert. Der Fehler liegt in der fehlenden
         Deklaration: (0008,0005) SpecificCharacterSet ist für dieses
-        Objekt nicht gesetzt, obwohl PatientName Bytes über 127 enthält.
-        Ohne diese Deklaration ist jedes Werkzeug auf eine eigene
-        Annahme angewiesen — das Archiv rät intern eine Kodierung und
-        zeigt den Namen unauffällig, BRIEF-EXPORT verweigert die
-        Verarbeitung ausdrücklich, IF-ENGINE-3 nimmt eine andere Annahme
-        an und zeigt sichtbar falsche Zeichen. Drei unterschiedliche,
-        jeweils in sich konsistente Reaktionen auf dieselbe Lücke — kein
-        Tippfehler, keine Beschädigung, kein ungültiges Objekt.
+        Objekt nicht gesetzt, obwohl PatientName Bytes außerhalb des
+        Default-Repertoires (7-Bit-ASCII) enthält — die Textkodierung
+        dieses Objekts ist damit nicht DICOM-konform. Ohne die
+        Deklaration ist jedes Werkzeug auf eine eigene Annahme
+        angewiesen — das Archiv rät intern eine Kodierung und zeigt den
+        Namen unauffällig, BRIEF-EXPORT verweigert die Verarbeitung
+        ausdrücklich, IF-ENGINE-3 nimmt eine andere Annahme an und
+        zeigt sichtbar falsche Zeichen. Drei unterschiedliche, jeweils
+        in sich konsistente Reaktionen auf dieselbe Lücke — kein
+        Tippfehler und keine Transportbeschädigung, sondern ein
+        DICOM-Encoding-/Deklarationsfehler.
 
 flag:
   type: exact

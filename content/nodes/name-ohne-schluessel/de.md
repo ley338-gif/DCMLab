@@ -78,10 +78,12 @@ Registrierung erzeugt hat.
    gültiges, vollständig gespeichertes DICOM-Objekt, unveränderte
    Rohbytes.
 3. **Der Name enthält Zeichen außerhalb des zulässigen Wertebereichs
-   von PatientName und ist damit ungültig.** Widerlegt: PatientName ist
-   nicht auf ein festes Zeichen-Repertoire begrenzt — welche Zeichen
-   gültig sind, legt SpecificCharacterSet für das gesamte Objekt fest,
-   nicht die VR PN selbst.
+   von PatientName und ist damit ungültig.** Widerlegt: PatientName
+   darf durchaus erweiterte Zeichen enthalten, wenn das verwendete
+   Repertoire über SpecificCharacterSet korrekt deklariert ist — genau
+   das fehlt hier. Die Textkodierung dieses Objekts ist damit nicht
+   DICOM-konform, aber das ist ein Deklarationsfehler, kein Beleg für
+   grundsätzlich unzulässige Zeichen in PN.
 4. **SpecificCharacterSet fehlt für dieses Objekt, wodurch verschiedene
    Werkzeuge dieselben Rohbytes unterschiedlich interpretieren.**
    Bestätigt: (0008,0005) fehlt vollständig, obwohl PatientName Bytes
@@ -108,10 +110,13 @@ Registrierung erzeugt hat.
 
 Nicht die Registrierung, nicht der Transport, nicht ein einzelnes
 Werkzeug — das Objekt selbst deklariert seine Zeichenkodierung nicht,
-obwohl es Bytes außerhalb des 7-Bit-ASCII-Bereichs enthält. Jedes der
-drei Werkzeuge trifft daraufhin eine eigene, in sich konsistente
-Annahme: raten, verweigern, falsch interpretieren. Keines der drei ist
-für sich genommen defekt — jedes verarbeitet dieselbe Lücke nur anders.
+obwohl PatientName Bytes außerhalb des Default-Repertoires
+(7-Bit-ASCII) enthält. Damit ist die Textkodierung dieses konkreten
+Objekts nicht DICOM-konform kodiert. Die gemeinsame Ursache ist dieser
+eine, nicht konform deklarierte Textwert — die drei unterschiedlichen
+Werkzeugreaktionen (raten, verweigern, falsch interpretieren) sind
+produktspezifische Toleranz- bzw. Fehlerstrategien auf dieselbe
+Nichtkonformität, keine drei unabhängigen Werkzeugfehler.
 
 ### Betriebliche Maßnahme
 
@@ -127,9 +132,13 @@ korrekten Wert unnötig anfassen.
 
 Ein Name, der in einem Werkzeug korrekt aussieht, beweist nicht, dass
 ein anderes Werkzeug dieselben Bytes ebenso verarbeitet. Fehlt
-`SpecificCharacterSet`, ist das kein Datenfehler und keine
-Beschädigung — es fehlt nur die Angabe, wie vorhandene Bytes zu lesen
-sind, und jedes Werkzeug darf mit dieser Lücke unterschiedlich umgehen.
+`SpecificCharacterSet`, obwohl der Text Zeichen außerhalb des
+Default-Repertoires enthält, ist das kein Tippfehler und keine
+Transportbeschädigung, sondern ein DICOM-Encoding-/Deklarationsfehler.
+Wie einzelne Werkzeuge in der Praxis darauf reagieren — raten,
+verweigern, falsch anzeigen —, ist produktspezifisches
+Implementierungsverhalten, nicht die vom Standard definierte
+Interpretation.
 
 ### Verwandte Inhalte
 
