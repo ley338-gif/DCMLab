@@ -1,0 +1,283 @@
+slug: name-ohne-schluessel
+difficulty: medium
+points: 25
+category: datenmodell
+interaction: scenario
+skills: [datenmodell]
+related_lessons: ["3.6"]
+estimated_minutes: 15
+
+# Diagnose-Node zu Lektion 3.6 (Specific Character Set). interaction:
+# scenario statt terminal/simulated: services/engine hat kein dcm2json,
+# kein PatientName- und kein SpecificCharacterSet-Feld in seiner
+# dcmdump-Simulation (DCMDUMP_FIELD_ORDER in
+# services/engine/app/rules.py, dokumentiert in docs/content-schema.md
+# 6g-6i) -- ein Vergleich mehrerer, real unterschiedlich reagierender
+# Werkzeuge auf dieselben Rohbytes ist damit nicht ueber die
+# Terminal-Engine abbildbar, ohne mehrere neue Engine-Faehigkeiten neu
+# zu bauen (waere keine minimale Erweiterung mehr). Ein Scenario-Node
+# mit kuratierter, an Lektion 3.6 / ADR 0054 angelehnter Werkzeug-
+# Evidenz erreicht denselben Diagnose-Anspruch ohne neue Engine-Arbeit.
+#
+# Eigener Fall, unabhaengig von der Lektion: neuer Patient/neue UIDs,
+# nicht "Mueller^Juergen". Diagnose ist eine fehlende Deklaration, kein
+# Tippfehler und keine beschaedigte Datei -- siehe Lektion 3.6: fehlt
+# SpecificCharacterSet, gilt der Standard-Default (ISO_IR 6), Werkzeuge
+# duerfen darueber hinaus tolerant/heuristisch reagieren, das ist
+# Toolverhalten, keine Standardsemantik.
+scenario:
+  start: ticket
+  steps:
+    ticket:
+      prompt: >
+        Ticket: Der Referral-Export-Dienst BRIEF-EXPORT bricht beim
+        Erstellen eines Zuweiserbriefs für Patient 88341 (Auftrag
+        A61027, Study Instance UID
+        1.2.276.0.7230010.3.1.4.550219876034) mit einer Kodierungs-
+        Fehlermeldung ab. Im Archiv STUDIEN-ARCHIV ist Patient und Study
+        vollständig vorhanden und über die Web-Oberfläche einsehbar,
+        der Name erscheint dort unauffällig. Was ist der sinnvollste
+        erste Schritt?
+      options:
+        - id: fix_name
+          label: Den Patientennamen im Archiv manuell neu eintippen.
+          next: wrong_fix_name
+        - id: resend
+          label: Die Modalität bitten, das Objekt erneut zu senden.
+          next: wrong_resend
+        - id: restart_export
+          label: Den Referral-Export-Dienst neu starten.
+          next: wrong_restart_export
+        - id: evidence
+          label: Vorhandene Evidenz systematisch sammeln (Speicherung, Rohbytes, Deklaration, Werkzeugreaktionen) statt sofort einzugreifen.
+          next: store_check
+
+    store_check:
+      prompt: >
+        Log des Archivs: C-STORE Success, Objekt vollständig gespeichert.
+        Formatprüfung: gültiges DICOM-Objekt. Patient und Study sind im
+        Archiv auffindbar. Was folgt daraus?
+      options:
+        - id: store_blamed
+          label: Die Speicherung ist die Fehlerursache.
+          next: wrong_store_blamed
+        - id: premature_close
+          label: Damit ist der Fall geklärt — das Objekt ist technisch in Ordnung.
+          next: wrong_premature_close
+        - id: proceed
+          label: Speicherung als Fehlerdomäne ausschließen und die Rohbytes des Namens prüfen.
+          next: byte_check
+
+    byte_check:
+      prompt: >
+        Byte-Vergleich: Der PatientName-Rohwert im gespeicherten Objekt
+        ist byteidentisch mit dem Wert, den das Anmeldesystem
+        KIS-ANMELDUNG beim Registrieren des Patienten erzeugt hat. Was
+        folgt daraus?
+      options:
+        - id: typo_confirmed
+          label: Die Rohbytes weichen vom Registrierungssystem ab — der Name wurde falsch erfasst.
+          next: wrong_typo_confirmed
+        - id: corrupted
+          label: Die Rohbytes sind beim Transport beschädigt worden.
+          next: wrong_corrupted
+        - id: proceed
+          label: Übereinstimmende Rohbytes als Ursache ausschließen und die Kodierungsdeklaration prüfen.
+          next: declaration_check
+
+    declaration_check:
+      prompt: >
+        dcmdump des Objekts: PatientName ist vorhanden und enthält
+        Bytes über 127 (nicht reines 7-Bit-ASCII). Das Attribut (0008,0005)
+        SpecificCharacterSet fehlt im Objekt vollständig. Was folgt
+        daraus?
+      options:
+        - id: pn_out_of_range
+          label: PatientName (VR PN) darf keine Zeichen außerhalb des Basis-Repertoires enthalten — das Objekt ist damit ungültig und muss verworfen werden.
+          next: wrong_pn_out_of_range
+        - id: not_relevant
+          label: SpecificCharacterSet betrifft nur die Anzeige in einzelnen Werkzeugen, nicht die eigentliche Datenkorrektheit.
+          next: wrong_not_relevant
+        - id: proceed
+          label: Die fehlende Deklaration als Spur weiterverfolgen und prüfen, wie unterschiedliche Werkzeuge auf dieselben Rohbytes reagieren.
+          next: tool_comparison
+
+    tool_comparison:
+      prompt: >
+        Drei Werkzeuge, dieselben Rohbytes: Die Web-Oberfläche des
+        Archivs STUDIEN-ARCHIV zeigt den Namen unauffällig an (rät beim
+        Fehlen der Deklaration intern eine Kodierung). BRIEF-EXPORT
+        bricht mit der Meldung "dataset contains extended characters
+        but no SpecificCharacterSet (0008,0005)" vollständig ab. Die
+        Schnittstellen-Engine IF-ENGINE-3, die denselben Namen an das
+        ältere System ALT-PACS weiterreicht, zeigt dort sichtbar falsche
+        Zeichen an ihrer Stelle. Was folgt daraus?
+      options:
+        - id: one_tool_bug
+          label: Nur BRIEF-EXPORT hat einen eigenen Darstellungsfehler, die anderen beiden Werkzeuge sind korrekt.
+          next: wrong_one_tool_bug
+        - id: proceed
+          label: Aus der gesamten Evidenz eine Diagnose ableiten.
+          next: diagnosis
+
+    diagnosis:
+      prompt: >
+        Welche Diagnose passt zur gesamten gesammelten Evidenz?
+      options:
+        - id: hyp_typo
+          label: Der Patientenname wurde bei der Registrierung falsch erfasst.
+          next: wrong_hyp_typo
+        - id: hyp_corrupted
+          label: Die Datei ist beim Transport beschädigt worden.
+          next: wrong_hyp_corrupted
+        - id: hyp_pn_invalid
+          label: Der Name enthält Zeichen außerhalb des zulässigen Wertebereichs von PatientName und ist damit ungültig.
+          next: wrong_hyp_pn_invalid
+        - id: hyp_charset_missing
+          label: SpecificCharacterSet fehlt für dieses Objekt, wodurch verschiedene Werkzeuge dieselben Rohbytes unterschiedlich interpretieren (raten, verweigern, falsch anzeigen).
+          next: success
+
+    wrong_fix_name:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Rohbyte-Vergleich mit dem Registrierungssystem zeigt einen
+        identischen Namen — ein manuelles Neueintippen würde einen
+        bereits korrekten Wert durch einen neuen, unabhängig fehleranfälligen
+        Wert ersetzen, ohne die eigentliche Ursache zu berühren.
+    wrong_resend:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das Objekt ist laut Log bereits vollständig und erfolgreich
+        gespeichert — ein erneuter Versand würde nur ein zweites,
+        identisches Objekt mit demselben Attribut erzeugen.
+    wrong_restart_export:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein Neustart ändert nichts an den Rohbytes oder der fehlenden
+        Deklaration im Objekt selbst — BRIEF-EXPORT würde beim nächsten
+        Versuch mit demselben Objekt erneut abbrechen.
+    wrong_store_blamed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das Objekt wurde laut Log erfolgreich gespeichert (C-STORE
+        Success) und ist im Archiv vollständig auffindbar — die
+        Speicherung selbst erklärt den Abbruch bei BRIEF-EXPORT nicht.
+    wrong_premature_close:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Eine erfolgreiche Speicherung ist nur eine von mehreren
+        unabhängigen Aussagen — weder die Rohbytes noch die
+        Kodierungsdeklaration wurden damit bereits geprüft. Speicherung
+        prüft in der Praxis nicht dieselben Attribute wie eine
+        nachgelagerte Textverarbeitung.
+    wrong_typo_confirmed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Byte-Vergleich zeigt das Gegenteil: Die Rohbytes im
+        gespeicherten Objekt sind identisch mit denen aus dem
+        Registrierungssystem KIS-ANMELDUNG — kein Tippfehler.
+    wrong_corrupted:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Identische Rohbytes zwischen Registrierungssystem und
+        gespeichertem Objekt sprechen gegen eine Beschädigung beim
+        Transport — die Bytes sind unverändert angekommen.
+    wrong_pn_out_of_range:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        PatientName (VR PN) darf durchaus erweiterte Zeichen enthalten
+        — aber nur, wenn das verwendete Repertoire über
+        SpecificCharacterSet korrekt deklariert ist. Genau das fehlt
+        hier: Die Textkodierung dieses Objekts ist damit nicht
+        DICOM-konform. Daraus folgt aber nicht, dass jedes Archiv das
+        Objekt deshalb zwingend ablehnen muss — Orthancs Annahme des
+        Objekts ist tolerantes Implementierungsverhalten, kein Beleg
+        dafür, dass die Kodierung selbst in Ordnung wäre.
+    wrong_not_relevant:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Genau das Gegenteil zeigt die Evidenz: Drei verschiedene
+        Werkzeuge reagieren unterschiedlich auf dieselben Rohbytes,
+        eines davon bricht die Verarbeitung vollständig ab —
+        SpecificCharacterSet betrifft also nicht nur die Anzeige,
+        sondern ob ein Werkzeug die Daten überhaupt verarbeitet.
+    wrong_one_tool_bug:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Alle drei Werkzeuge reagieren unterschiedlich auf exakt dieselben
+        Rohbytes — Ablehnung, Anzeige nach eigener Rate-Heuristik, sichtbar
+        falsche Zeichen. Ein einzelner Werkzeugfehler erklärt nicht drei
+        verschiedene, jeweils in sich konsistente Reaktionen auf dieselbe
+        Lücke.
+    wrong_hyp_typo:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der Byte-Vergleich mit dem Registrierungssystem zeigt identische
+        Rohbytes — kein Tippfehler bei der Erfassung.
+    wrong_hyp_corrupted:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das Objekt ist ein gültiges, vollständig gespeichertes
+        DICOM-Objekt mit unveränderten Rohbytes — kein Beleg für eine
+        Beschädigung.
+    wrong_hyp_pn_invalid:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        PatientName darf durchaus erweiterte Zeichen enthalten, wenn
+        das verwendete Repertoire über SpecificCharacterSet korrekt
+        deklariert ist. Genau das fehlt hier — die Textkodierung dieses
+        Objekts ist damit nicht DICOM-konform. Das ist aber ein
+        Deklarationsfehler, kein Beleg dafür, dass "ungültige Zeichen"
+        im Namen stecken, die jedes Archiv zwingend zurückweisen
+        müsste.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: CHARSET-NOT-DECLARED
+      prompt: >
+        Richtig. Speicherung und Rohbytes sind beide unauffällig — der
+        Name ist byteidentisch mit dem Registrierungssystem angekommen
+        und vollständig gespeichert. Der Fehler liegt in der fehlenden
+        Deklaration: (0008,0005) SpecificCharacterSet ist für dieses
+        Objekt nicht gesetzt, obwohl PatientName Bytes außerhalb des
+        Default-Repertoires (7-Bit-ASCII) enthält — die Textkodierung
+        dieses Objekts ist damit nicht DICOM-konform. Ohne die
+        Deklaration ist jedes Werkzeug auf eine eigene Annahme
+        angewiesen — das Archiv rät intern eine Kodierung und zeigt den
+        Namen unauffällig, BRIEF-EXPORT verweigert die Verarbeitung
+        ausdrücklich, IF-ENGINE-3 nimmt eine andere Annahme an und
+        zeigt sichtbar falsche Zeichen. Drei unterschiedliche, jeweils
+        in sich konsistente Reaktionen auf dieselbe Lücke — kein
+        Tippfehler und keine Transportbeschädigung, sondern ein
+        DICOM-Encoding-/Deklarationsfehler.
+
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:e4f5df5c2ed386c3579948afc5e1ced9a66f959e71c0ded2259992f3d921a8d6"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 2
+  - id: h2
+    cost: 4
+  - id: h3
+    cost: 6
+
+stuck_timeout_minutes: 15
+status: draft
+updated: "2026-09-19"

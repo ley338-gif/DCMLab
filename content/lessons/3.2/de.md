@@ -143,6 +143,14 @@ jedes Archiv beim Empfang tatsächlich nachprüft.
 > das, was es für seinen eigenen Betrieb braucht — nicht automatisch
 > die volle Konformität jedes Moduls.
 
+## Lab
+
+Im Node **„Falsch gelesen"** bekommst du ein Bild, das erfolgreich
+gespeichert wurde und trotzdem falsch aussieht — finde heraus, auf
+welcher Ebene (Transport, Transfer Syntax oder Bildinterpretation) die
+Kette tatsächlich reißt, statt vorschnell einen Viewer-Defekt zu
+vermuten.
+
 ## Selbstcheck
 
 1. Was bedeutet `BitsAllocated 16` bei `BitsStored 12`?

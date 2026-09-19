@@ -65,10 +65,14 @@ I: Received Store Response (Success)
 $ storescu -v -aec ORTHANC 127.0.0.1 4242 umlaut-broken.dcm
 I: Received Store Response (Success)
 ```
-**Was du daran abliest:** Orthanc nimmt beide Objekte anstandslos an —
-für die reine Speicherung ist `SpecificCharacterSet` kein
-Pflichtattribut, dasselbe großzügige Muster wie bei den
-Type-1-Attributen aus Lektion 3.1/3.2.
+**Was du daran abliest:** `SpecificCharacterSet` ist hier standardseitig
+erforderlich, weil der Name Zeichen außerhalb des Default-Repertoires
+(reines 7-Bit-ASCII) verwendet — im SOP Common Module ist das Attribut
+Type 1C: Pflicht, sobald ein erweitertes oder ersetzendes
+Zeichen-Repertoire zum Einsatz kommt. Orthanc nimmt das Objekt trotzdem
+anstandslos an. Ein erfolgreicher C-STORE beweist also nicht, dass alle
+Textattribute des Objekts DICOM-konform kodiert sind — nur, dass
+Orthanc diese Konformitätsverletzung beim Speichern nicht erzwingt.
 
 ```
 $ curl -s http://127.0.0.1:8042/dicom-web/studies | grep -A2 Alphabetic
@@ -105,6 +109,13 @@ sie, Orthancs REST-API rät und korrigiert still. Kein Werkzeug ist hier
 > — ein korrekt angezeigter Name in einem Tool beweist nicht, dass ein
 > anderes Tool (z. B. ein strikter Report-Export) dieselbe Datei
 > ebenso verarbeitet.
+
+## Lab
+
+Im Node **„Name ohne Schlüssel"** reagieren drei Werkzeuge
+unterschiedlich auf denselben gespeicherten Namen — finde heraus, ob
+die Daten wirklich falsch sind oder nur die Kodierungsdeklaration
+fehlt.
 
 ## Selbstcheck
 
