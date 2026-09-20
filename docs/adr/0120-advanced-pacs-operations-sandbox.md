@@ -169,7 +169,7 @@ Walker für Kommunikations-/Prozess-/Rechts-Fälle ohne Kommandozeile.
   "Konsole"- und "Archiv"-Tabs sind schon heute bespoke, Host-Shape-
   getriebene Panels neben dem reinen Terminal — ein zukünftiges
   "Jobs"/"Events"-Tab würde demselben Muster folgen, ist aber für
-  Phase 1 **nicht nötig** (siehe 9.6).
+  Phase 1 **nicht nötig** (siehe 9.2, Terminal-first).
 
 ### 2.5 Content-Schema & Validierungs-ADRs
 
@@ -228,6 +228,9 @@ portionsweise vorgelesen. Genau die im Auftrag beschriebene Ziel-
 Erfahrung (`$ pacs jobs --study A94421`, dann `$ dcmdump`, dann
 `$ pacs routes show`) ist mit einem Entscheidungsbaum nicht abbildbar,
 weil die Scenario-Engine keinen Shell-/Objektbegriff hat (siehe 2.2).
+Das bedeutet nicht, dass Scenario abgeschafft werden soll — siehe den
+Architekturgrundsatz in 5.1: die Wahl ist nicht "ein Service für alles",
+sondern "das jeweils passende Werkzeug ohne unnötigen neuen Service".
 
 ## 4. Ziele / Nicht-Ziele
 
@@ -245,7 +248,88 @@ grafische Routing-Oberfläche, kein Event Sourcing, keine
 Microservice-Zersplitterung, keine Ausdruckssprache/`eval()` für
 Regeln.
 
-## 5. Betrachtete Architekturvarianten
+## 5. Architekturgrundsatz und betrachtete Architekturvarianten
+
+### 5.1 Architekturgrundsatz (DCMLab-weit): Module vor Services
+
+**Dieser Grundsatz gilt nicht nur für PACS Operations, sondern für jede
+künftige Simulations- oder Lernfähigkeit in DCMLab:**
+
+> Neue Simulations- oder Lernfähigkeiten werden standardmäßig als
+> Module innerhalb einer bestehenden Engine implementiert. Ein neuer
+> Service ist nur gerechtfertigt, wenn ein eigenständiger Runtime-,
+> Lifecycle-, Isolation- oder Security-Bedarf besteht, der innerhalb
+> einer bestehenden Engine nicht sinnvoll abgebildet werden kann. Eine
+> bloße fachliche Trennung rechtfertigt keinen neuen Service.
+
+Ein neuer Service ist nur vertretbar, wenn **mindestens einer** dieser
+Punkte substanziell zutrifft:
+
+- eigener Runtime-/Dependency-Stack
+- harte Prozess-/Security-Isolation
+- deutlich anderer Lifecycle
+- eigenständige Skalierungs-/Ressourcenanforderung
+- die bestehende Engine wäre fachlich **und** technisch nicht sinnvoll
+  erweiterbar
+
+**Nicht ausreichend** als Begründung: "ist ein anderes DICOM-Service",
+"ist ein neues Feature", "hat eigene Domain-Logik", "kann in eine
+eigene Python-Datei". Jede dieser vier Aussagen trifft auf `find.py`
+(ADR 0011) genauso zu wie auf ein hypothetisches
+`routing-service` — und `find.py` ist zurecht ein Modul geblieben,
+kein Service geworden.
+
+**`services/scenario-engine` ist ausdrücklich kein Präzedenzfall dafür,
+künftig für jede neue Fähigkeit einen eigenen Service zu bauen.** Seine
+Existenz ist durch einen echten, substanziellen Grund gedeckt: ein
+Entscheidungsbaum-Walker hat ein grundlegend anderes Laufzeitmodell
+(kein Shell-/Host-/Assoziationsbegriff, keine DICOM-Simulation) als die
+Terminal-Engine — das ist ein echter "fachlich UND technisch nicht
+sinnvoll erweiterbar"-Fall, kein bloßes "anderes Thema". PACS
+Operations erfüllt dieses Kriterium **nicht**: Routing/Jobs setzen
+direkt auf denselben Hosts, Objekten und Assoziationen auf, die
+`services/engine` bereits simuliert (siehe 5.2, Option B).
+
+Für PACS Operations bedeutet das konkret:
+
+```text
+services/engine
+├── DICOM transport / DIMSE simulation   (rules.py, find.py, heute)
+├── object state                          (neu: operations/objects.py)
+├── query                                 (find.py, heute)
+├── PACS Operations
+│   ├── routing                           (neu: operations/routing.py)
+│   ├── jobs                              (neu: operations/jobs.py)
+│   ├── events                            (neu: operations/events.py)
+│   ├── move                 # später    (operations/move.py)
+│   ├── mpps                 # später    (operations/mpps.py)
+│   └── storage_commitment   # später    (operations/storage_commitment.py)
+└── ...
+```
+
+Das sind **Python-Module innerhalb eines bestehenden Services**. Nicht:
+
+```text
+routing-service
+jobs-service
+pacs-engine
+mpps-service
+storage-commitment-service
+iocm-service
+...
+```
+
+**Klarstellung, damit dieser Grundsatz nicht missverstanden wird**: das
+Ziel ist **nicht**, alles in eine Universal-Engine zu pressen, und
+`services/scenario-engine` wird durch diesen Grundsatz nicht infrage
+gestellt oder abgeschafft. Es bleibt der richtige Ort für
+Kommunikation, Datenschutz/Recht, Entscheidungen, Spezifikations-
+verständnis und Prozesse ohne sinnvoll simulierbare technische
+Oberfläche (siehe Abschnitt 3 und Abschnitt 7). Die Regel lautet nicht
+"nur noch ein Service", sondern **"keinen neuen Service ohne harten
+technischen Grund"**.
+
+### 5.2 Betrachtete Architekturvarianten
 
 **Option A — `services/engine` direkt erweitern (alles in `rules.py`).**
 Einfachste Variante, aber `rules.py` ist bereits ~900 Zeilen; Routing +
@@ -290,7 +374,7 @@ pro Node); (c) PACS Operations als Teil der Scenario-Engine (verworfen,
 siehe 2.2 — dort gibt es keinen Shell-/Objektbegriff, der Umbau wäre
 größer als eine Neuentwicklung in `services/engine`).
 
-### Bewertung
+### 5.3 Bewertung
 
 | Kriterium | A (rules.py direkt) | B (neuer Service) | C (Module in engine) |
 |---|---|---|---|
@@ -321,7 +405,7 @@ Boilerplate-Verdopplung von Option B.
 | C-STORE | Ja | `rules._exec_storescu`/`trigger_action` | Ja (`bestand`) | Ja |
 | C-FIND | Ja | `rules._exec_findscu`, `find.py` | Nein (read-only) | Ja |
 | MWL | Ja | `find.find_worklist`, `environment.worklist` | Nein | Ja |
-| Object Store | **Teilweise** | nur Aggregat-Zähler `bestand[host]`, keine adressierbare Objektliste pro Host | Ja | Teilweise — Kategorie A (siehe 8.3) |
+| Object Store | **Teilweise** | `bestand[host]` ist nur ein Aggregat-Zähler; `_exec_storescu` kennt Objekte aus `environment.objects[]`, `send_study`/Dataset-Pfad kennt **gar keine** Objekte, nur `file_count` (siehe 8.3, Review-Fix) | Ja | Teilweise — Kategorie A, Runtime Object Model nötig (siehe 8.3) |
 | Query Records | Ja | `environment.records`, `find.find_studies/find_series` | Nein | Ja |
 | Transfer Syntax Negotiation | Ja | `accepted_transfer_syntaxes`, `trigger_action` | Ja | Ja |
 | SOP Class Negotiation | Ja | `accepted_sop_classes`, Result 3 vs. 4 | Ja | Ja |
@@ -358,18 +442,37 @@ Klassifikation nach tatsächlichem Grund für `interaction: scenario`:
 | Fehlende DICOM-Metadaten-Inspektion (Photometric, Charset) | `falsch-gelesen`, `name-ohne-schluessel` | Nein — anderes Fähigkeitsfeld (Pixel-/Encoding-Inspektion, nicht Routing) |
 | Fehlende Multiframe-Metadaten + Downstream-App-Simulation | `nur-ein-bild` | Nein — Multiframe/Functional-Groups ist ein eigenes Primitiv (Kategorie A, siehe Matrix), Downstream-App-Logik bleibt ohnehin Scenario-Territorium |
 | Fehlende MPPS/Storage-Commitment-Primitive | `letztes-glied-fehlt` | Teilweise — Job/Event-Modell ist eine sinnvolle Grundlage, aber MPPS/N-ACTION/N-EVENT-REPORT selbst fehlen weiterhin (Kategorie B, eigenes Folge-ADR) |
-| Fehlendes PACS-Routing/Job-Queue-Primitiv | `dosis-bleibt-liegen`, `move-destination-unknown` | **Ja, direkt** |
+| Fehlendes PACS-Routing/Job-Queue-Primitiv (post-storage, Objekt-Selektion) | `dosis-bleibt-liegen` | **Ja, direkt** |
+| Fehlendes C-MOVE/Move-Destination-Registry-Primitiv (verwandt, aber nicht identisch) | `move-destination-unknown` | **Nur angrenzend, nicht direkt** — siehe Korrektur unten |
 | Reine Entscheidungs-/Kommunikations-/Rechtsfälle | `anruf-am-empfang`, `fhir-is-not-wado`, `hl7-ack-trap`, `restore-or-retrieve` | Nein — kein fehlendes Engine-Primitiv, richtig bei Scenario |
 | Fehlende HL7-/Interface-Engine-Routing-Simulation | `hl7-order-gap`, `oru-status-gap` | Nein direkt (anderes Protokoll/Domäne), aber **strukturell dasselbe Muster** (Regel-basierte Nachrichtenselektion) — mögliche spätere Analogie für ein HL7-Pendant, explizit außerhalb dieses ADRs |
 | Multi-System-Akzeptanztest ohne einzelne fehlende Fähigkeit | `modality-go-live` | Teilweise — Routing/Query/MWL-Kombination könnte helfen, aber kein einzelnes fehlendes Primitiv |
 | Fehlende SOP-Class-/Viewer-Capability-Simulation | `stored-but-invisible` | Nein — anderes Fähigkeitsfeld (Display-Capability, nicht Routing) |
 
+**Korrektur nach Review — `move-destination-unknown` ist kein direkter
+Migrationskandidat der Routing-/Job-Phase.** Der Node behandelt
+C-FIND → C-MOVE Request → Move-Destination-AE-Title → PACS-Move-
+Destination-Registry → separate C-STORE-Association zum Viewer. Das
+ist fachlich mit Destination-/Multi-Hop-Logik verwandt (beides dreht
+sich um "wohin geht das Objekt als Nächstes"), aber **nicht identisch**
+mit dem in diesem ADR gebauten Mechanismus "Objekt gespeichert →
+automatische Routenauswertung → Forwarding-Job" (8.5/8.10): C-MOVE
+braucht zusätzlich ein eigenes generisches Primitiv für den
+C-MOVE-Dienst selbst, eine Move-Destination-AE-Registry/-Lookup und
+eine durch einen MOVE-Request ausgelöste zweite Association — keins
+davon liefert Phase A–D dieses ADRs. Das vorgeschlagene PACS-
+Operations-Modell (insbesondere das Destination-Modell aus 8.4) ist
+eine gute **Grundlage** für einen späteren C-MOVE-Ausbau, migriert
+diesen Node aber mit Phase A–D allein noch nicht sauber. Siehe 13.4 für
+das Beispiel-Redesign und 16 (Finale Bewertung C) für die korrigierte
+Einstufung.
+
 **Wichtig**: nicht jede Scenario-Node soll migriert werden. Die
 Klassifikation zeigt, dass ein generisches Routing/Job-Primitiv gezielt
-zwei bis drei Nodes verbessern würde (`dosis-bleibt-liegen`,
-`move-destination-unknown`, teilweise `modality-go-live`), während die
-Mehrheit der 14 Nodes aus fachlich anderen Gründen bei Scenario bleiben
-sollte.
+**einen** Node direkt verbessern würde (`dosis-bleibt-liegen`), während
+`move-destination-unknown` ein angrenzender, späterer Kandidat bleibt
+und `modality-go-live` nur teilweise profitiert — die Mehrheit der 14
+Nodes aus fachlich anderen Gründen bei Scenario bleiben sollte.
 
 ## 8. Zielarchitektur / Domain Model
 
@@ -381,41 +484,83 @@ Multi-Hop-Storage sind zusammen der kleinste Scope, der einen
 deutlichen didaktischen Gewinn erzeugt — **aber** "Multi-Hop-Storage"
 ist kein zusätzliches Primitiv, sondern die **automatische Folge**
 davon, dass eine erfolgreiche Objektspeicherung an einem Host dessen
-Routen auswertet (siehe 8.4). Es gibt also technisch nur **drei** neue
-Bausteine, nicht fünf: Route-Definition + Matcher, Job-Modell,
+Routen auswertet (siehe 8.5). Es gibt also technisch **vier** neue
+Bausteine, nicht fünf: das **Runtime Object Model** (Review-Fix, siehe
+8.3 — ohne dieses gibt es für den `send_study`-Pfad gar keine
+adressierbaren Objekte), Route-Definition + Matcher, Job-Modell,
 Event-Log — Multi-Hop und "Routing Evaluation" ergeben sich aus deren
-Zusammenspiel.
+Zusammenspiel, kein fünftes eigenständiges Primitiv.
 
-### 8.2 Match-Semantik (Abschnitt 7/8 des Auftrags)
+### 8.2 Match-Semantik (Abschnitt 7/8 des Auftrags, Review-Fix: kanonische Form)
 
-**Empfehlung: Hybrid, benannte Attribute statt generischer Tags.**
-
-```yaml
-match:
-  modality: CT                     # Kurzform, implizit "all", implizit "equals"
-```
-
-Für mehrere Bedingungen oder OR-Semantik:
+**Review-Fix**: die ursprüngliche Skizze mischte Kurzform und
+Operator-Syntax uneinheitlich (`{modality: CT, not_equals: true}` ist
+kein sinnvolles, eindeutig parsbares Schema). Es gibt jetzt genau
+**eine kanonische interne Form** — Validator und Matcher kennen nur
+diese, nie mehrere widersprüchliche Modelle:
 
 ```yaml
 match:
-  all:                             # UND-Verknüpfung
-    - modality: CT
-      not_equals: true             # (Beispielschreibweise, siehe unten)
-match:
-  any:                             # ODER-Verknüpfung
-    - modality: CT
-    - modality: MR
+  all:                              # UND-Verknüpfung
+    - field: modality
+      op: equals
+      value: CT
+    - field: sop_class
+      op: in
+      values:                       # nur bei op: in
+        - "1.2.840.10008.5.1.4.1.1.2"
+        - "1.2.840.10008.5.1.4.1.1.2.1"
 ```
+
+```yaml
+match:
+  any:                              # ODER-Verknüpfung, gleiche Atom-Form
+    - field: modality
+      op: equals
+      value: CT
+    - field: modality
+      op: equals
+      value: MR
+```
+
+Ein Bedingungs-Atom ist immer `{field, op, value}` (bzw. `values` bei
+`op: in`; `exists` braucht weder `value` noch `values`, nur `field` +
+`op: exists`). `all`/`any` sind Listen genau solcher Atome — keine
+verschachtelten Gruppen in Phase 1 (bewusst flach, um keine
+Mini-Regelsprache entstehen zu lassen).
+
+**Optionaler Authoring-Sugar** für den mit Abstand häufigsten Fall
+(genau eine Gleichheitsbedingung), rein syntaktischer Zucker, der beim
+Einlesen sofort in die obige kanonische Form normalisiert wird:
+
+```yaml
+match:
+  modality: CT
+```
+
+normalisiert intern zu:
+
+```yaml
+match:
+  all:
+    - field: modality
+      op: equals
+      value: CT
+```
+
+Der Validator prüft **ausschließlich die kanonische Form** (nach
+Normalisierung) — es gibt nie zwei getrennte Validierungspfade für
+Kurzform und Langform.
 
 Erlaubte Operatoren (Abschnitt 24, kein `eval()`): `equals`,
-`not_equals`, `in` (Liste), `exists`. Kein `matches`/Regex in Phase 1 —
-nur nachziehen, falls ein konkreter Node es zwingend braucht.
+`not_equals`, `in` (mit `values`-Liste), `exists`. Kein `matches`/Regex
+in Phase 1 — nur nachziehen, falls ein konkreter Node es zwingend
+braucht.
 
 Erlaubtes Attribut-Vokabular in Phase 1: `modality`, `sop_class`,
 `study_description`, `series_description`, `source_ae` — bewusst
 dieselben benannten Felder, die `environment.objects[]` und
-`DCMDUMP_FIELD_ORDER` bereits kennen (siehe 8.5), **kein** paralleles
+`DCMDUMP_FIELD_ORDER` bereits kennen (siehe 8.12), **kein** paralleles
 generisches Tag-Modell (`"0008,0060"`). Begründung: bessere Lesbarkeit
 für Content-Autoren, keine zweite Repräsentation derselben Daten,
 konsistent mit der bisherigen Repo-Konvention (ADR 0011/12/13 haben
@@ -423,8 +568,7 @@ wiederholt die einfachere, stilkonsistente Variante der roadmap-
 vorgeschlagenen generischeren Variante vorgezogen). Ein generischer
 `tag: "0008,0060"`-Fallback bleibt eine spätere, klar abgegrenzte
 Erweiterung (Kategorie A), falls ein Node ein Attribut braucht, das
-nicht in der Namensliste steht — nicht vorab bauen (YAGN
-I).
+nicht in der Namensliste steht — nicht vorab bauen (YAGNI).
 
 Route-Reihenfolge/Priorität: Routen werden in Datei-Reihenfolge
 ausgewertet; **mehrere Routen können gleichzeitig matchen** (ein
@@ -433,7 +577,7 @@ gibt keinen "erster Treffer gewinnt"-Kurzschluss. `enabled: true|false`
 (Standard `true`) erlaubt eine deaktivierte, aber sichtbare Route als
 Distraktor. `priority` ist **kein** Phase-1-Feld — es gibt keinen
 Konflikt zu lösen, solange mehrere Treffer erlaubt sind. Kein `retry`
-in Phase 1 (siehe 8.6, Anti-Hintergrundverarbeitung).
+in Phase 1 (siehe 8.7, Anti-Hintergrundverarbeitung).
 
 Objekt- vs. Study-/Series-Routing: **Phase 1 routet pro Objekt**
 (Instance-Ebene), ausgewertet exakt in dem Moment, in dem das Objekt
@@ -443,43 +587,192 @@ zurückgestellte Erweiterung (Kategorie B) — sie würde einen
 "Vollständigkeits"-Zustand brauchen, der über die reine Job-/
 Event-Frage hinausgeht.
 
-### 8.3 Objektidentität & Object Store (Abschnitt 16)
+### 8.3 Runtime Object Model & Objektidentität (Abschnitt 16, Review-Fix)
 
-**Neue notwendige Grundlage, die im Auftrag nicht explizit benannt,
-aber für Routing zwingend ist**: `bestand[host]` ist heute nur ein
-Zähler, keine adressierbare Liste. Routing muss aber wissen, *welches*
-Objekt gerade an einem Host ankam, um Routen dagegen zu prüfen.
+**Review-Fix, zentraler Befund**: `stored_objects[host] =
+[filename, ...]` mit Rückverweis auf `environment.objects[]` reicht
+**nicht**. Nach erneuter Prüfung von `rules.py` erzeugen die beiden
+heutigen erfolgreichen Storage-Pfade grundlegend unterschiedliche
+Datengrundlagen:
 
-Empfehlung: ein neuer, additiver Session-State-Key
-`stored_objects[host_name]: list[str]` (Liste von `filename`-Werten,
-Referenz zurück in `environment.objects[]` für die vollständigen
-Metadaten) wird bei jeder erfolgreichen Speicherung ergänzt. `bestand`
-bleibt unverändert bestehen (Abwärtskompatibilität, nichts Bestehendes
-liest `stored_objects`).
+1. **`_exec_storescu`** (direkter Shell-Befehl `storescu <peer> <port>
+   <datei>`): arbeitet objektgenau gegen `environment.objects[]` —
+   jedes Objekt hat `filename`, `bytes`, optional `sop_class`,
+   `transfer_syntax`, `modality`, `study_uid`, `series_uid`,
+   `patient_id`. Erhöht `bestand[target]["instances"]` **pro Objekt**.
+2. **`trigger_action(..., "send_study")`** (Sendeauftrag von einem
+   `modality-simulator`-Host): kennt **keine einzelnen Objekte**. Es
+   liest nur `state["_dataset_file_count"]` (eine reine Ganzzahl aus
+   `datasets.yml`s `file_count`) und setzt
+   `bestand[target]["instances"] = file_count` **in einem Schritt**.
+   `datasets.yml`-Einträge (siehe `content/datasets.yml`) haben `patient`,
+   `patient_id`, `study`, `series[]` (Freitext-Serienbeschreibungen,
+   keine UIDs), `file_count` — **kein `sop_class`, kein `modality`,
+   keine Objektliste**. SOP Class/Transfer Syntax für einen
+   `send_study`-Sendevorgang kommen stattdessen — falls überhaupt
+   editierbar — aus dem `config`-Dict des sendenden Hosts
+   (`config.sop_class`/`config.transfer_syntax`, siehe
+   `verbindung-ohne-bild`/`syntax-negotiation-fails`), nicht aus einem
+   Objekt-Datensatz.
 
-`filename` bleibt der primäre Identitätsschlüssel (wie heute überall
-in `rules.py`) — **kein** Wechsel auf `SOPInstanceUID` als
-Primärschlüssel, das wäre ein größerer, durch den didaktischen Bedarf
-nicht gerechtfertigter Umbau. Empfehlung: `environment.objects[]`
-bekommt ein neues, optionales Feld `sop_instance_uid`, damit Jobs/
-Events echte SOP-Instance-UIDs in ihrer Ausgabe zeigen können, auch
-wenn intern weiter per Dateiname referenziert wird.
+Damit hätte ausgerechnet der für `dosis-bleibt-liegen`-artige Fälle
+zentrale Pfad (Modalität → PACS per `send_study`) **keine
+adressierbaren Runtime-Objekte**, gegen die eine Route geprüft werden
+könnte — der ursprüngliche `stored_objects`-Vorschlag hätte hier ins
+Leere gegriffen.
 
-### 8.4 Job-Queue-Domänenmodell (Abschnitt 9)
+**Zielbild**: beide Pfade erzeugen intern dasselbe minimale
+Runtime-Object-Modell, `StoredObject`, bevor Routing ausgewertet wird
+(nur Architektur, keine Implementierung):
+
+```text
+StoredObject
+├── object_id            # stabile, sitzungslokale ID, siehe unten
+├── filename?             # vorhanden bei objektbasierten Pfaden, sonst None
+├── sop_instance_uid?     # deterministisch erzeugt, falls nicht vorhanden
+├── study_uid
+├── series_uid
+├── sop_class
+├── modality?
+├── transfer_syntax?
+├── source_host
+└── stored_at_host
+```
+
+Herkunft pro Pfad (die finale Feldliste bewusst klein gehalten, nach
+Repo-Analyse):
+
+- **`_exec_storescu`-Pfad**: `StoredObject` wird **direkt aus dem
+  bestehenden `environment.objects[]`-Eintrag** befüllt — `filename`,
+  `sop_class`, `transfer_syntax`, `modality`, `study_uid`, `series_uid`
+  existieren dort größtenteils schon. Kein Big-Bang-Umbau von
+  `environment.objects[]` nötig, es wird nur zusätzlich in ein
+  `StoredObject` gespiegelt statt (wie heute) nur einen Zähler zu
+  erhöhen.
+- **`send_study`/Dataset-Pfad**: Studies aus `datasets.yml` haben
+  weder Objekte noch SOP-Class-/Modality-Angaben. Hier müssen pro
+  `send_study`-Aufruf **`file_count` `StoredObject`-Einträge
+  deterministisch synthetisiert** werden — deterministisch heißt:
+  dieselbe Technik, die `rules.py` bereits für
+  `_study_instance_uid()`/`_series_instance_uid()` verwendet
+  (`hashlib.sha1(f"{node.slug}:study")`, gekürzt/formatiert als
+  UID-Suffix), erweitert um einen Instanz-Index
+  (`f"{node.slug}:instance:{i}"`). `sop_class`/`modality`/
+  `transfer_syntax` kommen, falls vorhanden, aus dem `config`-Dict des
+  sendenden Hosts (bereits editierbar für genau diese Felder); ohne
+  editierte Config bleiben sie `None` — ein Dataset-Node, der nie
+  Routing braucht, bleibt exakt beim heutigen Verhalten. Ob dafür
+  `datasets.yml` selbst um optionale Objekt-Metadaten erweitert wird,
+  oder ob die Synthese ausschließlich zur Laufzeit passiert, ist eine
+  Phase-A-Implementierungsentscheidung, keine Architekturfrage dieses
+  ADRs.
+- **Beide Pfade**: `source_host`/`stored_at_host` sind die
+  bekannten Host-Namen aus dem Association-Kontext, keine neue
+  Information.
+
+**Objektidentität**:
+
+- `object_id` ist eine **interne, stabile Session-ID** (z. B.
+  `obj-001`, fortlaufend wie `j-001` bei Jobs) — das ist der
+  Primärschlüssel, den `stored_objects[host]`, Jobs und Events
+  referenzieren.
+- `sop_instance_uid` ist **optional und zusätzlich** — real vorhanden
+  bei Objekten aus `environment.objects[]` (falls dort künftig ein
+  neues optionales Feld `sop_instance_uid` ergänzt wird) oder
+  deterministisch synthetisiert im Dataset-Pfad — ausschließlich für
+  Lern-/Ausgabezwecke (`pacs jobs`/`pacs events` sollen echte
+  SOP-Instance-UIDs zeigen können, kein internes `object_id`-Format).
+- **`filename` ist ausdrücklich NICHT die langfristige Objektidentität**
+  — er ist optional (existiert nur, wo ein simuliertes File existiert)
+  und bleibt weiterhin nutzbar, wo bestehender Content ihn schon
+  verwendet (`dcmdump <datei>`, `cat <datei>`), aber Routing/Jobs/
+  Events referenzieren immer `object_id`, nie einen Dateinamen direkt.
+  Das behebt sauber, dass der Dataset-Pfad gar keine Dateinamen kennt.
+- Kein echtes DICOM-Dataset im State, keine Pixel Data, keine großen
+  Objekte — `StoredObject` bleibt ein schlankes Metadaten-Dict,
+  konsistent mit Abschnitt 30 des Auftrags (Performance/Complexity).
+
+### 8.4 Destination-Modell: Host + Service + Calling AE (Review-Fix)
+
+**Review-Fix**: `destination: dose-scp` (nur ein Host-Name) reicht
+nicht. Ein Host kann mehrere DICOM-Services/Ports besitzen, und die
+bestehende Association-Logik (`check_association`) braucht bereits
+heute Ziel-IP, Ziel-Port, Called AE Title, Calling AE Title, SOP Class
+und Transfer Syntax — ein Routing-Job muss all das genauso eindeutig
+auflösen können wie ein lernenden-initiierter `storescu`-Aufruf.
+**Keine implizite Auswahl** wie "nimm den ersten Service des Hosts".
+
+Proposed Decision — `services[]` bekommt eine eigene, optionale `id`
+(nur relevant, sobald ein Host als Route-Ziel referenziert wird), und
+eine Route referenziert **immer explizit** Host **und** Service:
+
+```yaml
+hosts:
+  - name: dose-scp
+    ip: 10.20.0.30
+    services:
+      - id: dose-store
+        type: scp
+        port: 104
+        ae_title: DOSE-SCP
+        accepted_sop_classes:
+          - "1.2.840.10008.5.1.4.1.1.88.67"
+
+  - name: pacs
+    ip: 10.20.0.10
+    dicom:
+      calling_ae: RAD-PACS        # siehe unten
+    services:
+      - id: pacs-store
+        type: scp
+        port: 104
+        ae_title: RAD-ARCHIV
+        accepted_sop_classes: [...]
+    routes:
+      - id: CT-TO-DOSE
+        destination:
+          host: dose-scp
+          service: dose-store
+        enabled: true
+        match:
+          modality: CT
+```
+
+`route.destination.service` ist **verpflichtend**, auch wenn der
+Ziel-Host aktuell nur einen Service besitzt — es gibt keinen
+"einziger Service = automatisch gemeint"-Kurzschluss, gerade damit ein
+später hinzugefügter zweiter Service an einem Ziel-Host keine
+bestehende Route stillschweigend umlenkt. Der Validator prüft, dass
+`destination.host` existiert und `destination.service` eine `id`
+dieses Hosts ist (siehe 9.3).
+
+**Calling AE bei automatischem Routing**: sendet nicht mehr die
+Lernenden-Shell, sondern der PACS-Host selbst, braucht dieser Host eine
+definierte sendende DICOM-Identität — heute existiert das nur für
+`modality-simulator`-Hosts (`config.local_ae`, lernenden-editierbar).
+Ein Host, der `routes[]` besitzt, bekommt dafür ein neues, **nicht**
+lernenden-editierbares Feld `dicom.calling_ae` (bewusst getrennt vom
+`config`-Dict, das ausschließlich für `config_editable`-Felder gedacht
+ist — siehe 8.8/8.9) — kein Fallback auf einen erfundenen Default wie
+`STORESCU`. Der Validator verlangt `hosts[].dicom.calling_ae`, sobald
+derselbe Host `routes[]` deklariert.
+
+### 8.5 Job-Queue-Domänenmodell (Abschnitt 9)
 
 Zustände, bewusst minimal: `queued` → `sent` **oder** `failed`. Kein
-`sending` (keine echte Nebenläufigkeit, siehe 8.6), kein `skipped` —
+`sending` (keine echte Nebenläufigkeit, siehe 8.7), kein `skipped` —
 das ist der entscheidende Punkt aus Abschnitt 9 des Auftrags:
 
 > Route matcht nicht → **kein Job entsteht**, nicht `status: skipped`.
 
 Stattdessen entsteht für eine Nicht-Übereinstimmung ein reiner
-Auswertungs-Eintrag im Event-Log (siehe 8.5), kein Job-Datensatz. Das
+Auswertungs-Eintrag im Event-Log (siehe 8.6), kein Job-Datensatz. Das
 ist exakt die Semantik, die `dosis-bleibt-liegen` heute in Prosa
 nachstellt ("0 queued" ≠ "fehlgeschlagen").
 
 Job-Felder: `id` (`j-001`, sitzungslokal fortlaufend), `route_id`,
-`source` (Host-Name), `destination` (Host-Name), `object` (Dateiname),
+`source` (Host-Name), `destination` (`{host, service}`, siehe 8.4),
+`object` (`object_id` aus dem Runtime Object Model, siehe 8.3),
 `attempt` (Ganzzahl, Default 1 — Wiederholung ist Phase 2), `status`,
 `reason` (Freitext bei `failed`, z. B. `"abstract-syntax-not-supported"`
 — **wiederverwendet dieselben echten PS3.8-Ablehnungsgründe**, die
@@ -490,27 +783,35 @@ initiierte Sendungen produzieren), `created_at`.
 dieselbe Assoziations-/Verhandlungslogik (`check_association`,
 `accepted_sop_classes`, `accepted_transfer_syntaxes`) wiederverwendet
 wird, die heute schon für lernenden-initiierte `storescu`/`send_study`-
-Aufrufe existiert — nur dass der "Sender" diesmal der PACS-Host selbst
-ist, nicht die Lernenden-Shell. Kein neuer Verhandlungscode nötig, nur
-ein neuer Aufrufer.
+Aufrufe existiert — nur dass Calling AE/Quelle diesmal aus
+`hosts[].dicom.calling_ae` des PACS-Hosts kommen (8.4), nicht aus der
+Lernenden-Shell. Kein neuer Verhandlungscode nötig, nur ein neuer
+Aufrufer mit eindeutig aufgelöster Identität.
 
-### 8.5 Event-/Audit-Log (Abschnitt 10)
+### 8.6 Event-/Audit-Log (Abschnitt 10, Review-Fix: gezielter statt pauschal)
 
 **Kein Event Sourcing.** Ein einfaches, deterministisches, anhängendes
-Audit-Log in `state["events"]`, das dieselben Ereignistypen aufnimmt,
-die `ExecResult`/`ActionResult` heute schon transient erzeugen
-(`association_accepted`, `store_completed`, ...), **plus** neue Typen:
-`route.evaluated` (mit `matched: bool` und bei `false` einem
-Freitext-`reason`, z. B. `"Modality expected CT, actual SR"`),
-`job.created`, `job.sent`, `job.failed`.
+Audit-Log in `state["events"]`.
 
-Notwendige, bisher fehlende Änderung: die bereits vorhandenen
-`events`-Listen aus `ExecResult`/`ActionResult` werden erstmals **in
-`state["events"]` persistiert** (heute gehen sie nach der einmaligen
-API-Antwort verloren) — das ist eine kleine, additive Änderung an
-`main.py`s Save-Pfad, kein Rewrite.
+**Review-Fix**: nicht pauschal *jedes* heutige interne `ExecResult`/
+`ActionResult`-Ereignis verdient einen Platz im Audit-Log — das Log
+dient Lern-/Audit-Zwecken, nicht der lückenlosen technischen
+Nachvollziehbarkeit jeder internen Verzweigung. Empfehlung: eine
+zentrale Helper-Funktion `record_event(state, type, payload)` als
+**einziger** Schreibpfad nach `state["events"]`, die sowohl von
+bestehenden DICOM-Aktionen (kuratiert: `association_rejected`,
+`store_completed`, `presentation_context_rejected` — Ereignisse, die
+schon heute lernrelevant im Terminal sichtbar sind) als auch von PACS
+Operations (`route.evaluated` mit `matched: bool` und bei `false`
+einem Freitext-`reason`, z. B. `"Modality expected CT, actual SR"`;
+`job.created`, `job.sent`, `job.failed`) aufgerufen wird. Welche
+bestehenden Ereignistypen konkret in die kuratierte Liste aufgenommen
+werden, ist eine Phase-B-Implementierungsentscheidung — die
+Architektur legt hier nur den **einen** Schreibpfad und das Kriterium
+("lernrelevant, kein interner Rauschkanal") fest, keine abschließende
+Liste.
 
-### 8.6 Keine Hintergrundverarbeitung (Abschnitt 21)
+### 8.7 Keine Hintergrundverarbeitung (Abschnitt 21)
 
 Routing-Auswertung und Job-Erzeugung/-Ausführung laufen **synchron
 innerhalb desselben Requests**, der ein Objekt an einem Host ankommen
@@ -523,23 +824,27 @@ ein **seiteneffektfreier** Trockenlauf (kein Job, kein Event außer
 optional einem `route.evaluated`-Eintrag), damit Lernende Hypothesen
 prüfen können, ohne den Sitzungszustand zu verändern.
 
-### 8.7 State-Modell (Abschnitt 20)
+### 8.8 State-Modell (Abschnitt 20)
 
 Klare Grenze, wie im Auftrag gefordert:
 
-- **Node-Definition** (unveränderlich, aus `node.yml`): `hosts[].routes[]`
-  (Route-ID, Ziel, Match, `enabled`) — die Ausgangskonfiguration,
-  exakt wie `accepted_sop_classes` heute.
-- **Session-State** (veränderlich, JSONB): `stored_objects[host]`,
-  `jobs[]`, `events[]` — alles, was während der Sitzung *entsteht*,
-  nichts davon existiert vor dem ersten Store-Vorgang.
+- **Node-Definition** (unveränderlich, aus `node.yml`):
+  `hosts[].routes[]` (Route-ID, `destination.{host,service}`, Match,
+  `enabled`), `hosts[].dicom.calling_ae`, `hosts[].services[].id` —
+  die Ausgangskonfiguration, exakt wie `accepted_sop_classes` heute.
+- **Session-State** (veränderlich, JSONB): `stored_objects` (Runtime
+  `StoredObject`-Instanzen, siehe 8.3), `jobs[]`, `events[]` — alles,
+  was während der Sitzung *entsteht*, nichts davon existiert vor dem
+  ersten Store-Vorgang.
 - Phase 1 hat **keine** lernenden-editierbaren Routen. Sollte Phase 2
-  (siehe 8.8) Routen-Editing einführen, wird dafür der **bereits
+  (siehe 8.9) Routen-Editing einführen, wird dafür der **bereits
   bestehende** `config`/`config_editable`-Mechanismus wiederverwendet
   (derselbe Ort, an dem heute `local_ae`/`transfer_syntax`/`sop_class`
-  editierbar sind) statt eines neuen Mechanismus.
+  editierbar sind) statt eines neuen Mechanismus — `hosts[].dicom.
+  calling_ae` bleibt bewusst außerhalb von `config`, weil es Teil der
+  Systemidentität ist, kein Lern-Editierfeld.
 
-### 8.8 Editierbare Konfiguration & Lösungs-Mechanik (Abschnitt 13/14)
+### 8.9 Editierbare Konfiguration & Lösungs-Mechanik (Abschnitt 13/14)
 
 **Empfehlung für Phase 1: Variante 1 (Read-only-Diagnose, klassisches
 Flag).** Variante 2 (Diagnose + tatsächliche Korrektur + automatischer
@@ -557,10 +862,10 @@ kann `flag` **oder** `solve_condition` **oder** beides deklarieren;
 bestehende Nodes (nur `flag`) sind komplett unberührt. Das ist eine
 naheliegende, aber bewusst nicht in diesem Schritt gebaute Erweiterung.
 
-### 8.9 Multi-Hop (Abschnitt 15)
+### 8.10 Multi-Hop (Abschnitt 15)
 
 Heute kennt die Engine nur "Lernender/Modalität → ein Ziel". Der
-vorgeschlagene Mechanismus (8.4) verallgemeinert das elegant: sobald
+vorgeschlagene Mechanismus (8.5) verallgemeinert das elegant: sobald
 ein Host ein Objekt speichert, wertet er **automatisch** seine eigenen
 `routes[]` gegen das neue Objekt aus. Empfängt ein zweiter Host
 (z. B. "PACS B" oder ein Dose-System) das Objekt über einen
@@ -568,9 +873,39 @@ entstandenen Job, kann **derselbe Host** wiederum eigene `routes[]`
 haben — Mehrfach-Hops komponieren rekursiv, ohne neues Konzept. Phase 1
 begrenzt sich bewusst auf zwei Hops (Modalität/Workstation → PACS →
 ein Downstream-Ziel) zur Scope-Kontrolle; 3+-Hop-Ketten sind mit
-demselben Modell möglich, aber noch nicht mit Content hinterlegt.
+demselben Modell möglich, aber noch nicht mit Content hinterlegt — und
+nur innerhalb der harten Sicherheitsgrenze aus 8.11.
 
-### 8.10 DICOM-Metadaten-Modell (Abschnitt 17)
+### 8.11 Loop- und Duplicate-Schutz (Review-Fix)
+
+**Review-Fix**: ohne Schutz wäre sowohl eine Routing-Schleife
+(`PACS-A → PACS-B → PACS-A → ...`) als auch eine wiederholte
+Verarbeitung desselben Objekts durch dieselbe Route möglich. Zwei
+minimale, deterministische Invarianten statt eines Graph-Algorithmus:
+
+1. **Route-Historie pro Objekt.** Jedes `StoredObject` (8.3) führt
+   `route_history: list[(host, route_id)]`. Regel: dieselbe Route darf
+   dasselbe logische Objekt innerhalb einer Session **höchstens
+   einmal** verarbeiten — ein zweiter Versuch derselben
+   `(host, route_id)`-Kombination gegen dasselbe `object_id` erzeugt
+   keinen neuen Job (analog zur "kein Job bei Nicht-Match"-Regel aus
+   8.5, nur mit anderem Grund im Audit-Log).
+2. **`max_hops` als harte Engine-Sicherheitsgrenze**, unabhängig von
+   Punkt 1 — nötig, weil zwei *verschiedene* Routen (`A`s Route X →
+   `B`s Route Y → `A`s Route Z) durch Punkt 1 allein nicht
+   ausgeschlossen wären. Empfehlung: **`max_hops = 2`** für Phase 1 —
+   bewusst identisch mit dem in 8.10 ohnehin für Phase 1 vorgesehenen
+   Content-Scope (Modalität/Workstation → PACS → ein Downstream-Ziel),
+   keine erfundene größere Zahl. Die Engine bricht die automatische
+   Weiterleitungskette bei Erreichen dieser Grenze deterministisch ab
+   (kein Fehler, sondern ein regulärer `route.evaluated`-Event mit
+   `reason: "max_hops erreicht"`) und wird erst erhöht, wenn ein
+   konkreter, getesteter 3+-Hop-Node das rechtfertigt.
+
+Ziel beider Regeln zusammen: deterministisch, keine Endlosschleife,
+keine Job-Explosion, weiterhin Multi-Hop-fähig innerhalb der Grenze.
+
+### 8.12 DICOM-Metadaten-Modell (Abschnitt 17)
 
 **Keine Big-Bang-Migration auf ein generisches Tag-Dict.** Der Matcher
 liest dieselben benannten Felder, die `DCMDUMP_FIELD_ORDER` bereits als
@@ -581,34 +916,46 @@ Erweiterung dieser einen Liste, keine zweite parallele Repräsentation.
 
 ### 9.1 `node.yml`-Erweiterung (Skizze, keine finale Syntax)
 
+**Proposed Decision, nach Review final festgelegt** (siehe 8.4 für
+die vollständige Begründung von Destination/Calling-AE, 8.2 für die
+kanonische Match-Form): `routes[]` gehört zum Host, der sie ausführt
+(Eigentümerschaft folgt der realen PACS-Rolle — der Host besitzt seine
+Services, seine sendende DICOM-Identität und seine Routen), **nicht**
+zu einem neuen Top-Level-Key. Das ist keine offene Frage mehr (siehe
+"Risiken" für den einzigen verbleibenden, bewusst kleinen offenen
+Ergonomie-Punkt: die exakte YAML-Autoren-Kurzform).
+
 ```yaml
 environment:
   hosts:
     - name: pacs
       ip: 10.20.0.10
+      dicom:
+        calling_ae: RAD-PACS       # sendende Identität für automatisches Routing (8.4)
       services:
-        - port: 104
+        - id: pacs-store
           type: scp
+          port: 104
           ae_title: RAD-ARCHIV
           accepted_sop_classes: [...]
       routes:
         - id: CT-TO-DOSE
-          destination: dose-scp     # muss ein Host im selben environment sein
+          destination:
+            host: dose-scp          # muss ein Host im selben environment sein
+            service: dose-store     # muss eine services[].id dieses Hosts sein
           enabled: true
           match:
-            modality: CT
+            modality: CT             # Authoring-Sugar, normalisiert zu 8.2s kanonischer Form
 
     - name: dose-scp
       ip: 10.20.0.30
       services:
-        - port: 104
+        - id: dose-store
           type: scp
+          port: 104
           ae_title: DOSE-SCP
           accepted_sop_classes: ["1.2.840.10008.5.1.4.1.1.88.67"]
 ```
-
-`routes[]` gehört bewusst zum Host, der sie ausführt (Eigentümerschaft
-folgt der realen PACS-Rolle), nicht zu einem neuen Top-Level-Key.
 
 ### 9.2 CLI-Konzept (Abschnitt 11/12)
 
@@ -645,15 +992,22 @@ Neue `ContentValidator`-Prüfungen (heute komplett fehlend für
 `hosts`/`services`, siehe 2.3) — Schema-/Referenzfehler, **nie**
 fachliche Korrektheit:
 
-- `route.destination` muss ein existierender Host-Name im selben
+- `route.destination.host` muss ein existierender Host-Name im selben
   `environment.hosts` sein.
-- Route-IDs eindeutig innerhalb eines Nodes.
-- `match`-Schlüssel müssen aus dem erlaubten Attribut-Vokabular
-  stammen (Tippfehler-Schutz, z. B. `moddality` wird abgelehnt).
-- `match`-Operator muss aus `equals|not_equals|in|exists` stammen.
-- Ziel-Host muss mindestens einen `services`-Eintrag besitzen
-  (Unerreichbarkeit wird über falschen Port/AE simuliert, nicht über
-  einen Host ohne jeden Service).
+- `route.destination.service` muss eine `services[].id` **dieses**
+  Ziel-Hosts sein — kein impliziter "erster Service"-Fallback (8.4).
+- Ein Host mit `routes[]` muss `dicom.calling_ae` deklarieren (8.4).
+- Route-IDs eindeutig innerhalb eines Nodes; `services[].id` eindeutig
+  innerhalb eines Hosts.
+- `match`-Felder (`field` in der kanonischen Form, 8.2) müssen aus dem
+  erlaubten Attribut-Vokabular stammen (Tippfehler-Schutz, z. B.
+  `moddality` wird abgelehnt).
+- `match`-Operator muss aus `equals|not_equals|in|exists` stammen;
+  `op: in` erfordert `values` (Liste), alle anderen erfordern `value`
+  (außer `exists`, das keines von beiden erfordert).
+- Der Validator prüft **nur die kanonische Form nach Normalisierung**
+  (8.2) — Kurzform und Langform teilen sich einen einzigen
+  Prüfpfad.
 
 **Ausdrücklich nicht geprüft**: ob eine Regel fachlich sinnvoll ist.
 `match: {modality: CT}` bleibt syntaktisch gültig, selbst wenn genau
@@ -666,6 +1020,10 @@ die Lernaufgabe nicht.
   exakt wie heute — `stored_objects`/`jobs`/`events` bleiben leer,
   `bestand`/Zähler-Semantik unverändert, keine Verhaltensänderung an
   C-ECHO/storescu/findscu/SOP-Class-/Transfer-Syntax-Verhandlung.
+- `services[].id` (8.4) ist optional und additiv — bestehende Nodes,
+  die keinen Host als Route-Ziel referenzieren, brauchen sie nie.
+  `hosts[].dicom.calling_ae` ist nur für Hosts mit `routes[]`
+  verpflichtend (Validator, 9.3) — kein bestehender Host braucht es.
 - Keine Laravel-Migration nötig (siehe 2.3 — `environment`/`scenario`
   waren nie in der DB).
 - Kein neuer `interaction`-Wert, kein neuer `EngineClientResolver`-
@@ -677,17 +1035,23 @@ die Lernaufgabe nicht.
 
 ## 11. Teststrategie
 
-- **Unit** (`services/engine/tests/test_routing.py`,
-  `test_jobs.py`, neu, nach demselben Muster wie
-  `test_transfer_syntax.py`/`test_abstract_syntax.py`): Matcher pro
-  Operator, `all`/`any`, Kein-Match-erzeugt-keinen-Job, Job-Erzeugung,
-  Zielauflösung, Zustandsübergänge `queued→sent`/`queued→failed`.
+- **Unit** (`services/engine/tests/test_objects.py`,
+  `test_routing.py`, `test_jobs.py`, neu, nach demselben Muster wie
+  `test_transfer_syntax.py`/`test_abstract_syntax.py`):
+  `StoredObject`-Synthese aus beiden Storage-Pfaden (`storescu` und
+  `send_study`, 8.3), Matcher pro Operator, `all`/`any`,
+  Kein-Match-erzeugt-keinen-Job, Destination-Auflösung Host+Service
+  (8.4, inkl. Fehlerfall "Service existiert nicht am Ziel-Host"),
+  Job-Erzeugung, Zustandsübergänge `queued→sent`/`queued→failed`,
+  Loop-/Duplicate-Schutz (dieselbe Route matcht dasselbe Objekt kein
+  zweites Mal, `max_hops`-Abbruch, 8.11).
 - **Engine-API**: `pacs`-Unterbefehle deterministisch (gleicher State +
   gleicher Command → gleiche Ausgabe), Sitzungspersistenz über
   `state["jobs"]`/`state["events"]`.
-- **Content**: Schema-Validierung (fehlendes Ziel, doppelte Route-ID,
-  unbekanntes Attribut, unbekanntes Objekt in einer Job-Seed-Angabe,
-  falls es sowas geben sollte).
+- **Content**: Schema-Validierung (fehlender Ziel-Host, unbekannte
+  `destination.service`, fehlendes `hosts[].dicom.calling_ae` bei
+  einem Host mit `routes[]`, doppelte Route-ID, doppelte `services[].id`
+  an einem Host, unbekanntes `match.field`, `op: in` ohne `values`).
 - **Regression**: komplette bestehende Engine-Testsuite unverändert
   grün (heute 18 Testdateien, siehe Bestandsanalyse) — kein Verhalten
   an C-ECHO/storescu/findscu/SOP-Class-Negotiation/Config darf sich
@@ -699,20 +1063,47 @@ die Lernaufgabe nicht.
 
 ## 12. Ausbaupfad (Abschnitt 22)
 
-Keine Sackgasse für die genannten künftigen Fähigkeiten:
+Keine Sackgasse für die genannten künftigen Fähigkeiten — und
+ausdrücklich **alle** als Module innerhalb `services/engine`, nicht als
+neue Services (Architekturgrundsatz, 5.1):
 
-- **MPPS**: eigenes Geschwister-Modul (`app/operations/mpps.py`),
-  eigener State-Key (`state["mpps"]`), neue `action`-Werte
-  (`n_create`, `n_set`) im bestehenden `trigger_action`-Dispatch.
-- **Storage Commitment**: analog, `state["commitments"]`,
-  `n_action`/`n_event_report` als neue `action`-Werte; das Job-/
-  Event-Modell aus diesem ADR ist bereits die richtige Grundlage für
-  "Anfrage gestellt, Antwort ausstehend/da".
+```text
+services/engine/app/operations/
+├── objects.py               # Runtime Object Model (8.3), Phase A
+├── routing.py                # Matcher + Route-Auswertung (8.2/8.4), Phase A
+├── jobs.py                   # Job-Erzeugung/-Ausführung (8.5), Phase B
+├── events.py                 # record_event()-Helper (8.6), Phase B
+├── move.py                   # später — C-MOVE + Destination-Registry (13.4)
+├── mpps.py                   # später — N-CREATE/N-SET
+├── storage_commitment.py     # später — N-ACTION/N-EVENT-REPORT
+└── iocm.py                   # später — Objekt-Status-Übergänge
+```
+
+Die exakten Dateinamen sind nicht bindend. Entscheidend ist die eine
+Invariante: **neue Domain-Fähigkeit ≠ neuer Service.** Keine der
+Zeilen ab `move.py` wird in diesem ADR oder seiner Phase A–D angelegt —
+**keine prophylaktische Erstellung leerer Module.** Ein Modul entsteht
+erst, wenn ein konkretes Feature dafür implementiert wird.
+
+- **C-MOVE / Move-Destination-Registry**: eigenes Modul (`move.py`),
+  baut auf dem Destination-Modell aus 8.4 auf (eine Registry, die einen
+  AE-Title auf Host+Service auflöst, ist strukturell verwandt mit
+  `route.destination`). `move-destination-unknown` wäre der natürliche
+  spätere Migrationskandidat, **aber erst**, wenn dieses Primitiv
+  existiert (siehe 13.4) — kein Teil von Phase A–D.
+- **MPPS**: eigenes Geschwister-Modul (`mpps.py`), eigener State-Key
+  (`state["mpps"]`), neue `action`-Werte (`n_create`, `n_set`) im
+  bestehenden `trigger_action`-Dispatch.
+- **Storage Commitment**: analog (`storage_commitment.py`),
+  `state["commitments"]`, `n_action`/`n_event_report` als neue
+  `action`-Werte; das Job-/Event-Modell aus diesem ADR ist bereits die
+  richtige Grundlage für "Anfrage gestellt, Antwort ausstehend/da".
   `letztes-glied-fehlt` wäre der natürliche spätere Migrationskandidat,
   **aber erst**, wenn dieses Folge-Primitiv existiert — Phase 1 dieses
   ADRs bringt diesem Node noch keinen Mehrwert (siehe 13.3).
 - **IOCM**: Objekt-Status-Übergänge (`active|rejected|replaced`) als
-  Erweiterung des Objekt-Dicts + neuer Event-Typ — passt ins Modell.
+  Erweiterung des `StoredObject`-Modells (8.3) + neuer Event-Typ —
+  passt ins Modell.
 - **Multiframe**: orthogonale Metadaten-Erweiterung der Objekt-Felder
   (Kategorie A, siehe Matrix), unabhängig von Routing.
 - **AI/Downstream-Verarbeitung**: strukturell **identisch** zum
@@ -743,7 +1134,7 @@ $ dcmdump rdsr-001.dcm
 (0008,0060) CS [SR]
 
 $ pacs routes show CT-TO-DOSE
-destination: DOSE-SCP
+destination: dose-scp / dose-store (DOSE-SCP, Port 104)
 match:
   modality: CT
 
@@ -774,6 +1165,31 @@ Commitment fehlen als Primitive vollständig). **Phase 1 dieses ADRs
 bringt diesem Node noch keinen ausreichenden Mehrwert** — kein Scope
 Creep in Richtung MPPS in diesem Schritt.
 
+### 13.4 `move-destination-unknown` (angrenzend, nicht Phase-1-Kandidat)
+
+Anders als `dosis-bleibt-liegen` ist dieser Node **kein** "Objekt
+gespeichert → Route matcht nicht"-Fall, sondern ein C-MOVE-Ablauf:
+
+```text
+$ findscu -S ... (C-FIND findet die Study)
+$ movescu -aet VIEWER-07 ... (C-MOVE Request an PACS, Move Destination = VIEWER-07)
+→ PACS schlägt in seiner Move-Destination-Registry nach: VIEWER-07 → Host/Port
+→ PACS eröffnet eine ZWEITE, eigenständige Association zu diesem Host/Port
+→ diese zweite Association scheitert am registrierten (falschen) Port
+```
+
+Das vorgeschlagene Destination-Modell aus 8.4 (Host + Service +
+Calling AE) wäre eine sinnvolle **Grundlage** für die "Move-Destination-
+Registry" (strukturell: eine Registry, die einen AE-Title auf
+Host+Service auflöst, sehr ähnlich zu `route.destination`) — aber das
+C-MOVE-Kommando selbst, sein DIMSE-Ablauf (C-MOVE-RQ → mehrere
+C-STORE-Sub-Operationen → C-MOVE-RSP mit Erfolgs-/Fehlerzählern) und
+die AE-Title-Registry als eigenständiges Nachschlage-Primitiv existieren
+in Phase A–D nicht. **Empfehlung: bleibt vorerst Scenario, angrenzender
+Kandidat für eine spätere `move`-Modul-Phase** (siehe Ausbaupfad,
+Abschnitt 12, und Phase E, Abschnitt 18) — nicht Teil des Routing-/
+Job-MVPs dieses ADRs.
+
 ## 14. Sicherheitsmodell (Abschnitt 24)
 
 Keine beliebige Code-Ausführung über Content. Erlaubte
@@ -799,10 +1215,28 @@ Phase-1-Bestandteil.
   ist fachlich plausibel, aber noch nicht gegen ein reales
   Lab-Szenario mit mehreren Zielen durchgespielt — sollte im ersten
   Prototyp-Node explizit getestet werden.
-- Die genaue Platzierung von `routes[]` (am Host vs. eigener
-  Top-Level-Schlüssel) ist eine Content-Autoren-Ergonomie-Frage, die
-  im ersten Implementierungs-Prototyp final entschieden werden sollte,
-  nicht rein architektonisch.
+- `route.destination.service` erfordert, dass `services[]`-Einträge
+  eine `id` tragen (8.4) — heute haben bestehende Nodes das nicht.
+  Das ist unproblematisch (additiv, `id` ist nur relevant, sobald ein
+  Host als Route-Ziel referenziert wird), aber die exakte
+  Rückwärtskompatibilitäts-/Migrationsnotiz dafür gehört in die
+  Phase-A-Implementierung, nicht in dieses ADR.
+- Die fälschliche ADR-0071-Zitierung für `interaction: scenario` in
+  `docs/content-schema.md` §6j (siehe 2.5) wird in diesem ADR
+  bewusst **nicht** korrigiert — das wäre eine Änderung an einem
+  anderen, breiter genutzten Dokument außerhalb des Scopes dieses
+  Architektur-Reviews. Empfehlung: eigener, kleiner Folge-PR, der
+  ausschließlich die Zitierung korrigiert (Ersatz: Verweis auf Commit
+  `ca57ba7`/"P10.69", da kein ADR existiert) — nicht nebenbei hier
+  geraten oder mitgeändert.
+
+**Row-Ownership-Entscheidung (Review-Fix, siehe 8.4/9.1)**: die
+Platzierung von `routes[]` (am Host, nicht als eigener Top-Level-
+Schlüssel) ist **keine offene Frage mehr** — sie ist mit den Punkten 2–4
+des Reviews (Runtime Object Model, Destination-Modell, Calling AE)
+konsistent als Proposed Decision festgelegt, weil ein Host jetzt
+ohnehin seine Services, seine sendende Identität und seine Routen
+gemeinsam trägt.
 
 ## 16. Finale Bewertung
 
@@ -810,14 +1244,16 @@ Phase-1-Bestandteil.
 **Teilweise.** Der Bedarf ist real und durch drei unabhängig
 entstandene Scenario-Nodes belegt (kein hypothetisches Problem). Die
 Architektur passt sauber in die bestehende Engine, ohne Big Bang
-(Option C, additiv, keine Migration). Aber: es gibt aktuell nur **zwei**
-klare, sofort profitierende Kandidaten (`dosis-bleibt-liegen`,
-`move-destination-unknown`), nicht ein ganzes Bündel — der
-Implementierungsaufwand (Phase A–C) sollte deshalb gegen einen
-konkreten neuen Prototyp-Node (Phase D) gerechtfertigt werden, nicht
-gegen eine spekulative Menge künftiger Nodes. Empfehlung: **Phase A–D
-jetzt freigeben, Phase E (Migration) separat und pro Node einzeln
-entscheiden.**
+(Option C, additiv, keine Migration, Module statt Services). Aber: es
+gibt aktuell nur **einen** unmittelbar klaren, sofort profitierenden
+Kandidaten (`dosis-bleibt-liegen`) — `move-destination-unknown` ist
+nach Korrektur (siehe 7, 13.4) nur ein angrenzender, späterer
+Kandidat, der zusätzlich ein C-MOVE-Primitiv braucht. Der
+Implementierungsaufwand sollte deshalb gegen genau diesen einen
+konkreten neuen Prototyp-Node gerechtfertigt werden, nicht gegen eine
+spekulative Menge künftiger Nodes. Empfehlung: **Phase A–D freigeben,
+in mehreren kleinen, unabhängig reviewbaren PRs (siehe 18), Phase E
+(Migration) separat und pro Node einzeln entscheiden.**
 
 **B — Kleinstes sinnvolles MVP?**
 Routing (benannte Attribute, `all`/`any`, vier Operatoren) + Job-
@@ -829,22 +1265,26 @@ Komfortbefehl über das hinaus, was zur Diagnose eines Routing-Falls
 nötig ist.
 
 **C — Welche bestehenden Scenario-Nodes profitieren unmittelbar?**
-`dosis-bleibt-liegen` (Routing-Selektionsfehler, exakt der
-Zielfall) und `move-destination-unknown` (C-MOVE-Zweitassoziation zu
-falschem Port — strukturell dieselbe "Ziel-Registrierung stimmt nicht"-
-Familie). `modality-go-live` profitiert teilweise (Routing/Query/MWL-
-Kombination), hat aber keinen einzelnen fehlenden Kern-Primitiv.
+Nur `dosis-bleibt-liegen` direkt (Routing-Selektionsfehler nach
+erfolgreicher Speicherung, exakt der Zielfall dieses ADRs).
+`move-destination-unknown` ist **kein** unmittelbarer, sondern ein
+**angrenzender, späterer** Kandidat — es ist ein C-MOVE-/Move-
+Destination-Registry-Fall, kein "Objekt gespeichert → Route matcht
+nicht"-Fall, und braucht zusätzlich ein eigenes, hier nicht gebautes
+C-MOVE-Primitiv (siehe 7, 13.4, 12). `modality-go-live` profitiert
+teilweise (Routing/Query/MWL-Kombination), hat aber keinen einzelnen
+fehlenden Kern-Primitiv.
 
 **D — Welche bleiben besser Scenario?**
 Alle reinen Entscheidungs-/Kommunikations-/Rechtsfälle
 (`anruf-am-empfang`, `fhir-is-not-wado`, `hl7-ack-trap`,
 `restore-or-retrieve`), alle Fälle mit fehlenden, hier nicht gebauten
 Primitiven (`letztes-glied-fehlt`: MPPS/Storage Commitment,
-`nur-ein-bild`: Multiframe-Metadaten, `falsch-gelesen`/
-`name-ohne-schluessel`: Pixel-/Encoding-Inspektion,
-`stored-but-invisible`: Display-Capability) und die HL7-Routing-Fälle
-(`hl7-order-gap`, `oru-status-gap` — andere Domäne, kein DICOM-Objekt-
-Routing).
+`nur-ein-bild`: Multiframe-Metadaten, `move-destination-unknown`:
+C-MOVE/Destination-Registry, `falsch-gelesen`/`name-ohne-schluessel`:
+Pixel-/Encoding-Inspektion, `stored-but-invisible`: Display-Capability)
+und die HL7-Routing-Fälle (`hl7-order-gap`, `oru-status-gap` — andere
+Domäne, kein DICOM-Objekt-Routing).
 
 **E — Welche neuen PACS-Labs werden dadurch möglich?** (Ideen, keine
 fertigen Nodes)
@@ -871,35 +1311,76 @@ fertigen Nodes)
 
 1. Zustimmung zu **Option C** (Composable Subsystems in
    `services/engine`) als Zielarchitektur.
-2. Zustimmung zum Phase-1-Scope (Routing + Jobs + Events, **kein**
-   Editing, **kein** automatischer State-based Solve).
-3. Zustimmung zur Match-Semantik (benannte Attribute, `all`/`any`,
-   vier Operatoren, kein generisches Tag-Matching in Phase 1).
-4. Zustimmung, `dosis-bleibt-liegen` und `move-destination-unknown`
-   als Migrationskandidaten für eine spätere Phase E vorzumerken, ohne
-   sie jetzt anzufassen.
-5. Freigabe für ein erstes Implementierungs-ADR/PR (Phase A gemäß
-   Abschnitt 17 des Berichts), sobald gewünscht — **nicht Teil dieses
-   Auftrags**.
+2. **Zustimmung zum Architekturgrundsatz "Module vor Services"
+   (5.1) als DCMLab-weite Regel, nicht nur für PACS Operations**: PACS
+   Operations und zukünftige verwandte DICOM-Admin-Primitives (Move,
+   MPPS, Storage Commitment, IOCM) werden standardmäßig als Module
+   innerhalb `services/engine` umgesetzt. Neue eigenständige Services
+   benötigen eine separate Architekturentscheidung mit konkreter
+   Begründung für Runtime-/Isolation-/Lifecycle-Bedarf — damit ist
+   dieser Punkt später nicht wieder offen.
+3. Zustimmung zum Phase-1-Scope (Runtime Object Model + Routing + Jobs
+   + Events, **kein** Editing, **kein** automatischer State-based
+   Solve).
+4. Zustimmung zur Match-Semantik (kanonische `field`/`op`/`value`-Form,
+   `all`/`any`, vier Operatoren, kein generisches Tag-Matching in
+   Phase 1) und zum Destination-Modell (Host + Service + Calling AE,
+   8.4).
+5. Zustimmung, `dosis-bleibt-liegen` als direkten Migrationskandidaten
+   und `move-destination-unknown` als **angrenzenden, späteren**
+   Kandidaten (erfordert zusätzlich ein C-MOVE-Primitiv, siehe 13.4)
+   für eine spätere Phase E vorzumerken, ohne sie jetzt anzufassen.
+6. Zustimmung zum Loop-/Duplicate-Schutz (Route-Historie pro Objekt +
+   `max_hops = 2` als harte Engine-Grenze für Phase 1, 8.11).
+7. Freigabe für die erste Implementierungs-PR-Serie (Phase A gemäß
+   Abschnitt 18, in mehreren kleinen PRs statt einem großen Branch),
+   sobald gewünscht — **nicht Teil dieses Auftrags**.
 
-## 18. Implementierungsphasen (Vorschlag, nach Repo-Audit verfeinert)
+## 18. Implementierungsphasen (Vorschlag, nach Repo-Audit und Review verfeinert)
 
-- **Phase A — Domain Foundation**: `app/operations/routing.py`
-  (Match-Evaluator, reine Funktionen), `stored_objects`-State-Key,
-  Unit-Tests. Kein CLI, kein Job-Modell.
+**Kein einzelner Mammut-Branch.** Jede Phase ist als **eigener,
+unabhängig reviewbarer PR** gedacht; jeder PR lässt `main` stabil
+(bestehende Tests grün), ohne dass ein späterer Schritt zwingend folgen
+muss:
+
+```text
+PR 1 — Object & Routing Foundation      (Phase A)
+PR 2 — Jobs/Events/Multi-Hop            (Phase B)
+PR 3 — PACS CLI                          (Phase C)
+PR 4 — Prototype Node                    (Phase D)
+```
+
+- **Phase A — Object & Routing Foundation** (vergrößert gegenüber der
+  ursprünglichen Fassung, Review-Fix: Routing kann ohne Runtime Objects
+  nicht sinnvoll vorbereitet werden):
+  - minimales Runtime-`StoredObject`-Modell (8.3)
+  - Normalisierung beider Storage-Pfade (`storescu` **und**
+    `send_study`) auf dieses eine Modell
+  - Route-Definition (`hosts[].routes[]`, Destination-Modell 8.4,
+    `hosts[].dicom.calling_ae`)
+  - Match-Evaluator (kanonische Form, 8.2), reine Funktionen
+  - Loop-/Duplicate-Invarianten (Route-Historie, `max_hops`, 8.11)
+  - Validator-Grundlagen (9.3)
+  - Unit-Tests
+  - **Noch nicht**: kein `pacs`-CLI, kein Editing, keine Node-Migration,
+    kein State-based Solve, noch keine Job-Erzeugung/-Ausführung.
 - **Phase B — Job/Event-State**: Job-Erzeugung bei Objekt-Ankunft
-  (Wiederverwendung von `check_association`), `state["events"]`-
-  Persistenz (inkl. bestehender Event-Typen), Unit-/API-Tests.
+  (Wiederverwendung von `check_association` gegen die in Phase A
+  aufgelöste Destination), `state["events"]`-Persistenz über
+  `record_event()` (8.6), automatische Routing-Ausführung/zweiter Hop,
+  Unit-/API-Tests.
 - **Phase C — CLI**: `pacs`-Tool-Dispatch in `rules.exec_command`,
   `studies|objects|routes|jobs|events`-Unterbefehle,
   Parser-/Format-Tests.
 - **Phase D — Erster Prototyp-Node**: ein **neuer** Terminal-Lab, das
   Routing/Jobs demonstriert — ausdrücklich **kein** Migrieren
   bestehender Nodes in dieser Phase.
-- **Phase E — Migrationsbewertung**: `dosis-bleibt-liegen`,
-  `move-destination-unknown` erneut prüfen, ob eine Migration jetzt
-  echten didaktischen Mehrwert bringt; Entscheidung pro Node einzeln,
-  kein automatisches "alles migrieren".
+- **Phase E — Migrationsbewertung** (eigener, späterer PR, nicht Teil
+  der obigen vier): `dosis-bleibt-liegen` erneut prüfen, ob eine
+  Migration jetzt echten didaktischen Mehrwert bringt;
+  `move-destination-unknown` nur, falls zu diesem Zeitpunkt auch ein
+  C-MOVE-Primitiv existiert; Entscheidung pro Node einzeln, kein
+  automatisches "alles migrieren".
 
 Kein Big Bang: Scenario bleibt für alle 14 heutigen Nodes vollständig
 nutzbar, unabhängig vom Fortschritt dieser Phasen.
