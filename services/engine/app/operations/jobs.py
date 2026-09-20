@@ -123,10 +123,11 @@ def store_and_route(
 
     for result in route_results:
         route_id = result["route_id"]
-        record_event(
-            state, "route.evaluated",
-            object=object_id, host=target_host, route_id=route_id, matched=result["matched"],
-        )
+        # ADR 0120, 8.6: bei matched=false traegt `result` bereits die
+        # diagnostisch relevanten Felder (field/operator/expected/actual)
+        # aus evaluate_route() -- einfach weiterreichen, kein zweiter
+        # Matcher/keine eigene Formatierung noetig.
+        record_event(state, "route.evaluated", object=object_id, host=target_host, **result)
 
         if not result["matched"]:
             continue
@@ -183,18 +184,21 @@ def _create_and_execute_job(
         # failed, statt eines Python-Crashs -- und route_history wird
         # trotzdem markiert (Abschnitt 38: kein Endlosloop wegen kaputter
         # Destination).
-        raw_destination = route.get("destination") or {}
+        declared_destination = route.get("destination") or {}
+        raw_destination = {
+            "host": declared_destination.get("host"),
+            "service": declared_destination.get("service"),
+        }
         job = create_job(
             state, route_id=route_id, object_id=object_id, source_host=source_host_name,
-            destination={
-                "host": raw_destination.get("host"), "service": raw_destination.get("service"),
-            },
+            destination=raw_destination,
             routing_depth=new_depth,
         )
         runtime_objects.record_route_processed(state, object_id, source_host_name, route_id)
         record_event(
             state, "job.created",
-            object=object_id, route_id=route_id, job_id=job["id"], host=source_host_name,
+            object=object_id, route_id=route_id, job_id=job["id"],
+            source=source_host_name, destination=raw_destination, routing_depth=new_depth,
         )
         _fail_job(
             state, job, object_id=object_id, route_id=route_id, reason="route_configuration_error",
@@ -209,7 +213,8 @@ def _create_and_execute_job(
     runtime_objects.record_route_processed(state, object_id, source_host_name, route_id)
     record_event(
         state, "job.created",
-        object=object_id, route_id=route_id, job_id=job["id"], host=source_host_name,
+        object=object_id, route_id=route_id, job_id=job["id"],
+        source=source_host_name, destination=destination, routing_depth=new_depth,
     )
 
     association = rules.check_association(

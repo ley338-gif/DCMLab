@@ -147,6 +147,24 @@ def test_successful_flow_event_order() -> None:
     assert state["events"][1]["matched"] is True
 
 
+def test_job_created_event_carries_source_destination_and_routing_depth() -> None:
+    """Betreiber-Review (nach PR #168): das Event-Log soll eine
+    nachvollziehbare Reise des Objekts ohne Join gegen den (spaeter
+    veraenderlichen) Job-State abbilden -- job.created braucht deshalb
+    dieselben Kernfelder wie der Job selbst."""
+    node = _node(dose_accepted_sop_classes=[CT_IMAGE_STORAGE])
+    state = rules.initial_state(node)
+
+    _store(node, state)
+
+    job_created = next(e for e in state["events"] if e["type"] == "job.created")
+    assert job_created["source"] == "pacs"
+    assert job_created["routing_depth"] == 1
+    assert job_created["destination"]["host"] == "dose-scp"
+    assert job_created["destination"]["service"] == "dose-store"
+    assert "host" not in job_created
+
+
 # ---------------------------------------------------------------------
 # No match -> kein Job, nur route.evaluated
 # ---------------------------------------------------------------------
@@ -172,6 +190,36 @@ def test_no_match_event_order_is_store_then_route_evaluated_only() -> None:
     types = [e["type"] for e in state["events"]]
     assert types == ["store.completed", "route.evaluated"]
     assert state["events"][1]["matched"] is False
+
+
+def test_route_evaluated_carries_evaluate_route_diagnostics_on_no_match() -> None:
+    """ADR 0120, 8.6, Betreiber-Review (nach PR #168): bei matched=false
+    reicht `route.evaluated` das strukturierte Ergebnis von evaluate_route()
+    durch (field/operator/expected/actual), statt es wegzuwerfen -- genau
+    das ist der diagnostisch interessante Teil (z. B. "dosis-bleibt-liegen":
+    Modality erwartet CT, tatsaechlich SR)."""
+    node = _node(match={"modality": "MR"})
+    state = rules.initial_state(node)
+
+    _store(node, state)
+
+    route_evaluated = state["events"][1]
+    assert route_evaluated["field"] == "modality"
+    assert route_evaluated["operator"] == "equals"
+    assert route_evaluated["expected"] == "MR"
+    assert route_evaluated["actual"] == "CT"
+
+
+def test_route_evaluated_has_no_diagnostic_noise_on_a_match() -> None:
+    node = _node(dose_accepted_sop_classes=[CT_IMAGE_STORAGE])
+    state = rules.initial_state(node)
+
+    _store(node, state)
+
+    route_evaluated = state["events"][1]
+    assert route_evaluated["matched"] is True
+    for key in ("field", "operator", "expected", "actual"):
+        assert key not in route_evaluated
 
 
 # ---------------------------------------------------------------------
@@ -241,6 +289,11 @@ def test_a_route_with_an_unresolvable_destination_fails_defensively() -> None:
     object_id = next(iter(state["objects"]))
     assert state["objects"][object_id]["route_history"] == [["pacs", "CT-TO-DOSE"]]
     assert "dose-scp" not in state.get("stored_objects", {})
+
+    job_created = next(e for e in state["events"] if e["type"] == "job.created")
+    assert job_created["source"] == "pacs"
+    assert job_created["routing_depth"] == 1
+    assert job_created["destination"] == {"host": "nowhere", "service": "dose-store"}
 
 
 def test_association_negotiation_is_reused_calling_ae_not_known() -> None:
