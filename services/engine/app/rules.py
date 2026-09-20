@@ -959,11 +959,23 @@ def view_write_up(state: dict[str, Any]) -> None:
 
 
 def check_flag(node: NodeDefinition, state: dict[str, Any], value: str) -> bool:
+    """Loest einen Node nur, wenn BEIDES zutrifft (ADR 0120, Phase D.1):
+    der Flag-Wert ist korrekt UND -- falls der Node `solve.requires`
+    deklariert -- der dafuer noetige Runtime-State ist tatsaechlich
+    entstanden (`solve.prerequisites_met()`, rein lesend). Ein korrekter
+    Flag ohne erfuellte Prerequisites loest nicht -- dieselbe Rueckgabe wie
+    ein falscher Flag, da die bestehende API nur ein bool kennt (kein
+    UX-Umbau in Phase D.1, siehe PR-Beschreibung). Nodes ohne
+    `solve.requires` (der Normalfall) verhalten sich exakt wie vor Phase
+    D.1: `solve.prerequisites_met()` gibt dort immer True zurueck."""
+
+    from app import solve
     from app.flag import hash_value
 
     correct = hash_value(value, node.flag_case_sensitive) == node.flag_hash
+    solved = correct and solve.prerequisites_met(node.raw, state)
 
-    if correct:
+    if solved:
         state["solved"] = True
 
-    return correct
+    return solved

@@ -26,6 +26,33 @@ final class ContentValidator
     private const MATCH_OPERATORS = ['equals', 'not_equals', 'in', 'exists'];
 
     /**
+     * Generischer Hands-on-Solve-Contract (Phase D.1): domainneutrale
+     * Whitelist von Requirement-Typen und ihren erlaubten Feldern -- ein
+     * Node deklariert damit, welche Fakten im Session-State belegt sein
+     * muessen, bevor der ohnehin weiterhin erforderliche Flag-Wert
+     * (`rules.check_flag()`) den Node loesen kann. Nicht PACS-spezifisch:
+     * `state["objects"]`/`state["stored_objects"]`/`state["jobs"]`/
+     * `state["events"]` sind generische Engine-Konzepte (ADR 0120, Phase
+     * A/B), keine PACS-Vokabel.
+     */
+    private const REQUIREMENT_TYPES = ['object_exists', 'presence', 'job_exists', 'job_not_exists', 'event_exists'];
+
+    private const OBJECT_WHERE_FIELDS = [
+        'filename', 'sop_instance_uid', 'study_uid', 'series_uid', 'sop_class',
+        'modality', 'transfer_syntax', 'study_description', 'series_description', 'origin_host',
+    ];
+
+    private const JOB_WHERE_FIELDS = ['route_id', 'status', 'object'];
+
+    private const JOB_STATUSES = ['queued', 'sent', 'failed'];
+
+    private const EVENT_WHERE_FIELDS = [
+        'type', 'route_id', 'object', 'job_id', 'host', 'matched', 'field', 'operator', 'expected', 'actual', 'reason',
+    ];
+
+    private const EVENT_TYPES = ['store.completed', 'route.evaluated', 'job.created', 'job.sent', 'job.failed'];
+
+    /**
      * @param  array<int, array<string, mixed>>  $themenfelder
      * @param  array<int, array<string, mixed>>  $tracks
      * @param  array<int, array<string, mixed>>  $achievements
@@ -107,6 +134,7 @@ final class ContentValidator
                 $this->checkNodeAchievements($node);
                 $this->checkNodeThemenfeld($node, $themenfelder);
                 $this->checkHostRouting($node);
+                $this->checkSolveRequires($node);
 
                 if (data_get($node['def'], 'scenario') !== null && data_get($node['def'], 'interaction') !== 'scenario') {
                     $this->issue(
@@ -1165,6 +1193,251 @@ final class ContentValidator
 
         if (! $hasValue) {
             $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"{$op}\" erfordert value");
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Hands-on-Solve-Contract (Phase D.1): rein strukturelle Pruefung
+    // einer optionalen `solve.requires`-Liste -- nie, ob ein Requirement
+    // fachlich sinnvoll ist. Ein `object_exists` mit einem `where`, das nie
+    // zutreffen kann, bleibt syntaktisch gueltig, genau wie eine fachlich
+    // falsche Route (siehe oben).
+    // ---------------------------------------------------------------
+
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function checkSolveRequires(array $node): void
+    {
+        if (! array_key_exists('solve', $node['def'])) {
+            return;
+        }
+
+        $defFile = $node['def_file'];
+        $defRaw = $node['def_raw'] ?? '';
+        $solve = $node['def']['solve'];
+
+        // Fail-closed statt fail-open: `solve` ist vorhanden, also muss es
+        // strukturell gueltig sein. Ein Tippfehler wie `require` statt
+        // `requires`, oder ein falscher Typ wie `solve: foo`, darf niemals
+        // stillschweigend wie "kein Solve Contract" behandelt werden -- das
+        // waere fuer ein Feld, dessen einziger Zweck die Solve-Absicherung
+        // ist, das denkbar schlechteste Fehlverhalten.
+        if (! is_array($solve) || array_is_list($solve)) {
+            $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'solve'), 'solve muss ein Objekt sein');
+
+            return;
+        }
+
+        foreach (array_keys($solve) as $field) {
+            if ($field !== 'requires') {
+                $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'solve'), "solve: unbekanntes Feld \"{$field}\" (erlaubt: requires)");
+            }
+        }
+
+        $requires = $solve['requires'] ?? null;
+
+        if (! is_array($requires) || $requires === [] || array_is_list($requires) === false) {
+            $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'solve'), 'solve.requires muss eine nicht-leere Liste sein');
+
+            return;
+        }
+
+        $hostNames = array_column(data_get($node['def'], 'environment.hosts', []), 'name');
+        $routeIds = [];
+
+        foreach (data_get($node['def'], 'environment.hosts', []) as $host) {
+            foreach ($host['routes'] ?? [] as $route) {
+                if (isset($route['id'])) {
+                    $routeIds[] = (string) $route['id'];
+                }
+            }
+        }
+
+        $declaredAliases = [];
+
+        foreach ($requires as $condition) {
+            if (! is_array($condition) || ! isset($condition['type'])) {
+                $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'requires'), 'solve.requires: jede Bedingung braucht ein type-Feld');
+
+                continue;
+            }
+
+            $type = $condition['type'];
+
+            if (! in_array($type, self::REQUIREMENT_TYPES, true)) {
+                $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'requires'), "solve.requires: unbekannter Typ \"{$type}\" (erlaubt: ".implode(', ', self::REQUIREMENT_TYPES).')');
+
+                continue;
+            }
+
+            // Kein default-Zweig: REQUIREMENT_TYPES oben deckt bereits alle
+            // erlaubten Werte ab, PHPStan erkennt diesen match als exhaustiv.
+            match ($type) {
+                'object_exists' => $this->checkObjectExistsRequirement($defFile, $defRaw, $condition, $declaredAliases),
+                'presence' => $this->checkPresenceRequirement($defFile, $defRaw, $condition, $declaredAliases, $hostNames),
+                'job_exists', 'job_not_exists' => $this->checkJobRequirement($defFile, $defRaw, $type, $condition, $declaredAliases, $routeIds),
+                'event_exists' => $this->checkEventRequirement($defFile, $defRaw, $condition, $declaredAliases, $routeIds),
+            };
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $condition
+     * @param  array<string, bool>  $declaredAliases
+     */
+    private function checkObjectExistsRequirement(string $file, string $raw, array $condition, array &$declaredAliases): void
+    {
+        $alias = $condition['as'] ?? null;
+
+        if (! is_string($alias) || $alias === '') {
+            $this->issue($file, LineFinder::firstLineContaining($raw, 'object_exists'), 'object_exists: as (Alias-Name) fehlt');
+        } elseif (isset($declaredAliases[$alias])) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $alias), "solve.requires: Alias \"{$alias}\" ist mehrfach vergeben");
+        } else {
+            $declaredAliases[$alias] = true;
+        }
+
+        $this->checkWhereFields($file, $raw, 'object_exists', $condition, self::OBJECT_WHERE_FIELDS, ['type', 'as', 'where']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $condition
+     * @param  array<string, bool>  $declaredAliases
+     * @param  list<string>  $hostNames
+     */
+    private function checkPresenceRequirement(string $file, string $raw, array $condition, array $declaredAliases, array $hostNames): void
+    {
+        $this->checkUnknownFields($file, $raw, 'presence', $condition, ['type', 'object', 'host', 'present']);
+        $this->checkAliasReference($file, $raw, 'presence', $condition['object'] ?? null, $declaredAliases);
+
+        $host = $condition['host'] ?? null;
+
+        if (! is_string($host) || $host === '') {
+            $this->issue($file, LineFinder::firstLineContaining($raw, 'presence'), 'presence: host fehlt');
+        } elseif (! in_array($host, $hostNames, true)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $host), "presence: unbekannter Host \"{$host}\"");
+        }
+
+        if (! array_key_exists('present', $condition) || ! is_bool($condition['present'])) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, 'presence'), 'presence: present muss ein Boolean sein');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $condition
+     * @param  array<string, bool>  $declaredAliases
+     * @param  list<string>  $routeIds
+     */
+    private function checkJobRequirement(string $file, string $raw, string $type, array $condition, array $declaredAliases, array $routeIds): void
+    {
+        $this->checkWhereFields($file, $raw, $type, $condition, self::JOB_WHERE_FIELDS, ['type', 'where']);
+
+        $where = $condition['where'] ?? [];
+
+        if (! is_array($where)) {
+            return;
+        }
+
+        if (isset($where['object'])) {
+            $this->checkAliasReference($file, $raw, $type, $where['object'], $declaredAliases);
+        }
+
+        if (isset($where['route_id']) && ! in_array((string) $where['route_id'], $routeIds, true)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, (string) $where['route_id']), "{$type}: unbekannte Route-ID \"{$where['route_id']}\"");
+        }
+
+        if (isset($where['status']) && ! in_array($where['status'], self::JOB_STATUSES, true)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $type), "{$type}: unbekannter Job-Status \"{$where['status']}\" (erlaubt: ".implode(', ', self::JOB_STATUSES).')');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $condition
+     * @param  array<string, bool>  $declaredAliases
+     * @param  list<string>  $routeIds
+     */
+    private function checkEventRequirement(string $file, string $raw, array $condition, array $declaredAliases, array $routeIds): void
+    {
+        $this->checkWhereFields($file, $raw, 'event_exists', $condition, self::EVENT_WHERE_FIELDS, ['type', 'where']);
+
+        $where = $condition['where'] ?? [];
+
+        if (! is_array($where)) {
+            return;
+        }
+
+        if (isset($where['object'])) {
+            $this->checkAliasReference($file, $raw, 'event_exists', $where['object'], $declaredAliases);
+        }
+
+        if (isset($where['route_id']) && ! in_array((string) $where['route_id'], $routeIds, true)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, (string) $where['route_id']), "event_exists: unbekannte Route-ID \"{$where['route_id']}\"");
+        }
+
+        if (isset($where['type']) && ! in_array($where['type'], self::EVENT_TYPES, true)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, (string) $where['type']), "event_exists: unbekannter Event-Typ \"{$where['type']}\" (erlaubt: ".implode(', ', self::EVENT_TYPES).')');
+        }
+
+        if (isset($where['matched']) && ! is_bool($where['matched'])) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, 'event_exists'), 'event_exists: matched muss ein Boolean sein');
+        }
+    }
+
+    /**
+     * `where` muss vorhanden, ein nicht-leeres Array sein und darf nur
+     * Schluessel aus `$allowedWhereFields` enthalten -- gemeinsame Pruefung
+     * fuer object_exists/job_exists/job_not_exists/event_exists.
+     *
+     * @param  array<string, mixed>  $condition
+     * @param  list<string>  $allowedWhereFields
+     * @param  list<string>  $allowedTopLevelFields
+     */
+    private function checkWhereFields(string $file, string $raw, string $type, array $condition, array $allowedWhereFields, array $allowedTopLevelFields): void
+    {
+        $this->checkUnknownFields($file, $raw, $type, $condition, $allowedTopLevelFields);
+
+        $where = $condition['where'] ?? null;
+
+        if (! is_array($where) || $where === [] || array_is_list($where)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $type), "{$type}: where muss ein nicht-leeres Objekt sein");
+
+            return;
+        }
+
+        foreach (array_keys($where) as $field) {
+            if (! in_array($field, $allowedWhereFields, true)) {
+                $this->issue($file, LineFinder::firstLineContaining($raw, $type), "{$type}: unbekanntes where-Feld \"{$field}\" (erlaubt: ".implode(', ', $allowedWhereFields).')');
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $condition
+     * @param  list<string>  $allowedFields
+     */
+    private function checkUnknownFields(string $file, string $raw, string $type, array $condition, array $allowedFields): void
+    {
+        foreach (array_keys($condition) as $field) {
+            if (! in_array($field, $allowedFields, true)) {
+                $this->issue($file, LineFinder::firstLineContaining($raw, $type), "{$type}: unbekanntes Feld \"{$field}\"");
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, bool>  $declaredAliases
+     */
+    private function checkAliasReference(string $file, string $raw, string $type, mixed $alias, array $declaredAliases): void
+    {
+        if (! is_string($alias) || $alias === '') {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $type), "{$type}: object (Alias-Referenz) fehlt");
+
+            return;
+        }
+
+        if (! isset($declaredAliases[$alias])) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $alias), "{$type}: unbekannter Alias \"{$alias}\" (muss vorher per object_exists.as deklariert sein)");
         }
     }
 

@@ -120,6 +120,71 @@ environment:
       command: "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 dose-report.dcm"
   placeholders: []
 
+# Hands-on-Solve-Contract (Phase D.1, ADR 0120): der Flag-Wert allein
+# reicht nicht mehr zum Loesen -- der Incident muss zusaetzlich
+# tatsaechlich im Runtime-State nachweisbar sein (rules.check_flag()
+# prueft beides gemeinsam). Grund: mit nur einer Route im ganzen Node war
+# `PACS-TO-DOSE` allein durch `pacs routes`/`pacs route show` ohne jeden
+# Ingest ablesbar (Betreiber-Realitaetscheck nach PR #170) -- der Flag
+# blieb zwar richtig gewaehlt, aber der Solve-Mechanismus erzwang die
+# eigentliche Untersuchung nicht. Der Diagnoseweg bleibt trotzdem frei:
+# WELCHE pacs-Befehle der Lernende dafuer benutzt, ist nicht Teil dieses
+# Vertrags, nur der am Ende tatsaechlich entstandene Zustand.
+solve:
+  requires:
+    # RDSR existiert als eigenes RuntimeObject.
+    - type: object_exists
+      as: rdsr
+      where:
+        sop_class: "1.2.840.10008.5.1.4.1.1.88.67"
+        modality: SR
+
+    # RDSR ist tatsaechlich im PACS gespeichert -- der erste Hop ist
+    # gelungen, das Objekt existiert nicht nur hypothetisch.
+    - type: presence
+      object: rdsr
+      host: pacs
+      present: true
+
+    # RDSR hat das Dose-System nicht erreicht.
+    - type: presence
+      object: rdsr
+      host: dose-scp
+      present: false
+
+    # Die Route wurde fuer GENAU dieses Objekt wirklich automatisch
+    # ausgewertet und hat wegen der Modality nicht gematcht -- nicht nur
+    # irgendein RDSR/Match-Miss irgendwo im State (Objekt-Korrelation
+    # ueber den `rdsr`-Alias, siehe object_exists oben).
+    - type: event_exists
+      where:
+        type: route.evaluated
+        route_id: PACS-TO-DOSE
+        object: rdsr
+        matched: false
+        field: modality
+        operator: equals
+        expected: CT
+        actual: SR
+
+    # Fuer den Dosisbericht ist deshalb nie ein Weiterleitungsauftrag
+    # entstanden -- kein fehlgeschlagener Transfer, sondern gar keiner.
+    - type: job_not_exists
+      where:
+        route_id: PACS-TO-DOSE
+        object: rdsr
+
+    # Positiver Kontrollpfad: mindestens ein CT-Bild wurde ueber dieselbe
+    # Route tatsaechlich erfolgreich weitergeleitet -- beweist, dass Route
+    # und Zielverbindung grundsaetzlich funktionieren und der Incident
+    # wirklich die Objektselektion ist, nicht Konnektivitaet. Bewusst
+    # "mindestens ein" statt "alle drei" CT-Bilder -- keine unnoetig
+    # bruechige exakte Zaehlbedingung ohne didaktischen Mehrwert.
+    - type: job_exists
+      where:
+        route_id: PACS-TO-DOSE
+        status: sent
+
 flag:
   # Runtime-spezifischer technischer Wert (die ID der fehlerhaft
   # selektierenden Weiterleitungsregel) statt "SR" -- Lektion 3.8 nennt
