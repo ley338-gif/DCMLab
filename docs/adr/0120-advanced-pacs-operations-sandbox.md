@@ -637,7 +637,7 @@ Speicherort suggerierte:
 RuntimeObject
 ├── object_id             # stabile, sitzungslokale ID, Primärschlüssel
 ├── filename?              # vorhanden bei objektbasierten Pfaden, sonst None
-├── sop_instance_uid?      # deterministisch erzeugt, falls nicht vorhanden
+├── sop_instance_uid?      # fachliche DICOM-Identität, Erzeugung siehe unten (Review-Fix Runde 4)
 ├── study_uid
 ├── series_uid
 ├── sop_class
@@ -646,9 +646,23 @@ RuntimeObject
 ├── study_description?
 ├── series_description?
 ├── origin_host            # Host, an dem das Objekt zuerst simuliert entstand (Initial Ingest)
-├── route_history          # [(host, route_id), ...] -- siehe 8.11
-└── routing_depth          # siehe 8.11
+└── route_history          # [(host, route_id), ...] -- siehe 8.11
 ```
+
+**Review-Fix Runde 4 — `routing_depth` gehört NICHT ins
+`RuntimeObject`.** Bei Fan-out (derselbe `object_id` wird von
+**mehreren unabhängigen Routen** desselben Hosts gleichzeitig
+weitergeleitet, z. B. `PACS → Dose-System` **und** `PACS → AI-System`)
+würde ein einziger globaler Tiefenzähler am Objekt fälschlich von
+beiden Pfaden geteilt, obwohl es sich um zwei unabhängige, parallele
+Routing-Pfade handelt, nicht um aufeinanderfolgende Hops. Routing-Tiefe
+ist eine Eigenschaft des **konkreten Routing-Pfads** (des Jobs, der
+diesen Hop ausführt), nicht des logischen Objekts — siehe 8.5 (Job
+trägt `routing_depth`) und 8.11 (volle Fan-out-/Chaining-Semantik).
+`route_history` bleibt dagegen zurecht am `RuntimeObject`: sie
+beantwortet "hat *diese* Route *dieses* Objekt schon einmal
+automatisch verarbeitet", eine Frage über das logische Objekt, nicht
+über einen einzelnen Pfad.
 
 ```text
 state["stored_objects"]:      # Object Presence, host-lokal, siehe 8.8
@@ -686,17 +700,21 @@ erhöhen:
 beschriebenen Operation** (kein Implementierungscode, nur das Prinzip):
 
 ```text
-store_object(runtime_object, target_host)
+store_object(runtime_object, target_host, incoming_routing_depth)
   → RuntimeObject auflösen/erzeugen (s.o., objektgenau oder synthetisiert)
   → Presence an target_host hinzufügen (state["stored_objects"][target_host])
   → (Phase B) Routen von target_host gegen runtime_object auswerten,
-    sofern routing_depth es erlaubt
+    sofern incoming_routing_depth < max_routing_depth (8.11)
 ```
 
-Diese eine Operation ist später der natürliche Auslöser für Route-
-Evaluation (8.5) — unabhängig davon, ob sie durch `storescu`,
-`send_study` oder einen automatisch ausgeführten Job (8.5, 8.10)
-aufgerufen wird.
+`incoming_routing_depth` ist **kein Feld des `RuntimeObject`**,
+sondern ein Aufrufkontext-Parameter dieser einen Operation: `0` bei
+Initial Ingest (`storescu`/`send_study`, kein vorheriger Job), sonst
+die `routing_depth` des Jobs, der diesen Aufruf ausgelöst hat (8.5,
+8.11) — genau das macht Fan-out korrekt möglich (8.11). Diese eine
+Operation ist später der natürliche Auslöser für Route-Evaluation
+(8.5) — unabhängig davon, ob sie durch `storescu`, `send_study` oder
+einen automatisch ausgeführten Job (8.5, 8.10) aufgerufen wird.
 
 **Objektidentität, jetzt eindeutig über Multi-Hop hinweg**:
 
@@ -710,7 +728,19 @@ aufgerufen wird.
 - `sop_instance_uid` bleibt ebenfalls über den gesamten Weg identisch
   — sie ist die fachliche DICOM-Identität für Lern-/Ausgabezwecke
   (`pacs jobs`/`pacs events` zeigen echte SOP-Instance-UIDs, nie das
-  interne `object_id`-Format).
+  interne `object_id`-Format). **Review-Fix Runde 4, Klarstellung zur
+  Erzeugung**: die genaue Generierungsmethode für synthetisierte
+  Dataset-Objekte (8.3, Storage-Pfad `send_study`) ist eine
+  Phase-A-Implementierungsentscheidung, keine Architekturfrage dieses
+  ADRs — offen für dieselbe Technik, die `rules.py` bereits für
+  `_study_instance_uid()`/`_series_instance_uid()` nutzt, oder ein
+  `2.25.<UUID-als-Dezimalzahl>`-Root nach PS3.5 B.2 ("UUID Derived
+  UID"). **Architektonisch verbindlich ist nur eine Sache**: eine
+  `sop_instance_uid` wird **niemals** durch Anhängen an eine fremde,
+  standarddefinierte UID (z. B. eine SOP-Class-UID) gebildet — DICOM-
+  Instance-UIDs müssen global eindeutig sein und dürfen nicht aus
+  Standard-UID-Wurzeln abgeleitet werden, die nicht dem eigenen
+  Erzeuger gehören. Siehe 13.1 für das dazu korrigierte Beispiel.
 - **`filename` ist ausdrücklich NICHT die langfristige Objektidentität**
   — optional, existiert nur, wo ein simuliertes File existiert, bleibt
   nutzbar wo bestehender Content ihn schon verwendet (`dcmdump <datei>`,
@@ -844,22 +874,29 @@ nachstellt ("0 queued" ≠ "fehlgeschlagen").
 Job-Felder: `id` (`j-001`, sitzungslokal fortlaufend), `route_id`,
 `source` (Host-Name), `destination` (`{host, service}`, siehe 8.4),
 `object` (`object_id` desselben `RuntimeObject`, siehe 8.3 —
-**niemals** ein neu erzeugtes Objekt), `attempt` (Ganzzahl, Default 1
-— Wiederholung ist Phase 2), `status`, `reason` (Freitext bei `failed`,
+**niemals** ein neu erzeugtes Objekt), **`routing_depth`** (Review-Fix
+Runde 4 — gehört an den Job, nicht ans `RuntimeObject`, siehe 8.3 und
+die volle Begründung in 8.11), `attempt` (Ganzzahl, Default 1 —
+Wiederholung ist Phase 2), `status`, `reason` (Freitext bei `failed`,
 z. B. `"abstract-syntax-not-supported"` — **wiederverwendet dieselben
 echten PS3.8-Ablehnungsgründe**, die `check_association`/
 `trigger_action` heute schon für lernenden-initiierte Sendungen
 produzieren), `created_at`.
 
-**Zentrale Multi-Hop-Invariante (Review-Fix Runde 2)**: ein
-erfolgreicher Job erzeugt **kein neues `RuntimeObject`** — er fügt dem
-**bestehenden** `object_id` lediglich einen weiteren Presence-Eintrag
-am `destination`-Host hinzu (`store_object(runtime_object,
-destination_host)`, dieselbe zentrale Operation aus 8.3) und wertet
-danach — sofern `routing_depth` es erlaubt (8.11) — die Routen des
-Ziel-Hosts gegen dasselbe, unveränderte `RuntimeObject` erneut aus.
-Genau das ist die Grundlage für Multi-Hop: dieselbe logische SOP
-Instance wandert weiter, sie klont sich nicht.
+**Zentrale Multi-Hop-Invariante (Review-Fix Runde 2, präzisiert in
+Runde 4)**: ein erfolgreicher Job erzeugt **kein neues
+`RuntimeObject`** — er fügt dem **bestehenden** `object_id` lediglich
+einen weiteren Presence-Eintrag am `destination`-Host hinzu
+(`store_object(runtime_object, destination_host,
+incoming_routing_depth=job.routing_depth)`, dieselbe zentrale Operation
+aus 8.3) und wertet danach — sofern `job.routing_depth <
+max_routing_depth` (8.11) — die Routen des Ziel-Hosts gegen dasselbe,
+unveränderte `RuntimeObject` erneut aus; ein daraus entstehender
+Folgejob bekommt `routing_depth = job.routing_depth + 1`. Genau das ist
+die Grundlage für Multi-Hop: dieselbe logische SOP Instance wandert
+weiter, sie klont sich nicht — und weil die Tiefe am Job statt am
+Objekt hängt, bleiben parallele Routing-Zweige (Fan-out, 8.11)
+unabhängig voneinander zählbar.
 
 **Zentraler Architekturgewinn**: ein Job wird ausgeführt, indem exakt
 dieselbe Assoziations-/Verhandlungslogik (`check_association`,
@@ -898,9 +935,13 @@ Liste.
 
 ```text
 route.evaluated  { object: obj-001, route_id: CT-TO-DOSE, matched: false, reason: "..." }
-job.created      { object: obj-001, route_id: CT-TO-DOSE, destination: {...} }
+job.created      { object: obj-001, route_id: CT-TO-DOSE, destination: {...}, routing_depth: 1 }
 store.completed  { object: obj-001, host: dose-scp }
 ```
+
+`routing_depth` erscheint hier als **Feld des Job-Events**, nicht des
+Objekts (Review-Fix Runde 4, siehe 8.5/8.11) — konsistent mit der
+Job-Eigentümerschaft der Tiefe.
 
 Damit kann `pacs events --study ...` später die Reise **einer** SOP
 Instance über mehrere Hosts hinweg nachvollziehbar als eine
@@ -922,11 +963,11 @@ Laufzeit-Scheduler.
 Ausnahme**: die Runde-1-Fassung ("kein Job, kein Event außer optional
 einem `route.evaluated`-Eintrag") war in sich widersprüchlich — ein
 persistiertes Event **ist** eine State-Mutation. Korrigiert:
-`pacs route test <route> <objekt>` erzeugt **keinen** Job, **kein**
-Event, **keine** `route_history`-Änderung, **keine**
-`routing_depth`-Änderung und **keine** sonstige Zustandsmutation
-(auch kein `last_progress_at`/Stuck-Progress-Touch) — ausschließlich
-ein reines Kommando-Ergebnis (stdout/stderr-äquivalent), z. B.:
+`pacs route test <route> <objekt>` erzeugt **keinen** Job (und damit
+auch kein `job.routing_depth`, 8.5), **kein** Event, **keine**
+`route_history`-Änderung und **keine** sonstige Zustandsmutation (auch
+kein `last_progress_at`/Stuck-Progress-Touch) — ausschließlich ein
+reines Kommando-Ergebnis (stdout/stderr-äquivalent), z. B.:
 
 ```text
 matched: false
@@ -999,70 +1040,114 @@ unveränderte `RuntimeObject` aus. Empfängt ein zweiter Host (z. B.
 "PACS B" oder ein Dose-System) dasselbe Objekt über einen entstandenen
 Job — als zusätzlichen Presence-Eintrag, kein Klon (8.3) —, kann
 **derselbe Host** wiederum eigene `routes[]` haben — Mehrfach-Hops
-komponieren rekursiv, ohne neues Konzept, solange `routing_depth`
-(8.11) es zulässt.
+komponieren rekursiv, ohne neues Konzept, solange die jeweilige
+Routing-Tiefe (8.11, am Job, nicht am Objekt) es zulässt. Das schließt
+**Fan-out** ausdrücklich ein: matchen an einem Host **mehrere**
+unabhängige Routen dasselbe Objekt (z. B. `PACS → Dose-System` **und**
+`PACS → AI-System`), entstehen mehrere Geschwister-Jobs mit derselben
+Ausgangstiefe — kein aufeinanderfolgender Hop (volle Begründung in
+8.11).
 
-### 8.11 Routing Depth, Loop- und Duplicate-Schutz (Review-Fix Runde 2)
+### 8.11 Routing Depth, Loop- und Duplicate-Schutz (Review-Fix Runde 4: Depth gehört zum Job, nicht zum Objekt)
 
 **Review-Fix Runde 2 — Begriff korrigiert**: "`max_hops`" war
 semantisch missverständlich, weil unklar blieb, ob der initiale
-Sendevorgang (Modalität → PACS) mitzählt. Klare Definition:
+Sendevorgang (Modalität → PACS) mitzählt. **Review-Fix Runde 4 —
+Eigentümerschaft korrigiert**: Runde 2 hatte `routing_depth`
+fälschlich als Feld des `RuntimeObject` beschrieben. Das ist bei
+**Fan-out** nachweislich falsch:
 
-- **`routing_depth`** zählt ausschließlich **automatische, durch eine
-  Route ausgelöste Weiterleitungen** nach dem initialen Eintreffen
-  eines Objekts — **nicht** den initialen Speichervorgang selbst.
-- **Initial Ingest zählt nicht als automatische Route.** Wenn ein
-  Objekt per `storescu` oder `send_study` an einem Host ankommt
-  (Erststoß, lernenden-initiiert), gilt `routing_depth = 0` für dieses
-  `RuntimeObject` — unabhängig davon, ob dieser Host anschließend
-  eigene `routes[]` auswertet.
-- Erst ein **automatisch durch eine Route ausgelöster** Folgetransfer
-  erhöht `routing_depth` um 1. Beispiel:
+```text
+                ┌→ Dose-System
+PACS → obj-001 ─┤
+                └→ AI-System
+```
+
+Beide Routen verarbeiten **dasselbe** `object_id`, aber es sind zwei
+**unabhängige, parallele** Routing-Pfade, keine aufeinanderfolgenden
+Hops. Ein einziger globaler Tiefenzähler am Objekt würde von beiden
+Pfaden fälschlich geteilt — käme später z. B. `Dose-System → Archiv-B`
+und `AI-System → Research-PACS` hinzu, wäre mit einem objektglobalen
+Zähler nicht mehr unterscheidbar, welcher Zweig wie tief ist. **Routing-
+Tiefe ist eine Eigenschaft des konkreten Routing-Pfads (des Jobs, der
+ihn ausführt), nicht des logischen Objekts.**
+
+**Korrigiertes Modell**:
+
+- **`routing_depth` lebt am Job** (8.5), nicht am `RuntimeObject` (8.3).
+  Jeder Job trägt seine eigene Tiefe.
+- **Initial Ingest erzeugt keinen Job und hat keine `routing_depth`.**
+  Wenn ein Objekt per `storescu` oder `send_study` an einem Host
+  ankommt (Erststoß, lernenden-initiiert), gibt es dafür keinen
+  Routing-Job — die anschließende `store_object(...)`-Auswertung (8.3)
+  läuft mit `incoming_routing_depth = 0` als reinem Aufrufkontext, ohne
+  dass irgendwo ein Zähler auf dem Objekt persistiert wird.
+- Matcht an diesem Host eine Route, entsteht ein Job mit
+  `routing_depth = 1`. Führt dieser Job zu einem erfolgreichen
+  Transfer, wird am Ziel-Host erneut `store_object(...)` mit
+  `incoming_routing_depth = 1` aufgerufen; ein daraus entstehender
+  Folgejob bekommt `routing_depth = 2` — usw. Beispiel (linearer Weg):
 
   ```text
-  CT → PACS            Initial Ingest,       routing_depth = 0
-  PACS → Dose-System    automatische Route,   routing_depth = 1
-  (PACS → Router → AI wäre eine dritte Stufe, routing_depth = 2)
+  CT → PACS             Initial Ingest,     kein Job
+  PACS → Dose-System     Job A, depth = 1
+  Dose-System → Archiv-B Job B, depth = 2
   ```
 
-- **Phase-1-Grenze: `max_routing_depth = 1`** — es ist genau **ein**
-  automatischer Forward nach dem Initial Ingest erlaubt (exakt der
-  Phase-1-Content-Scope: Modalität/Workstation → PACS → ein
-  Downstream-Ziel). Das ist keine verteidigte Zahl, sondern die direkte
-  Übersetzung der gewünschten Semantik — 3+-Hop-Ketten sind mit
-  demselben Modell möglich, aber erst mit einem höheren
-  `max_routing_depth`, sobald ein konkreter, getesteter Node das
-  braucht.
+- **Fan-out bekommt zwei Geschwister-Jobs mit derselben Tiefe, nicht
+  aufsteigende Werte**:
+
+  ```text
+  PACS → Dose-System   Job A, depth = 1
+  PACS → AI-System      Job B, depth = 1   # Geschwister von A, nicht Nachfolger
+  ```
+
+- **Phase-1-Grenze: `max_routing_depth = 1`** — ein Folgejob wird nur
+  erzeugt, wenn `parent_routing_depth < max_routing_depth` gilt; für
+  Phase 1 (`max_routing_depth = 1`) heißt das: genau **ein**
+  automatischer Forward nach Initial Ingest ist erlaubt (exakt der
+  Phase-1-Content-Scope: Modalität/Workstation → PACS → ein oder
+  mehrere gleichzeitige Downstream-Ziele per Fan-out), aber kein
+  Folgejob eines bereits automatisch weitergeleiteten Objekts. Das ist
+  keine verteidigte Zahl, sondern die direkte Übersetzung der
+  gewünschten Semantik — 3+-Hop-Ketten sind mit demselben Modell
+  möglich, aber erst mit einem höheren `max_routing_depth`, sobald ein
+  konkreter, getesteter Node das braucht.
 
 **Zwei minimale, deterministische Invarianten statt eines
 Graph-Algorithmus** (ohne Schutz wäre sowohl eine Routing-Schleife
 `PACS-A → PACS-B → PACS-A → ...` als auch eine wiederholte Verarbeitung
-desselben Objekts durch dieselbe Route möglich):
+desselben Objekts durch dieselbe Route möglich) — **beide bleiben
+unverändert gegenüber Runde 2, unabhängig vom Depth-Fix**:
 
 1. **Route-Historie gehört zum logischen Objekt, nicht zum
-   Presence-Eintrag.** `RuntimeObject.route_history:
+   Presence-Eintrag und nicht zum Job.** `RuntimeObject.route_history:
    list[(host, route_id)]` (8.3) — **nicht** eine Historie "der
    gespeicherten Kopie" an einem Host, weil dasselbe Objekt an mehreren
    Hosts gleichzeitig liegen kann (8.3) und der Schutz trotzdem für das
-   ganze logische Objekt gelten muss. Regel: dieselbe
-   `(host, route_id)`-Kombination darf dasselbe `object_id` innerhalb
-   einer Session **höchstens einmal** automatisch weiterleiten — ein
-   zweiter Versuch erzeugt keinen neuen Job (analog zur "kein Job bei
-   Nicht-Match"-Regel aus 8.5, nur mit anderem Grund im Audit-Log).
-   Beispiel: `obj-001.route_history = [("pacs-a", "ROUTE-TO-B"),
-   ("pacs-b", "ROUTE-TO-C")]`.
+   ganze logische Objekt gelten muss, unabhängig von der Tiefe. Regel:
+   dieselbe `(host, route_id)`-Kombination darf dasselbe `object_id`
+   innerhalb einer Session **höchstens einmal** automatisch
+   weiterleiten — ein zweiter Versuch erzeugt keinen neuen Job (analog
+   zur "kein Job bei Nicht-Match"-Regel aus 8.5, nur mit anderem Grund
+   im Audit-Log). Beispiel: `obj-001.route_history = [("pacs",
+   "CT-TO-DOSE"), ("pacs", "CT-TO-AI")]`. Diese Regel ist **unabhängig**
+   von `routing_depth` — sie verhindert Duplikate, die Tiefe verhindert
+   zu lange/zu viele aufeinanderfolgende Ketten.
 2. **`max_routing_depth` als harte Engine-Sicherheitsgrenze**,
    unabhängig von Punkt 1 — nötig, weil zwei *verschiedene* Routen
    (`A`s Route X → `B`s Route Y → `A`s Route Z) durch Punkt 1 allein
-   nicht ausgeschlossen wären. Die Engine bricht die automatische
-   Weiterleitungskette bei Erreichen der Grenze deterministisch ab
-   (kein Fehler, sondern ein regulärer `route.evaluated`-Event mit
-   `reason: "max_routing_depth erreicht"`).
+   nicht ausgeschlossen wären. Die Engine erzeugt keinen Folgejob, wenn
+   `parent_routing_depth ≥ max_routing_depth` (kein Fehler, sondern ein
+   regulärer `route.evaluated`-Event mit `reason: "max_routing_depth
+   erreicht"`).
 
 Ziel beider Regeln zusammen: deterministisch, keine Endlosschleife,
-keine Job-Explosion, weiterhin Multi-Hop-fähig innerhalb der Grenze —
-und der Schutz bleibt korrekt, auch wenn dasselbe `RuntimeObject`
-gleichzeitig an mehreren Hosts vorhanden ist (8.3).
+keine Job-Explosion, weiterhin Multi-Hop- **und** Fan-out-fähig
+innerhalb der Grenze — und beide Schutzmechanismen bleiben korrekt,
+auch wenn dasselbe `RuntimeObject` gleichzeitig an mehreren Hosts
+vorhanden ist und über mehrere unabhängige Pfade gleichzeitig
+weitergeleitet wird (8.3).
 
 ### 8.12 DICOM-Metadaten-Modell (Abschnitt 17)
 
@@ -1146,11 +1231,22 @@ eines einzelnen Objekts über mehrere Hosts zeigt:
 ```text
 $ pacs object show obj-001
 
-SOP Instance UID: 1.2.840.10008...
+SOP Class UID:    1.2.840.10008.5.1.4.1.1.2 (CT Image Storage)
+SOP Instance UID: 1.2.276.0.7230010.3.1.2.881205337201
 Present at:
 - pacs
 - dose-scp
 ```
+
+**Review-Fix Runde 4**: SOP Class UID und SOP Instance UID werden hier
+bewusst als zwei getrennte, unterschiedliche Werte gezeigt — die SOP
+Class UID identifiziert den Objekt**typ** (hier: CT Image Storage,
+verbindlich durch PS3.6 definiert), die SOP Instance UID die
+konkrete **Instanz** dieses Typs. Die Instance-UID folgt dem in diesem
+Repo bereits etablierten Test-UID-Präfix
+(`1.2.276.0.7230010.3.1.2.*`, siehe `letztes-glied-fehlt`s SOP Instance
+UIDs) — sie wird **niemals** durch Anhängen an die SOP-Class-UID
+gebildet (siehe 8.3).
 
 Parser: kein neues Framework — derselbe `shlex.split`-Ansatz wie
 heute, ein kleiner handgeschriebener Dispatcher auf `args[0]`
@@ -1227,18 +1323,30 @@ Review gefordert:
   Job existiert **dasselbe** `object_id` zusätzlich an einem zweiten
   Host (`stored_objects[dose-scp] == [obj-001]` **und weiterhin**
   `stored_objects[pacs] == [obj-001]`) — kein Klon, keine Verschiebung.
-- **Routing**: Matcher liest ausschließlich normalisierte
-  `RuntimeObject`-Metadaten (8.2/8.12); Missing-Field-Semantik pro
-  Operator (8.2-Tabelle); `pacs route test` mutiert **keinen** State
-  (kein Job, kein Event, keine `route_history`, kein
-  `routing_depth`-Inkrement, 8.7); Route-Historie verhindert, dass
-  dieselbe `(host, route_id)`-Kombination dasselbe `object_id` zweimal
-  automatisch weiterleitet (8.11); `max_routing_depth` bricht eine zu
-  tiefe automatische Kette deterministisch ab, ohne Initial Ingest
-  mitzuzählen (`routing_depth` startet bei 0, nicht bei 1, 8.11);
-  Destination-Auflösung Host+Service (8.4, inkl. Fehlerfall "Service
-  existiert nicht am Ziel-Host"); Job-Erzeugung, Zustandsübergänge
-  `queued→sent`/`queued→failed`.
+- **Routing**, gegliedert nach den vier im Review geforderten Fällen
+  (Review-Fix Runde 4):
+  - *Initial ingest*: `storescu`/`send_study` erzeugen `RuntimeObject`
+    + Presence, aber **keinen** Routing-Job (8.3, 8.11).
+  - *First forward*: ein Route-Match am Ingest-Host erzeugt einen Job
+    mit `routing_depth = 1` (8.5, 8.11).
+  - *Fan-out*: matchen an einem Host **zwei** unabhängige Routen
+    dasselbe Objekt, entstehen zwei Jobs mit **derselber** Tiefe
+    (`routing_depth = 1` für beide, nicht `1` und `2`) — der zentrale,
+    namensgebende Testfall dieser Review-Runde (8.11).
+  - *Depth limit*: bei `max_routing_depth = 1` erzeugt ein bereits mit
+    `routing_depth = 1` angekommenes Objekt am Downstream-Host
+    **keinen** weiteren automatischen Job (8.11).
+  - *Duplicate protection*, unabhängig von der Tiefe: dieselbe
+    `(host, route_id, object_id)`-Kombination darf nicht zweimal
+    automatisch verarbeitet werden (`RuntimeObject.route_history`,
+    8.11).
+  - Zusätzlich: Matcher liest ausschließlich normalisierte
+    `RuntimeObject`-Metadaten (8.2/8.12); Missing-Field-Semantik pro
+    Operator (8.2-Tabelle); `pacs route test` mutiert **keinen** State
+    (kein Job, kein Event, keine `route_history`-Änderung, 8.7);
+    Destination-Auflösung Host+Service (8.4, inkl. Fehlerfall "Service
+    existiert nicht am Ziel-Host"); Zustandsübergänge
+    `queued→sent`/`queued→failed`.
 - **Engine-API**: `pacs`-Unterbefehle deterministisch (gleicher State +
   gleicher Command → gleiche Ausgabe), Sitzungspersistenz über
   `state["objects"]`/`state["stored_objects"]`/`state["jobs"]`/
@@ -1341,7 +1449,8 @@ expected: CT
 actual: SR
 
 $ pacs object show rdsr-001.dcm
-SOP Instance UID: 1.2.840.10008.5.1.4.1.1.88.67...
+SOP Class UID:    1.2.840.10008.5.1.4.1.1.88.67 (X-Ray Radiation Dose SR Storage)
+SOP Instance UID: 1.2.276.0.7230010.3.1.2.550331987299
 Present at:
 - pacs
 ```
@@ -1349,7 +1458,11 @@ Present at:
 Der letzte Befehl macht das Presence-Modell greifbar: dasselbe
 `RuntimeObject` ist nur an `pacs` vorhanden (nie geroutet), während ein
 CT-Bild derselben Study an `pacs` **und** `dose-scp` präsent wäre —
-kein Klon, derselbe `object_id`, zwei Presence-Einträge.
+kein Klon, derselbe `object_id`, zwei Presence-Einträge. **Review-Fix
+Runde 4**: SOP Class UID (Objekttyp) und SOP Instance UID (konkrete
+Instanz) sind bewusst zwei getrennte, unterschiedliche Werte — die
+Instance-UID ist **nicht** die um Ziffern verlängerte Class-UID (siehe
+8.3 zur UID-Erzeugung).
 
 Würde den didaktischen Wert dieses Nodes deutlich steigern (echte
 Evidenzsammlung statt vorgelesener Logs) — ein plausibler
@@ -1536,9 +1649,18 @@ fertigen Nodes)
    und `move-destination-unknown` als **angrenzenden, späteren**
    Kandidaten (erfordert zusätzlich ein C-MOVE-Primitiv, siehe 13.4)
    für eine spätere Phase E vorzumerken, ohne sie jetzt anzufassen.
-6. Zustimmung zum Loop-/Duplicate-Schutz (Route-Historie am
-   `RuntimeObject` + `max_routing_depth = 1` als harte Engine-Grenze
-   für Phase 1, 8.11) und zur RuntimeObject/Presence-Trennung (8.3).
+6. **Zustimmung zum Loop-/Duplicate-Schutz und zur
+   Eigentümerschaft der Routing-Tiefe (Review-Fix Runde 4, 8.11)**:
+   Route-Historie bleibt am `RuntimeObject` (beantwortet "hat diese
+   Route dieses Objekt schon verarbeitet", unabhängig von der Tiefe).
+   Routing-Tiefe gehört dagegen zum jeweiligen automatischen
+   Routing-Pfad bzw. Job — **nicht** zum logischen Objekt, damit
+   Fan-out (mehrere unabhängige Routen desselben Objekts) korrekt
+   dieselbe Ausgangstiefe statt fälschlich aufsteigender Werte erhält.
+   Initial Ingest zählt nicht als automatischer Hop und erzeugt keinen
+   Job; Phase 1 erlaubt mit `max_routing_depth = 1` genau einen
+   automatischen Forward danach. Zustimmung auch zur
+   RuntimeObject/Presence-Trennung selbst (8.3).
 7. Freigabe für die erste Implementierungs-PR-Serie (Phase A gemäß
    Abschnitt 18, in mehreren kleinen PRs statt einem großen Branch),
    sobald gewünscht — **nicht Teil dieses Auftrags**.
@@ -1565,22 +1687,35 @@ PR 4 — Prototype Node                    (Phase D)
     getrennt vom `RuntimeObject` selbst
   - Normalisierung beider Storage-Pfade (`storescu` **und**
     `send_study`) auf dieselbe zentrale `store_object(...)`-Operation
-  - stabile `object_id`, optionale `sop_instance_uid` (8.3)
+  - stabile `object_id`, SOP Instance UID als optionale fachliche
+    Identität (8.3) — genaue Erzeugungsmethode ist ein
+    Phase-A-Implementierungsdetail, architektonisch bindend ist nur:
+    unverändert über Multi-Hop, niemals aus einer fremden UID
+    abgeleitet
   - Destination-Modell (Host + Service + Calling AE, 8.4)
   - Match-Evaluator (kanonische Form + Missing-Field-Semantik, 8.2),
     reine Funktionen
-  - Route-Historie am `RuntimeObject` + `routing_depth`/
-    `max_routing_depth` (8.11)
+  - Route-Historie am `RuntimeObject` (8.11)
+  - **Routing-Depth-Invariante definieren** (Review-Fix Runde 4, 8.11):
+    Initial Ingest zählt nicht, ein Folgejob bekäme
+    `parent_routing_depth + 1`, `max_routing_depth` als Grenze — **die
+    Semantik wird in Phase A festgelegt und getestet, die tatsächliche
+    Persistierung von `routing_depth` an einem realen Job folgt erst
+    in Phase B**, da es in Phase A noch keine Jobs gibt.
   - Validator-Grundlagen (9.3)
   - Unit-Tests (Identity/Presence/Routing, siehe 11)
   - **Noch nicht**: kein `pacs`-CLI, kein Editing, keine Node-Migration,
     kein State-based Solve, noch keine Job-Erzeugung/-Ausführung, noch
     keine Events.
-- **Phase B — Job/Event-State**: Job-Erzeugung bei Objekt-Ankunft
-  (Wiederverwendung von `check_association` gegen die in Phase A
-  aufgelöste Destination), `state["events"]`-Persistenz über
-  `record_event()` (8.6), automatische Routing-Ausführung/zweiter Hop,
-  Unit-/API-Tests.
+- **Phase B — Job/Event-State**: Job-Modell inkl. `job.routing_depth`
+  (8.5), Job-Erzeugung bei Objekt-Ankunft (Wiederverwendung von
+  `check_association` gegen die in Phase A aufgelöste Destination),
+  automatische Routen-Ausführung (ein erfolgreicher Job fügt Presence
+  am Ziel hinzu, statt ein neues Objekt zu erzeugen, 8.5), Folgejobs
+  erhalten `parent.routing_depth + 1` und entstehen nur, wenn
+  `max_routing_depth` es erlaubt, `state["events"]`-Persistenz über
+  `record_event()` (8.6), Unit-/API-Tests (inkl. der in 11 genannten
+  Fan-out-/Chaining-/Depth-Limit-Fälle).
 - **Phase C — CLI**: `pacs`-Tool-Dispatch in `rules.exec_command`,
   `studies|objects|routes|jobs|events`-Unterbefehle,
   Parser-/Format-Tests.
