@@ -1209,14 +1209,33 @@ final class ContentValidator
      */
     private function checkSolveRequires(array $node): void
     {
-        $requires = data_get($node['def'], 'solve.requires');
-
-        if ($requires === null) {
+        if (! array_key_exists('solve', $node['def'])) {
             return;
         }
 
         $defFile = $node['def_file'];
         $defRaw = $node['def_raw'] ?? '';
+        $solve = $node['def']['solve'];
+
+        // Fail-closed statt fail-open: `solve` ist vorhanden, also muss es
+        // strukturell gueltig sein. Ein Tippfehler wie `require` statt
+        // `requires`, oder ein falscher Typ wie `solve: foo`, darf niemals
+        // stillschweigend wie "kein Solve Contract" behandelt werden -- das
+        // waere fuer ein Feld, dessen einziger Zweck die Solve-Absicherung
+        // ist, das denkbar schlechteste Fehlverhalten.
+        if (! is_array($solve) || array_is_list($solve)) {
+            $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'solve'), 'solve muss ein Objekt sein');
+
+            return;
+        }
+
+        foreach (array_keys($solve) as $field) {
+            if ($field !== 'requires') {
+                $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'solve'), "solve: unbekanntes Feld \"{$field}\" (erlaubt: requires)");
+            }
+        }
+
+        $requires = $solve['requires'] ?? null;
 
         if (! is_array($requires) || $requires === [] || array_is_list($requires) === false) {
             $this->issue($defFile, LineFinder::firstLineContaining($defRaw, 'solve'), 'solve.requires muss eine nicht-leere Liste sein');

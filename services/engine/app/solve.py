@@ -14,10 +14,12 @@ Wichtige Trennung (siehe `rules.check_flag()`, dem einzigen Aufrufer):
 
 `prerequisites_met()` allein loest nie einen Node -- sie ist eine reine,
 seiteneffektfreie Auswertungsfunktion (kein Event, keine State-Mutation,
-kein `last_progress_at`-Touch, kein Kommando-/CLI-Tracking). Fehlt
-`solve.requires` in einem Node (der Normalfall fuer jeden heute
-bestehenden Node), gilt die Bedingung automatisch als erfuellt -- exakt das
-Verhalten vor Phase D.1.
+kein `last_progress_at`-Touch, kein Kommando-/CLI-Tracking). Fehlt der
+`solve`-Schluessel komplett (der Normalfall fuer jeden heute bestehenden
+Node), gilt die Bedingung automatisch als erfuellt -- exakt das Verhalten vor
+Phase D.1. Ein VORHANDENER, aber strukturell ungueltiger `solve`-Block
+(falscher Typ, fehlendes/leeres `requires`) ist dagegen fail-closed: nie
+erfuellt, nie automatisch geloest.
 """
 
 from __future__ import annotations
@@ -45,13 +47,26 @@ class RequirementError(ValueError):
 def prerequisites_met(node_raw: dict[str, Any], state: dict[str, Any]) -> bool:
     """Wertet `solve.requires` (falls vorhanden) rein lesend gegen `state`
     aus. Kein `solve`-Schluessel -> True (bestehende Nodes unveraendert).
-    Invalider Content (sollte der Validator eigentlich verhindern) fuehrt
-    zu `False` statt einem Crash der Session."""
 
-    requirements = (node_raw.get("solve") or {}).get("requires")
+    Fail-closed statt fail-open: ein VORHANDENER, aber strukturell ungueltiger
+    `solve`-Block (falscher Typ, fehlendes/leeres `requires`, Tippfehler wie
+    `require` statt `requires`) gilt als NICHT erfuellt, nie als automatisch
+    erfuellt -- ein Autor, der glaubt ein Gate definiert zu haben, darf nie
+    stillschweigend das alte Flag-only-Verhalten zurueckbekommen. Nur ein
+    komplett fehlender `solve`-Schluessel ist der Backward-Compatibility-Fall."""
 
-    if not requirements:
+    solve_config = node_raw.get("solve")
+
+    if solve_config is None:
         return True
+
+    if not isinstance(solve_config, dict):
+        return False
+
+    requirements = solve_config.get("requires")
+
+    if not isinstance(requirements, list) or not requirements:
+        return False
 
     bindings: dict[str, str | None] = {}
 
@@ -110,21 +125,30 @@ def _check_where_fields(where: dict[str, Any], allowed: tuple[str, ...], type_na
 def _object_exists(
     condition: dict[str, Any], state: dict[str, Any], bindings: dict[str, str | None],
 ) -> bool:
+    """Bindet `alias` nur, wenn `where` GENAU EIN RuntimeObject identifiziert.
+
+    0 Treffer -> nicht erfuellt. >1 Treffer -> ebenfalls nicht erfuellt
+    (mehrdeutig) statt willkuerlich das erste Dict-Item zu nehmen -- sonst
+    haengt das Solve-Ergebnis von der zufaelligen Insertion-Order in
+    `state["objects"]` ab, nicht vom fachlichen Zustand."""
+
     where: dict[str, Any] = condition.get("where") or {}
     _check_where_fields(where, OBJECT_WHERE_FIELDS, "object_exists")
     alias: str = condition["as"]
     objects: dict[str, dict[str, Any]] = state.get("objects", {})
 
-    match = next(
-        (
-            object_id for object_id, obj in objects.items()
-            if all(obj.get(field) == value for field, value in where.items())
-        ),
-        None,
-    )
-    bindings[alias] = match
+    matches = [
+        object_id for object_id, obj in objects.items()
+        if all(obj.get(field) == value for field, value in where.items())
+    ]
 
-    return match is not None
+    if len(matches) != 1:
+        bindings[alias] = None
+        return False
+
+    bindings[alias] = matches[0]
+
+    return True
 
 
 def _presence(

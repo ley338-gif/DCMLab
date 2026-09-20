@@ -36,12 +36,38 @@ def test_missing_solve_key_is_always_satisfied() -> None:
     assert solve.prerequisites_met({}, _state()) is True
 
 
-def test_empty_requires_list_is_satisfied() -> None:
-    assert solve.prerequisites_met({"solve": {"requires": []}}, _state()) is True
+# ---------------------------------------------------------------------
+# Fail-closed: ein VORHANDENER, aber strukturell ungueltiger `solve`-Block
+# ist niemals automatisch erfuellt -- ein Autor, der glaubt ein Gate
+# definiert zu haben, darf nie stillschweigend das alte Flag-only-Verhalten
+# zurueckbekommen (nur ein komplett FEHLENDER `solve`-Schluessel ist der
+# Backward-Compatibility-Fall, siehe oben).
+# ---------------------------------------------------------------------
+
+def test_empty_requires_list_is_not_satisfied() -> None:
+    assert solve.prerequisites_met({"solve": {"requires": []}}, _state()) is False
 
 
-def test_solve_without_requires_key_is_satisfied() -> None:
-    assert solve.prerequisites_met({"solve": {}}, _state()) is True
+def test_solve_without_requires_key_is_not_satisfied() -> None:
+    assert solve.prerequisites_met({"solve": {}}, _state()) is False
+
+
+def test_solve_with_a_typo_key_instead_of_requires_is_not_satisfied() -> None:
+    node_raw = {"solve": {"require": [{"type": "job_exists", "where": {"route_id": "R1"}}]}}
+
+    assert solve.prerequisites_met(node_raw, _state()) is False
+
+
+def test_solve_as_a_string_is_not_satisfied() -> None:
+    assert solve.prerequisites_met({"solve": "foo"}, _state()) is False
+
+
+def test_solve_as_a_list_is_not_satisfied() -> None:
+    assert solve.prerequisites_met({"solve": ["foo"]}, _state()) is False
+
+
+def test_solve_requires_as_a_string_is_not_satisfied() -> None:
+    assert solve.prerequisites_met({"solve": {"requires": "foo"}}, _state()) is False
 
 
 # ---------------------------------------------------------------------
@@ -74,6 +100,50 @@ def test_object_exists_matches_all_where_fields_simultaneously() -> None:
     state = _state(objects={"obj-001": {"modality": "SR", "sop_class": CT}})
 
     assert solve.prerequisites_met(node_raw, state) is False
+
+
+def test_object_exists_is_false_when_where_matches_more_than_one_object() -> None:
+    """Mehrdeutigkeit ist kein Treffer: `where` muss GENAU EIN Objekt
+    identifizieren, sonst waere unklar, welches der Kandidaten fuer
+    nachfolgende, ueber den Alias korrelierte Bedingungen gemeint ist."""
+    node_raw = {"solve": {"requires": [
+        {"type": "object_exists", "as": "rdsr", "where": {"modality": "SR"}},
+    ]}}
+    state = _state(objects={
+        "obj-A": {"modality": "SR"},
+        "obj-B": {"modality": "SR"},
+    })
+
+    assert solve.prerequisites_met(node_raw, state) is False
+
+
+def test_object_exists_ambiguous_match_result_is_not_insertion_order_dependent() -> None:
+    """Regressionstest fuer den urspruenglichen Bug: `object_exists` band
+    schlicht den ERSTEN Treffer aus `state["objects"].items()`. Bei einer
+    Bedingung, die nur an EINEM der beiden gleichwertigen Kandidaten wirklich
+    zutrifft, haette das Ergebnis von der zufaelligen Dict-Insertion-Order
+    abgehangen. Mit eindeutiger Bindung ist das Ergebnis fuer beide
+    Reihenfolgen identisch (hier: False, weil zwei Objekte `where` erfuellen)."""
+    node_raw = {"solve": {"requires": [
+        {"type": "object_exists", "as": "rdsr", "where": {"modality": "SR"}},
+        {"type": "job_exists", "where": {"object": "rdsr", "route_id": "R1"}},
+    ]}}
+    objects_a_first = {
+        "obj-A": {"modality": "SR"},  # kein passender Job
+        "obj-B": {"modality": "SR"},  # haette den passenden Job
+    }
+    objects_b_first = {
+        "obj-B": {"modality": "SR"},
+        "obj-A": {"modality": "SR"},
+    }
+    jobs = {"j-001": {"object": "obj-B", "route_id": "R1"}}
+
+    result_a_first = solve.prerequisites_met(node_raw, _state(objects=objects_a_first, jobs=jobs))
+    result_b_first = solve.prerequisites_met(node_raw, _state(objects=objects_b_first, jobs=jobs))
+
+    assert result_a_first is False
+    assert result_b_first is False
+    assert result_a_first == result_b_first
 
 
 # ---------------------------------------------------------------------

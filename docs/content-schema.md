@@ -844,14 +844,18 @@ runtime prerequisites erfüllt AND Flag korrekt -> gelöst
 **Bedingungstypen** (Whitelist, keine beliebigen Ausdrücke — kein `eval`,
 kein JSONPath/JMESPath, keine Python-/PHP-Ausdrücke aus YAML):
 
-- `object_exists` — mindestens ein Eintrag in `state["objects"]` erfüllt
-  alle Felder in `where` (erlaubte Felder: `filename`, `sop_instance_uid`,
-  `study_uid`, `series_uid`, `sop_class`, `modality`, `transfer_syntax`,
-  `study_description`, `series_description`, `origin_host`). `as` bindet
-  das *erste* gefundene Objekt an einen Alias-Namen, den spätere
-  Bedingungen über `object: <alias>` referenzieren — Objekt-Korrelation
-  ist dadurch eingebaut: verschiedene Bedingungen können sich nicht
-  versehentlich auf verschiedene Objekte beziehen.
+- `object_exists` — **genau ein** Eintrag in `state["objects"]` muss alle
+  Felder in `where` erfüllen (erlaubte Felder: `filename`,
+  `sop_instance_uid`, `study_uid`, `series_uid`, `sop_class`, `modality`,
+  `transfer_syntax`, `study_description`, `series_description`,
+  `origin_host`). `as` bindet dieses eine Objekt an einen Alias-Namen, den
+  spätere Bedingungen über `object: <alias>` referenzieren — Objekt-
+  Korrelation ist dadurch eingebaut: verschiedene Bedingungen können sich
+  nicht versehentlich auf verschiedene Objekte beziehen. **Kein Treffer
+  und mehr als ein Treffer sind beide nicht erfüllt** — bei mehreren
+  Kandidaten wäre unklar, welcher gemeint ist, und das Ergebnis darf
+  niemals von der zufälligen Reihenfolge in `state["objects"]` abhängen
+  (die Engine bindet nie einfach "das erste passende Objekt").
 - `presence` — das per Alias referenzierte Objekt ist (`present: true`)
   oder ist nicht (`present: false`) in `state["stored_objects"][host]`.
 - `job_exists` / `job_not_exists` — mindestens ein bzw. kein Eintrag in
@@ -877,13 +881,22 @@ bestehende API kennt nur `{"correct": bool}` — eine feinere
 Rückmeldung "Antwort korrekt, Versuch noch nicht vollständig" ist ein
 dokumentierter UX-Follow-up, kein Teil von Phase D.1).
 
-**Bestehende Nodes bleiben unverändert.** Fehlt `solve:` (der Normalfall
-für jeden heute bestehenden Node), gilt die Bedingung automatisch als
-erfüllt — exakt das Verhalten vor Phase D.1. `content:validate` prüft
-`solve.requires` rein strukturell (bekannte Typen, Pflichtfelder,
-referenzierte Hosts/Routes existieren, Alias-Namen eindeutig, keine
-unbekannten Felder) — **nie**, ob eine Bedingung fachlich sinnvoll ist,
-genau wie bei `environment.hosts[].routes[].match` (Abschnitt 6k).
+**Bestehende Nodes bleiben unverändert.** Fehlt der `solve:`-Schlüssel
+komplett (der Normalfall für jeden heute bestehenden Node), gilt die
+Bedingung automatisch als erfüllt — exakt das Verhalten vor Phase D.1.
+
+**Fail-closed statt fail-open.** Ist `solve:` dagegen vorhanden, aber
+strukturell ungültig — falscher Typ (`solve: foo`), fehlendes oder leeres
+`requires` (`solve: {}`, `solve: {requires: []}`), ein Tippfehler wie
+`require` statt `requires` — gilt die Bedingung als **nicht erfüllt**,
+niemals automatisch als erfüllt. Ein Autor, der glaubt, ein Gate definiert
+zu haben, darf nie stillschweigend das alte Flag-only-Verhalten
+zurückbekommen. `content:validate` prüft `solve.requires` rein strukturell
+(bekannte Typen, Pflichtfelder, referenzierte Hosts/Routes existieren,
+Alias-Namen eindeutig, keine unbekannten Top-Level- oder `where`-Felder in
+`solve` selbst oder in einer Bedingung) — **nie**, ob eine Bedingung
+fachlich sinnvoll ist, genau wie bei `environment.hosts[].routes[].match`
+(Abschnitt 6k).
 
 ## 7. Node — `de.md`
 
@@ -953,7 +966,8 @@ Ein `content:validate`-Befehl prüft vor jedem Commit:
 
 **Hands-on-Solve-Contract** (Abschnitt 6l, ab Phase D.1, generisch — nicht PACS-spezifisch)
 
-- `solve.requires` ist, wenn vorhanden, eine nicht-leere Liste
+- `solve`, wenn vorhanden, muss ein Objekt mit ausschließlich dem Feld `requires` sein (fail-closed: ein Tippfehler wie `require` oder ein falscher Typ wie `solve: foo` ist ein Validierungsfehler, nicht "kein Solve Contract")
+- `solve.requires` ist eine nicht-leere Liste
 - jede Bedingung hat ein `type` aus `object_exists|presence|job_exists|job_not_exists|event_exists`, keine unbekannten Top-Level- oder `where`-Felder
 - `object_exists` hat ein eindeutiges `as` (Alias-Name), jeder spätere `object: <alias>` referenziert einen zuvor deklarierten Alias
 - `presence.host` existiert in `environment.hosts`, `presence.present` ist ein echtes Boolean

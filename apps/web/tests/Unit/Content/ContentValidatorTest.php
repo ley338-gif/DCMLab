@@ -870,6 +870,20 @@ class ContentValidatorTest extends TestCase
         return ['type' => 'object_exists', 'as' => 'rdsr', 'where' => ['modality' => 'SR']];
     }
 
+    /**
+     * Wie {@see nodeWithSolveRequires()}, ersetzt aber den kompletten
+     * `solve`-Wert -- fuer Tests, die einen strukturell ungueltigen
+     * `solve`-Block selbst pruefen (falscher Typ, Tippfehler-Feld), nicht
+     * nur eine einzelne Bedingung darin.
+     */
+    private function nodeWithRawSolve(mixed $solve): array
+    {
+        $node = $this->nodeWithSolveRequires([]);
+        $node['sample']['def']['solve'] = $solve;
+
+        return $node;
+    }
+
     public function test_a_structurally_valid_solve_contract_raises_no_issue(): void
     {
         $issues = $this->validateNodes($this->nodeWithSolveRequires([
@@ -910,6 +924,42 @@ class ContentValidatorTest extends TestCase
         $issues = $this->validateNodes($this->nodeWithSolveRequires([]));
 
         $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'solve.requires muss eine nicht-leere Liste sein')));
+    }
+
+    public function test_solve_as_a_string_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRawSolve('foo'));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'solve muss ein Objekt sein')));
+    }
+
+    public function test_solve_as_a_list_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRawSolve(['foo']));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'solve muss ein Objekt sein')));
+    }
+
+    public function test_solve_with_a_typo_key_instead_of_requires_is_rejected(): void
+    {
+        // "require" statt "requires" -- ohne fail-closed-Pruefung wuerde der
+        // Validator (und die Engine) das schlicht als "kein Solve Contract"
+        // lesen, obwohl der Autor eindeutig ein Gate definieren wollte.
+        $issues = $this->validateNodes($this->nodeWithRawSolve(['require' => [$this->validRdsrRequirement()]]));
+        $messages = collect($this->messages($issues));
+
+        $this->assertTrue($messages->contains(fn ($m) => str_contains($m, 'solve: unbekanntes Feld "require"')));
+        $this->assertTrue($messages->contains(fn ($m) => str_contains($m, 'solve.requires muss eine nicht-leere Liste sein')));
+    }
+
+    public function test_solve_with_an_unsupported_top_level_field_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRawSolve([
+            'requires' => [$this->validRdsrRequirement()],
+            'typo' => true,
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'solve: unbekanntes Feld "typo"')));
     }
 
     public function test_unknown_condition_type_is_rejected(): void
