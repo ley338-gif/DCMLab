@@ -18,8 +18,11 @@ kein `last_progress_at`-Touch, kein Kommando-/CLI-Tracking). Fehlt der
 `solve`-Schluessel komplett (der Normalfall fuer jeden heute bestehenden
 Node), gilt die Bedingung automatisch als erfuellt -- exakt das Verhalten vor
 Phase D.1. Ein VORHANDENER, aber strukturell ungueltiger `solve`-Block
-(falscher Typ, fehlendes/leeres `requires`) ist dagegen fail-closed: nie
-erfuellt, nie automatisch geloest.
+(falscher Typ, unbekanntes Top-Level-Feld, fehlendes/leeres `requires`, ein
+`requires`-Eintrag, der kein Objekt ist) ist dagegen fail-closed: nie
+erfuellt, nie automatisch geloest, nie ein Crash -- ContentValidator
+verhindert das bei regulaer autorisiertem Content ohnehin, diese Pruefung
+greift nur, wenn invalider Content trotzdem direkt geladen wird.
 """
 
 from __future__ import annotations
@@ -60,12 +63,15 @@ def prerequisites_met(node_raw: dict[str, Any], state: dict[str, Any]) -> bool:
     if solve_config is None:
         return True
 
-    if not isinstance(solve_config, dict):
+    if not isinstance(solve_config, dict) or set(solve_config) != {"requires"}:
         return False
 
     requirements = solve_config.get("requires")
 
     if not isinstance(requirements, list) or not requirements:
+        return False
+
+    if not all(isinstance(condition, dict) for condition in requirements):
         return False
 
     bindings: dict[str, str | None] = {}

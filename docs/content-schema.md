@@ -888,10 +888,14 @@ Bedingung automatisch als erfüllt — exakt das Verhalten vor Phase D.1.
 **Fail-closed statt fail-open.** Ist `solve:` dagegen vorhanden, aber
 strukturell ungültig — falscher Typ (`solve: foo`), fehlendes oder leeres
 `requires` (`solve: {}`, `solve: {requires: []}`), ein Tippfehler wie
-`require` statt `requires` — gilt die Bedingung als **nicht erfüllt**,
-niemals automatisch als erfüllt. Ein Autor, der glaubt, ein Gate definiert
-zu haben, darf nie stillschweigend das alte Flag-only-Verhalten
-zurückbekommen. `content:validate` prüft `solve.requires` rein strukturell
+`require` statt `requires`, ein unbekanntes zusätzliches Feld neben
+`requires`, oder ein `requires`-Eintrag, der selbst kein Objekt ist (z. B.
+ein bloßer String) — gilt die Bedingung als **nicht erfüllt**, niemals
+automatisch als erfüllt und niemals ein Absturz. Ein Autor, der glaubt, ein
+Gate definiert zu haben, darf nie stillschweigend das alte
+Flag-only-Verhalten zurückbekommen; diese Prüfung greift in der Engine
+selbst dann, wenn invalider Content den Validator umgeht.
+`content:validate` prüft `solve.requires` rein strukturell
 (bekannte Typen, Pflichtfelder, referenzierte Hosts/Routes existieren,
 Alias-Namen eindeutig, keine unbekannten Top-Level- oder `where`-Felder in
 `solve` selbst oder in einer Bedingung) — **nie**, ob eine Bedingung

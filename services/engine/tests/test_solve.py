@@ -70,6 +70,34 @@ def test_solve_requires_as_a_string_is_not_satisfied() -> None:
     assert solve.prerequisites_met({"solve": {"requires": "foo"}}, _state()) is False
 
 
+def test_solve_with_an_unsupported_top_level_field_is_not_satisfied() -> None:
+    node_raw = {"solve": {
+        "requires": [{"type": "job_exists", "where": {"route_id": "R1"}}],
+        "typo": True,
+    }}
+
+    assert solve.prerequisites_met(node_raw, _state()) is False
+
+
+def test_non_mapping_requirement_is_fail_closed() -> None:
+    """Ein `requires`-Eintrag, der kein Objekt ist (Validator lehnt das ab,
+    aber Runtime muss defensiv bleiben, falls invalider Content trotzdem
+    direkt geladen wird) darf nicht crashen -- `condition.get("type")` waere
+    ein AttributeError auf einem String/einer Liste."""
+    node_raw = {"solve": {"requires": ["not-a-condition"]}}
+
+    assert solve.prerequisites_met(node_raw, _state()) is False
+
+
+def test_mix_of_valid_and_non_mapping_requirements_is_fail_closed() -> None:
+    node_raw = {"solve": {"requires": [
+        {"type": "job_not_exists", "where": {"route_id": "R1"}},
+        "not-a-condition",
+    ]}}
+
+    assert solve.prerequisites_met(node_raw, _state()) is False
+
+
 # ---------------------------------------------------------------------
 # object_exists
 # ---------------------------------------------------------------------
