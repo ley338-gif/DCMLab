@@ -656,6 +656,76 @@ statt aus `datasets.yml` — eine Szenario-Node hat kein
 ebenso; die Node-Oberfläche zeigt statt der Terminal-Tabs eine
 Dialogfrage mit Antwortoptionen. Details und Begründung: ADR 0071.
 
+### 6k. PACS-Routing — Object & Routing Foundation (ab Phase A)
+
+Ein Host kann eine simulierte, sendende DICOM-Identität und eigene Routen
+bekommen — eine Route gehört immer dem Host, der sie ausführt, nie einem
+globalen Schlüssel:
+
+```yaml
+environment:
+  hosts:
+    - name: pacs
+      ip: 10.20.0.10
+      dicom:
+        calling_ae: RAD-PACS       # Pflicht, sobald der Host routes hat (kein Fallback)
+      services:
+        - id: pacs-store            # nur Pflicht, wenn eine Route diesen Service referenziert
+          port: 104
+          ae_title: RAD-ARCHIV
+          accepted_sop_classes: ["1.2.840.10008.5.1.4.1.1.2"]
+      routes:
+        - id: CT-TO-DOSE
+          enabled: true
+          destination:
+            host: dose-scp          # muss ein Host in diesem environment sein
+            service: dose-store     # muss eine services[].id dieses Hosts sein
+          match:
+            modality: CT             # Kurzform, siehe unten
+
+    - name: dose-scp
+      ip: 10.20.0.30
+      services:
+        - id: dose-store
+          port: 104
+          ae_title: DOSE-SCP
+```
+
+`match` erlaubt entweder die gezeigte Kurzform (ein Feld, implizit
+`equals`) oder die kanonische Form mit `all`/`any`:
+
+```yaml
+match:
+  all:                              # UND-Verknüpfung
+    - field: modality
+      op: equals
+      value: CT
+    - field: sop_class
+      op: in
+      values: ["1.2.840.10008.5.1.4.1.1.2", "1.2.840.10008.5.1.4.1.1.2.1"]
+```
+
+Erlaubte `field`-Werte (Whitelist, Tippfehler-Schutz): `modality`,
+`sop_class`, `study_description`, `series_description` — keine rohe
+Tag-Syntax, kein `source_ae`. Erlaubte `op`-Werte: `equals`, `not_equals`,
+`in` (braucht `values`), `exists` (braucht weder `value` noch `values`).
+`content:validate` prüft `destination.host`/`destination.service`,
+eindeutige `services[].id`/Route-`id`, das erlaubte `field`/`op`-Vokabular
+und das Pflichtfeld `dicom.calling_ae` rein strukturell — **nicht**, ob
+eine Route fachlich sinnvoll ist (`match: {modality: CT}` bleibt gültig,
+selbst wenn genau das die eingebaute Root Cause eines Nodes ist).
+
+**Ab Phase A** (Object & Routing Foundation) führen `storescu` und der
+Sendeauftrag einer Modalitäts-Simulation zusätzlich zum unveränderten
+`bestand`-Zähler ein sitzungslokales Objekt- und Presence-Modell
+(`state["objects"]`/`state["stored_objects"]`, primärer Schlüssel
+`object_id`, nicht Dateiname oder SOP Instance UID). `routes:` wird dabei
+bereits vollständig validiert, aber **noch nicht automatisch ausgewertet**
+— kein zweiter Hop, kein Job, keine automatische Weiterleitung. Details
+und Begründung: ADR 0120 (Phase A liefert die Objekt-/Match-/Destination-
+Bausteine; die automatische Auswertung folgt erst in einer späteren
+Phase).
+
 ## 7. Node — `de.md`
 
 ```markdown
@@ -712,6 +782,14 @@ Ein `content:validate`-Befehl prüft vor jedem Commit:
 - kein Flag-Klartext im Repo (Regex gegen das Flag-Format)
 - jeder Track referenziert ein existierendes Themenfeld aus `themenfelder.yml`
 - jeder Eintrag in `achievements.yml` hat alle Pflichtfelder, jeder Slug ist eindeutig
+
+**PACS-Routing** (Abschnitt 6k, ab Phase A)
+
+- `route.destination.host` existiert in `environment.hosts`, `route.destination.service` ist eine `services[].id` **dieses** Ziel-Hosts
+- ein Host mit `routes` hat `dicom.calling_ae`
+- Route-`id` eindeutig je Node, `services[].id` eindeutig je Host
+- `match`-`field` aus der erlaubten Whitelist, `op` aus `equals|not_equals|in|exists`, `op: in` mit nicht-leerer `values`-Liste
+- geprüft wird ausschließlich die kanonische Form nach Normalisierung — Kurzform und Langform teilen sich einen Prüfpfad; **nicht** geprüft wird, ob eine Route fachlich sinnvoll ist
 
 **Beispielregel**
 

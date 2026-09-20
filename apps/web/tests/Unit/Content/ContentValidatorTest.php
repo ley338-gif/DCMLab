@@ -392,4 +392,264 @@ class ContentValidatorTest extends TestCase
             collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'Hint "h1" aus node.yml hat keinen "### h1"-Abschnitt in de.md')),
         );
     }
+
+    // -----------------------------------------------------------------
+    // ADR 0120, 9.3: PACS-Routing -- Schema-/Referenzfehler in
+    // environment.hosts[].services[]/routes[], nie fachliche Korrektheit.
+    // -----------------------------------------------------------------
+
+    /**
+     * @param  array<string, mixed>  $environment
+     * @return array<string, array<string, mixed>>
+     */
+    private function nodeWithEnvironment(array $environment): array
+    {
+        return [
+            'sample' => [
+                'slug' => 'sample',
+                'def' => ['environment' => $environment],
+                'def_file' => 'nodes/sample/node.yml',
+                'def_raw' => "environment:\n  hosts: []\n",
+                'md_file' => 'nodes/sample/de.md',
+                'md_raw' => "## Briefing\n\nText.\n",
+                'frontmatter' => null,
+                'body' => "## Briefing\n\nText.\n",
+                'body_start_line' => 1,
+            ],
+        ];
+    }
+
+    private function validateNodes(array $nodes): array
+    {
+        return (new ContentValidator)->validate(
+            themenfelder: [], tracks: [], achievements: [], lessons: [], nodes: $nodes, exams: [],
+            tools: [], toolsRaw: null, glossary: [], datasets: [], skills: [],
+        );
+    }
+
+    public function test_a_structurally_valid_route_raises_no_routing_issue(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                [
+                    'name' => 'pacs', 'ip' => '10.20.0.10',
+                    'dicom' => ['calling_ae' => 'RAD-PACS'],
+                    'services' => [['id' => 'pacs-store', 'port' => 104, 'ae_title' => 'RAD-ARCHIV']],
+                    'routes' => [[
+                        'id' => 'CT-TO-DOSE',
+                        'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+                        'match' => ['modality' => 'CT'],
+                    ]],
+                ],
+                [
+                    'name' => 'dose-scp', 'ip' => '10.20.0.30',
+                    'services' => [['id' => 'dose-store', 'port' => 104, 'ae_title' => 'DOSE-SCP']],
+                ],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'Route') || str_contains($m, 'destination') || str_contains($m, 'match')));
+    }
+
+    public function test_a_route_to_an_unknown_host_is_rejected(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [[
+                'name' => 'pacs', 'ip' => '10.20.0.10',
+                'dicom' => ['calling_ae' => 'RAD-PACS'],
+                'routes' => [[
+                    'id' => 'CT-TO-DOSE',
+                    'destination' => ['host' => 'nowhere', 'service' => 'dose-store'],
+                    'match' => ['modality' => 'CT'],
+                ]],
+            ]],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'destination.host "nowhere" existiert nicht')));
+    }
+
+    public function test_a_route_to_an_unknown_service_on_a_known_host_is_rejected(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                [
+                    'name' => 'pacs', 'ip' => '10.20.0.10',
+                    'dicom' => ['calling_ae' => 'RAD-PACS'],
+                    'routes' => [[
+                        'id' => 'CT-TO-DOSE',
+                        'destination' => ['host' => 'dose-scp', 'service' => 'nope'],
+                        'match' => ['modality' => 'CT'],
+                    ]],
+                ],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'destination.service "nope" ist keine services[].id')));
+    }
+
+    public function test_a_bare_destination_host_without_a_service_is_rejected(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                [
+                    'name' => 'pacs', 'ip' => '10.20.0.10',
+                    'dicom' => ['calling_ae' => 'RAD-PACS'],
+                    'routes' => [[
+                        'id' => 'CT-TO-DOSE',
+                        'destination' => ['host' => 'dose-scp'],
+                        'match' => ['modality' => 'CT'],
+                    ]],
+                ],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'destination braucht sowohl host als auch service')));
+    }
+
+    public function test_a_host_with_routes_but_no_calling_ae_is_rejected(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                [
+                    'name' => 'pacs', 'ip' => '10.20.0.10',
+                    'routes' => [[
+                        'id' => 'CT-TO-DOSE',
+                        'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+                        'match' => ['modality' => 'CT'],
+                    ]],
+                ],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'hat routes, aber kein dicom.calling_ae')));
+    }
+
+    public function test_duplicate_route_ids_within_a_node_are_rejected(): void
+    {
+        $route = [
+            'id' => 'CT-TO-DOSE',
+            'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+            'match' => ['modality' => 'CT'],
+        ];
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                ['name' => 'pacs', 'ip' => '10.20.0.10', 'dicom' => ['calling_ae' => 'RAD-PACS'], 'routes' => [$route, $route]],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'Route-ID "CT-TO-DOSE" ist innerhalb dieser Node mehrfach vergeben')));
+    }
+
+    public function test_duplicate_service_ids_on_the_same_host_are_rejected(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [[
+                'name' => 'pacs', 'ip' => '10.20.0.10',
+                'services' => [
+                    ['id' => 'pacs-store', 'port' => 104],
+                    ['id' => 'pacs-store', 'port' => 105],
+                ],
+            ]],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'Service-ID "pacs-store" ist mehrfach vergeben')));
+    }
+
+    public function test_an_unknown_match_field_is_rejected_as_a_typo_guard(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                [
+                    'name' => 'pacs', 'ip' => '10.20.0.10',
+                    'dicom' => ['calling_ae' => 'RAD-PACS'],
+                    'routes' => [[
+                        'id' => 'CT-TO-DOSE',
+                        'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+                        'match' => ['moddality' => 'CT'],
+                    ]],
+                ],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'match-Feld "moddality" ist nicht erlaubt')));
+    }
+
+    public function test_an_unknown_match_operator_is_rejected(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                [
+                    'name' => 'pacs', 'ip' => '10.20.0.10',
+                    'dicom' => ['calling_ae' => 'RAD-PACS'],
+                    'routes' => [[
+                        'id' => 'CT-TO-DOSE',
+                        'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+                        'match' => ['all' => [['field' => 'modality', 'op' => 'matches', 'value' => 'CT']]],
+                    ]],
+                ],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'match-Operator "matches" ist unbekannt')));
+    }
+
+    public function test_op_in_without_a_values_list_is_rejected(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                [
+                    'name' => 'pacs', 'ip' => '10.20.0.10',
+                    'dicom' => ['calling_ae' => 'RAD-PACS'],
+                    'routes' => [[
+                        'id' => 'CT-TO-DOSE',
+                        'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+                        'match' => ['all' => [['field' => 'modality', 'op' => 'in', 'value' => 'CT']]],
+                    ]],
+                ],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'op "in" erfordert eine nicht-leere values-Liste')));
+    }
+
+    public function test_hosts_without_any_routes_need_no_calling_ae(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [
+                ['name' => 'workstation', 'ip' => '10.0.0.50', 'role' => 'shell'],
+                ['name' => 'archive', 'ip' => '10.0.0.10', 'services' => [['port' => 104, 'ae_title' => 'ARCHIV']]],
+            ],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'calling_ae')));
+    }
 }

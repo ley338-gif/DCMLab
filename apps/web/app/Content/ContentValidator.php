@@ -18,6 +18,14 @@ final class ContentValidator
     private array $issues = [];
 
     /**
+     * ADR 0120, 8.2/9.3: Phase-A-Match-Vokabular -- bewusst eine Whitelist
+     * (Tippfehler-Schutz), kein Freitext, keine rohe Tag-Syntax.
+     */
+    private const MATCH_FIELDS = ['modality', 'sop_class', 'study_description', 'series_description'];
+
+    private const MATCH_OPERATORS = ['equals', 'not_equals', 'in', 'exists'];
+
+    /**
      * @param  array<int, array<string, mixed>>  $themenfelder
      * @param  array<int, array<string, mixed>>  $tracks
      * @param  array<int, array<string, mixed>>  $achievements
@@ -98,6 +106,7 @@ final class ContentValidator
                 $this->checkFlagFormat($node);
                 $this->checkNodeAchievements($node);
                 $this->checkNodeThemenfeld($node, $themenfelder);
+                $this->checkHostRouting($node);
 
                 if (data_get($node['def'], 'scenario') !== null && data_get($node['def'], 'interaction') !== 'scenario') {
                     $this->issue(
@@ -906,6 +915,202 @@ final class ContentValidator
                     "Platzhalter \"{$placeholder}\" kommt in keinem templates-Eintrag vor",
                 );
             }
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // PACS-Routing (ADR 0120, 9.3): Schema-/Referenzfehler, nie fachliche
+    // Korrektheit -- match: {modality: CT} bleibt syntaktisch gueltig,
+    // selbst wenn genau das die eingebaute Root Cause eines Nodes ist.
+    // ---------------------------------------------------------------
+
+    /**
+     * @param  array<string, mixed>  $node
+     */
+    private function checkHostRouting(array $node): void
+    {
+        $defFile = $node['def_file'];
+        $defRaw = $node['def_raw'] ?? '';
+        $hosts = data_get($node['def'], 'environment.hosts', []);
+        $seenRouteIds = [];
+
+        foreach ($hosts as $host) {
+            $hostName = (string) ($host['name'] ?? '?');
+            $services = $host['services'] ?? [];
+            $routes = $host['routes'] ?? [];
+
+            $this->checkServiceIdsUnique($defFile, $defRaw, $hostName, $services);
+
+            if ($routes === []) {
+                continue;
+            }
+
+            if (empty(data_get($host, 'dicom.calling_ae'))) {
+                $this->issue(
+                    $defFile,
+                    LineFinder::firstLineContaining($defRaw, $hostName),
+                    "Host \"{$hostName}\" hat routes, aber kein dicom.calling_ae (ADR 0120, 8.4)",
+                );
+            }
+
+            foreach ($routes as $route) {
+                $routeId = isset($route['id']) ? (string) $route['id'] : null;
+                $label = $routeId ?? $hostName;
+
+                if ($routeId === null) {
+                    $this->issue($defFile, LineFinder::firstLineContaining($defRaw, $hostName), "Host \"{$hostName}\": Route ohne id");
+                } elseif (isset($seenRouteIds[$routeId])) {
+                    $this->issue($defFile, LineFinder::firstLineContaining($defRaw, $routeId), "Route-ID \"{$routeId}\" ist innerhalb dieser Node mehrfach vergeben");
+                } else {
+                    $seenRouteIds[$routeId] = true;
+                }
+
+                $this->checkRouteDestination($defFile, $defRaw, $label, $route['destination'] ?? null, $hosts);
+                $this->checkRouteMatch($defFile, $defRaw, $label, $route['match'] ?? null);
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $services
+     */
+    private function checkServiceIdsUnique(string $file, string $raw, string $hostName, array $services): void
+    {
+        $seen = [];
+
+        foreach ($services as $service) {
+            $id = $service['id'] ?? null;
+
+            if ($id === null) {
+                continue;
+            }
+
+            if (isset($seen[$id])) {
+                $this->issue($file, LineFinder::firstLineContaining($raw, (string) $id), "Host \"{$hostName}\": Service-ID \"{$id}\" ist mehrfach vergeben");
+            }
+
+            $seen[$id] = true;
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $hosts
+     */
+    private function checkRouteDestination(string $file, string $raw, string $label, mixed $destination, array $hosts): void
+    {
+        if (! is_array($destination)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": destination fehlt");
+
+            return;
+        }
+
+        $targetHostName = $destination['host'] ?? null;
+        $targetServiceId = $destination['service'] ?? null;
+
+        if ($targetHostName === null || $targetServiceId === null) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": destination braucht sowohl host als auch service (kein impliziter erster Service, ADR 0120, 8.4)");
+
+            return;
+        }
+
+        $targetHost = null;
+
+        foreach ($hosts as $candidate) {
+            if (($candidate['name'] ?? null) === $targetHostName) {
+                $targetHost = $candidate;
+
+                break;
+            }
+        }
+
+        if ($targetHost === null) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": destination.host \"{$targetHostName}\" existiert nicht in environment.hosts");
+
+            return;
+        }
+
+        $targetServiceIds = array_column($targetHost['services'] ?? [], 'id');
+
+        if (! in_array($targetServiceId, $targetServiceIds, true)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": destination.service \"{$targetServiceId}\" ist keine services[].id von Host \"{$targetHostName}\"");
+        }
+    }
+
+    private function checkRouteMatch(string $file, string $raw, string $label, mixed $match): void
+    {
+        if (! is_array($match) || $match === []) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": match fehlt oder ist leer");
+
+            return;
+        }
+
+        $conditions = $this->normalizeMatchConditions($match);
+
+        if ($conditions === null) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": match muss entweder Kurzform (Feld: Wert) oder {all|any: [...]} sein, nicht beides");
+
+            return;
+        }
+
+        foreach ($conditions as $condition) {
+            $this->checkMatchCondition($file, $raw, $label, $condition);
+        }
+    }
+
+    /**
+     * Kurzform und kanonische Form teilen sich diesen einen Normalisierungs-
+     * Pfad (ADR 0120, 8.2/9.3) -- kein zweites, abweichendes Validierungs-
+     * modell fuer die Kurzform.
+     *
+     * @param  array<string, mixed>  $match
+     * @return list<mixed>|null
+     */
+    private function normalizeMatchConditions(array $match): ?array
+    {
+        if (array_key_exists('all', $match) || array_key_exists('any', $match)) {
+            if (array_key_exists('all', $match) && array_key_exists('any', $match)) {
+                return null;
+            }
+
+            $conditions = $match['all'] ?? $match['any'];
+
+            return is_array($conditions) && $conditions !== [] ? array_values($conditions) : null;
+        }
+
+        return array_map(
+            fn ($field, $value) => ['field' => $field, 'op' => 'equals', 'value' => $value],
+            array_keys($match),
+            array_values($match),
+        );
+    }
+
+    private function checkMatchCondition(string $file, string $raw, string $label, mixed $condition): void
+    {
+        if (! is_array($condition) || ! isset($condition['field'])) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": match-Bedingung ohne field");
+
+            return;
+        }
+
+        $field = $condition['field'];
+        $op = $condition['op'] ?? 'equals';
+
+        if (! in_array($field, self::MATCH_FIELDS, true)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": match-Feld \"{$field}\" ist nicht erlaubt (erlaubt: ".implode(', ', self::MATCH_FIELDS).')');
+        }
+
+        if (! in_array($op, self::MATCH_OPERATORS, true)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": match-Operator \"{$op}\" ist unbekannt (erlaubt: ".implode(', ', self::MATCH_OPERATORS).')');
+
+            return;
+        }
+
+        if ($op === 'in' && (! isset($condition['values']) || ! is_array($condition['values']) || $condition['values'] === [])) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"in\" erfordert eine nicht-leere values-Liste");
+        }
+
+        if ($op !== 'in' && $op !== 'exists' && ! array_key_exists('value', $condition)) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"{$op}\" erfordert value");
         }
     }
 
