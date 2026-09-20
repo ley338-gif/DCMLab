@@ -447,3 +447,21 @@ def test_nodes_without_routes_never_create_phase_b_jobs_from_the_real_content() 
         )
     assert state.get("jobs", {}) == {}
     assert "route.evaluated" not in {e["type"] for e in state.get("events", [])}
+
+
+def test_nodes_without_pacs_tool_do_not_expose_the_pacs_cli_from_the_real_content() -> None:
+    """ADR 0120, Phase C, Abschnitt 60: keiner der heute ausgelieferten
+    Nodes deklariert `pacs` in `environment.tools` -- `help` darf es dort
+    nicht zeigen, und der Befehl selbst bleibt gesperrt wie jedes andere
+    nicht freigegebene Werkzeug."""
+
+    for slug in ["silent-ct", "halbe-sache"]:
+        node = content.load_node(slug)
+        state = rules.initial_state(node)
+
+        help_result = rules.exec_command(node, state, "workstation", "help")
+        assert "pacs" not in help_result.stdout
+
+        pacs_result = rules.exec_command(node, state, "workstation", "pacs objects")
+        assert pacs_result.exit_code == 127
+        assert pacs_result.stderr == "pacs: command not found"

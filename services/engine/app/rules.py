@@ -13,6 +13,7 @@ from typing import Any
 
 from app import find
 from app.content import NodeDefinition, load_dataset
+from app.operations import cli as pacs_cli
 from app.operations import jobs as routing_jobs
 from app.operations import objects as runtime_objects
 
@@ -245,11 +246,11 @@ def exec_command(
 
     tool, args = tokens[0], tokens[1:]
 
-    known_tools = {"echoscu", "storescu", "findscu", "dcmdump", "dcmftest"}
+    known_tools = {"echoscu", "storescu", "findscu", "dcmdump", "dcmftest", "pacs"}
     if tool not in NON_NETWORK_COMMANDS and tool not in known_tools:
         return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
 
-    if tool in {"echoscu", "storescu", "findscu"} and tool not in node.tools:
+    if tool in {"echoscu", "storescu", "findscu", "pacs"} and tool not in node.tools:
         return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
 
     if host.get("role") != "shell" and tool not in NON_NETWORK_COMMANDS:
@@ -277,8 +278,20 @@ def exec_command(
         return _exec_dcmdump(node, args)
     if tool == "dcmftest":
         return _exec_dcmftest(node, args)
+    if tool == "pacs":
+        return _exec_pacs(node, state, args)
 
     return ExecResult(stderr=f"{tool}: command not found", exit_code=127)
+
+
+def _exec_pacs(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
+    """`pacs` (ADR 0120, Phase C): read-only PACS-Operations-CLI. Reiner
+    Dispatch -- Parser/Lookup/Formatierung leben komplett in
+    `app.operations.cli`, damit `rules.py` nur erkennt und delegiert."""
+
+    stdout, stderr, exit_code = pacs_cli.run(node, state, args)
+
+    return ExecResult(stdout=stdout, stderr=stderr, exit_code=exit_code)
 
 
 def _exec_ping(node: NodeDefinition, args: list[str]) -> ExecResult:

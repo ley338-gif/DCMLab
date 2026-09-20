@@ -753,6 +753,30 @@ Initial Ingest, unabhängig von Fan-out (mehrere gleichzeitig matchende
 Routen erzeugen Geschwister-Jobs auf derselben Tiefe). Details und
 Begründung: ADR 0120.
 
+**Ab Phase C** (Read-only PACS CLI) kann ein Host `pacs` in `environment.tools`
+freigeben — wie jedes andere Werkzeug, derselbe `tool not in node.tools`-
+Mechanismus, keine neue Sonderprüfung. `pacs` liest ausschließlich bereits
+vorhandenen Phase-A-/Phase-B-Zustand (nie `bestand`) und ist komplett
+lesend, mit genau einer Ausnahme, die selbst side-effect-free ist:
+
+```text
+pacs objects                        # RuntimeObjects + Presence
+pacs object show <object-id>
+pacs routes                         # alle Routes aller Hosts
+pacs route show <route-id>
+pacs route test <route-id> <object-id>
+pacs jobs                           # persistierter Job-State
+pacs job show <job-id>
+pacs events                         # Event-Log in Append-Reihenfolge
+```
+
+`pacs route test` mutiert **keinen** Zustand — kein Job, kein Event, keine
+`route_history`-Änderung, kein `last_progress_at`-Touch — und verwendet für
+die Auswertung exakt denselben Matcher (`evaluate_route()`) wie die
+automatische Routenausführung, keinen zweiten. Bestehende Nodes ohne
+`tools: [pacs]` sind unverändert — auch `help` zeigt `pacs` nur, wenn es
+freigegeben ist. Details und Begründung: ADR 0120.
+
 ## 7. Node — `de.md`
 
 ```markdown
