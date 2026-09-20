@@ -558,17 +558,41 @@ in Phase 1 — nur nachziehen, falls ein konkreter Node es zwingend
 braucht.
 
 Erlaubtes Attribut-Vokabular in Phase 1: `modality`, `sop_class`,
-`study_description`, `series_description`, `source_ae` — bewusst
-dieselben benannten Felder, die `environment.objects[]` und
-`DCMDUMP_FIELD_ORDER` bereits kennen (siehe 8.12), **kein** paralleles
-generisches Tag-Modell (`"0008,0060"`). Begründung: bessere Lesbarkeit
-für Content-Autoren, keine zweite Repräsentation derselben Daten,
-konsistent mit der bisherigen Repo-Konvention (ADR 0011/12/13 haben
-wiederholt die einfachere, stilkonsistente Variante der roadmap-
-vorgeschlagenen generischeren Variante vorgezogen). Ein generischer
-`tag: "0008,0060"`-Fallback bleibt eine spätere, klar abgegrenzte
-Erweiterung (Kategorie A), falls ein Node ein Attribut braucht, das
-nicht in der Namensliste steht — nicht vorab bauen (YAGNI).
+`study_description`, `series_description` — bewusst dieselben
+benannten Felder, die `environment.objects[]`, `DCMDUMP_FIELD_ORDER`
+und das normalisierte `RuntimeObject` (8.3) bereits kennen (siehe
+8.12), **kein** paralleles generisches Tag-Modell (`"0008,0060"`).
+Begründung: bessere Lesbarkeit für Content-Autoren, keine zweite
+Repräsentation derselben Daten, konsistent mit der bisherigen
+Repo-Konvention (ADR 0011/12/13 haben wiederholt die einfachere,
+stilkonsistente Variante der roadmap-vorgeschlagenen generischeren
+Variante vorgezogen). Ein generischer `tag: "0008,0060"`-Fallback
+bleibt eine spätere, klar abgegrenzte Erweiterung (Kategorie A), falls
+ein Node ein Attribut braucht, das nicht in der Namensliste steht —
+nicht vorab bauen (YAGNI). **`source_ae` ist bewusst nicht Teil dieses
+Vokabulars** — es ist host-lokale Presence-/Receipt-Information, kein
+Feld des objektinhärenten `RuntimeObject`; siehe 8.4 für die volle
+Begründung und den vorbereiteten, aber nicht Phase-1-pflichtigen
+Presence/Receipt-Mechanismus.
+
+**Review-Fix Runde 2 — Semantik bei fehlendem Feld**: das
+Match-Vokabular ist exakt eine Teilmenge der normalisierten
+`RuntimeObject`-Metadaten (8.3) — für manche Objekttypen kann ein
+Feld trotzdem `None`/abwesend sein (z. B. `modality` bei einem
+synthetisierten Dataset-Objekt ohne editierte Host-Config, siehe 8.3).
+Damit das nie zu unbestimmtem Verhalten führt, gilt pro Operator
+eindeutig:
+
+| Operator | Verhalten bei fehlendem Feld |
+|---|---|
+| `equals` | `false` (ein fehlender Wert ist nie gleich einem erwarteten Wert) |
+| `not_equals` | `true` (ein fehlender Wert ist nie gleich, also "nicht gleich" erfüllt) |
+| `in` | `false` (ein fehlender Wert kann in keiner Liste enthalten sein) |
+| `exists` | `false` (das ist exakt die Definition von `exists`) |
+
+Diese Tabelle ist Teil der kanonischen Match-Semantik, nicht ein
+späteres Implementierungsdetail — Validator- und Matcher-Tests (11)
+decken alle vier Zeilen ab.
 
 Route-Reihenfolge/Priorität: Routen werden in Datei-Reihenfolge
 ausgewertet; **mehrere Routen können gleichzeitig matchen** (ein
@@ -587,110 +611,122 @@ zurückgestellte Erweiterung (Kategorie B) — sie würde einen
 "Vollständigkeits"-Zustand brauchen, der über die reine Job-/
 Event-Frage hinausgeht.
 
-### 8.3 Runtime Object Model & Objektidentität (Abschnitt 16, Review-Fix)
+### 8.3 RuntimeObject & Object Presence (Abschnitt 16, Review-Fix Runde 2)
 
-**Review-Fix, zentraler Befund**: `stored_objects[host] =
-[filename, ...]` mit Rückverweis auf `environment.objects[]` reicht
-**nicht**. Nach erneuter Prüfung von `rules.py` erzeugen die beiden
-heutigen erfolgreichen Storage-Pfade grundlegend unterschiedliche
-Datengrundlagen:
+**Review-Fix Runde 2, zentraler Befund**: die Runde-1-Fassung
+(`StoredObject` mit `source_host`/`stored_at_host` direkt am Objekt)
+war für Multi-Hop selbst nicht sauber. Ein Objekt, das
+Modalität → PACS → Dose-System durchläuft, ist fachlich **dieselbe
+logische SOP Instance**, die gleichzeitig an mehreren simulierten
+Systemen vorhanden sein kann — `stored_at_host` als Einzelfeld
+suggeriert fälschlich genau einen Speicherort und würde bei jedem
+Weitertransport entweder überschrieben (Information verloren) oder ein
+neues Objekt nahelegen (fachlich falsch: keine zweite SOP Instance
+entsteht). **Named-Fix**: `StoredObject` wird umbenannt und in zwei
+Konzepte gesplittet, weil "Stored" fälschlich einen einzelnen
+Speicherort suggerierte:
 
-1. **`_exec_storescu`** (direkter Shell-Befehl `storescu <peer> <port>
-   <datei>`): arbeitet objektgenau gegen `environment.objects[]` —
-   jedes Objekt hat `filename`, `bytes`, optional `sop_class`,
-   `transfer_syntax`, `modality`, `study_uid`, `series_uid`,
-   `patient_id`. Erhöht `bestand[target]["instances"]` **pro Objekt**.
-2. **`trigger_action(..., "send_study")`** (Sendeauftrag von einem
-   `modality-simulator`-Host): kennt **keine einzelnen Objekte**. Es
-   liest nur `state["_dataset_file_count"]` (eine reine Ganzzahl aus
-   `datasets.yml`s `file_count`) und setzt
-   `bestand[target]["instances"] = file_count` **in einem Schritt**.
-   `datasets.yml`-Einträge (siehe `content/datasets.yml`) haben `patient`,
-   `patient_id`, `study`, `series[]` (Freitext-Serienbeschreibungen,
-   keine UIDs), `file_count` — **kein `sop_class`, kein `modality`,
-   keine Objektliste**. SOP Class/Transfer Syntax für einen
-   `send_study`-Sendevorgang kommen stattdessen — falls überhaupt
-   editierbar — aus dem `config`-Dict des sendenden Hosts
-   (`config.sop_class`/`config.transfer_syntax`, siehe
-   `verbindung-ohne-bild`/`syntax-negotiation-fails`), nicht aus einem
-   Objekt-Datensatz.
-
-Damit hätte ausgerechnet der für `dosis-bleibt-liegen`-artige Fälle
-zentrale Pfad (Modalität → PACS per `send_study`) **keine
-adressierbaren Runtime-Objekte**, gegen die eine Route geprüft werden
-könnte — der ursprüngliche `stored_objects`-Vorschlag hätte hier ins
-Leere gegriffen.
-
-**Zielbild**: beide Pfade erzeugen intern dasselbe minimale
-Runtime-Object-Modell, `StoredObject`, bevor Routing ausgewertet wird
-(nur Architektur, keine Implementierung):
+1. **`RuntimeObject`** — das logische simulierte DICOM-Objekt,
+   speicherortunabhängig. Existiert unabhängig davon, wo es gerade
+   liegt.
+2. **Object Presence** — ein separates, schlankes Mapping, welches
+   `object_id`s an welchen Hosts vorhanden sind. Mehrere Einträge pro
+   Objekt sind der Normalfall bei Multi-Hop, kein Sonderfall.
 
 ```text
-StoredObject
-├── object_id            # stabile, sitzungslokale ID, siehe unten
-├── filename?             # vorhanden bei objektbasierten Pfaden, sonst None
-├── sop_instance_uid?     # deterministisch erzeugt, falls nicht vorhanden
+RuntimeObject
+├── object_id             # stabile, sitzungslokale ID, Primärschlüssel
+├── filename?              # vorhanden bei objektbasierten Pfaden, sonst None
+├── sop_instance_uid?      # deterministisch erzeugt, falls nicht vorhanden
 ├── study_uid
 ├── series_uid
 ├── sop_class
 ├── modality?
 ├── transfer_syntax?
-├── source_host
-└── stored_at_host
+├── study_description?
+├── series_description?
+├── origin_host            # Host, an dem das Objekt zuerst simuliert entstand (Initial Ingest)
+├── route_history          # [(host, route_id), ...] -- siehe 8.11
+└── routing_depth          # siehe 8.11
 ```
 
-Herkunft pro Pfad (die finale Feldliste bewusst klein gehalten, nach
-Repo-Analyse):
+```text
+state["stored_objects"]:      # Object Presence, host-lokal, siehe 8.8
+  pacs:
+    - obj-001
+  dose-scp:
+    - obj-001                 # dieselbe object_id, zweiter Presence-Eintrag, kein Klon
+```
 
-- **`_exec_storescu`-Pfad**: `StoredObject` wird **direkt aus dem
+**Herkunft pro Storage-Pfad** (finale Feldliste bewusst klein gehalten,
+nach Repo-Analyse) — beide Pfade erzeugen/lösen ein `RuntimeObject` auf
+und setzen danach Presence, statt wie bisher nur einen Zähler zu
+erhöhen:
+
+- **`_exec_storescu`-Pfad**: `RuntimeObject` wird **direkt aus dem
   bestehenden `environment.objects[]`-Eintrag** befüllt — `filename`,
   `sop_class`, `transfer_syntax`, `modality`, `study_uid`, `series_uid`
   existieren dort größtenteils schon. Kein Big-Bang-Umbau von
-  `environment.objects[]` nötig, es wird nur zusätzlich in ein
-  `StoredObject` gespiegelt statt (wie heute) nur einen Zähler zu
-  erhöhen.
+  `environment.objects[]` nötig.
 - **`send_study`/Dataset-Pfad**: Studies aus `datasets.yml` haben
-  weder Objekte noch SOP-Class-/Modality-Angaben. Hier müssen pro
-  `send_study`-Aufruf **`file_count` `StoredObject`-Einträge
-  deterministisch synthetisiert** werden — deterministisch heißt:
-  dieselbe Technik, die `rules.py` bereits für
-  `_study_instance_uid()`/`_series_instance_uid()` verwendet
-  (`hashlib.sha1(f"{node.slug}:study")`, gekürzt/formatiert als
-  UID-Suffix), erweitert um einen Instanz-Index
-  (`f"{node.slug}:instance:{i}"`). `sop_class`/`modality`/
-  `transfer_syntax` kommen, falls vorhanden, aus dem `config`-Dict des
-  sendenden Hosts (bereits editierbar für genau diese Felder); ohne
-  editierte Config bleiben sie `None` — ein Dataset-Node, der nie
-  Routing braucht, bleibt exakt beim heutigen Verhalten. Ob dafür
-  `datasets.yml` selbst um optionale Objekt-Metadaten erweitert wird,
-  oder ob die Synthese ausschließlich zur Laufzeit passiert, ist eine
-  Phase-A-Implementierungsentscheidung, keine Architekturfrage dieses
-  ADRs.
-- **Beide Pfade**: `source_host`/`stored_at_host` sind die
-  bekannten Host-Namen aus dem Association-Kontext, keine neue
-  Information.
+  weder Objekte noch SOP-Class-/Modality-Angaben (nur `file_count`).
+  Pro `send_study`-Aufruf werden **`file_count` `RuntimeObject`-
+  Einträge deterministisch synthetisiert** — dieselbe Technik, die
+  `rules.py` bereits für `_study_instance_uid()`/`_series_instance_uid()`
+  verwendet (`hashlib.sha1(f"{node.slug}:study")`), erweitert um einen
+  Instanz-Index (`f"{node.slug}:instance:{i}"`). `sop_class`/
+  `modality`/`transfer_syntax` kommen, falls vorhanden, aus dem
+  `config`-Dict des sendenden Hosts; ohne editierte Config bleiben sie
+  `None` — ein Dataset-Node, der nie Routing braucht, bleibt exakt beim
+  heutigen Verhalten. Ob `datasets.yml` selbst um optionale
+  Objekt-Metadaten erweitert wird, oder die Synthese ausschließlich zur
+  Laufzeit passiert, ist eine Phase-A-Implementierungsentscheidung.
 
-**Objektidentität**:
+**Beide Pfade münden in derselben zentralen, nur architektonisch
+beschriebenen Operation** (kein Implementierungscode, nur das Prinzip):
+
+```text
+store_object(runtime_object, target_host)
+  → RuntimeObject auflösen/erzeugen (s.o., objektgenau oder synthetisiert)
+  → Presence an target_host hinzufügen (state["stored_objects"][target_host])
+  → (Phase B) Routen von target_host gegen runtime_object auswerten,
+    sofern routing_depth es erlaubt
+```
+
+Diese eine Operation ist später der natürliche Auslöser für Route-
+Evaluation (8.5) — unabhängig davon, ob sie durch `storescu`,
+`send_study` oder einen automatisch ausgeführten Job (8.5, 8.10)
+aufgerufen wird.
+
+**Objektidentität, jetzt eindeutig über Multi-Hop hinweg**:
 
 - `object_id` ist eine **interne, stabile Session-ID** (z. B.
-  `obj-001`, fortlaufend wie `j-001` bei Jobs) — das ist der
-  Primärschlüssel, den `stored_objects[host]`, Jobs und Events
-  referenzieren.
-- `sop_instance_uid` ist **optional und zusätzlich** — real vorhanden
-  bei Objekten aus `environment.objects[]` (falls dort künftig ein
-  neues optionales Feld `sop_instance_uid` ergänzt wird) oder
-  deterministisch synthetisiert im Dataset-Pfad — ausschließlich für
-  Lern-/Ausgabezwecke (`pacs jobs`/`pacs events` sollen echte
-  SOP-Instance-UIDs zeigen können, kein internes `object_id`-Format).
+  `obj-001`) — der Primärschlüssel, den Presence, Jobs, Events und
+  `route_history` referenzieren. **Bleibt über den gesamten Multi-Hop-
+  Weg unverändert** — wird ein `RuntimeObject` von PACS zum
+  Dose-System weitergereicht, ändert sich `object_id` **nicht**, es
+  entsteht **kein** neues logisches Objekt/kein Klon. Es ändert sich
+  ausschließlich die Presence (ein weiterer Host-Eintrag kommt hinzu).
+- `sop_instance_uid` bleibt ebenfalls über den gesamten Weg identisch
+  — sie ist die fachliche DICOM-Identität für Lern-/Ausgabezwecke
+  (`pacs jobs`/`pacs events` zeigen echte SOP-Instance-UIDs, nie das
+  interne `object_id`-Format).
 - **`filename` ist ausdrücklich NICHT die langfristige Objektidentität**
-  — er ist optional (existiert nur, wo ein simuliertes File existiert)
-  und bleibt weiterhin nutzbar, wo bestehender Content ihn schon
-  verwendet (`dcmdump <datei>`, `cat <datei>`), aber Routing/Jobs/
-  Events referenzieren immer `object_id`, nie einen Dateinamen direkt.
-  Das behebt sauber, dass der Dataset-Pfad gar keine Dateinamen kennt.
+  — optional, existiert nur, wo ein simuliertes File existiert, bleibt
+  nutzbar wo bestehender Content ihn schon verwendet (`dcmdump <datei>`,
+  `cat <datei>`), aber Routing/Jobs/Events/Presence referenzieren immer
+  `object_id`.
 - Kein echtes DICOM-Dataset im State, keine Pixel Data, keine großen
-  Objekte — `StoredObject` bleibt ein schlankes Metadaten-Dict,
+  Objekte — `RuntimeObject` bleibt ein schlankes Metadaten-Dict,
   konsistent mit Abschnitt 30 des Auftrags (Performance/Complexity).
+
+**Host-lokale Empfangsinformation gehört NICHT ins `RuntimeObject`**
+(siehe 8.4 für die volle Begründung, insbesondere zu `source_ae`):
+Informationen wie "von welcher Association/AE kam dieses Objekt an
+diesem konkreten Host an" sind pro Host unterschiedlich (PACS-B sieht
+als Absender PACS-A, nicht die ursprüngliche Modalität) und gehören
+deshalb in ein separates, ebenfalls host-lokales **Presence/Receipt**-
+Modell, nicht ins globale, speicherortunabhängige `RuntimeObject`.
 
 ### 8.4 Destination-Modell: Host + Service + Calling AE (Review-Fix)
 
@@ -757,6 +793,41 @@ ist — siehe 8.8/8.9) — kein Fallback auf einen erfundenen Default wie
 `STORESCU`. Der Validator verlangt `hosts[].dicom.calling_ae`, sobald
 derselbe Host `routes[]` deklariert.
 
+**`source_ae`, Review-Fix Runde 2 — host-lokal, nicht global**:
+`source_ae` bezeichnet den Calling AE Title der DICOM-Association, über
+die ein `RuntimeObject` **erstmals an dem Host gespeichert wurde,
+dessen Route gerade ausgewertet wird** — nicht den Calling AE Title des
+allerersten Erzeugers. Multi-Hop macht das explizit: geht ein Objekt
+`CT → PACS-A → PACS-B`, sieht PACS-B als "Source AE" den Calling AE von
+PACS-A, nicht den der ursprünglichen Modalität.
+
+Das ist damit fachlich **Empfangs-/Presence-Information eines
+konkreten Hosts**, keine objektinhärente Eigenschaft — sie gehört
+**nicht** ins globale `RuntimeObject` (8.3), sonst müsste ein Feld bei
+jedem Hop überschrieben werden und "welche AE hat es an Host X
+abgeliefert" wäre für frühere Hosts nicht mehr rekonstruierbar. Saubere
+Trennung, analog zu `RuntimeObject` vs. Presence:
+
+```text
+state["object_presence"]:        # optional, nur wo tatsächlich gebraucht (8.8)
+  pacs-b:
+    obj-001:
+      received_from_host: pacs-a
+      received_from_ae: RAD-PACS-A
+```
+
+**Phase-1-Entscheidung, bewusst konservativ**: um das Match-Vokabular
+(8.2) nicht mit einem zweiten, host-lokalen Namensraum aufzublähen,
+bleibt `source_ae` **außerhalb** des für Phase 1 garantierten Match-
+Vokabulars (8.12 legt Phase 1 auf `modality`, `sop_class`,
+`study_description`, `series_description` fest — vier Felder, alle
+direkt aus `RuntimeObject`). Das oben skizzierte `object_presence`-
+Receipt-Modell wird nur angelegt, sobald ein konkreter Node
+Source-AE-Routing tatsächlich braucht; es ist damit vorbereitet
+(dieselbe Presence-Struktur wie `stored_objects`, siehe 8.8), aber kein
+Phase-1-Pflichtbestandteil. Eine sauber getrennte, noch nicht gebaute
+Erweiterung ist besser als ein halb richtiges globales Feld.
+
 ### 8.5 Job-Queue-Domänenmodell (Abschnitt 9)
 
 Zustände, bewusst minimal: `queued` → `sent` **oder** `failed`. Kein
@@ -772,12 +843,23 @@ nachstellt ("0 queued" ≠ "fehlgeschlagen").
 
 Job-Felder: `id` (`j-001`, sitzungslokal fortlaufend), `route_id`,
 `source` (Host-Name), `destination` (`{host, service}`, siehe 8.4),
-`object` (`object_id` aus dem Runtime Object Model, siehe 8.3),
-`attempt` (Ganzzahl, Default 1 — Wiederholung ist Phase 2), `status`,
-`reason` (Freitext bei `failed`, z. B. `"abstract-syntax-not-supported"`
-— **wiederverwendet dieselben echten PS3.8-Ablehnungsgründe**, die
-`check_association`/`trigger_action` heute schon für lernenden-
-initiierte Sendungen produzieren), `created_at`.
+`object` (`object_id` desselben `RuntimeObject`, siehe 8.3 —
+**niemals** ein neu erzeugtes Objekt), `attempt` (Ganzzahl, Default 1
+— Wiederholung ist Phase 2), `status`, `reason` (Freitext bei `failed`,
+z. B. `"abstract-syntax-not-supported"` — **wiederverwendet dieselben
+echten PS3.8-Ablehnungsgründe**, die `check_association`/
+`trigger_action` heute schon für lernenden-initiierte Sendungen
+produzieren), `created_at`.
+
+**Zentrale Multi-Hop-Invariante (Review-Fix Runde 2)**: ein
+erfolgreicher Job erzeugt **kein neues `RuntimeObject`** — er fügt dem
+**bestehenden** `object_id` lediglich einen weiteren Presence-Eintrag
+am `destination`-Host hinzu (`store_object(runtime_object,
+destination_host)`, dieselbe zentrale Operation aus 8.3) und wertet
+danach — sofern `routing_depth` es erlaubt (8.11) — die Routen des
+Ziel-Hosts gegen dasselbe, unveränderte `RuntimeObject` erneut aus.
+Genau das ist die Grundlage für Multi-Hop: dieselbe logische SOP
+Instance wandert weiter, sie klont sich nicht.
 
 **Zentraler Architekturgewinn**: ein Job wird ausgeführt, indem exakt
 dieselbe Assoziations-/Verhandlungslogik (`check_association`,
@@ -811,6 +893,21 @@ Architektur legt hier nur den **einen** Schreibpfad und das Kriterium
 ("lernrelevant, kein interner Rauschkanal") fest, keine abschließende
 Liste.
 
+**Review-Fix Runde 2 — Events referenzieren dasselbe logische
+`object_id`, nie einen host-spezifischen Klon**:
+
+```text
+route.evaluated  { object: obj-001, route_id: CT-TO-DOSE, matched: false, reason: "..." }
+job.created      { object: obj-001, route_id: CT-TO-DOSE, destination: {...} }
+store.completed  { object: obj-001, host: dose-scp }
+```
+
+Damit kann `pacs events --study ...` später die Reise **einer** SOP
+Instance über mehrere Hosts hinweg nachvollziehbar als eine
+zusammenhängende Sequenz darstellen, statt pro Host isolierte,
+scheinbar unabhängige Ereignisse mit unterschiedlichen Objekt-IDs zu
+zeigen.
+
 ### 8.7 Keine Hintergrundverarbeitung (Abschnitt 21)
 
 Routing-Auswertung und Job-Erzeugung/-Ausführung laufen **synchron
@@ -819,10 +916,29 @@ lässt (heute: `trigger_action`'s `send_study`-Pfad bzw. der direkte
 `storescu`-Pfad in `exec_command`). Es gibt keinen Timer, keinen
 Worker, keine Warteschlange im Sinne von Nebenläufigkeit — "Job Queue"
 ist hier ein **Datenmodell** (eine Liste im `state`-Dict), kein
-Laufzeit-Scheduler. `pacs route test <route> <objekt>` ist zusätzlich
-ein **seiteneffektfreier** Trockenlauf (kein Job, kein Event außer
-optional einem `route.evaluated`-Eintrag), damit Lernende Hypothesen
-prüfen können, ohne den Sitzungszustand zu verändern.
+Laufzeit-Scheduler.
+
+**Review-Fix Runde 2 — `pacs route test` ist ein echter Dry Run, ohne
+Ausnahme**: die Runde-1-Fassung ("kein Job, kein Event außer optional
+einem `route.evaluated`-Eintrag") war in sich widersprüchlich — ein
+persistiertes Event **ist** eine State-Mutation. Korrigiert:
+`pacs route test <route> <objekt>` erzeugt **keinen** Job, **kein**
+Event, **keine** `route_history`-Änderung, **keine**
+`routing_depth`-Änderung und **keine** sonstige Zustandsmutation
+(auch kein `last_progress_at`/Stuck-Progress-Touch) — ausschließlich
+ein reines Kommando-Ergebnis (stdout/stderr-äquivalent), z. B.:
+
+```text
+matched: false
+field: modality
+expected: CT
+actual: SR
+```
+
+Die **produktive**, automatische Routenauswertung (bei tatsächlichem
+`store_object(...)`, 8.3) bleibt davon unberührt und erzeugt weiterhin
+persistierte `route.evaluated`-Events (8.6) — nur der explizite,
+lernenden-initiierte Trockenlauf ist strikt seiteneffektfrei.
 
 ### 8.8 State-Modell (Abschnitt 20)
 
@@ -832,10 +948,21 @@ Klare Grenze, wie im Auftrag gefordert:
   `hosts[].routes[]` (Route-ID, `destination.{host,service}`, Match,
   `enabled`), `hosts[].dicom.calling_ae`, `hosts[].services[].id` —
   die Ausgangskonfiguration, exakt wie `accepted_sop_classes` heute.
-- **Session-State** (veränderlich, JSONB): `stored_objects` (Runtime
-  `StoredObject`-Instanzen, siehe 8.3), `jobs[]`, `events[]` — alles,
-  was während der Sitzung *entsteht*, nichts davon existiert vor dem
-  ersten Store-Vorgang.
+- **Session-State** (veränderlich, JSONB), **Review-Fix Runde 2 —
+  Presence minimal und getrennt vom logischen Objekt gehalten (Abschnitt
+  11 des Auftrags, KISS)**:
+  - `state["objects"]`: alle `RuntimeObject`-Instanzen dieser Sitzung,
+    keyed by `object_id` (8.3).
+  - `state["stored_objects"]`: Object Presence, keyed by Host-Name →
+    Liste von `object_id`s — dasselbe `object_id` kann in mehreren
+    Host-Listen stehen (Multi-Hop, 8.3).
+  - `state["object_presence"]` (nur bei Bedarf, siehe 8.4): host-lokale
+    Empfangs-/Receipt-Metadaten (`received_from_host`,
+    `received_from_ae`), getrennt vom `RuntimeObject` selbst.
+  - `jobs[]`, `events[]` — wie in 8.5/8.6 beschrieben.
+  - Nichts davon existiert vor dem ersten Store-Vorgang. Kein
+    komplexes Entity-System — drei flache Dicts/Listen reichen für
+    Phase 1.
 - Phase 1 hat **keine** lernenden-editierbaren Routen. Sollte Phase 2
   (siehe 8.9) Routen-Editing einführen, wird dafür der **bereits
   bestehende** `config`/`config_editable`-Mechanismus wiederverwendet
@@ -865,45 +992,77 @@ naheliegende, aber bewusst nicht in diesem Schritt gebaute Erweiterung.
 ### 8.10 Multi-Hop (Abschnitt 15)
 
 Heute kennt die Engine nur "Lernender/Modalität → ein Ziel". Der
-vorgeschlagene Mechanismus (8.5) verallgemeinert das elegant: sobald
-ein Host ein Objekt speichert, wertet er **automatisch** seine eigenen
-`routes[]` gegen das neue Objekt aus. Empfängt ein zweiter Host
-(z. B. "PACS B" oder ein Dose-System) das Objekt über einen
-entstandenen Job, kann **derselbe Host** wiederum eigene `routes[]`
-haben — Mehrfach-Hops komponieren rekursiv, ohne neues Konzept. Phase 1
-begrenzt sich bewusst auf zwei Hops (Modalität/Workstation → PACS →
-ein Downstream-Ziel) zur Scope-Kontrolle; 3+-Hop-Ketten sind mit
-demselben Modell möglich, aber noch nicht mit Content hinterlegt — und
-nur innerhalb der harten Sicherheitsgrenze aus 8.11.
+vorgeschlagene Mechanismus (8.3/8.5) verallgemeinert das elegant:
+sobald ein Host ein Objekt speichert (`store_object(...)`, 8.3), wertet
+er **automatisch** seine eigenen `routes[]` gegen dasselbe,
+unveränderte `RuntimeObject` aus. Empfängt ein zweiter Host (z. B.
+"PACS B" oder ein Dose-System) dasselbe Objekt über einen entstandenen
+Job — als zusätzlichen Presence-Eintrag, kein Klon (8.3) —, kann
+**derselbe Host** wiederum eigene `routes[]` haben — Mehrfach-Hops
+komponieren rekursiv, ohne neues Konzept, solange `routing_depth`
+(8.11) es zulässt.
 
-### 8.11 Loop- und Duplicate-Schutz (Review-Fix)
+### 8.11 Routing Depth, Loop- und Duplicate-Schutz (Review-Fix Runde 2)
 
-**Review-Fix**: ohne Schutz wäre sowohl eine Routing-Schleife
-(`PACS-A → PACS-B → PACS-A → ...`) als auch eine wiederholte
-Verarbeitung desselben Objekts durch dieselbe Route möglich. Zwei
-minimale, deterministische Invarianten statt eines Graph-Algorithmus:
+**Review-Fix Runde 2 — Begriff korrigiert**: "`max_hops`" war
+semantisch missverständlich, weil unklar blieb, ob der initiale
+Sendevorgang (Modalität → PACS) mitzählt. Klare Definition:
 
-1. **Route-Historie pro Objekt.** Jedes `StoredObject` (8.3) führt
-   `route_history: list[(host, route_id)]`. Regel: dieselbe Route darf
-   dasselbe logische Objekt innerhalb einer Session **höchstens
-   einmal** verarbeiten — ein zweiter Versuch derselben
-   `(host, route_id)`-Kombination gegen dasselbe `object_id` erzeugt
-   keinen neuen Job (analog zur "kein Job bei Nicht-Match"-Regel aus
-   8.5, nur mit anderem Grund im Audit-Log).
-2. **`max_hops` als harte Engine-Sicherheitsgrenze**, unabhängig von
-   Punkt 1 — nötig, weil zwei *verschiedene* Routen (`A`s Route X →
-   `B`s Route Y → `A`s Route Z) durch Punkt 1 allein nicht
-   ausgeschlossen wären. Empfehlung: **`max_hops = 2`** für Phase 1 —
-   bewusst identisch mit dem in 8.10 ohnehin für Phase 1 vorgesehenen
-   Content-Scope (Modalität/Workstation → PACS → ein Downstream-Ziel),
-   keine erfundene größere Zahl. Die Engine bricht die automatische
-   Weiterleitungskette bei Erreichen dieser Grenze deterministisch ab
+- **`routing_depth`** zählt ausschließlich **automatische, durch eine
+  Route ausgelöste Weiterleitungen** nach dem initialen Eintreffen
+  eines Objekts — **nicht** den initialen Speichervorgang selbst.
+- **Initial Ingest zählt nicht als automatische Route.** Wenn ein
+  Objekt per `storescu` oder `send_study` an einem Host ankommt
+  (Erststoß, lernenden-initiiert), gilt `routing_depth = 0` für dieses
+  `RuntimeObject` — unabhängig davon, ob dieser Host anschließend
+  eigene `routes[]` auswertet.
+- Erst ein **automatisch durch eine Route ausgelöster** Folgetransfer
+  erhöht `routing_depth` um 1. Beispiel:
+
+  ```text
+  CT → PACS            Initial Ingest,       routing_depth = 0
+  PACS → Dose-System    automatische Route,   routing_depth = 1
+  (PACS → Router → AI wäre eine dritte Stufe, routing_depth = 2)
+  ```
+
+- **Phase-1-Grenze: `max_routing_depth = 1`** — es ist genau **ein**
+  automatischer Forward nach dem Initial Ingest erlaubt (exakt der
+  Phase-1-Content-Scope: Modalität/Workstation → PACS → ein
+  Downstream-Ziel). Das ist keine verteidigte Zahl, sondern die direkte
+  Übersetzung der gewünschten Semantik — 3+-Hop-Ketten sind mit
+  demselben Modell möglich, aber erst mit einem höheren
+  `max_routing_depth`, sobald ein konkreter, getesteter Node das
+  braucht.
+
+**Zwei minimale, deterministische Invarianten statt eines
+Graph-Algorithmus** (ohne Schutz wäre sowohl eine Routing-Schleife
+`PACS-A → PACS-B → PACS-A → ...` als auch eine wiederholte Verarbeitung
+desselben Objekts durch dieselbe Route möglich):
+
+1. **Route-Historie gehört zum logischen Objekt, nicht zum
+   Presence-Eintrag.** `RuntimeObject.route_history:
+   list[(host, route_id)]` (8.3) — **nicht** eine Historie "der
+   gespeicherten Kopie" an einem Host, weil dasselbe Objekt an mehreren
+   Hosts gleichzeitig liegen kann (8.3) und der Schutz trotzdem für das
+   ganze logische Objekt gelten muss. Regel: dieselbe
+   `(host, route_id)`-Kombination darf dasselbe `object_id` innerhalb
+   einer Session **höchstens einmal** automatisch weiterleiten — ein
+   zweiter Versuch erzeugt keinen neuen Job (analog zur "kein Job bei
+   Nicht-Match"-Regel aus 8.5, nur mit anderem Grund im Audit-Log).
+   Beispiel: `obj-001.route_history = [("pacs-a", "ROUTE-TO-B"),
+   ("pacs-b", "ROUTE-TO-C")]`.
+2. **`max_routing_depth` als harte Engine-Sicherheitsgrenze**,
+   unabhängig von Punkt 1 — nötig, weil zwei *verschiedene* Routen
+   (`A`s Route X → `B`s Route Y → `A`s Route Z) durch Punkt 1 allein
+   nicht ausgeschlossen wären. Die Engine bricht die automatische
+   Weiterleitungskette bei Erreichen der Grenze deterministisch ab
    (kein Fehler, sondern ein regulärer `route.evaluated`-Event mit
-   `reason: "max_hops erreicht"`) und wird erst erhöht, wenn ein
-   konkreter, getesteter 3+-Hop-Node das rechtfertigt.
+   `reason: "max_routing_depth erreicht"`).
 
 Ziel beider Regeln zusammen: deterministisch, keine Endlosschleife,
-keine Job-Explosion, weiterhin Multi-Hop-fähig innerhalb der Grenze.
+keine Job-Explosion, weiterhin Multi-Hop-fähig innerhalb der Grenze —
+und der Schutz bleibt korrekt, auch wenn dasselbe `RuntimeObject`
+gleichzeitig an mehreren Hosts vorhanden ist (8.3).
 
 ### 8.12 DICOM-Metadaten-Modell (Abschnitt 17)
 
@@ -976,6 +1135,23 @@ $ pacs jobs [--study A94421] [--route CT-TO-DOSE]
 $ pacs events [--study A94421]
 ```
 
+**Review-Fix Runde 2 — kein Befehl darf suggerieren, dass pro Host ein
+neues Objekt entsteht.** `pacs objects --study ...` listet
+`RuntimeObject`s (über alle Hosts hinweg dasselbe `object_id`, egal an
+wie vielen Hosts es per Presence vorhanden ist), nicht "Objekte pro
+Host". Optional, nicht Pflicht für Phase 1, aber hilfreich, um das
+Modell für Lernende sichtbar zu machen — ein Befehl, der die Presence
+eines einzelnen Objekts über mehrere Hosts zeigt:
+
+```text
+$ pacs object show obj-001
+
+SOP Instance UID: 1.2.840.10008...
+Present at:
+- pacs
+- dose-scp
+```
+
 Parser: kein neues Framework — derselbe `shlex.split`-Ansatz wie
 heute, ein kleiner handgeschriebener Dispatcher auf `args[0]`
 (Unterbefehl) analog zu `_parse_dcmtk_args`. `dcmdump`/`echoscu`/
@@ -1035,26 +1211,46 @@ die Lernaufgabe nicht.
 
 ## 11. Teststrategie
 
-- **Unit** (`services/engine/tests/test_objects.py`,
-  `test_routing.py`, `test_jobs.py`, neu, nach demselben Muster wie
-  `test_transfer_syntax.py`/`test_abstract_syntax.py`):
-  `StoredObject`-Synthese aus beiden Storage-Pfaden (`storescu` und
-  `send_study`, 8.3), Matcher pro Operator, `all`/`any`,
-  Kein-Match-erzeugt-keinen-Job, Destination-Auflösung Host+Service
-  (8.4, inkl. Fehlerfall "Service existiert nicht am Ziel-Host"),
-  Job-Erzeugung, Zustandsübergänge `queued→sent`/`queued→failed`,
-  Loop-/Duplicate-Schutz (dieselbe Route matcht dasselbe Objekt kein
-  zweites Mal, `max_hops`-Abbruch, 8.11).
+**Unit** (`services/engine/tests/test_objects.py`, `test_routing.py`,
+`test_jobs.py`, neu, nach demselben Muster wie
+`test_transfer_syntax.py`/`test_abstract_syntax.py`), gegliedert wie im
+Review gefordert:
+
+- **Identity**: direktes `storescu` erzeugt ein `RuntimeObject` +
+  einen Presence-Eintrag; `send_study` erzeugt `file_count`
+  deterministische `RuntimeObject`s + Presence-Einträge; dasselbe
+  `object_id` (und dieselbe `sop_instance_uid`) bleibt beim späteren
+  automatischen Forwarding unverändert — **kein** neues Objekt entsteht
+  (8.3, 8.5).
+- **Presence**: nach Initial Ingest existiert das Objekt an genau einem
+  Host (`stored_objects[pacs] == [obj-001]`); nach einem erfolgreichen
+  Job existiert **dasselbe** `object_id` zusätzlich an einem zweiten
+  Host (`stored_objects[dose-scp] == [obj-001]` **und weiterhin**
+  `stored_objects[pacs] == [obj-001]`) — kein Klon, keine Verschiebung.
+- **Routing**: Matcher liest ausschließlich normalisierte
+  `RuntimeObject`-Metadaten (8.2/8.12); Missing-Field-Semantik pro
+  Operator (8.2-Tabelle); `pacs route test` mutiert **keinen** State
+  (kein Job, kein Event, keine `route_history`, kein
+  `routing_depth`-Inkrement, 8.7); Route-Historie verhindert, dass
+  dieselbe `(host, route_id)`-Kombination dasselbe `object_id` zweimal
+  automatisch weiterleitet (8.11); `max_routing_depth` bricht eine zu
+  tiefe automatische Kette deterministisch ab, ohne Initial Ingest
+  mitzuzählen (`routing_depth` startet bei 0, nicht bei 1, 8.11);
+  Destination-Auflösung Host+Service (8.4, inkl. Fehlerfall "Service
+  existiert nicht am Ziel-Host"); Job-Erzeugung, Zustandsübergänge
+  `queued→sent`/`queued→failed`.
 - **Engine-API**: `pacs`-Unterbefehle deterministisch (gleicher State +
   gleicher Command → gleiche Ausgabe), Sitzungspersistenz über
-  `state["jobs"]`/`state["events"]`.
+  `state["objects"]`/`state["stored_objects"]`/`state["jobs"]`/
+  `state["events"]`.
 - **Content**: Schema-Validierung (fehlender Ziel-Host, unbekannte
   `destination.service`, fehlendes `hosts[].dicom.calling_ae` bei
   einem Host mit `routes[]`, doppelte Route-ID, doppelte `services[].id`
   an einem Host, unbekanntes `match.field`, `op: in` ohne `values`).
 - **Regression**: komplette bestehende Engine-Testsuite unverändert
-  grün (heute 18 Testdateien, siehe Bestandsanalyse) — kein Verhalten
-  an C-ECHO/storescu/findscu/SOP-Class-Negotiation/Config darf sich
+  grün (heute 18 Testdateien, siehe Bestandsanalyse) — `bestand` bleibt
+  bestehen und unverändert, kein Verhalten an C-ECHO/storescu/findscu/
+  SOP-Class-Negotiation/Transfer-Syntax-Negotiation/Config darf sich
   ändern.
 - **E2E**: ein Beispiel-Node über
   `Laravel → EngineClientResolver → services/engine → pacs-Kommando →
@@ -1102,7 +1298,7 @@ erst, wenn ein konkretes Feature dafür implementiert wird.
   **aber erst**, wenn dieses Folge-Primitiv existiert — Phase 1 dieses
   ADRs bringt diesem Node noch keinen Mehrwert (siehe 13.3).
 - **IOCM**: Objekt-Status-Übergänge (`active|rejected|replaced`) als
-  Erweiterung des `StoredObject`-Modells (8.3) + neuer Event-Typ —
+  Erweiterung des `RuntimeObject`-Modells (8.3) + neuer Event-Typ —
   passt ins Modell.
 - **Multiframe**: orthogonale Metadaten-Erweiterung der Objekt-Felder
   (Kategorie A, siehe Matrix), unabhängig von Routing.
@@ -1143,7 +1339,17 @@ matched: false
 condition: modality
 expected: CT
 actual: SR
+
+$ pacs object show rdsr-001.dcm
+SOP Instance UID: 1.2.840.10008.5.1.4.1.1.88.67...
+Present at:
+- pacs
 ```
+
+Der letzte Befehl macht das Presence-Modell greifbar: dasselbe
+`RuntimeObject` ist nur an `pacs` vorhanden (nie geroutet), während ein
+CT-Bild derselben Study an `pacs` **und** `dose-scp` präsent wäre —
+kein Klon, derselbe `object_id`, zwei Presence-Einträge.
 
 Würde den didaktischen Wert dieses Nodes deutlich steigern (echte
 Evidenzsammlung statt vorgelesener Logs) — ein plausibler
@@ -1330,8 +1536,9 @@ fertigen Nodes)
    und `move-destination-unknown` als **angrenzenden, späteren**
    Kandidaten (erfordert zusätzlich ein C-MOVE-Primitiv, siehe 13.4)
    für eine spätere Phase E vorzumerken, ohne sie jetzt anzufassen.
-6. Zustimmung zum Loop-/Duplicate-Schutz (Route-Historie pro Objekt +
-   `max_hops = 2` als harte Engine-Grenze für Phase 1, 8.11).
+6. Zustimmung zum Loop-/Duplicate-Schutz (Route-Historie am
+   `RuntimeObject` + `max_routing_depth = 1` als harte Engine-Grenze
+   für Phase 1, 8.11) und zur RuntimeObject/Presence-Trennung (8.3).
 7. Freigabe für die erste Implementierungs-PR-Serie (Phase A gemäß
    Abschnitt 18, in mehreren kleinen PRs statt einem großen Branch),
    sobald gewünscht — **nicht Teil dieses Auftrags**.
@@ -1353,17 +1560,22 @@ PR 4 — Prototype Node                    (Phase D)
 - **Phase A — Object & Routing Foundation** (vergrößert gegenüber der
   ursprünglichen Fassung, Review-Fix: Routing kann ohne Runtime Objects
   nicht sinnvoll vorbereitet werden):
-  - minimales Runtime-`StoredObject`-Modell (8.3)
+  - `RuntimeObject`-Modell (8.3), speicherortunabhängig
+  - Object Presence pro Host (`state["stored_objects"]`, 8.3/8.8),
+    getrennt vom `RuntimeObject` selbst
   - Normalisierung beider Storage-Pfade (`storescu` **und**
-    `send_study`) auf dieses eine Modell
-  - Route-Definition (`hosts[].routes[]`, Destination-Modell 8.4,
-    `hosts[].dicom.calling_ae`)
-  - Match-Evaluator (kanonische Form, 8.2), reine Funktionen
-  - Loop-/Duplicate-Invarianten (Route-Historie, `max_hops`, 8.11)
+    `send_study`) auf dieselbe zentrale `store_object(...)`-Operation
+  - stabile `object_id`, optionale `sop_instance_uid` (8.3)
+  - Destination-Modell (Host + Service + Calling AE, 8.4)
+  - Match-Evaluator (kanonische Form + Missing-Field-Semantik, 8.2),
+    reine Funktionen
+  - Route-Historie am `RuntimeObject` + `routing_depth`/
+    `max_routing_depth` (8.11)
   - Validator-Grundlagen (9.3)
-  - Unit-Tests
+  - Unit-Tests (Identity/Presence/Routing, siehe 11)
   - **Noch nicht**: kein `pacs`-CLI, kein Editing, keine Node-Migration,
-    kein State-based Solve, noch keine Job-Erzeugung/-Ausführung.
+    kein State-based Solve, noch keine Job-Erzeugung/-Ausführung, noch
+    keine Events.
 - **Phase B — Job/Event-State**: Job-Erzeugung bei Objekt-Ankunft
   (Wiederverwendung von `check_association` gegen die in Phase A
   aufgelöste Destination), `state["events"]`-Persistenz über
