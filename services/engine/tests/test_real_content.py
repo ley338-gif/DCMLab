@@ -552,7 +552,12 @@ def test_gefiltert_is_solvable_from_the_real_content() -> None:
     rules.exec_command(node, state, "workstation", f"pacs route test PACS-TO-DOSE {rdsr_id}")
     assert state == before
 
-    # --- Flag (Abschnitt 43/44): technisch vollstaendig loesbar, kein zu
-    # breiter Hash -- ein plausibler falscher Wert darf nicht loesen. ---
-    assert rules.check_flag(node, state, "SR") is True
-    assert rules.check_flag(node, state, "CT") is False
+    # --- Flag (Abschnitt 43/44): die Route-ID, nicht die Modality (Lektion
+    # 3.8 nennt Modality=SR fuer RDSR bereits explizit -- ein reiner
+    # Modality-Flag waere ohne einen einzigen pacs-Befehl erratbar,
+    # Betreiber-Review nach PR #170). Plausible falsche Werte duerfen nicht
+    # loesen: weder die Evidenz selbst (SR) noch der Name der Route aus dem
+    # verwandten Node dosis-bleibt-liegen (CT-TO-DOSE). ---
+    assert rules.check_flag(node, state, "PACS-TO-DOSE") is True
+    assert rules.check_flag(node, state, "SR") is False
+    assert rules.check_flag(node, state, "CT-TO-DOSE") is False

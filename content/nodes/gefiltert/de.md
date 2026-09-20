@@ -18,12 +18,13 @@ Deine Umgebung:
 |---|---|---|
 | Deine Workstation | 10.83.0.50 | Shell mit `storescu`, `pacs`, `dcmdump` — plus Befehlsvorlagen; alle vier Dateien liegen bereits lokal |
 | PACS | 10.83.0.10 | C-STORE annehmen, leitet intern nach einer Regel an ein nachgelagertes System weiter |
-| Dose-System | 10.83.0.30 | Nicht direkt erreichbar — nur über die PACS-Weiterleitung |
+| Dose-System | 10.83.0.30 | Ziel der PACS-Weiterleitung — keine eigene Shell in diesem Lab |
 
 Deine Aufgabe: Sende die vier Objekte, untersuche danach den
 tatsächlichen Betriebszustand des PACS, und finde heraus, warum genau
-der Dosisbericht nie beim Dose-System ankommt. Gib den technischen Wert
-ein, der die Ursache eindeutig belegt.
+der Dosisbericht nie beim Dose-System ankommt. Gib die ID der
+Weiterleitungsregel ein, deren Auswahlbedingung den Dosisbericht
+ausschließt.
 
 Vorkenntnisse: Lektion 3.8. Rechne mit 20 Minuten.
 

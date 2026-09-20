@@ -62,6 +62,11 @@ environment:
 
     - name: dose-scp
       ip: 10.83.0.30
+      # Reines Weiterleitungsziel, keine eigene Shell fuer den Lernenden in
+      # diesem Lab (Betreiber-Review nach PR #170) -- config_visible: false
+      # haelt die AE-Identitaet aus der Host-Uebersicht heraus, analog zum
+      # "Herstellerzugang gesperrt"-Muster in halbe-sache.
+      config_visible: false
       services:
         - id: dose-store
           port: 104
@@ -116,8 +121,13 @@ environment:
   placeholders: []
 
 flag:
+  # Runtime-spezifischer technischer Wert (die ID der fehlerhaft
+  # selektierenden Weiterleitungsregel) statt "SR" -- Lektion 3.8 nennt
+  # Modality=SR fuer RDSR bereits explizit, ein reiner Modality-Flag waere
+  # ohne einen einzigen pacs-Befehl erratbar (Betreiber-Review nach PR
+  # #170). "SR" bleibt die Evidenz auf dem Weg dorthin, nicht der Loesungsschluessel.
   type: exact
-  hash: "sha256:cc8844298c08e2fb7ba75080b9fad6fbd23d63bf3534c713e87ad87cee8f5b57"
+  hash: "sha256:2662e04d35a6848ec1da765724835b810d72254a9b2de0f933ed368277acbb30"
   case_sensitive: false
 
 hints:
