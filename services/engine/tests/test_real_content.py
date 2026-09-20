@@ -5,6 +5,7 @@ Node-spezifischem Engine-Code gruen wird, ist das ein Schema-Mangel
 (Abschnitt 10, P6-DoD).
 """
 
+import copy
 from pathlib import Path
 
 import pytest
@@ -465,3 +466,98 @@ def test_nodes_without_pacs_tool_do_not_expose_the_pacs_cli_from_the_real_conten
         pacs_result = rules.exec_command(node, state, "workstation", "pacs objects")
         assert pacs_result.exit_code == 127
         assert pacs_result.stderr == "pacs: command not found"
+
+
+def test_gefiltert_is_solvable_from_the_real_content() -> None:
+    """ADR 0120, Phase D: der erste echte Hands-on-PACS-Routing-Node.
+    Treibt den realen Ingest (vier `storescu`-Aufrufe) und beweist end to
+    end, dass Content -> Engine -> Phase-B-Routing -> Phase-C-CLI
+    zusammenspielen -- keine handgeschriebenen Jobs/Events, echte
+    `rules.exec_command()`-Aufrufe statt direkter `cli._cmd_*()`-Tests."""
+
+    node = content.load_node("gefiltert")
+    state = rules.initial_state(node)
+
+    for filename in ["schicht-1.dcm", "schicht-2.dcm", "schicht-3.dcm", "dose-report.dcm"]:
+        result = rules.exec_command(
+            node, state, "workstation",
+            f"storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 {filename}",
+        )
+        assert result.exit_code == 0
+
+    # --- RuntimeObject/Presence (Abschnitt 38) ---
+    rdsr_id = next(
+        object_id for object_id, obj in state["objects"].items() if obj["modality"] == "SR"
+    )
+    rdsr = state["objects"][rdsr_id]
+    assert rdsr["sop_class"] == "1.2.840.10008.5.1.4.1.1.88.67"
+    assert rdsr_id in state["stored_objects"]["pacs"]
+    assert rdsr_id not in state["stored_objects"].get("dose-scp", [])
+
+    ct_ids = [object_id for object_id, obj in state["objects"].items() if obj["modality"] == "CT"]
+    assert len(ct_ids) == 3
+    for ct_id in ct_ids:
+        assert ct_id in state["stored_objects"]["dose-scp"]
+
+    # --- Jobs (Abschnitt 39): CT sent, RDSR ohne jeden Eintrag ---
+    jobs_by_object = {job["object"]: job for job in state["jobs"].values()}
+    for ct_id in ct_ids:
+        assert jobs_by_object[ct_id]["status"] == "sent"
+        assert jobs_by_object[ct_id]["route_id"] == "PACS-TO-DOSE"
+    assert rdsr_id not in jobs_by_object
+
+    # --- Events (Abschnitt 40): real entstanden, nicht handgeschrieben ---
+    rdsr_route_evaluated = next(
+        e for e in state["events"]
+        if e["type"] == "route.evaluated" and e["object"] == rdsr_id
+    )
+    assert rdsr_route_evaluated["matched"] is False
+    assert rdsr_route_evaluated["field"] == "modality"
+    assert rdsr_route_evaluated["operator"] == "equals"
+    assert rdsr_route_evaluated["expected"] == "CT"
+    assert rdsr_route_evaluated["actual"] == "SR"
+    assert not any(
+        e["type"] == "job.created" and e.get("object") == rdsr_id for e in state["events"]
+    )
+
+    # --- CLI End-to-End (Abschnitt 41): echte rules.exec_command()-Aufrufe ---
+    objects_out = rules.exec_command(node, state, "workstation", "pacs objects").stdout
+    assert f"{rdsr_id}  1.2.840.10008.5.1.4.1.1.88.67  SR        pacs" in objects_out
+
+    jobs_out = rules.exec_command(node, state, "workstation", "pacs jobs").stdout
+    assert "sent" in jobs_out
+    assert rdsr_id not in jobs_out
+
+    events_out = rules.exec_command(node, state, "workstation", "pacs events").stdout
+    assert "matched=false modality expected CT actual SR" in events_out
+
+    route_show_out = rules.exec_command(
+        node, state, "workstation", "pacs route show PACS-TO-DOSE",
+    ).stdout
+    assert "modality equals CT" in route_show_out
+
+    route_test_out = rules.exec_command(
+        node, state, "workstation", f"pacs route test PACS-TO-DOSE {rdsr_id}",
+    ).stdout
+    assert route_test_out == (
+        "matched: false\n"
+        "field: modality\n"
+        "operator: equals\n"
+        "expected: CT\n"
+        "actual: SR\n"
+    )
+
+    # --- Route-Test-Purity am echten Node (Abschnitt 42) ---
+    before = copy.deepcopy(state)
+    rules.exec_command(node, state, "workstation", f"pacs route test PACS-TO-DOSE {rdsr_id}")
+    assert state == before
+
+    # --- Flag (Abschnitt 43/44): die Route-ID, nicht die Modality (Lektion
+    # 3.8 nennt Modality=SR fuer RDSR bereits explizit -- ein reiner
+    # Modality-Flag waere ohne einen einzigen pacs-Befehl erratbar,
+    # Betreiber-Review nach PR #170). Plausible falsche Werte duerfen nicht
+    # loesen: weder die Evidenz selbst (SR) noch der Name der Route aus dem
+    # verwandten Node dosis-bleibt-liegen (CT-TO-DOSE). ---
+    assert rules.check_flag(node, state, "PACS-TO-DOSE") is True
+    assert rules.check_flag(node, state, "SR") is False
+    assert rules.check_flag(node, state, "CT-TO-DOSE") is False

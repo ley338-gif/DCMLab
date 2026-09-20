@@ -195,6 +195,16 @@ orthanc:
   anchor: schritt-0-deine-spielwiese
   needs_sandbox: true
 
+pacs:
+  name: pacs
+  suite: dcmlab
+  kind: analyse
+  purpose: "Untersucht den simulierten PACS-Betriebszustand: Objekte, Routen, Aufträge, Ereignisse."
+  example: "pacs jobs"
+  lesson: "3.8"
+  anchor: 4-wird-sie-an-das-richtige-ziel-weitergeleitet
+  needs_sandbox: true
+
 tshark:
   name: tshark
   suite: extern
