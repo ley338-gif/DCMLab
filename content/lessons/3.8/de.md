@@ -81,6 +81,13 @@ Damit wird aus einem diffusen „Schnittstellenproblem“ eine konkrete Stelle i
 - **Nur den ersten Hop prüfen.** PACS → Dose-System ist eine neue Verbindung.
 - **Storage und Verarbeitung vermischen.** Das Ziel kann die Instance empfangen und bei der fachlichen Verarbeitung trotzdem scheitern.
 
+## Lab
+
+Im Node **„Die Dosis bleibt liegen"** verfolgst du einen Dosisbericht
+über die komplette Kette Modalität → PACS → Dose-System und findest
+heraus, warum „im PACS vorhanden" noch lange nicht bedeutet, dass das
+Dose-System ihn erhalten hat.
+
 ## Selbstcheck
 
 1. Warum beweist ein erfolgreicher CT-Bildtransfer nicht, dass auch RDSR funktioniert?
