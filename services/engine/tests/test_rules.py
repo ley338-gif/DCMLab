@@ -3,12 +3,14 @@ fuenf Ablehnungsstufen, die DCMTK-Defaults, die stille Erfolgsausgabe, die
 SERIES-ohne-Study-Abweisung und der Platzhalter-Abfang je ein Testfall.
 """
 
+import copy
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from app import rules
-from app.content import load_node
+from app.content import NodeDefinition, load_node
+from app.flag import hash_value
 
 NODE = load_node("test-node")
 
@@ -273,6 +275,133 @@ def test_flag_check_rejects_wrong_value() -> None:
 
     assert rules.check_flag(NODE, state, "not the flag") is False
     assert state["solved"] is False
+
+
+# -- Solve Feedback (Phase D.2): evaluate_flag() strukturiertes Ergebnis -----
+
+
+def _node_with_solve_requires(requires: list[dict]) -> NodeDefinition:
+    return NodeDefinition(
+        slug="solve-feedback-test",
+        raw={
+            "flag": {"hash": f"sha256:{hash_value('the-flag', False)}", "case_sensitive": False},
+            "solve": {"requires": requires},
+        },
+    )
+
+
+def _empty_state() -> dict:
+    return {"objects": {}, "stored_objects": {}, "jobs": {}, "events": [], "solved": False}
+
+
+def test_evaluate_flag_classic_node_without_solve_requires_solves_immediately() -> None:
+    """Abschnitt 8/29: Nodes ohne `solve.requires` verhalten sich exakt wie
+    vor Phase D.1/D.2 -- ein korrekter Flag loest sofort, kein
+    Zwischenzustand."""
+    state = fresh_state()
+
+    outcome = rules.evaluate_flag(NODE, state, "Test Series")
+
+    assert outcome.correct is True
+    assert outcome.solved is True
+    assert outcome.reason is None
+    assert state["solved"] is True
+
+
+def test_evaluate_flag_wrong_value_is_incorrect_and_never_solved() -> None:
+    state = fresh_state()
+
+    outcome = rules.evaluate_flag(NODE, state, "not the flag")
+
+    assert outcome.correct is False
+    assert outcome.solved is False
+    assert outcome.reason is None
+    assert state["solved"] is False
+
+
+def test_evaluate_flag_correct_but_prerequisites_missing_is_incomplete_not_solved() -> None:
+    node = _node_with_solve_requires([{"type": "job_exists", "where": {"route_id": "R1"}}])
+    state = _empty_state()
+
+    outcome = rules.evaluate_flag(node, state, "the-flag")
+
+    assert outcome.correct is True
+    assert outcome.solved is False
+    assert outcome.reason == rules.REASON_PREREQUISITES_NOT_MET
+    assert state["solved"] is False
+
+
+def test_evaluate_flag_correct_with_prerequisites_met_solves() -> None:
+    node = _node_with_solve_requires([{"type": "job_exists", "where": {"route_id": "R1"}}])
+    state = _empty_state()
+    state["jobs"] = {"j-001": {"route_id": "R1"}}
+
+    outcome = rules.evaluate_flag(node, state, "the-flag")
+
+    assert outcome.correct is True
+    assert outcome.solved is True
+    assert outcome.reason is None
+    assert state["solved"] is True
+
+
+def test_evaluate_flag_does_not_leak_which_prerequisite_is_missing() -> None:
+    """Abschnitt 6: das Feedback darf nur DASS etwas fehlt zeigen, nie
+    WELCHES Requirement -- `reason` ist ein einziger generischer Wert,
+    unabhaengig vom konkreten Requirement-Typ/-Feld."""
+    node = _node_with_solve_requires([
+        {"type": "object_exists", "as": "x", "where": {"modality": "SR"}},
+    ])
+    state = _empty_state()
+
+    outcome = rules.evaluate_flag(node, state, "the-flag")
+
+    assert outcome.reason == "prerequisites_not_met"
+    assert "modality" not in (outcome.reason or "")
+    assert "object_exists" not in (outcome.reason or "")
+
+
+def test_evaluate_flag_incorrect_value_never_evaluates_prerequisites(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Abschnitt 9: ein Hash-Mismatch ist immer `incorrect`, unabhaengig vom
+    Runtime-State -- `solve.prerequisites_met()` darf dafuer gar nicht erst
+    aufgerufen werden."""
+    from app import solve
+
+    def _must_not_be_called(*_args: object, **_kwargs: object) -> bool:
+        raise AssertionError("prerequisites_met() must not run for an incorrect flag")
+
+    monkeypatch.setattr(solve, "prerequisites_met", _must_not_be_called)
+    node = _node_with_solve_requires([{"type": "job_exists", "where": {"route_id": "R1"}}])
+    state = _empty_state()
+
+    outcome = rules.evaluate_flag(node, state, "wrong-value")
+
+    assert outcome.correct is False
+    assert outcome.solved is False
+
+
+def test_evaluate_flag_incomplete_result_never_mutates_state() -> None:
+    node = _node_with_solve_requires([{"type": "job_exists", "where": {"route_id": "R1"}}])
+    state = _empty_state()
+    before = copy.deepcopy(state)
+
+    rules.evaluate_flag(node, state, "the-flag")
+
+    assert state == before
+
+
+def test_check_flag_wrapper_stays_backward_compatible() -> None:
+    """Abschnitt 5: `check_flag()` bleibt fuer bestehende Aufrufstellen ein
+    reiner Bool-Wrapper -- `True` nur bei einem tatsaechlichen Solve, exakt
+    wie vor Phase D.2."""
+    node = _node_with_solve_requires([{"type": "job_exists", "where": {"route_id": "R1"}}])
+    incomplete_state = _empty_state()
+    complete_state = _empty_state()
+    complete_state["jobs"] = {"j-001": {"route_id": "R1"}}
+
+    assert rules.check_flag(node, incomplete_state, "the-flag") is False
+    assert rules.check_flag(node, complete_state, "the-flag") is True
 
 
 # -- Hints und Punkte ---------------------------------------------------------

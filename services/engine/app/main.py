@@ -170,12 +170,21 @@ def submit_flag(
     row = _get_session_or_404(session_id, db)
     node = _load_node_or_404(row.node_slug)
 
-    correct = rules.check_flag(node, row.state, body.value)
+    outcome = rules.evaluate_flag(node, row.state, body.value)
     _save(db, row)
 
-    response: dict[str, object] = {"correct": correct}
+    # Phase D.2: `correct` heisst ab hier nur noch "Flag-Wert stimmt", nicht
+    # mehr gleichzeitig "Node geloest" -- `solved` traegt das eigentliche
+    # Solve-Ergebnis. `reason` erscheint nur bei correct-aber-nicht-solved,
+    # und ist absichtlich der einzige generische Wert aus
+    # `rules.REASON_PREREQUISITES_NOT_MET` (kein Requirement-Detail-Leak,
+    # Abschnitt 6/41).
+    response: dict[str, object] = {"correct": outcome.correct, "solved": outcome.solved}
 
-    if correct:
+    if outcome.reason is not None:
+        response["reason"] = outcome.reason
+
+    if outcome.solved:
         response["points"] = rules.points(node, row.state)
 
     return response

@@ -259,7 +259,17 @@ class NodeController extends Controller
 
         $result = $engine->submitFlag($attempt->engine_session_id, $data['value']);
 
-        if ($result['correct']) {
+        // Phase D.2: `correct` heisst seit dem Terminal-Engine-Umbau nur noch
+        // "Flag-Wert stimmt", nicht mehr gleichzeitig "Node geloest" (siehe
+        // `evaluate_flag()`, services/engine/app/rules.py) -- ein korrekter
+        // Flag bei nicht erfuellten `solve.requires` ist jetzt fachlich
+        // korrekt, aber noch nicht geloest. Der separate Scenario-Engine-
+        // Client (services/scenario-engine, unveraendert) kennt dieses Feld
+        // nicht; `?? $result['correct']` erhaelt dessen altes Verhalten exakt
+        // (dort faellt `correct` und `solved` weiterhin zusammen).
+        $solved = $result['solved'] ?? $result['correct'];
+
+        if ($solved) {
             $attempt->status = 'solved';
             $attempt->flag_submitted_at = now();
         }
@@ -268,7 +278,7 @@ class NodeController extends Controller
 
         $unlockedAchievements = [];
 
-        if ($result['correct']) {
+        if ($solved) {
             $user = $request->user();
             $profiles->recomputeAfterSolve($user, $node);
             // Achievement-Vergabe (Trailblazer -- globaler Wettlauf um die
@@ -279,7 +289,11 @@ class NodeController extends Controller
             $unlockedAchievements = $progressRecorder->record('node', $node->slug, $user);
         }
 
-        return response()->json([...$result, 'unlocked_achievements' => $unlockedAchievements]);
+        return response()->json([
+            ...$result,
+            'solved' => $solved,
+            'unlocked_achievements' => $unlockedAchievements,
+        ]);
     }
 
     /**

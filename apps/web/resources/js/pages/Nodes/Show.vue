@@ -115,7 +115,7 @@ const state = ref<EngineState>(props.state);
 const hints = reactive<Hint[]>(props.hints.map((h) => ({ ...h })));
 const writeUpHtml = ref(props.write_up_html);
 const flagValue = ref('');
-const flagFeedback = ref<'correct' | 'wrong' | null>(null);
+const flagFeedback = ref<'solved' | 'incomplete' | 'wrong' | null>(null);
 const terminalRef = ref<InstanceType<typeof EngineTerminal> | null>(null);
 const actionLog = ref<string[]>([]);
 const configDrafts = reactive<Record<string, string>>({});
@@ -230,15 +230,28 @@ async function viewWriteUp() {
 }
 
 async function submitFlag() {
+    // Phase D.2: `correct` und `solved` sind seit dem Solve-Feedback-Umbau
+    // getrennte Felder (siehe rules.evaluate_flag() im Terminal-Engine) --
+    // ein korrekter Flag ohne erfuellte Runtime-Prerequisites ist
+    // `correct: true, solved: false`, nicht mehr ununterscheidbar von einer
+    // falschen Antwort. Nur `solved` loest die bestehende Solve-UX aus.
     const result = await postJson<{
         correct: boolean;
+        solved: boolean;
+        reason?: string;
         points?: number;
         unlocked_achievements: Achievement[];
     }>(flagRoute.url(props.node.slug), {
         value: flagValue.value,
     });
-    flagFeedback.value = result.correct ? 'correct' : 'wrong';
-    if (result.correct) {
+    if (result.solved) {
+        flagFeedback.value = 'solved';
+    } else if (result.correct) {
+        flagFeedback.value = 'incomplete';
+    } else {
+        flagFeedback.value = 'wrong';
+    }
+    if (result.solved) {
         await fetchState();
         // Nach dem Loesen wird das Write-up automatisch gezeigt, ohne
         // Punktabzug (Engine straft das nur "vorab" ab, Abschnitt 5.3).
@@ -587,13 +600,23 @@ async function submitFlag() {
                             >{{ trans('Flag prüfen') }}</Button
                         >
                         <p
-                            v-if="flagFeedback === 'correct'"
+                            v-if="flagFeedback === 'solved'"
                             class="text-sm text-green-600"
                         >
                             {{
                                 trans('Richtig! :points Punkte.', {
                                     points: state.points,
                                 })
+                            }}
+                        </p>
+                        <p
+                            v-else-if="flagFeedback === 'incomplete'"
+                            class="text-sm text-amber-600"
+                        >
+                            {{
+                                trans(
+                                    'Richtige Diagnose – der erforderliche Betriebszustand wurde im Lab noch nicht vollständig reproduziert.',
+                                )
                             }}
                         </p>
                         <p

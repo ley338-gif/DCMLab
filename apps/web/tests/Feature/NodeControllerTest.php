@@ -583,6 +583,71 @@ class NodeControllerTest extends TestCase
     }
 
     /**
+     * Phase D.2: ein korrekter Flag bei nicht erfuellten `solve.requires`
+     * ist `correct: true, solved: false` -- die Engine-Antwort traegt jetzt
+     * ein eigenes `solved`-Feld, das der Controller (nicht mehr `correct`)
+     * fuer Attempt-Status/Achievements auswertet.
+     */
+    public function test_correct_but_incomplete_flag_does_not_mark_the_attempt_solved(): void
+    {
+        [$user, $node, $attempt] = $this->userWithExistingAttempt();
+        Activity::factory()->create(['type' => 'node', 'key' => $node->slug]);
+
+        Http::fake([
+            '*/v1/sessions/existing-session/flag' => Http::response([
+                'correct' => true, 'solved' => false, 'reason' => 'prerequisites_not_met',
+            ]),
+            '*/v1/sessions/existing-session/state' => Http::response($this->baseState()),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/de/nodes/test-node/flag', ['value' => 'PACS-TO-DOSE']);
+
+        $response->assertOk()->assertJson([
+            'correct' => true, 'solved' => false, 'reason' => 'prerequisites_not_met',
+            'unlocked_achievements' => [],
+        ]);
+
+        $attempt->refresh();
+        $this->assertSame('started', $attempt->status);
+        $this->assertNull($attempt->flag_submitted_at);
+
+        $this->assertNull($user->fresh()->profile);
+        $this->assertSame(
+            0,
+            AchievementUnlock::query()->where('user_id', $user->id)->count(),
+        );
+    }
+
+    /**
+     * Der separate Scenario-Engine-Client (services/scenario-engine) kennt
+     * kein `solved`-Feld -- der Controller-Fallback `$result['solved'] ??
+     * $result['correct']` muss dessen altes Verhalten exakt erhalten, sonst
+     * wuerde jeder Scenario-Node (z. B. "dosis-bleibt-liegen") nie wieder
+     * als geloest erkannt.
+     */
+    public function test_legacy_engine_response_without_solved_field_still_solves(): void
+    {
+        [$user, , $attempt] = $this->userWithExistingAttempt();
+
+        Http::fake([
+            '*/v1/sessions/existing-session/flag' => Http::response(['correct' => true, 'points' => 10]),
+            '*/v1/sessions/existing-session/state' => Http::response(
+                [...$this->baseState(), 'solved' => true, 'points' => 10],
+            ),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/de/nodes/test-node/flag', ['value' => 'Testflag']);
+
+        $response->assertOk()->assertJson(['correct' => true, 'solved' => true]);
+
+        $attempt->refresh();
+        $this->assertSame('solved', $attempt->status);
+        $this->assertNotNull($attempt->flag_submitted_at);
+    }
+
+    /**
      * @return array{0: User, 1: Node, 2: NodeAttempt}
      */
     private function userWithExistingAttempt(): array

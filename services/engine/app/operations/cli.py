@@ -1,6 +1,7 @@
-"""Read-only PACS-Operations-CLI (ADR 0120, Phase C): der `pacs`-Tool-
-Dispatch fuer `rules.exec_command()`. Parser, Lookup und Formatierung leben
-komplett hier -- `rules.py` erkennt nur `tool == "pacs"` und delegiert.
+"""Read-only PACS-Operations-CLI (ADR 0120, Phase C, erweitert in Phase D.2):
+der `pacs`-Tool-Dispatch fuer `rules.exec_command()`. Parser, Lookup und
+Formatierung leben komplett hier -- `rules.py` erkennt nur `tool == "pacs"`
+und delegiert.
 
 Liest ausschliesslich die bereits vorhandenen generischen Phase-A-/
 Phase-B-Daten (`state["objects"]`, `state["stored_objects"]`,
@@ -13,7 +14,14 @@ Run: er ruft ausschliesslich `routing.evaluate_route()` (denselben reinen
 Matcher, den auch die automatische Routenauswertung in `jobs.py` benutzt)
 und mutiert nichts -- kein Job, kein Event, keine `route_history`-
 Aenderung, kein `last_progress_at`-Touch (ADR 0120, 8.7).
-"""
+
+Phase D.2 (Betreiber-Playtest von "gefiltert", 17 Events im ersten echten
+Node): `pacs jobs`/`pacs events` akzeptieren zusaetzlich ein optionales
+`--object <object-id>`, das die Anzeige auf ein einzelnes RuntimeObject
+einschraenkt -- reine Anzeigefilterung ueber die bereits vorhandenen Listen,
+kein neues Matching-System, keine Aenderung an `state`. Die ungefilterte
+Form bleibt unveraendert bestehen (Abschnitt 28: ein PACS-Admin braucht
+weiterhin die vollstaendige Chronologie)."""
 
 from __future__ import annotations
 
@@ -36,10 +44,13 @@ _HELP_TEXT = "\n".join([
     "  pacs routes",
     "  pacs route show <route-id>",
     "  pacs route test <route-id> <object-id>",
-    "  pacs jobs",
+    "  pacs jobs [--object <object-id>]",
     "  pacs job show <job-id>",
-    "  pacs events",
+    "  pacs events [--object <object-id>]",
 ])
+
+_USAGE_JOBS = "usage: pacs jobs [--object <object-id>]"
+_USAGE_EVENTS = "usage: pacs events [--object <object-id>]"
 
 
 class RouteLookupAmbiguous(Exception):
@@ -88,17 +99,21 @@ def run(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> tuple[s
 
         return "", "usage: pacs route <show <route-id>|test <route-id> <object-id>>", 1
     if subcommand == "jobs":
-        if rest:
-            return "", "usage: pacs jobs", 1
-        return _cmd_jobs(state)
+        if not rest:
+            return _cmd_jobs(state)
+        if len(rest) == 2 and rest[0] == "--object":
+            return _cmd_jobs(state, object_filter=rest[1])
+        return "", _USAGE_JOBS, 1
     if subcommand == "job":
         if len(rest) != 2 or rest[0] != "show":
             return "", "usage: pacs job show <job-id>", 1
         return _cmd_job_show(state, rest[1])
     if subcommand == "events":
-        if rest:
-            return "", "usage: pacs events", 1
-        return _cmd_events(state)
+        if not rest:
+            return _cmd_events(state)
+        if len(rest) == 2 and rest[0] == "--object":
+            return _cmd_events(state, object_filter=rest[1])
+        return "", _USAGE_EVENTS, 1
 
     return "", f'pacs: unknown subcommand "{subcommand}"', 1
 
@@ -327,10 +342,28 @@ def _cmd_route_test(
 # pacs jobs / pacs job show
 # ---------------------------------------------------------------------
 
-def _cmd_jobs(state: dict[str, Any]) -> tuple[str, str, int]:
+def _cmd_jobs(state: dict[str, Any], object_filter: str | None = None) -> tuple[str, str, int]:
+    """Ohne `object_filter`: alle Jobs, unveraendert seit Phase C. Mit
+    `object_filter` (Phase D.2, `pacs jobs --object <id>`): nur Jobs dieses
+    RuntimeObjects -- reine Anzeige-Filterung, `state["jobs"]` bleibt
+    unveraendert (Abschnitt 25). Ein unbekanntes Objekt ist ein Fehler
+    (Abschnitt 18), ein bekanntes Objekt ohne Jobs ist ein valides,
+    diagnostisch unterscheidbares Ergebnis (Abschnitt 19/37)."""
+
+    if object_filter is not None and object_filter not in state.get("objects", {}):
+        return "", f'pacs: unknown object "{object_filter}"', 1
+
     jobs: dict[str, dict[str, Any]] = state.get("jobs", {})
 
+    if object_filter is not None:
+        jobs = {
+            job_id: job for job_id, job in jobs.items() if job.get("object") == object_filter
+        }
+
     if not jobs:
+        if object_filter is not None:
+            return f"No routing jobs for object {object_filter}.\n", "", 0
+
         return "No routing jobs.\n", "", 0
 
     headers = ["JOB", "ROUTE", "OBJECT", "SOURCE", "DESTINATION", "DEPTH", "STATUS", "REASON"]
@@ -407,10 +440,26 @@ def _event_details(event: dict[str, Any]) -> str:
     return ""
 
 
-def _cmd_events(state: dict[str, Any]) -> tuple[str, str, int]:
+def _cmd_events(state: dict[str, Any], object_filter: str | None = None) -> tuple[str, str, int]:
+    """Ohne `object_filter`: die vollstaendige Chronologie, unveraendert seit
+    Phase C -- bleibt fuer einen PACS-Admin unverzichtbar (Abschnitt 28).
+    Mit `object_filter` (Phase D.2, `pacs events --object <id>`): nur
+    Events dieses RuntimeObjects, in derselben Append-Reihenfolge, reine
+    Anzeige-Filterung (Abschnitt 25). Unbekanntes Objekt -> Fehler
+    (Abschnitt 18), analog zu `_cmd_jobs()`."""
+
+    if object_filter is not None and object_filter not in state.get("objects", {}):
+        return "", f'pacs: unknown object "{object_filter}"', 1
+
     events: list[dict[str, Any]] = state.get("events", [])
 
+    if object_filter is not None:
+        events = [event for event in events if event.get("object") == object_filter]
+
     if not events:
+        if object_filter is not None:
+            return f"No PACS events for object {object_filter}.\n", "", 0
+
         return "No PACS events.\n", "", 0
 
     headers = ["EVENT", "TYPE", "OBJECT", "ROUTE", "JOB", "DETAILS"]

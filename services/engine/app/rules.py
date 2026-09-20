@@ -958,24 +958,66 @@ def view_write_up(state: dict[str, Any]) -> None:
     state["write_up_seen"] = True
 
 
-def check_flag(node: NodeDefinition, state: dict[str, Any], value: str) -> bool:
-    """Loest einen Node nur, wenn BEIDES zutrifft (ADR 0120, Phase D.1):
-    der Flag-Wert ist korrekt UND -- falls der Node `solve.requires`
-    deklariert -- der dafuer noetige Runtime-State ist tatsaechlich
-    entstanden (`solve.prerequisites_met()`, rein lesend). Ein korrekter
-    Flag ohne erfuellte Prerequisites loest nicht -- dieselbe Rueckgabe wie
-    ein falscher Flag, da die bestehende API nur ein bool kennt (kein
-    UX-Umbau in Phase D.1, siehe PR-Beschreibung). Nodes ohne
-    `solve.requires` (der Normalfall) verhalten sich exakt wie vor Phase
-    D.1: `solve.prerequisites_met()` gibt dort immer True zurueck."""
+#: generischer, nicht requirement-spezifischer Grund fuer "korrekt, aber noch
+#: nicht geloest" (Phase D.2, Abschnitt 6/41): das Frontend darf nur wissen,
+#: DASS Prerequisites fehlen, nie WELCHE -- es gibt bewusst nur diesen einen
+#: Wert, kein Katalog von Gruenden.
+REASON_PREREQUISITES_NOT_MET = "prerequisites_not_met"
+
+
+@dataclass(frozen=True)
+class FlagOutcome:
+    """Strukturiertes Ergebnis einer Flag-Abgabe (Phase D.2, Abschnitt 4/7).
+
+    `correct` und `solved` sind bewusst getrennte Felder, keine einzelne
+    Bool-Rueckgabe mehr: ein korrekter Flag-Wert beweist, dass der Lernende
+    die Ursache erkannt hat, `solved` zusaetzlich, dass der dafuer noetige
+    Runtime-State (`solve.requires`, falls deklariert) tatsaechlich
+    entstanden ist. Nur `correct and solved` ist ein echter Solve -- die
+    einzig moegliche Kombination, die hier nicht vorkommt, ist
+    `correct=False, solved=True`."""
+
+    correct: bool
+    solved: bool
+    reason: str | None = None
+
+
+def evaluate_flag(node: NodeDefinition, state: dict[str, Any], value: str) -> FlagOutcome:
+    """Wertet eine Flag-Abgabe strukturiert aus (ADR 0120, Phase D.2).
+
+    Bei falschem Flag wird `solve.prerequisites_met()` gar nicht erst
+    aufgerufen (Abschnitt 9) -- ein Hash-Mismatch ist immer `incorrect`,
+    unabhaengig vom Runtime-State. Nur bei korrektem Flag entscheidet
+    `solve.prerequisites_met()` (rein lesend, siehe `app.solve`) zwischen
+    `correct_but_incomplete` und `solved`; nur im ersten Fall wird
+    `reason` gesetzt (ein einziger generischer Wert, siehe
+    `REASON_PREREQUISITES_NOT_MET` -- niemals, WELCHES Requirement fehlt).
+    Nodes ohne `solve.requires` (der Normalfall) verhalten sich exakt wie
+    vor Phase D.1/D.2: `solve.prerequisites_met()` gibt dort immer True
+    zurueck, ein korrekter Flag loest also weiterhin sofort."""
 
     from app import solve
     from app.flag import hash_value
 
     correct = hash_value(value, node.flag_case_sensitive) == node.flag_hash
-    solved = correct and solve.prerequisites_met(node.raw, state)
 
-    if solved:
-        state["solved"] = True
+    if not correct:
+        return FlagOutcome(correct=False, solved=False)
 
-    return solved
+    if not solve.prerequisites_met(node.raw, state):
+        return FlagOutcome(correct=True, solved=False, reason=REASON_PREREQUISITES_NOT_MET)
+
+    state["solved"] = True
+
+    return FlagOutcome(correct=True, solved=True)
+
+
+def check_flag(node: NodeDefinition, state: dict[str, Any], value: str) -> bool:
+    """Rueckwaertskompatibler Wrapper um `evaluate_flag()` (Phase D.2): `True`
+    nur bei einem tatsaechlichen Solve, exakt dieselbe Semantik wie vor
+    D.2 -- die zahlreichen bestehenden Aufrufstellen/Tests, die `check_flag()`
+    direkt als Bool verwenden, muessen dafuer nicht migriert werden. Neuer
+    Code (der `/flag`-Endpunkt) verwendet `evaluate_flag()` direkt, um
+    `correct` und `solved` zu unterscheiden."""
+
+    return evaluate_flag(node, state, value).solved

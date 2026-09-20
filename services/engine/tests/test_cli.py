@@ -16,7 +16,11 @@ CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
 DOSE_SR = "1.2.840.10008.5.1.4.1.1.88.67"
 
 
-def _node(*, extra_pacs_routes: list[dict[str, Any]] | None = None) -> NodeDefinition:
+def _node(
+    *,
+    extra_pacs_routes: list[dict[str, Any]] | None = None,
+    extra_objects: list[dict[str, Any]] | None = None,
+) -> NodeDefinition:
     """`workstation -> pacs -> {dose-scp, ai-scp}` (Abschnitt 41/61):
     CT-TO-DOSE matcht CT-Objekte, dose-scp akzeptiert nur CT Image Storage
     (SR/RDSR-Objekte matchen entsprechend nicht bzw. scheitern an der
@@ -67,6 +71,7 @@ def _node(*, extra_pacs_routes: list[dict[str, Any]] | None = None) -> NodeDefin
                         "filename": "rdsr.dcm", "bytes": 512,
                         "sop_class": DOSE_SR, "modality": "SR",
                     },
+                    *(extra_objects or []),
                 ],
             },
         },
@@ -138,7 +143,8 @@ def test_pacs_help_lists_all_real_entry_points_and_exits_zero() -> None:
         "pacs objects", "pacs object show <object-id>",
         "pacs routes", "pacs route show <route-id>",
         "pacs route test <route-id> <object-id>",
-        "pacs jobs", "pacs job show <job-id>", "pacs events",
+        "pacs jobs [--object <object-id>]", "pacs job show <job-id>",
+        "pacs events [--object <object-id>]",
     ]:
         assert line in result.stdout
 
@@ -176,13 +182,15 @@ def test_unknown_subcommand_is_a_clear_error() -> None:
 @pytest.mark.parametrize(("command", "usage"), [
     ("objects foo", "usage: pacs objects"),
     ("routes nonsense", "usage: pacs routes"),
-    ("jobs x", "usage: pacs jobs"),
-    ("events whatever", "usage: pacs events"),
+    ("jobs x", "usage: pacs jobs [--object <object-id>]"),
+    ("events whatever", "usage: pacs events [--object <object-id>]"),
 ])
 def test_plural_listing_commands_reject_extra_arguments(command: str, usage: str) -> None:
     """Betreiber-Review (nach PR #169): ein Tippfehler soll laut scheitern,
-    statt so auszusehen, als haette ein Filter/Argument gegriffen -- die
-    Listing-Befehle nehmen bewusst keine Argumente entgegen."""
+    statt so auszusehen, als haette ein Filter/Argument gegriffen. `jobs`/
+    `events` akzeptieren seit Phase D.2 zusaetzlich exakt `--object <id>`
+    (siehe eigene Tests unten) -- alles andere bleibt ein Usage-Fehler,
+    `objects`/`routes` nehmen weiterhin gar keine Argumente entgegen."""
     node = _node()
     state = rules.initial_state(node)
 
@@ -665,6 +673,152 @@ def test_job_show_unknown_job() -> None:
 
     assert result.exit_code == 1
     assert result.stderr == 'pacs: unknown job "j-999"'
+
+
+# ---------------------------------------------------------------------
+# pacs jobs --object (Phase D.2, Betreiber-Playtest von "gefiltert")
+# ---------------------------------------------------------------------
+
+def _node_with_two_ct_objects() -> NodeDefinition:
+    return _node(extra_objects=[{
+        "filename": "ct-bild-2.dcm", "bytes": 1024,
+        "sop_class": CT_IMAGE_STORAGE, "modality": "CT",
+    }])
+
+
+def test_jobs_object_filter_shows_only_the_matching_object() -> None:
+    node = _node_with_two_ct_objects()
+    state = rules.initial_state(node)
+    _store(node, state, "ct-bild.dcm")  # obj-001 -> j-001
+    _store(node, state, "ct-bild-2.dcm")  # obj-002 -> j-002
+
+    result = _pacs(node, state, "jobs --object obj-001")
+
+    assert result.exit_code == 0
+    assert "j-001" in result.stdout
+    assert "j-002" not in result.stdout
+    assert "obj-002" not in result.stdout
+
+
+def test_jobs_object_filter_unknown_object_is_an_error() -> None:
+    node = _node()
+    state = rules.initial_state(node)
+    _store(node, state, "ct-bild.dcm")
+
+    result = _pacs(node, state, "jobs --object obj-999")
+
+    assert result.exit_code == 1
+    assert result.stderr == 'pacs: unknown object "obj-999"'
+
+
+def test_jobs_object_filter_on_a_known_object_with_no_jobs_succeeds() -> None:
+    """Abschnitt 19/37: das RDSR-Analogon -- ein bekanntes Objekt ohne Job
+    ist ein valides Diagnoseergebnis, kein Fehler wie ein Tippfehler in der
+    Objekt-ID."""
+    node = _node()
+    state = rules.initial_state(node)
+    _store(node, state, "rdsr.dcm")  # obj-001, matcht CT-TO-DOSE nicht -> kein Job
+
+    result = _pacs(node, state, "jobs --object obj-001")
+
+    assert result.exit_code == 0
+    assert result.stdout == "No routing jobs for object obj-001.\n"
+
+
+def test_jobs_usage_error_for_malformed_object_syntax() -> None:
+    node = _node()
+    state = rules.initial_state(node)
+
+    for command in ["jobs obj-001", "jobs --object=obj-001", "jobs --object obj-001 --route X"]:
+        result = _pacs(node, state, command)
+        assert result.exit_code == 1
+        assert result.stderr == "usage: pacs jobs [--object <object-id>]"
+
+
+def test_jobs_object_filter_never_mutates_state() -> None:
+    node = _node_with_two_ct_objects()
+    state = rules.initial_state(node)
+    _store(node, state, "ct-bild.dcm")
+    _store(node, state, "ct-bild-2.dcm")
+
+    before = copy.deepcopy(state)
+    _pacs(node, state, "jobs --object obj-001")
+    _pacs(node, state, "jobs --object obj-999")  # auch der Fehlerpfad bleibt rein lesend
+
+    assert state == before
+
+
+# ---------------------------------------------------------------------
+# pacs events --object (Phase D.2, Betreiber-Playtest von "gefiltert")
+# ---------------------------------------------------------------------
+
+def test_events_object_filter_shows_only_the_matching_object() -> None:
+    node = _node()
+    state = rules.initial_state(node)
+    _store(node, state, "ct-bild.dcm")  # obj-001: store.completed, route.evaluated(true), job.*
+    _store(node, state, "rdsr.dcm")  # obj-002: store.completed, route.evaluated(false)
+
+    result = _pacs(node, state, "events --object obj-002")
+
+    assert result.exit_code == 0
+    assert "obj-002" in result.stdout
+    assert "obj-001" not in result.stdout
+    assert "matched=false" in result.stdout
+    assert "job.created" not in result.stdout
+    assert "job.sent" not in result.stdout
+
+
+def test_events_object_filter_unknown_object_is_an_error() -> None:
+    node = _node()
+    state = rules.initial_state(node)
+    _store(node, state, "ct-bild.dcm")
+
+    result = _pacs(node, state, "events --object obj-999")
+
+    assert result.exit_code == 1
+    assert result.stderr == 'pacs: unknown object "obj-999"'
+
+
+def test_events_object_filter_known_object_no_events_is_unreachable_but_defensive() -> None:
+    """Jedes bekannte Objekt hat mindestens ein `store.completed`-Event --
+    dieser Fall ist nach heutiger Engine-Logik nicht erreichbar, die
+    leere Ausgabe bleibt trotzdem ein definiertes, nicht abstuerzendes
+    Ergebnis, falls sich das je aendert."""
+    node = _node()
+    state = rules.initial_state(node)
+    _store(node, state, "ct-bild.dcm")
+    state["events"] = []  # synthetisch: ein bekanntes Objekt ganz ohne Events
+
+    result = _pacs(node, state, "events --object obj-001")
+
+    assert result.exit_code == 0
+    assert result.stdout == "No PACS events for object obj-001.\n"
+
+
+def test_events_usage_error_for_malformed_object_syntax() -> None:
+    node = _node()
+    state = rules.initial_state(node)
+
+    malformed_commands = [
+        "events obj-001", "events --object=obj-001", "events --object obj-001 --route X",
+    ]
+    for command in malformed_commands:
+        result = _pacs(node, state, command)
+        assert result.exit_code == 1
+        assert result.stderr == "usage: pacs events [--object <object-id>]"
+
+
+def test_events_object_filter_never_mutates_state() -> None:
+    node = _node()
+    state = rules.initial_state(node)
+    _store(node, state, "ct-bild.dcm")
+    _store(node, state, "rdsr.dcm")
+
+    before = copy.deepcopy(state)
+    _pacs(node, state, "events --object obj-001")
+    _pacs(node, state, "events --object obj-999")
+
+    assert state == before
 
 
 # ---------------------------------------------------------------------

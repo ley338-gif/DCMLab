@@ -3,12 +3,16 @@ Sitzung anlegen bis Flag einreichen, gegen eine eigene SQLite-Instanz pro Test
 (siehe app.db._make_engine: StaticPool haelt die In-Memory-DB waehrend des
 gesamten Tests am Leben)."""
 
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.db import Base, engine
 from app.main import app
 
 HEADERS = {"X-DCMLAB-KEY": "test-key"}
+REAL_CONTENT = Path(__file__).parent.parent.parent.parent / "content"
 
 
 def setup_function() -> None:
@@ -85,11 +89,77 @@ def test_full_solve_path_end_to_end() -> None:
         f"/v1/sessions/{session_id}/flag", json={"value": "Test Series"}, headers=HEADERS,
     )
     body = r.json()
+    # Phase D.2: ein klassischer Node ohne `solve.requires` loest weiterhin
+    # sofort -- `correct` und `solved` fallen hier zusammen, kein `reason`.
     assert body["correct"] is True
+    assert body["solved"] is True
+    assert "reason" not in body
     assert body["points"] == 9
 
     r = client.post(f"/v1/sessions/{session_id}/flag", json={"value": "falsch"}, headers=HEADERS)
-    assert r.json()["correct"] is False
+    body = r.json()
+    assert body["correct"] is False
+    assert body["solved"] is False
+    assert "reason" not in body
+
+
+def test_flag_endpoint_distinguishes_correct_but_incomplete_from_solved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase D.2, Abschnitt 32: der tatsaechliche `/flag`-Endpunkt gegen
+    echten "gefiltert"-Content -- nicht nur `rules.evaluate_flag()` direkt.
+    Reproduziert den urspruenglichen Betreiber-Befund (korrekter Flag ohne
+    reproduzierten Incident) End-to-End ueber die HTTP-API."""
+
+    from app import content
+
+    monkeypatch.setattr(content.settings, "content_path", str(REAL_CONTENT))
+    content._datasets_cached.cache_clear()
+
+    session_id = create_session("gefiltert")["session_id"]
+
+    # falscher Flag
+    r = client.post(
+        f"/v1/sessions/{session_id}/flag", json={"value": "not-even-close"}, headers=HEADERS,
+    )
+    assert r.json() == {"correct": False, "solved": False}
+
+    # korrekter Flag, aber der Incident wurde nie reproduziert (der
+    # urspruengliche Zero-Action-Solve-Befund, jetzt korrekt-aber-unvollstaendig
+    # statt unentscheidbar falsch)
+    r = client.post(
+        f"/v1/sessions/{session_id}/flag", json={"value": "PACS-TO-DOSE"}, headers=HEADERS,
+    )
+    assert r.json() == {
+        "correct": True, "solved": False, "reason": "prerequisites_not_met",
+    }
+
+    state_after_incomplete_attempt = client.get(
+        f"/v1/sessions/{session_id}/state", headers=HEADERS,
+    ).json()
+    assert state_after_incomplete_attempt["solved"] is False
+
+    # den echten Incident durchspielen (identischer Ingest wie
+    # test_real_content.py::test_gefiltert_is_solvable_from_the_real_content)
+    for filename in ["schicht-1.dcm", "schicht-2.dcm", "schicht-3.dcm", "dose-report.dcm"]:
+        exec_response = client.post(
+            f"/v1/sessions/{session_id}/exec",
+            json={
+                "host": "workstation",
+                "command": f"storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 {filename}",
+            },
+            headers=HEADERS,
+        )
+        assert exec_response.json()["exit_code"] == 0
+
+    r = client.post(
+        f"/v1/sessions/{session_id}/flag", json={"value": "PACS-TO-DOSE"}, headers=HEADERS,
+    )
+    body = r.json()
+    assert body["correct"] is True
+    assert body["solved"] is True
+    assert "reason" not in body
+    assert body["points"] == 50
 
 
 def test_state_survives_a_fresh_process_because_it_lives_in_postgres() -> None:
