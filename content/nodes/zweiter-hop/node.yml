@@ -1,0 +1,235 @@
+slug: zweiter-hop
+difficulty: hard
+points: 50
+category: integration
+skills: [integration, bildgebung]
+related_lessons: ["3.7"]
+estimated_minutes: 20
+
+# ADR 0120, zweiter Hands-on-PACS-Operations-Node (nach `gefiltert`): kein
+# neues Engine-Primitiv, sondern ausdruecklich ein Generalisierungstest fuer
+# Phase A-D.2 an einer ANDEREN Betriebsgrenze.
+#
+# `gefiltert` endet VOR der Job-Erzeugung: die Route selektiert Objekte nach
+# Modality und schliesst den RDSR bereits bei der Objektauswahl aus
+# (matched=false, gar kein Job). Dieser Node hier prueft die naechste
+# Betriebsgrenze dahinter:
+#
+#   Object stored       (i)   -- wie bei gefiltert
+#   Route selected       (ii)  -- ANDERS als bei gefiltert: matched=true
+#   Job created          (iii) -- entsteht ueberhaupt erst hier
+#   Transfer attempted   (iv)
+#   Job failed            (v)  -- am Ziel abgelehnt, nicht bei der Auswahl
+#
+# Abgrenzung zu den drei bestehenden SOP-Class-/Transfer-Syntax-Nodes (Phase
+# 0/P10, direkter Sender->Archiv-Hop, KEIN PACS-internes Routing):
+#   - `halbe-sache`/`teiltransfer`: SOP Class wird schon beim ERSTEN,
+#     direkten `storescu` zum Archiv abgelehnt -- das Objekt wird nie
+#     gespeichert, es entsteht kein RuntimeObject, kein Job, kein Event.
+#   - `syntax-negotiation-fails`: Transfer-Syntax-Inkompatibilitaet, ebenfalls
+#     direkt am ersten Hop, ueber `accepted_transfer_syntaxes`.
+# Hier dagegen: der erste Hop (Workstation -> PACS) gelingt fuer BEIDE
+# Objekte vollstaendig -- das PACS akzeptiert ausdruecklich beide SOP
+# Classes. Der Incident entsteht erst am ZWEITEN, automatischen Hop (PACS ->
+# Postprocessing, ADR 0120 Phase B), wenn eine bereits erfolgreich
+# gematchte Route einen echten Weiterleitungsjob erzeugt, der dann am Ziel
+# an der SOP-Class-Pruefung scheitert (`operations/jobs.py`,
+# `_create_and_execute_job()`: SOP-Class-Check vor Transfer-Syntax-Check).
+# Beide Objekte verwenden bewusst DIESELBE Transfer Syntax (Explicit VR
+# Little Endian), die das Ziel ausdruecklich akzeptiert -- der Fall darf
+# keine Mehrdeutigkeit zwischen Abstract Syntax/SOP Class und Transfer
+# Syntax zulassen (siehe `docs/adr/0120-advanced-pacs-operations-sandbox.md`).
+environment:
+  hosts:
+    - name: workstation
+      ip: 10.84.0.50
+      role: shell
+
+    - name: pacs
+      ip: 10.84.0.10
+      # Sendende Identitaet fuer die automatische Weiterleitung an
+      # postproc-scp (ADR 0120, 8.4) -- muss in known_calling_aets stehen,
+      # sonst scheitert die Association des automatischen Jobs bereits vor
+      # der SOP-Class-Pruefung.
+      dicom:
+        calling_ae: PACS-ARCHIV
+      services:
+        - id: pacs-store
+          port: 104
+          ae_title: PACS-ARCHIV
+          # Das PACS akzeptiert beide SOP Classes vollstaendig -- der
+          # Incident ist ausdruecklich NICHT "am PACS abgelehnt" (das waere
+          # derselbe Fall wie halbe-sache/teiltransfer). Explicit VR Little
+          # Endian wird von beiden Objekten verwendet; der direkte
+          # storescu-Pfad prueft Transfer Syntax ohnehin nicht separat
+          # (rules.py::_exec_storescu), das Feld steht hier nur fuer die
+          # realistische Selbstbeschreibung des Hosts.
+          accepted_sop_classes:
+            - "1.2.840.10008.5.1.4.1.1.2"      # CT Image Storage
+            - "1.2.840.10008.5.1.4.1.1.2.1"    # Enhanced CT Image Storage
+          accepted_transfer_syntaxes:
+            - "1.2.840.10008.1.2.1"            # Explicit VR Little Endian
+      # Fachlich bewusst grob (wie bei gefiltert): die Route selektiert nach
+      # Modality, nicht nach SOP Class. Anders als bei gefiltert ist das
+      # HIER nicht der Fehler -- beide Objekte tragen Modality=CT und werden
+      # beide korrekt ausgewaehlt (matched=true fuer beide). Der Lernpunkt
+      # ist gerade, dass Route-Match und erfolgreiche Zustellung zwei
+      # unterschiedliche Betriebsgrenzen sind.
+      routes:
+        - id: PACS-TO-POSTPROC
+          enabled: true
+          destination:
+            host: postproc-scp
+            service: postproc-store
+          match:
+            modality: CT
+
+    - name: postproc-scp
+      ip: 10.84.0.30
+      # Reines Weiterleitungsziel, kein Herstellername (neutral gehalten wie
+      # dose-scp bei gefiltert) -- keine eigene Shell fuer den Lernenden.
+      config_visible: false
+      services:
+        - id: postproc-store
+          port: 104
+          ae_title: POSTPROC-SCP
+          # Nur klassisches CT Image Storage wird unterstuetzt -- Enhanced
+          # CT Image Storage ist ABSICHTLICH nicht gelistet. Explicit VR
+          # Little Endian wird dagegen akzeptiert, identisch zu beiden
+          # Objekten -- damit ist Transfer Syntax strukturell als Ursache
+          # ausgeschlossen, nur die SOP Class kann noch der Grund sein.
+          accepted_sop_classes:
+            - "1.2.840.10008.5.1.4.1.1.2"      # CT Image Storage
+          accepted_transfer_syntaxes:
+            - "1.2.840.10008.1.2.1"            # Explicit VR Little Endian
+
+  known_calling_aets: [CT-KONSOLE, PACS-ARCHIV]
+
+  tools: [storescu, pacs, dcmdump]
+
+  # Exakt zwei Objekte -- bewusst klein und lesbar (Abschnitt 10 des
+  # Auftrags). Beide Modality=CT, beide dieselbe Transfer Syntax, nur die
+  # SOP Class unterscheidet sie.
+  objects:
+    - filename: "ct-classic.dcm"
+      bytes: 262144
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"      # CT Image Storage -- positive Kontrolle
+      modality: CT
+      transfer_syntax: "1.2.840.10008.1.2.1"
+    - filename: "ct-enhanced.dcm"
+      bytes: 262144
+      sop_class: "1.2.840.10008.5.1.4.1.1.2.1"    # Enhanced CT Image Storage -- Problemobjekt
+      modality: CT
+      transfer_syntax: "1.2.840.10008.1.2.1"
+
+  # Nur der tatsaechliche Ingest ist als Template bequem erreichbar -- keine
+  # Templates fuer pacs jobs/events/route test, der Lernende soll die
+  # PACS-CLI ueber `help` selbst entdecken.
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.store_classic
+      command: "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.84.0.10 104 ct-classic.dcm"
+    - label_key: tpl.store_enhanced
+      command: "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.84.0.10 104 ct-enhanced.dcm"
+  placeholders: []
+
+# Hands-on-Solve-Contract (Phase D.1, generisch, keine Erweiterung): die
+# korrekte SOP-Class-UID allein reicht nicht -- der Incident muss zusaetzlich
+# tatsaechlich im Runtime-State nachweisbar sein. Beide Vergleichsobjekte
+# muessen wirklich uebertragen worden sein, sonst bleibt es bei
+# correct-but-incomplete (Phase D.2).
+solve:
+  requires:
+    # Enhanced-Objekt binden (genau ein Treffer -- D.1-Eindeutigkeitsregel).
+    - type: object_exists
+      as: enhanced
+      where:
+        sop_class: "1.2.840.10008.5.1.4.1.1.2.1"
+        modality: CT
+        transfer_syntax: "1.2.840.10008.1.2.1"
+
+    # Enhanced ist tatsaechlich im PACS gespeichert -- der erste Hop ist
+    # gelungen.
+    - type: presence
+      object: enhanced
+      host: pacs
+      present: true
+
+    # Enhanced hat das Postprocessing-System NICHT erreicht.
+    - type: presence
+      object: enhanced
+      host: postproc-scp
+      present: false
+
+    # Zentral: die Route HAT das Objekt ausgewaehlt (anders als bei
+    # gefiltert) -- der Fehler liegt nicht in der Objektselektion.
+    - type: event_exists
+      where:
+        type: route.evaluated
+        route_id: PACS-TO-POSTPROC
+        object: enhanced
+        matched: true
+
+    # Fuer Enhanced ist ein Weiterleitungsjob entstanden, der fehlgeschlagen
+    # ist -- anders als bei gefiltert (dort: gar kein Job).
+    - type: job_exists
+      where:
+        route_id: PACS-TO-POSTPROC
+        object: enhanced
+        status: failed
+
+    # Der Fehlgrund ist die bestehende Engine-Failure-Reason fuer eine
+    # abgelehnte SOP Class -- keine neue Reason.
+    - type: event_exists
+      where:
+        type: job.failed
+        route_id: PACS-TO-POSTPROC
+        object: enhanced
+        reason: abstract_syntax_not_supported
+
+    # Kontrollobjekt binden.
+    - type: object_exists
+      as: classic
+      where:
+        sop_class: "1.2.840.10008.5.1.4.1.1.2"
+        modality: CT
+        transfer_syntax: "1.2.840.10008.1.2.1"
+
+    # Positive Kontrolle: derselbe Weg funktioniert grundsaetzlich fuer
+    # klassisches CT -- ohne diesen Nachweis waere auch eine komplett
+    # defekte Zielverbindung denkbar.
+    - type: job_exists
+      where:
+        route_id: PACS-TO-POSTPROC
+        object: classic
+        status: sent
+
+    - type: presence
+      object: classic
+      host: postproc-scp
+      present: true
+
+flag:
+  # Die SOP-Class-UID des abgelehnten Objekttyps -- nicht die Failure-Reason
+  # (Evidenz, kein Loesungsschluessel) und nicht die Route-ID. Zwingt den
+  # Lernenden von "job.failed reason=abstract_syntax_not_supported" zu
+  # "welche konkrete SOP Class betrifft es?" weiterzuarbeiten.
+  type: exact
+  hash: "sha256:34b6ea2dcb2a6d28fde8c4c28f3dc009ae9334aef6b8e33f154948fe91af8bb8"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 2
+  - id: h2
+    cost: 4
+  - id: h3
+    cost: 6
+
+stuck_timeout_minutes: 20
+
+status: draft
+updated: "2026-09-21"
