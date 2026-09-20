@@ -733,12 +733,25 @@ ist).
 Sendeauftrag einer Modalitäts-Simulation zusätzlich zum unveränderten
 `bestand`-Zähler ein sitzungslokales Objekt- und Presence-Modell
 (`state["objects"]`/`state["stored_objects"]`, primärer Schlüssel
-`object_id`, nicht Dateiname oder SOP Instance UID). `routes:` wird dabei
-bereits vollständig validiert, aber **noch nicht automatisch ausgewertet**
-— kein zweiter Hop, kein Job, keine automatische Weiterleitung. Details
-und Begründung: ADR 0120 (Phase A liefert die Objekt-/Match-/Destination-
-Bausteine; die automatische Auswertung folgt erst in einer späteren
-Phase).
+`object_id`, nicht Dateiname oder SOP Instance UID).
+
+**Ab Phase B** (Jobs, Events & Automatic Routing) wertet ein erfolgreicher
+Store `routes:` des Ziel-Hosts automatisch aus: eine matchende, noch nicht
+verarbeitete Route erzeugt einen deterministischen Routing-Job
+(`state["jobs"]`, `j-001`, `j-002`, …), der synchron über dieselbe
+Association-/SOP-Class-/Transfer-Syntax-Verhandlung wie ein lernenden-
+initiierter Store läuft (`check_association()`, Wiederverwendung, kein
+zweiter Verhandlungsweg) und bei Erfolg Presence am Zielhost setzt — mit
+demselben `object_id`, kein Klon. Ein kuratiertes, append-only Event-Log
+(`state["events"]`: `store.completed`, `route.evaluated`, `job.created`,
+`job.sent`/`job.failed`) macht den Ablauf nachvollziehbar. `route_history`
+verhindert, dass dieselbe `(host, route_id, object_id)`-Kombination
+mehrfach automatisch verarbeitet wird (auch nach einem fehlgeschlagenen
+Job — Phase B hat keinen Retry); `max_routing_depth` (Engine-Konstante,
+Phase 1 = `1`) begrenzt automatische Forwards auf genau einen Hop nach dem
+Initial Ingest, unabhängig von Fan-out (mehrere gleichzeitig matchende
+Routen erzeugen Geschwister-Jobs auf derselben Tiefe). Details und
+Begründung: ADR 0120.
 
 ## 7. Node — `de.md`
 

@@ -13,6 +13,7 @@ from typing import Any
 
 from app import find
 from app.content import NodeDefinition, load_dataset
+from app.operations import jobs as routing_jobs
 from app.operations import objects as runtime_objects
 
 NON_NETWORK_COMMANDS = {"ping", "ls", "cat", "echo", "clear", "help"}
@@ -731,9 +732,11 @@ def _exec_storescu(
     bestand["series"] = 1
     bestand["instances"] += 1
 
-    # ADR 0120, Phase A: RuntimeObject/Presence zusaetzlich zum unveraenderten
-    # `bestand`-Zaehler fuehren -- storescu und send_study muenden ab hier in
-    # derselben zentralen store_object()-Operation. `origin_host` ist der
+    # ADR 0120, Phase A/B: RuntimeObject/Presence zusaetzlich zum
+    # unveraenderten `bestand`-Zaehler fuehren -- storescu und send_study
+    # muenden ab hier in derselben zentralen store_and_route()-Operation
+    # (Phase B, ADR 0120, 8.5), die Presence setzt und danach automatisch
+    # deklarierte Routes des Ziel-Hosts auswertet. `origin_host` ist der
     # sendende Host (die Shell, von der aus storescu ausgefuehrt wird), nicht
     # das Ziel-Archiv -- Presence (wo das Objekt jetzt LIEGT) ist davon
     # unabhaengig und bleibt am Ziel-Host. `result.target_host` ist an dieser
@@ -743,7 +746,7 @@ def _exec_storescu(
         object_id = runtime_objects.resolve_object_from_environment_object(
             state, obj, origin_host=host_name,
         )
-        runtime_objects.store_object(state, object_id, result.target_host)
+        routing_jobs.store_and_route(state, node, object_id, result.target_host)
 
     return ExecResult(exit_code=0)
 
@@ -872,10 +875,11 @@ def trigger_action(
     # einzelnen Objekte, nur einen file_count aus datasets.yml -- synthetisiert
     # `file_count` RuntimeObjects deterministisch (eine Study, eine Series,
     # konsistent mit der bestehenden Vereinfachung der C-FIND-Simulation, siehe
-    # _exec_findscu SERIES-Ebene) und fuehrt sie ueber dieselbe store_object()
-    # -Operation wie storescu. Modality/SOP-Class/Transfer-Syntax kommen nur
-    # aus der vorhandenen Sender-Konfiguration -- nichts wird erfunden, was der
-    # heutige Node-/Datensatz-Kontext nicht hergibt.
+    # _exec_findscu SERIES-Ebene) und fuehrt sie ueber dieselbe
+    # store_and_route()-Operation wie storescu (Phase B, ADR 0120, 8.5).
+    # Modality/SOP-Class/Transfer-Syntax kommen nur aus der vorhandenen
+    # Sender-Konfiguration -- nichts wird erfunden, was der heutige
+    # Node-/Datensatz-Kontext nicht hergibt.
     dataset = load_dataset(node.dataset_slug) if node.dataset_slug else None
     dataset = dataset or {}
     study_uid = _study_instance_uid(node)
@@ -899,7 +903,7 @@ def trigger_action(
                 study_description=study_description,
                 series_description=series_description,
             )
-            runtime_objects.store_object(state, object_id, result.target_host)
+            routing_jobs.store_and_route(state, node, object_id, result.target_host)
 
     log = [
         f"{timestamp}  Sendeauftrag – Verbindungsaufbau {target_ip}:{target_port} …",

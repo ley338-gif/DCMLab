@@ -423,3 +423,27 @@ def test_zwei_ebenen_tiefer_is_solvable_from_the_real_content() -> None:
     assert all_series == {series_a, series_b, series_c}
 
     assert rules.check_flag(node, state, "4712") is True
+
+
+def test_nodes_without_routes_never_create_phase_b_jobs_from_the_real_content() -> None:
+    """ADR 0120, Phase B, Abschnitt 56: keiner der heute ausgelieferten Nodes
+    deklariert `environment.hosts[].routes` -- ein RuntimeObject-Store dort
+    darf deshalb nie automatisch einen Job erzeugen, unabhaengig vom
+    Storage-Pfad (`send_study` vs. direktes `storescu`)."""
+
+    silent_ct = content.load_node("silent-ct")
+    state = rules.initial_state(silent_ct)
+    rules.set_config(silent_ct, state, "ct-console", "remote_ae", "PACS-ARCHIV")
+    rules.trigger_action(silent_ct, state, "ct-console", "send_study")
+    assert state.get("jobs", {}) == {}
+    assert "route.evaluated" not in {e["type"] for e in state.get("events", [])}
+
+    halbe_sache = content.load_node("halbe-sache")
+    state = rules.initial_state(halbe_sache)
+    for filename in ["bild-1.dcm", "bild-2.dcm", "bild-3.dcm"]:
+        rules.exec_command(
+            halbe_sache, state, "workstation",
+            f"storescu -aet DCMLAB-WS -aec RAD-ARCHIV 10.77.0.10 104 {filename}",
+        )
+    assert state.get("jobs", {}) == {}
+    assert "route.evaluated" not in {e["type"] for e in state.get("events", [])}
