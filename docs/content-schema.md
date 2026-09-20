@@ -873,13 +873,12 @@ Diagnoseweg bleibt vollständig frei: nur der am Ende tatsächlich
 entstandene Zustand zählt, nicht die Befehlshistorie.
 
 **Kein automatisches Lösen.** `solve.requires` allein löst nie einen Node
-— `rules.check_flag()` prüft weiterhin zuerst den Flag-Hash und danach
+— `rules.evaluate_flag()` prüft weiterhin zuerst den Flag-Hash und danach
 zusätzlich `solve.prerequisites_met()`; nur beides zusammen setzt
 `state["solved"] = True`. Ein korrekter Flag-Wert bei nicht erfüllten
-Prerequisites verhält sich nach außen wie ein falscher Flag (die
-bestehende API kennt nur `{"correct": bool}` — eine feinere
-Rückmeldung "Antwort korrekt, Versuch noch nicht vollständig" ist ein
-dokumentierter UX-Follow-up, kein Teil von Phase D.1).
+Prerequisites ist seit Phase D.2 strukturiert von einem falschen Flag
+unterscheidbar (siehe **6m** unten), verrät dabei aber nie, welches
+konkrete Requirement fehlt.
 
 **Bestehende Nodes bleiben unverändert.** Fehlt der `solve:`-Schlüssel
 komplett (der Normalfall für jeden heute bestehenden Node), gilt die
@@ -901,6 +900,53 @@ Alias-Namen eindeutig, keine unbekannten Top-Level- oder `where`-Felder in
 `solve` selbst oder in einer Bedingung) — **nie**, ob eine Bedingung
 fachlich sinnvoll ist, genau wie bei `environment.hosts[].routes[].match`
 (Abschnitt 6k).
+
+### 6m. Solve Feedback & PACS-CLI-Objektfilter (ab Phase D.2)
+
+**Problem (aus dem echten Playtest von `gefiltert`, Phase D):** ein
+korrekter Flag-Wert bei nicht erfüllten `solve.requires` sah für den
+Lernenden identisch zu einer falschen Antwort aus — die `/flag`-API kannte
+nur `{"correct": bool}`. Zusätzlich wurde `pacs events` im ersten echten
+Hands-on-Node bei 17 Zeilen unübersichtlich, ohne Möglichkeit, gezielt ein
+einzelnes RuntimeObject zu untersuchen.
+
+**Solve-Feedback.** `rules.evaluate_flag()` (services/engine/app/rules.py)
+liefert seither ein strukturiertes `FlagOutcome` statt eines einzelnen
+Bool: `correct` (Flag-Wert stimmt) und `solved` (zusätzlich sind
+`solve.requires`, falls deklariert, erfüllt) sind getrennte Felder. Die
+`/flag`-API gibt entsprechend zurück:
+
+```json
+{"correct": false, "solved": false}
+{"correct": true,  "solved": false, "reason": "prerequisites_not_met"}
+{"correct": true,  "solved": true,  "points": 50}
+```
+
+`reason` erscheint ausschließlich im mittleren Fall und ist immer derselbe
+generische Wert — nie ein Hinweis darauf, WELCHES Requirement fehlt (siehe
+6l: "keine Information über konkrete Requirements leaken"). Ein falscher
+Flag wertet `solve.requires` gar nicht erst aus (Hash-Mismatch ist immer
+sofort `incorrect`). `rules.check_flag()` bleibt als reiner
+Bool-Wrapper (`True` nur bei `solved`) bestehen — bestehende Aufrufstellen
+und Tests, die `check_flag()` direkt verwenden, mussten dafür nicht
+angepasst werden. Nodes ohne `solve.requires` lösen weiterhin sofort bei
+korrektem Flag, ohne Zwischenzustand.
+
+**PACS-CLI-Objektfilter.** `pacs jobs` und `pacs events` akzeptieren
+zusätzlich ein optionales `--object <object-id>`, das die Anzeige auf ein
+einzelnes RuntimeObject einschränkt — reine Anzeigefilterung über die
+bereits vorhandenen Listen, keine neue Matching-Sprache, keine Änderung an
+`state`:
+
+```text
+pacs jobs [--object <object-id>]
+pacs events [--object <object-id>]
+```
+
+Ein unbekanntes Objekt ist ein Fehler (`pacs: unknown object "..."`, exit
+1) — ein bekanntes Objekt ganz ohne Jobs/Events ist dagegen ein valides,
+diagnostisch anderes Ergebnis (leere Liste, exit 0). Die ungefilterte Form
+bleibt unverändert bestehen, kein Breaking Change.
 
 ## 7. Node — `de.md`
 

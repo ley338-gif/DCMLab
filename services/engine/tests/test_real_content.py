@@ -481,6 +481,23 @@ def test_gefiltert_zero_action_solve_is_impossible() -> None:
     assert state["solved"] is False
 
 
+def test_gefiltert_zero_action_correct_flag_is_correct_but_incomplete() -> None:
+    """Phase D.2, Abschnitt 31: der urspruengliche Betreiber-Befund war nicht
+    nur "loest nicht", sondern konkret "eine korrekte Antwort sieht wie eine
+    falsche aus" -- `evaluate_flag()` muss das jetzt als korrekt-aber-
+    unvollstaendig unterscheiden, nicht als schlicht falsch."""
+
+    node = content.load_node("gefiltert")
+    state = rules.initial_state(node)
+
+    outcome = rules.evaluate_flag(node, state, "PACS-TO-DOSE")
+
+    assert outcome.correct is True
+    assert outcome.solved is False
+    assert outcome.reason == rules.REASON_PREREQUISITES_NOT_MET
+    assert state["solved"] is False
+
+
 def test_gefiltert_read_only_cli_alone_does_not_solve() -> None:
     """Phase D.1, Abschnitt 48: `pacs routes`/`route show` lesen nur die
     statische Node-Definition, nicht den Session-State -- selbst nach
@@ -616,6 +633,26 @@ def test_gefiltert_is_solvable_from_the_real_content() -> None:
     events_out = rules.exec_command(node, state, "workstation", "pacs events").stdout
     assert "matched=false modality expected CT actual SR" in events_out
 
+    # --- Phase D.2, Abschnitt 37/38/48: `--object`-Filter am echten RDSR --
+    # verbessert genau den urspruenglichen Playtest-Befund ("17 Events" bei
+    # `pacs events`, siehe PR-Beschreibung) -- das RDSR hat KEINEN Job (ein
+    # valides Diagnoseergebnis, kein Fehler), und seine Event-Kette zeigt nur
+    # die eigene Chronologie, keine der drei CT-Objekt-Events.
+    rdsr_jobs_out = rules.exec_command(
+        node, state, "workstation", f"pacs jobs --object {rdsr_id}",
+    ).stdout
+    assert rdsr_jobs_out == f"No routing jobs for object {rdsr_id}.\n"
+
+    rdsr_events_out = rules.exec_command(
+        node, state, "workstation", f"pacs events --object {rdsr_id}",
+    ).stdout
+    assert "store.completed" in rdsr_events_out
+    assert "matched=false modality expected CT actual SR" in rdsr_events_out
+    for ct_id in ct_ids:
+        assert ct_id not in rdsr_events_out
+    assert "job.created" not in rdsr_events_out
+    assert "job.sent" not in rdsr_events_out
+
     route_show_out = rules.exec_command(
         node, state, "workstation", "pacs route show PACS-TO-DOSE",
     ).stdout
@@ -632,9 +669,11 @@ def test_gefiltert_is_solvable_from_the_real_content() -> None:
         "actual: SR\n"
     )
 
-    # --- Route-Test-Purity am echten Node (Abschnitt 42) ---
+    # --- Route-Test-/Objekt-Filter-Purity am echten Node (Abschnitt 23/39/42) ---
     before = copy.deepcopy(state)
     rules.exec_command(node, state, "workstation", f"pacs route test PACS-TO-DOSE {rdsr_id}")
+    rules.exec_command(node, state, "workstation", f"pacs jobs --object {rdsr_id}")
+    rules.exec_command(node, state, "workstation", f"pacs events --object {rdsr_id}")
     assert state == before
 
     # --- Flag (Abschnitt 43/44): die Route-ID, nicht die Modality (Lektion
@@ -643,6 +682,13 @@ def test_gefiltert_is_solvable_from_the_real_content() -> None:
     # Betreiber-Review nach PR #170). Plausible falsche Werte duerfen nicht
     # loesen: weder die Evidenz selbst (SR) noch der Name der Route aus dem
     # verwandten Node dosis-bleibt-liegen (CT-TO-DOSE). ---
+    # Phase D.2, Abschnitt 31: nach dem vollstaendigen Incident ist das
+    # strukturierte Ergebnis ein echter Solve, kein correct-aber-incomplete.
+    outcome = rules.evaluate_flag(node, state, "PACS-TO-DOSE")
+    assert outcome.correct is True
+    assert outcome.solved is True
+    assert outcome.reason is None
+
     assert rules.check_flag(node, state, "PACS-TO-DOSE") is True
     assert rules.check_flag(node, state, "SR") is False
     assert rules.check_flag(node, state, "CT-TO-DOSE") is False

@@ -6,7 +6,8 @@ vorhandenen Session-State deklarieren (`state["objects"]`,
 dass der praktische Vorgang tatsaechlich stattgefunden hat, nicht nur, dass
 der Lernende den richtigen Wert kennt.
 
-Wichtige Trennung (siehe `rules.check_flag()`, dem einzigen Aufrufer):
+Wichtige Trennung (siehe `rules.evaluate_flag()`, dem einzigen Aufrufer,
+Phase D.2):
 
     Runtime-State  = Beweis, dass der Incident tatsaechlich passiert ist
     Flag/Antwort   = Beweis, dass der Lernende die Ursache erkannt hat
