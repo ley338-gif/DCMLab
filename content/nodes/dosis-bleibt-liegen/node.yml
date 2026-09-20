@@ -112,11 +112,12 @@ scenario:
 
     capability_check:
       prompt: >
-        Konformitätsprotokoll von DOSE-SCP: akzeptiert u. a.
-        XRayRadiationDoseSRStorage als Storage-SOP-Class. Historisches
-        Log: Gestern wurde ein Dosisbericht einer anderen Modalität
-        erfolgreich an DOSE-SCP übertragen (C-STORE Success). Was folgt
-        daraus?
+        Laut aktuellem Conformance Statement unterstützt DOSE-SCP
+        XRayRadiationDoseSRStorage als Storage SCP. Historisches Log:
+        Gestern wurde ein Dosisbericht einer anderen Modalität
+        erfolgreich an DOSE-SCP übertragen (C-STORE Success) — bestätigt
+        zusätzlich, dass dies in der eingesetzten Konfiguration
+        praktisch funktioniert. Was folgt daraus?
       options:
         - id: dose_doesnt_support
           label: DOSE-SCP unterstützt Dosisberichte grundsätzlich nicht.
@@ -231,11 +232,10 @@ scenario:
       terminal: true
       outcome: wrong
       prompt: >
-        Das Konformitätsprotokoll von DOSE-SCP listet
+        Das aktuelle Conformance Statement von DOSE-SCP listet
         XRayRadiationDoseSRStorage ausdrücklich als unterstützte
-        Storage-SOP-Class, und im historischen Log wurde bereits
-        erfolgreich ein Dosisbericht einer anderen Modalität
-        verarbeitet.
+        Storage SCP, und im historischen Log wurde bereits erfolgreich
+        ein Dosisbericht einer anderen Modalität verarbeitet.
     wrong_hyp_no_rdsr:
       terminal: true
       outcome: wrong
@@ -261,9 +261,9 @@ scenario:
       terminal: true
       outcome: wrong
       prompt: >
-        Das Konformitätsprotokoll und der historische erfolgreiche
-        Transfer belegen, dass DOSE-SCP Dosisberichte unterstützt und
-        verarbeitet.
+        Das aktuelle Conformance Statement und der historische
+        erfolgreiche Transfer belegen, dass DOSE-SCP Dosisberichte
+        unterstützt und verarbeitet.
     wrong_hyp_second_store_failed:
       terminal: true
       outcome: wrong
@@ -283,7 +283,7 @@ scenario:
         (SOPClassUID = XRayRadiationDoseSRStorage, Modality = SR) — der
         erste Hop ist vollständig unauffällig. DOSE-SCP ist erreichbar
         (C-ECHO Success) und unterstützt Dosisberichte nachweislich
-        (Konformitätsprotokoll, historischer Transfer). Trotzdem wurde
+        (Conformance Statement, historischer Transfer). Trotzdem wurde
         für den Dosisbericht nie ein Übertragungsauftrag angelegt: Die
         PACS-Routingregel CT-TO-DOSE selektiert Objekte nach der
         Bedingung Modality == CT — für Structured-Report-Objekte wie

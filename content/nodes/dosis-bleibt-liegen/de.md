@@ -96,10 +96,11 @@ ableitbar.
 
 - **C-ECHO PACS → DOSE-SCP**: Success — reine Erreichbarkeit, keine
   Aussage über unterstützte Storage-SOP-Classes.
-- **Konformitätsprotokoll DOSE-SCP**: akzeptiert
-  `XRayRadiationDoseSRStorage` als Storage-SOP-Class. Historisches Log:
-  gestern erfolgreich einen Dosisbericht einer anderen Modalität
-  empfangen und verarbeitet.
+- **Conformance Statement DOSE-SCP**: unterstützt laut aktuellem
+  Conformance Statement `XRayRadiationDoseSRStorage` als Storage SCP.
+  Historisches Log: gestern erfolgreich einen Dosisbericht einer
+  anderen Modalität empfangen und verarbeitet — bestätigt zusätzlich,
+  dass dies in der eingesetzten Konfiguration praktisch funktioniert.
 - **Routingregel CT-TO-DOSE** (Ziel DOSE-SCP), Bedingung `Modality ==
   CT`. Auswertung für Study A94421: CT Image Storage → `matched =
   true`; X-Ray Radiation Dose SR → `matched = false, reason =
@@ -120,8 +121,8 @@ ableitbar.
    und dcmdump bestätigen die gespeicherte Instanz.
 3. **DOSE-SCP ist nicht erreichbar.** Widerlegt: C-ECHO Success.
 4. **DOSE-SCP unterstützt die Dosisbericht-SOP-Class nicht.**
-   Widerlegt: Konformitätsprotokoll plus historischer erfolgreicher
-   Transfer.
+   Widerlegt: aktuelles Conformance Statement plus historischer
+   erfolgreicher Transfer.
 5. **Der zweite C-STORE (PACS → DOSE-SCP) ist fehlgeschlagen.**
    Widerlegt: Die Jobübersicht zeigt 0 queued, nicht einen gescheiterten
    Versuch — es wurde nie ein Auftrag angelegt.
@@ -150,10 +151,11 @@ Dosisberichts, der als Structured-Report-Objekt `Modality = SR` trägt.
 
 ### Betriebliche Maßnahme
 
-Die Routingregel so korrigieren, dass sie den gewünschten
-Dosisbericht-Objekttyp explizit einschließt, statt sich allein auf
-`Modality == CT` zu verlassen — beispielsweise durch eine zusätzliche
-Bedingung auf die SOP Class `XRayRadiationDoseSRStorage`. Danach: einen
+Die Routinglogik so erweitern, dass `XRayRadiationDoseSRStorage`
+explizit als eigener Match-Fall berücksichtigt wird, statt die
+Auswahl ausschließlich auf `Modality == CT` zu beschränken — eine
+zusätzliche UND-Bedingung an dieselbe Regel würde den Dosisbericht
+weiterhin ausschließen, da er `Modality = SR` trägt. Danach: einen
 Test-Dosisbericht erneut auswerten lassen, prüfen, dass tatsächlich ein
 Auftrag entsteht, die Association/den C-STORE des zweiten Hops
 verifizieren und den Empfang im Dose-System bestätigen. Kein erneutes
