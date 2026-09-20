@@ -468,6 +468,91 @@ def test_nodes_without_pacs_tool_do_not_expose_the_pacs_cli_from_the_real_conten
         assert pacs_result.stderr == "pacs: command not found"
 
 
+def test_gefiltert_zero_action_solve_is_impossible() -> None:
+    """Phase D.1, Abschnitt 47: der zentrale Regressionstest fuer den
+    Betreiber-Realitaetscheck nach PR #170 -- der frueher moegliche
+    Zero-Action-Solve (korrekter Flag ohne jeden Ingest) muss verschwunden
+    sein."""
+
+    node = content.load_node("gefiltert")
+    state = rules.initial_state(node)
+
+    assert rules.check_flag(node, state, "PACS-TO-DOSE") is False
+    assert state["solved"] is False
+
+
+def test_gefiltert_read_only_cli_alone_does_not_solve() -> None:
+    """Phase D.1, Abschnitt 48: `pacs routes`/`route show` lesen nur die
+    statische Node-Definition, nicht den Session-State -- selbst nach
+    beiden bleibt der Node ungeloest, und beide Befehle bleiben dabei
+    state-rein."""
+
+    node = content.load_node("gefiltert")
+    state = rules.initial_state(node)
+
+    before = copy.deepcopy(state)
+    rules.exec_command(node, state, "workstation", "pacs routes")
+    rules.exec_command(node, state, "workstation", "pacs route show PACS-TO-DOSE")
+    assert state == before
+
+    assert rules.check_flag(node, state, "PACS-TO-DOSE") is False
+    assert state["solved"] is False
+
+
+def test_gefiltert_rdsr_only_does_not_solve() -> None:
+    """Phase D.1, Abschnitt 49: ohne den positiven CT-Kontrollpfad ist die
+    Aussage "CT-Bilder funktionieren, RDSR nicht" nie reproduziert
+    worden."""
+
+    node = content.load_node("gefiltert")
+    state = rules.initial_state(node)
+    result = rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 dose-report.dcm",
+    )
+    assert result.exit_code == 0
+
+    assert rules.check_flag(node, state, "PACS-TO-DOSE") is False
+    assert state["solved"] is False
+
+
+def test_gefiltert_ct_only_does_not_solve() -> None:
+    """Phase D.1, Abschnitt 50: ohne das RDSR fehlt der eigentliche
+    Incident -- die Route funktioniert nur nachweislich fuer CT."""
+
+    node = content.load_node("gefiltert")
+    state = rules.initial_state(node)
+
+    for filename in ["schicht-1.dcm", "schicht-2.dcm", "schicht-3.dcm"]:
+        result = rules.exec_command(
+            node, state, "workstation",
+            f"storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 {filename}",
+        )
+        assert result.exit_code == 0
+
+    assert rules.check_flag(node, state, "PACS-TO-DOSE") is False
+    assert state["solved"] is False
+
+
+def test_gefiltert_prerequisite_evaluation_is_read_only() -> None:
+    """Phase D.1, Abschnitt 52: State vor/nach der reinen
+    Prerequisite-Auswertung (ueber wiederholte, teils falsche
+    `check_flag()`-Aufrufe) bleibt identisch -- keine Mutation durch die
+    Auswertung selbst, unabhaengig vom Ergebnis."""
+
+    node = content.load_node("gefiltert")
+    state = rules.initial_state(node)
+    rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 dose-report.dcm",
+    )
+
+    before = copy.deepcopy(state)
+    rules.check_flag(node, state, "PACS-TO-DOSE")  # richtiger Flag, Prerequisites nicht erfuellt
+    rules.check_flag(node, state, "not-even-close")
+    assert state == before
+
+
 def test_gefiltert_is_solvable_from_the_real_content() -> None:
     """ADR 0120, Phase D: der erste echte Hands-on-PACS-Routing-Node.
     Treibt den realen Ingest (vier `storescu`-Aufrufe) und beweist end to

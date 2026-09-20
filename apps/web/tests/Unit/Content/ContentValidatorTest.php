@@ -818,4 +818,217 @@ class ContentValidatorTest extends TestCase
 
         $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'enabled muss Boolean sein')));
     }
+
+    // -----------------------------------------------------------------
+    // Phase D.1: generischer Hands-on-Solve-Contract (`solve.requires`) --
+    // rein strukturelle Pruefung, nie fachliche Korrektheit.
+    // -----------------------------------------------------------------
+
+    /**
+     * Ein-Route-Umgebung (workstation -> pacs -> dose-scp), damit
+     * Requirement-Tests echte Host-/Route-Referenzen validieren koennen.
+     *
+     * @param  list<array<string, mixed>>  $requires
+     * @return array<string, array<string, mixed>>
+     */
+    private function nodeWithSolveRequires(array $requires): array
+    {
+        return [
+            'sample' => [
+                'slug' => 'sample',
+                'def' => [
+                    'environment' => [
+                        'hosts' => [
+                            ['name' => 'workstation', 'ip' => '10.0.0.50', 'role' => 'shell'],
+                            [
+                                'name' => 'pacs', 'ip' => '10.0.0.10',
+                                'dicom' => ['calling_ae' => 'RAD-PACS'],
+                                'routes' => [[
+                                    'id' => 'PACS-TO-DOSE',
+                                    'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+                                    'match' => ['modality' => 'CT'],
+                                ]],
+                            ],
+                            ['name' => 'dose-scp', 'ip' => '10.0.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+                        ],
+                    ],
+                    'solve' => ['requires' => $requires],
+                ],
+                'def_file' => 'nodes/sample/node.yml',
+                'def_raw' => "solve:\n  requires: []\n",
+                'md_file' => 'nodes/sample/de.md',
+                'md_raw' => "## Briefing\n\nText.\n",
+                'frontmatter' => null,
+                'body' => "## Briefing\n\nText.\n",
+                'body_start_line' => 1,
+            ],
+        ];
+    }
+
+    private function validRdsrRequirement(): array
+    {
+        return ['type' => 'object_exists', 'as' => 'rdsr', 'where' => ['modality' => 'SR']];
+    }
+
+    public function test_a_structurally_valid_solve_contract_raises_no_issue(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            $this->validRdsrRequirement(),
+            ['type' => 'presence', 'object' => 'rdsr', 'host' => 'pacs', 'present' => true],
+            ['type' => 'presence', 'object' => 'rdsr', 'host' => 'dose-scp', 'present' => false],
+            ['type' => 'job_not_exists', 'where' => ['route_id' => 'PACS-TO-DOSE', 'object' => 'rdsr']],
+            ['type' => 'job_exists', 'where' => ['route_id' => 'PACS-TO-DOSE', 'status' => 'sent']],
+            [
+                'type' => 'event_exists',
+                'where' => [
+                    'type' => 'route.evaluated', 'route_id' => 'PACS-TO-DOSE', 'object' => 'rdsr',
+                    'matched' => false, 'field' => 'modality', 'operator' => 'equals',
+                    'expected' => 'CT', 'actual' => 'SR',
+                ],
+            ],
+        ]));
+
+        // Nur solve-bezogene Befunde pruefen -- die minimale Fixture loest
+        // bewusst nicht jede unabhaengige Regel (Beispielregel/Themenfeld)
+        // aus, das ist hier nicht der Pruefgegenstand.
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'solve') || str_contains($m, 'requires')));
+    }
+
+    public function test_no_solve_key_raises_no_issue(): void
+    {
+        $nodes = $this->nodeWithEnvironment([
+            'hosts' => [['name' => 'workstation', 'ip' => '10.0.0.50', 'role' => 'shell']],
+        ]);
+
+        $issues = $this->validateNodes($nodes);
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'solve')));
+    }
+
+    public function test_empty_requires_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'solve.requires muss eine nicht-leere Liste sein')));
+    }
+
+    public function test_unknown_condition_type_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'totally_unknown_type'],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'unbekannter Typ "totally_unknown_type"')));
+    }
+
+    public function test_object_exists_without_alias_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'object_exists', 'where' => ['modality' => 'SR']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'as (Alias-Name) fehlt')));
+    }
+
+    public function test_duplicate_alias_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            $this->validRdsrRequirement(),
+            ['type' => 'object_exists', 'as' => 'rdsr', 'where' => ['modality' => 'CT']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'Alias "rdsr" ist mehrfach vergeben')));
+    }
+
+    public function test_unknown_alias_reference_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'presence', 'object' => 'never-declared', 'host' => 'pacs', 'present' => true],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'unbekannter Alias "never-declared"')));
+    }
+
+    public function test_presence_with_unknown_host_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            $this->validRdsrRequirement(),
+            ['type' => 'presence', 'object' => 'rdsr', 'host' => 'nowhere', 'present' => true],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'unbekannter Host "nowhere"')));
+    }
+
+    public function test_presence_with_non_boolean_present_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            $this->validRdsrRequirement(),
+            ['type' => 'presence', 'object' => 'rdsr', 'host' => 'pacs', 'present' => 'true'],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'present muss ein Boolean sein')));
+    }
+
+    public function test_job_requirement_with_unknown_route_id_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'job_exists', 'where' => ['route_id' => 'NOPE']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'unbekannte Route-ID "NOPE"')));
+    }
+
+    public function test_job_requirement_with_unknown_status_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'job_exists', 'where' => ['status' => 'success']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'unbekannter Job-Status "success"')));
+    }
+
+    public function test_event_requirement_with_unknown_type_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'event_exists', 'where' => ['type' => 'totally.made.up']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'unbekannter Event-Typ "totally.made.up"')));
+    }
+
+    public function test_event_requirement_with_non_boolean_matched_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'event_exists', 'where' => ['type' => 'route.evaluated', 'matched' => 'false']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'matched muss ein Boolean sein')));
+    }
+
+    public function test_requirement_with_unsupported_top_level_field_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'presence', 'object' => 'rdsr', 'host' => 'pacs', 'present' => true, 'extra' => 'nope'],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'presence: unbekanntes Feld "extra"')));
+    }
+
+    public function test_requirement_with_unsupported_where_field_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'object_exists', 'as' => 'x', 'where' => ['manufacturer' => 'Acme']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'unbekanntes where-Feld "manufacturer"')));
+    }
+
+    public function test_requirement_without_where_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithSolveRequires([
+            ['type' => 'job_exists'],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'where muss ein nicht-leeres Objekt sein')));
+    }
 }

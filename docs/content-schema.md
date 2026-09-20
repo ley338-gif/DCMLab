@@ -778,6 +778,113 @@ automatische Routenausführung, keinen zweiten. Bestehende Nodes ohne
 `tools: [pacs]` sind unverändert — auch `help` zeigt `pacs` nur, wenn es
 freigegeben ist. Details und Begründung: ADR 0120.
 
+### 6l. Hands-on-Solve-Contract — `solve.requires` (ab Phase D.1)
+
+**Generisch, nicht PACS-spezifisch.** Ein Hands-on-Node (`interaction:
+terminal`) kann optional unter `solve:` eine Liste von Bedingungen über
+den Session-State deklarieren, die zusätzlich zum ohnehin weiterhin
+erforderlichen Flag-Wert erfüllt sein müssen, bevor der Node lösbar ist:
+
+```yaml
+solve:
+  requires:
+    - type: object_exists
+      as: rdsr                       # Alias fuer spaetere Bedingungen
+      where:
+        sop_class: "1.2.840.10008.5.1.4.1.1.88.67"
+        modality: SR
+
+    - type: presence
+      object: rdsr                   # Referenz auf den obigen Alias
+      host: pacs
+      present: true
+
+    - type: presence
+      object: rdsr
+      host: dose-scp
+      present: false
+
+    - type: job_not_exists
+      where:
+        route_id: PACS-TO-DOSE
+        object: rdsr
+
+    - type: job_exists
+      where:
+        route_id: PACS-TO-DOSE
+        status: sent
+
+    - type: event_exists
+      where:
+        type: route.evaluated
+        route_id: PACS-TO-DOSE
+        object: rdsr
+        matched: false
+        field: modality
+        operator: equals
+        expected: CT
+        actual: SR
+```
+
+**Warum**: ein Flag-Wert allein beweist nur, dass der Lernende den
+richtigen Wert *kennt* — nicht, dass der zugrunde liegende Vorgang
+tatsächlich stattgefunden hat. Ohne diesen Vertrag konnte ein technisch
+eindeutiger, aus der Umgebung ableitbarer Flag-Wert (z. B. eine Objekt-ID
+oder, wie im ersten Hands-on-Node `gefiltert`, eine Routing-Regel-ID) durch
+bloßes Lesen der statischen Node-Definition erraten werden, ganz ohne den
+Incident zu reproduzieren. `solve.requires` schließt diese Lücke, ohne
+vorzuschreiben, mit welchen Befehlen der Lernende dorthin gelangt:
+
+```text
+Runtime-State  = Beweis, dass der praktische Vorgang stattgefunden hat
+Flag/Antwort   = Beweis, dass der Lernende die Ursache erkannt hat
+runtime prerequisites erfüllt AND Flag korrekt -> gelöst
+```
+
+**Bedingungstypen** (Whitelist, keine beliebigen Ausdrücke — kein `eval`,
+kein JSONPath/JMESPath, keine Python-/PHP-Ausdrücke aus YAML):
+
+- `object_exists` — mindestens ein Eintrag in `state["objects"]` erfüllt
+  alle Felder in `where` (erlaubte Felder: `filename`, `sop_instance_uid`,
+  `study_uid`, `series_uid`, `sop_class`, `modality`, `transfer_syntax`,
+  `study_description`, `series_description`, `origin_host`). `as` bindet
+  das *erste* gefundene Objekt an einen Alias-Namen, den spätere
+  Bedingungen über `object: <alias>` referenzieren — Objekt-Korrelation
+  ist dadurch eingebaut: verschiedene Bedingungen können sich nicht
+  versehentlich auf verschiedene Objekte beziehen.
+- `presence` — das per Alias referenzierte Objekt ist (`present: true`)
+  oder ist nicht (`present: false`) in `state["stored_objects"][host]`.
+- `job_exists` / `job_not_exists` — mindestens ein bzw. kein Eintrag in
+  `state["jobs"]` erfüllt `where` (erlaubte Felder: `route_id`, `status`,
+  `object` als Alias-Referenz).
+- `event_exists` — mindestens ein Eintrag in `state["events"]` erfüllt
+  `where` (erlaubte Felder: `type`, `route_id`, `object` als
+  Alias-Referenz, `job_id`, `host`, `matched`, `field`, `operator`,
+  `expected`, `actual`, `reason`).
+
+**Auswertung ist rein lesend.** `solve.prerequisites_met()` mutiert nie
+`state` — kein Event, kein Zähler, kein `last_progress_at`-Touch, kein
+Protokollieren, welche `pacs`-Befehle der Lernende benutzt hat. Der
+Diagnoseweg bleibt vollständig frei: nur der am Ende tatsächlich
+entstandene Zustand zählt, nicht die Befehlshistorie.
+
+**Kein automatisches Lösen.** `solve.requires` allein löst nie einen Node
+— `rules.check_flag()` prüft weiterhin zuerst den Flag-Hash und danach
+zusätzlich `solve.prerequisites_met()`; nur beides zusammen setzt
+`state["solved"] = True`. Ein korrekter Flag-Wert bei nicht erfüllten
+Prerequisites verhält sich nach außen wie ein falscher Flag (die
+bestehende API kennt nur `{"correct": bool}` — eine feinere
+Rückmeldung "Antwort korrekt, Versuch noch nicht vollständig" ist ein
+dokumentierter UX-Follow-up, kein Teil von Phase D.1).
+
+**Bestehende Nodes bleiben unverändert.** Fehlt `solve:` (der Normalfall
+für jeden heute bestehenden Node), gilt die Bedingung automatisch als
+erfüllt — exakt das Verhalten vor Phase D.1. `content:validate` prüft
+`solve.requires` rein strukturell (bekannte Typen, Pflichtfelder,
+referenzierte Hosts/Routes existieren, Alias-Namen eindeutig, keine
+unbekannten Felder) — **nie**, ob eine Bedingung fachlich sinnvoll ist,
+genau wie bei `environment.hosts[].routes[].match` (Abschnitt 6k).
+
 ## 7. Node — `de.md`
 
 ```markdown
@@ -843,6 +950,15 @@ Ein `content:validate`-Befehl prüft vor jedem Commit:
 - `match`-`field` aus der erlaubten Whitelist, `op` aus `equals|not_equals|in|exists`, `op: in` mit nicht-leerer `values`-Liste ohne zusätzliches `value`, `equals`/`not_equals` mit `value` ohne zusätzliches `values`, `exists` ohne `value`/`values`
 - `match`-Kurzform erlaubt genau ein Feld (nicht mehrere, nicht gemischt mit `all`/`any`) — geprüft wird ausschließlich die kanonische Form nach Normalisierung, Kurzform und Langform teilen sich einen Prüfpfad; **nicht** geprüft wird, ob eine Route fachlich sinnvoll ist
 - `routes[].enabled`, wenn gesetzt, muss ein echtes Boolean sein (kein `"false"`, `0`/`1` o. ä.)
+
+**Hands-on-Solve-Contract** (Abschnitt 6l, ab Phase D.1, generisch — nicht PACS-spezifisch)
+
+- `solve.requires` ist, wenn vorhanden, eine nicht-leere Liste
+- jede Bedingung hat ein `type` aus `object_exists|presence|job_exists|job_not_exists|event_exists`, keine unbekannten Top-Level- oder `where`-Felder
+- `object_exists` hat ein eindeutiges `as` (Alias-Name), jeder spätere `object: <alias>` referenziert einen zuvor deklarierten Alias
+- `presence.host` existiert in `environment.hosts`, `presence.present` ist ein echtes Boolean
+- ein referenziertes `route_id` existiert unter `environment.hosts[].routes[].id`, ein referenzierter `status` ist `queued|sent|failed`, ein referenzierter Event-`type` ist einer der von der Engine tatsächlich erzeugten Typen, `event_exists`-`matched` ist ein echtes Boolean
+- **nicht** geprüft wird, ob eine Bedingung fachlich zum Incident passt
 
 **Beispielregel**
 
