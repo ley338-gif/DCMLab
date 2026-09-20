@@ -1,0 +1,312 @@
+slug: dosis-bleibt-liegen
+difficulty: hard
+points: 50
+category: integration
+interaction: scenario
+skills: [integration]
+related_lessons: ["3.7", "3.8"]
+estimated_minutes: 22
+
+# Diagnose-Node zu Lektion 3.8 (RDSR / Vier Stationen, insbesondere
+# Station 4 "Wird sie an das richtige Ziel weitergeleitet?"). interaction:
+# scenario statt terminal/simulated: weder services/engine noch
+# services/scenario-engine (Volltextsuche im jeweiligen app/-Quellcode)
+# modellieren einen PACS-internen Router/Job-Queue mit bedingten
+# Weiterleitungsregeln (Modality/SOPClassUID-Selektion) -- die einzigen
+# "route"-Treffer sind FastAPIs eigener HTTP-Router, keine DICOM-
+# Routing-Simulation. Diese Faehigkeit fuer genau einen Node neu zu
+# bauen waere keine kleine, mehrfach benoetigte Erweiterung, sondern
+# eine eigene Router-/Regel-Engine nur fuer diesen Fall -- ein
+# Scenario-Node mit kuratierter, standardkonformer Job-/Log-Evidenz
+# vermittelt denselben Diagnose-Anspruch ohne neue Plattformarbeit.
+#
+# Bewusste Abgrenzung zu bestehenden Nodes (siehe PR-Beschreibung fuer
+# das vollstaendige Cross-Check-Raster): `halbe-sache` ist eine
+# Association-/Presentation-Context-Ablehnung des Dosisberichts am
+# EINEN Archiv (PS3.8 Result 3) -- der Dosisbericht wird dort nie
+# gespeichert. Dieser Node hier speichert den Dosisbericht erfolgreich
+# im PACS; der Fehler liegt danach, in der PACS-internen Selektion fuer
+# einen ZWEITEN, unabhaengigen DICOM-Hop zu einem separaten
+# Dose-System. `letztes-glied-fehlt` ist ein Storage-Commitment-
+# Callback-Fehler (N-ACTION/N-EVENT-REPORT), kein C-STORE-basierter
+# Routing-Job. `stored-but-invisible` ist Speicherung-vs-Darstellung
+# (Viewer), keine Speicherung-vs-Weiterleitung (Router). `nur-ein-bild`
+# ist eine anwendungsinterne Frame-Verarbeitung nach Annahme, keine
+# PACS-Routingregel.
+scenario:
+  start: ticket
+  steps:
+    ticket:
+      prompt: >
+        Ticket: CT 73984 / Auftrag A94421 ist seit 45 Minuten im PACS
+        vollständig (Bilder + Dosisbericht erwartet), im
+        Dose-Management-System ist die Untersuchung aber nicht
+        vorhanden. Was ist der sinnvollste erste Schritt?
+      options:
+        - id: resend
+          label: CT-Bilder und Dosisbericht vorsichtshalber von der Modalität erneut senden.
+          next: wrong_resend
+        - id: restart_dose
+          label: Das Dose-System neu starten.
+          next: wrong_restart_dose
+        - id: test_connection
+          label: Nur die Netzwerkverbindung PACS ↔ Dose-System testen.
+          next: wrong_test_connection
+        - id: evidence
+          label: Zuerst feststellen, ob überhaupt ein Dosisbericht erzeugt wurde und wo er zuletzt nachweislich vorhanden war.
+          next: modality_check
+
+    modality_check:
+      prompt: >
+        CT-Konsolen-Exportlog: CT Image Storage — 60 Instanzen gesendet,
+        60× Success. X-Ray Radiation Dose SR — 1 Instanz gesendet, 1×
+        Success. Was folgt daraus?
+      options:
+        - id: dose_must_have_it
+          label: Damit muss das Dose-System den Dosisbericht auch schon erhalten haben.
+          next: wrong_dose_must_have_it
+        - id: proceed
+          label: Modalität → PACS ist für beide Objekttypen belegt erfolgreich — als nächstes den PACS-Bestand selbst prüfen.
+          next: pacs_bestand
+
+    pacs_bestand:
+      prompt: >
+        PACS-Bestand für Study A94421: CT Image Storage 60, X-Ray
+        Radiation Dose SR Storage 1. dcmdump des gespeicherten Objekts:
+        SOPClassUID = XRayRadiationDoseSRStorage, Modality = SR. Was
+        folgt daraus?
+      options:
+        - id: screenshot_theory
+          label: Das ist vermutlich nur ein Dose-Screenshot (Secondary Capture), kein echter strukturierter Dosisbericht.
+          next: wrong_screenshot_theory
+        - id: proceed
+          label: Der Dosisbericht ist nachweislich im PACS gespeichert — prüfen, ob überhaupt ein Weiterleitungsauftrag zum Dose-System entstanden ist.
+          next: job_check
+
+    job_check:
+      prompt: >
+        Routing-Jobübersicht des PACS für Ziel DOSE-SCP, Study A94421:
+        CT Image Storage — 60 queued / 60 gesendet, von DOSE-SCP
+        empfangen. X-Ray Radiation Dose SR — 0 queued. Was folgt daraus?
+      options:
+        - id: ct_images_prove_it
+          label: Weil die CT-Bilder DOSE-SCP bereits erreicht haben, muss der Dosisbericht ebenfalls dort ankommen — nur eine Frage der Zeit.
+          next: wrong_ct_images_prove_it
+        - id: failed_transfer
+          label: Der Übertragungsversuch für den Dosisbericht ist fehlgeschlagen — einfach erneut anstoßen.
+          next: wrong_failed_transfer
+        - id: proceed
+          label: Für den Dosisbericht wurde nie ein Übertragungsauftrag angelegt — bevor der Router beschuldigt wird, DOSE-SCP selbst prüfen.
+          next: echo_check
+
+    echo_check:
+      prompt: >
+        C-ECHO PACS → DOSE-SCP: Success. Was folgt daraus?
+      options:
+        - id: echo_proves_rdsr
+          label: Damit ist auch belegt, dass DOSE-SCP den Dosisbericht verarbeiten kann.
+          next: wrong_echo_proves_rdsr
+        - id: proceed
+          label: C-ECHO belegt nur grundsätzliche Erreichbarkeit — die Storage-Fähigkeit von DOSE-SCP für diese SOP Class gesondert prüfen.
+          next: capability_check
+
+    capability_check:
+      prompt: >
+        Konformitätsprotokoll von DOSE-SCP: akzeptiert u. a.
+        XRayRadiationDoseSRStorage als Storage-SOP-Class. Historisches
+        Log: Gestern wurde ein Dosisbericht einer anderen Modalität
+        erfolgreich an DOSE-SCP übertragen (C-STORE Success). Was folgt
+        daraus?
+      options:
+        - id: dose_doesnt_support
+          label: DOSE-SCP unterstützt Dosisberichte grundsätzlich nicht.
+          next: wrong_dose_doesnt_support
+        - id: proceed
+          label: DOSE-SCP unterstützt und verarbeitet Dosisberichte nachweislich — die PACS-seitige Routingregel für dieses Ziel selbst prüfen.
+          next: routing_rule_check
+
+    routing_rule_check:
+      prompt: >
+        Routingregel CT-TO-DOSE (Ziel: DOSE-SCP), Bedingung: Modality ==
+        CT. Auswertungslog für Study A94421: CT Image Storage →
+        matched = true. X-Ray Radiation Dose SR → matched = false,
+        reason = "condition Modality==CT not satisfied". Was folgt
+        daraus?
+      options:
+        - id: proceed
+          label: Aus der gesamten Evidenz eine Diagnose ableiten.
+          next: diagnosis
+
+    diagnosis:
+      prompt: >
+        Welche Diagnose passt zur gesamten gesammelten Evidenz?
+      options:
+        - id: hyp_no_rdsr
+          label: Die Modalität hat keinen Dosisbericht erzeugt.
+          next: wrong_hyp_no_rdsr
+        - id: hyp_pacs_rejected
+          label: Das PACS hat den Dosisbericht bei der Übertragung abgelehnt.
+          next: wrong_hyp_pacs_rejected
+        - id: hyp_scp_unreachable
+          label: DOSE-SCP ist nicht erreichbar.
+          next: wrong_hyp_scp_unreachable
+        - id: hyp_scp_unsupported
+          label: DOSE-SCP unterstützt die Dosisbericht-SOP-Class nicht.
+          next: wrong_hyp_scp_unsupported
+        - id: hyp_second_store_failed
+          label: Der zweite C-STORE (PACS → DOSE-SCP) für den Dosisbericht ist fehlgeschlagen.
+          next: wrong_hyp_second_store_failed
+        - id: hyp_routing
+          label: Die PACS-Routingregel für DOSE-SCP selektiert nach Modality == CT und schließt den Dosisbericht (Modality = SR) deshalb aus, bevor überhaupt ein Übertragungsauftrag entsteht.
+          next: success
+
+    wrong_resend:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Modalität → PACS war laut Exportlog für beide Objekttypen
+        bereits erfolgreich (60/60 CT-Bilder, 1/1 Dosisbericht) — ein
+        erneuter Sendeversuch von der Modalität würde denselben, bereits
+        erfolgreichen ersten Hop wiederholen, ohne die zweite Strecke
+        PACS → Dose-System zu berühren.
+    wrong_restart_dose:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein Neustart des Dose-Systems ändert nichts daran, ob überhaupt
+        ein Übertragungsauftrag für den Dosisbericht beim PACS entsteht
+        — das Dose-System hat für dieses Objekt bislang gar keine
+        Anfrage erhalten.
+    wrong_test_connection:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Eine reine Verbindungsprüfung stellt noch nicht fest, ob der
+        Dosisbericht überhaupt erzeugt und bis zum PACS übertragen
+        wurde — das muss zuerst evidenzbasiert geklärt werden.
+    wrong_dose_must_have_it:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Ein erfolgreicher Transfer auf der Strecke Modalität → PACS
+        sagt nichts über die zweite, unabhängige Strecke PACS →
+        Dose-System aus — das ist ein eigener DICOM-Hop mit eigener
+        Erfolgs-/Fehlerkette.
+    wrong_screenshot_theory:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der dcmdump-Auszug zeigt eindeutig SOPClassUID =
+        XRayRadiationDoseSRStorage und Modality = SR — das ist ein
+        regulärer, standardkonformer strukturierter Dosisbericht, kein
+        Secondary-Capture-Screenshot.
+    wrong_ct_images_prove_it:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        CT-Bilder und Dosisbericht sind zwei unabhängige Objekte mit
+        unterschiedlicher SOPClassUID und unterschiedlicher Modality —
+        dass die Routingregel für CT Image Storage einen
+        Übertragungsauftrag erzeugt, sagt nichts darüber aus, ob
+        dieselbe Regel auch auf den Dosisbericht zutrifft. Die
+        Jobübersicht zeigt für den Dosisbericht ausdrücklich 0 queued.
+    wrong_failed_transfer:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Jobübersicht zeigt für den Dosisbericht 0 queued, nicht
+        einen gescheiterten Versuch — es wurde nie ein
+        Übertragungsauftrag für dieses Objekt angelegt. Ein erneuter
+        Sendeversuch würde an derselben Stelle scheitern, weil die
+        Ursache vor der Job-Erzeugung liegt.
+    wrong_echo_proves_rdsr:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        C-ECHO prüft nur, ob eine DICOM-Verbindung grundsätzlich
+        funktioniert (Verification SOP Class) — das sagt nichts darüber
+        aus, welche Storage-SOP-Classes DOSE-SCP tatsächlich unterstützt
+        oder verarbeitet.
+    wrong_dose_doesnt_support:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das Konformitätsprotokoll von DOSE-SCP listet
+        XRayRadiationDoseSRStorage ausdrücklich als unterstützte
+        Storage-SOP-Class, und im historischen Log wurde bereits
+        erfolgreich ein Dosisbericht einer anderen Modalität
+        verarbeitet.
+    wrong_hyp_no_rdsr:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das CT-Konsolen-Exportlog zeigt für den Dosisbericht 1
+        gesendete Instanz mit Status Success — die Modalität hat den
+        Dosisbericht erzeugt und erfolgreich übertragen.
+    wrong_hyp_pacs_rejected:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Der PACS-Bestand zeigt den Dosisbericht als gespeicherte
+        Instanz, und dcmdump bestätigt SOPClassUID =
+        XRayRadiationDoseSRStorage — das PACS hat den Dosisbericht
+        angenommen und gespeichert, keine Ablehnung.
+    wrong_hyp_scp_unreachable:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        C-ECHO PACS → DOSE-SCP war erfolgreich — DOSE-SCP ist
+        erreichbar.
+    wrong_hyp_scp_unsupported:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Das Konformitätsprotokoll und der historische erfolgreiche
+        Transfer belegen, dass DOSE-SCP Dosisberichte unterstützt und
+        verarbeitet.
+    wrong_hyp_second_store_failed:
+      terminal: true
+      outcome: wrong
+      prompt: >
+        Die Jobübersicht zeigt für den Dosisbericht 0 queued — es
+        wurde nie ein Übertragungsauftrag angelegt. Ein fehlgeschlagener
+        C-STORE würde einen tatsächlich gestarteten, aber gescheiterten
+        Transferversuch voraussetzen; hier wurde der zweite Hop nie
+        begonnen.
+    success:
+      terminal: true
+      outcome: correct
+      reveal: RDSR-NOT-ROUTED
+      prompt: >
+        Richtig. Der Dosisbericht wurde von der CT-Modalität korrekt
+        erzeugt und erfolgreich ins PACS übertragen und dort gespeichert
+        (SOPClassUID = XRayRadiationDoseSRStorage, Modality = SR) — der
+        erste Hop ist vollständig unauffällig. DOSE-SCP ist erreichbar
+        (C-ECHO Success) und unterstützt Dosisberichte nachweislich
+        (Konformitätsprotokoll, historischer Transfer). Trotzdem wurde
+        für den Dosisbericht nie ein Übertragungsauftrag angelegt: Die
+        PACS-Routingregel CT-TO-DOSE selektiert Objekte nach der
+        Bedingung Modality == CT — für Structured-Report-Objekte wie
+        diesen Dosisbericht schreibt aber das SR Document Series Module
+        den Wert Modality = SR vor, unabhängig davon, dass er von einem
+        CT-Gerät erzeugt wurde. Die CT-Bilder erfüllen die Bedingung und
+        werden geroutet, der Dosisbericht nicht. Der zweite Transfer ist
+        nicht fehlgeschlagen — er wurde nie gestartet.
+
+flag:
+  type: exact
+  source_tag: scenario
+  hash: "sha256:0abcd8a2c7ea8e00ca0f86d4112bca2bfb060acd2f47eafb733ce4838b97e1b0"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 2
+  - id: h2
+    cost: 4
+  - id: h3
+    cost: 6
+
+stuck_timeout_minutes: 20
+status: draft
+updated: "2026-09-20"
