@@ -88,6 +88,12 @@ Im Node **„Die Dosis bleibt liegen"** verfolgst du einen Dosisbericht
 heraus, warum „im PACS vorhanden" noch lange nicht bedeutet, dass das
 Dose-System ihn erhalten hat.
 
+Im Node **„Gefiltert"** untersuchst du einen verwandten Fall direkt im
+Terminal: Mit dem Werkzeug `pacs` schaust du dem simulierten PACS beim
+Weiterleiten selbst zu — welche Objekte tatsächlich vorhanden sind, ob
+überhaupt ein Weiterleitungsauftrag entstanden ist, und was das
+Ereignisprotokoll dazu sagt.
+
 ## Selbstcheck
 
 1. Warum beweist ein erfolgreicher CT-Bildtransfer nicht, dass auch RDSR funktioniert?

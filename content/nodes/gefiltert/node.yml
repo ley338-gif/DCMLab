@@ -1,0 +1,134 @@
+slug: gefiltert
+difficulty: hard
+points: 50
+category: integration
+skills: [integration]
+related_lessons: ["3.8"]
+estimated_minutes: 20
+
+# Phase-D-Prototyp fuer ADR 0120 (Advanced PACS Operations Sandbox): der
+# erste interaction: terminal-Node, der eine echte automatische
+# Routenauswertung (Phase B) ueber die read-only pacs-CLI (Phase C)
+# untersuchbar macht, statt eine Routing-Root-Cause ueber einen
+# Scenario-Entscheidungsbaum zu erzaehlen.
+#
+# Bewusste Abgrenzung zu `dosis-bleibt-liegen` (Lektion 3.7/3.8, dieselbe
+# fachliche Fehlerklasse: eine PACS-Routingregel selektiert nach Modality
+# und schliesst dadurch einen RDSR aus): jener Node ist `interaction:
+# scenario` mit kuratierter Log-Evidenz in Multiple-Choice-Form, weil
+# services/engine zum Zeitpunkt seiner Entstehung keine PACS-interne
+# Routing-/Job-Simulation kannte. Seit ADR 0120 Phase A-C existiert genau
+# diese Faehigkeit generisch (RuntimeObject/Presence, automatische
+# Routenauswertung, Jobs, Events, `pacs`-CLI) -- dieser Node hier ist ein
+# eigenstaendiger Fall (eigene Hosts, eigene Dateien, eigene Study, eigene
+# Route-ID, eigener Loesungsweg), der beweist, dass Phase A-C fuer einen
+# echten Hands-on-Lernfall bereits ausreichen. `dosis-bleibt-liegen` bleibt
+# unveraendert bestehen; keine Migration.
+environment:
+  hosts:
+    - name: workstation
+      ip: 10.83.0.50
+      role: shell
+
+    - name: pacs
+      ip: 10.83.0.10
+      # Sendende Identitaet fuer die automatische Weiterleitung an
+      # dose-scp (ADR 0120, 8.4) -- getrennt von der lernenden-editierbaren
+      # config, weil sie nicht dem Lernenden gehoert, sondern dem PACS
+      # selbst.
+      dicom:
+        calling_ae: PACS-ARCHIV
+      services:
+        - id: pacs-store
+          port: 104
+          ae_title: PACS-ARCHIV
+          accepted_sop_classes:
+            - "1.2.840.10008.5.1.4.1.1.2"        # CT Image Storage
+            - "1.2.840.10008.5.1.4.1.1.88.67"    # X-Ray Radiation Dose SR Storage
+      # Der Incident: diese Regel wurde eingerichtet, um CT-Bilder an ein
+      # nachgelagertes System weiterzuleiten, selektiert dafuer aber nach
+      # Modality statt nach SOP Class. Syntaktisch eine vollkommen gueltige
+      # Route (der Validator prueft nur Schema/Referenzen, nie fachliche
+      # Sinnhaftigkeit, ADR 0120 9.3) -- die falsche fachliche Auswahl IST
+      # der Incident.
+      routes:
+        - id: PACS-TO-DOSE
+          enabled: true
+          destination:
+            host: dose-scp
+            service: dose-store
+          match:
+            modality: CT
+
+    - name: dose-scp
+      ip: 10.83.0.30
+      services:
+        - id: dose-store
+          port: 104
+          ae_title: DOSE-SCP
+          # dose-scp unterstuetzt beide SOP Classes korrekt (inkl. RDSR) --
+          # der Incident ist "nie geroutet", nicht "am Ziel abgelehnt". Ein
+          # zweiter, unabhaengiger Incident (Zielablehnung) waere ein
+          # anderer Fall.
+          accepted_sop_classes:
+            - "1.2.840.10008.5.1.4.1.1.2"
+            - "1.2.840.10008.5.1.4.1.1.88.67"
+
+  known_calling_aets: [CT-KONSOLE, PACS-ARCHIV]
+
+  tools: [storescu, pacs, dcmdump]
+
+  # Drei CT-Schichten und ein automatisch mitgeneriertes RDSR derselben
+  # Untersuchung -- realistisch klein, terminalfreundlich (Abschnitt 9).
+  # RDSR traegt Modality = SR und die reale RDSR-SOP-Class-UID (PS3.6
+  # Annex A, X-Ray Radiation Dose SR Storage) -- niemals Modality = CT.
+  objects:
+    - filename: "schicht-1.dcm"
+      bytes: 262144
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"
+      modality: CT
+    - filename: "schicht-2.dcm"
+      bytes: 262144
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"
+      modality: CT
+    - filename: "schicht-3.dcm"
+      bytes: 262144
+      sop_class: "1.2.840.10008.5.1.4.1.1.2"
+      modality: CT
+    - filename: "dose-report.dcm"
+      bytes: 8192
+      sop_class: "1.2.840.10008.5.1.4.1.1.88.67"
+      modality: SR
+
+  templates:
+    - label_key: tpl.help
+      command: "help"
+    - label_key: tpl.ls
+      command: "ls"
+    - label_key: tpl.store_schicht_1
+      command: "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 schicht-1.dcm"
+    - label_key: tpl.store_schicht_2
+      command: "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 schicht-2.dcm"
+    - label_key: tpl.store_schicht_3
+      command: "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 schicht-3.dcm"
+    - label_key: tpl.store_dose_report
+      command: "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.83.0.10 104 dose-report.dcm"
+  placeholders: []
+
+flag:
+  type: exact
+  hash: "sha256:cc8844298c08e2fb7ba75080b9fad6fbd23d63bf3534c713e87ad87cee8f5b57"
+  case_sensitive: false
+
+hints:
+  - id: h1
+    cost: 2
+  - id: h2
+    cost: 4
+  - id: h3
+    cost: 6
+
+stuck_timeout_minutes: 20
+
+status: draft
+updated: "2026-09-20"
