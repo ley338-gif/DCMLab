@@ -32,7 +32,10 @@ class RouteSchemaError(ValueError):
 def normalize_match(match: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     """Normalisiert Authoring-Sugar (`{modality: CT}`) und die kanonische
     Form (`{all|any: [...]}`) auf EINEN internen Code-Pfad -- nie zwei
-    parallele Validatoren (ADR 0120, 8.2)."""
+    parallele Validatoren (ADR 0120, 8.2). Die Kurzform ist ein Authoring-
+    Vertrag fuer GENAU EINE Gleichheitsbedingung (ADR 0120, Phase-A-Review)
+    -- mehrere Bedingungen muessen explizit `all`/`any` verwenden, statt
+    stillschweigend zu einem impliziten `all` zusammengefasst zu werden."""
 
     if not isinstance(match, dict) or not match:
         raise RouteSchemaError("match darf nicht leer sein.")
@@ -40,6 +43,12 @@ def normalize_match(match: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     if "all" in match or "any" in match:
         if "all" in match and "any" in match:
             raise RouteSchemaError("match darf nicht gleichzeitig 'all' und 'any' verwenden.")
+
+        if len(match) != 1:
+            raise RouteSchemaError(
+                "match darf neben 'all'/'any' keine weiteren Schluessel enthalten "
+                "(auch keine Kurzform-Felder gemischt mit 'all'/'any').",
+            )
 
         key = "all" if "all" in match else "any"
         conditions = match[key]
@@ -49,13 +58,18 @@ def normalize_match(match: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
 
         return {key: [_normalize_condition(c) for c in conditions]}
 
-    # Authoring-Sugar: {field: value, ...} -> all: [{field, op: equals, value}, ...]
-    return {
-        "all": [
-            _normalize_condition({"field": field, "op": "equals", "value": value})
-            for field, value in match.items()
-        ],
-    }
+    # Authoring-Sugar: GENAU EIN Feld -> all: [{field, op: equals, value}].
+    # Fuer mehrere Bedingungen ist 'all'/'any' Pflicht (kein implizites
+    # Multi-Key-'all', das war der urspruengliche, zu lockere Vertrag).
+    if len(match) != 1:
+        raise RouteSchemaError(
+            "match-Kurzform erlaubt genau ein Feld -- fuer mehrere Bedingungen "
+            "'all'/'any' mit field/op/value verwenden.",
+        )
+
+    ((field, value),) = match.items()
+
+    return {"all": [_normalize_condition({"field": field, "op": "equals", "value": value})]}
 
 
 def _normalize_condition(condition: dict[str, Any]) -> dict[str, Any]:
@@ -71,7 +85,19 @@ def _normalize_condition(condition: dict[str, Any]) -> dict[str, Any]:
     if op not in MATCH_OPERATORS:
         raise RouteSchemaError(f"Unbekannter Operator '{op}'.")
 
+    has_value = "value" in condition
+    has_values = "values" in condition
+
+    if op == "exists":
+        if has_value or has_values:
+            raise RouteSchemaError("op: exists erlaubt weder 'value' noch 'values'.")
+
+        return {"field": field, "op": op}
+
     if op == "in":
+        if has_value:
+            raise RouteSchemaError("op: in erlaubt kein zusaetzliches 'value' (nur 'values').")
+
         values = condition.get("values")
 
         if not isinstance(values, list) or not values:
@@ -79,10 +105,11 @@ def _normalize_condition(condition: dict[str, Any]) -> dict[str, Any]:
 
         return {"field": field, "op": op, "values": list(values)}
 
-    if op == "exists":
-        return {"field": field, "op": op}
+    # equals / not_equals
+    if has_values:
+        raise RouteSchemaError(f"op: {op} erlaubt kein zusaetzliches 'values' (nur 'value').")
 
-    if "value" not in condition:
+    if not has_value:
         raise RouteSchemaError(f"op: {op} erfordert 'value'.")
 
     return {"field": field, "op": op, "value": condition["value"]}
@@ -169,6 +196,22 @@ def _without_matched(detail: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in detail.items() if k != "matched"}
 
 
+def _route_enabled(route: dict[str, Any]) -> bool:
+    """`enabled` muss, wenn vorhanden, ein echtes Boolean sein (ADR 0120,
+    Phase-A-Review) -- `ContentValidator.php` ist die Authoring-Guardrail
+    dafuer, aber `routing.py` interpretiert selbst keine Strings/Zahlen als
+    Wahrheitswert (kein `bool("false") == True`)."""
+
+    enabled = route.get("enabled", True)
+
+    if not isinstance(enabled, bool):
+        raise RouteSchemaError(
+            f"Route '{route.get('id')}': enabled muss Boolean sein, nicht {enabled!r}.",
+        )
+
+    return enabled
+
+
 def find_matching_routes(
     host: dict[str, Any], runtime_object: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -177,7 +220,7 @@ def find_matching_routes(
     -- Fan-out heisst: mehrere Routes koennen gleichzeitig matchen (ADR 0120,
     8.2). Loest in Phase A noch nichts aus, dient Tests und Phase B/C."""
 
-    routes = [r for r in host.get("routes", []) if r.get("enabled", True)]
+    routes = [r for r in host.get("routes", []) if _route_enabled(r)]
 
     return [evaluate_route(route, runtime_object) for route in routes]
 

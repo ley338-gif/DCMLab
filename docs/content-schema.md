@@ -691,8 +691,8 @@ environment:
           ae_title: DOSE-SCP
 ```
 
-`match` erlaubt entweder die gezeigte Kurzform (ein Feld, implizit
-`equals`) oder die kanonische Form mit `all`/`any`:
+`match` erlaubt entweder die gezeigte Kurzform oder die kanonische Form mit
+`all`/`any`:
 
 ```yaml
 match:
@@ -705,15 +705,29 @@ match:
       values: ["1.2.840.10008.5.1.4.1.1.2", "1.2.840.10008.5.1.4.1.1.2.1"]
 ```
 
+Die Kurzform (`match: {modality: CT}`) ist ein Authoring-Vertrag für
+**genau eine** Gleichheitsbedingung — sie normalisiert intern zu `all: [{field, op: equals, value}]`,
+aber mehrere Felder in Kurzform (`{modality: CT, sop_class: ...}`) sind
+**kein** gültiges implizites `all` mehr, sondern ein Validierungsfehler; für
+mehrere Bedingungen ist die kanonische `all`/`any`-Form Pflicht. Kurzform und
+`all`/`any` dürfen nicht gemischt werden.
+
 Erlaubte `field`-Werte (Whitelist, Tippfehler-Schutz): `modality`,
 `sop_class`, `study_description`, `series_description` — keine rohe
-Tag-Syntax, kein `source_ae`. Erlaubte `op`-Werte: `equals`, `not_equals`,
-`in` (braucht `values`), `exists` (braucht weder `value` noch `values`).
+Tag-Syntax, kein `source_ae`. Erlaubte `op`-Werte: `equals`/`not_equals`
+(brauchen `value`, kein zusätzliches `values`), `in` (braucht `values`,
+kein zusätzliches `value`), `exists` (weder `value` noch `values`) — jede
+Kombination mit dem jeweils falschen Schlüssel ist ein Validierungsfehler,
+kein still ignoriertes Extra-Feld. `routes[].enabled` ist optional
+(Default `true`), muss aber, wenn gesetzt, ein echtes YAML-Boolean sein
+(`true`/`false`) — ein String wie `enabled: "false"` ist ein
+Validierungsfehler statt eines stillschweigend wahren Werts.
 `content:validate` prüft `destination.host`/`destination.service`,
-eindeutige `services[].id`/Route-`id`, das erlaubte `field`/`op`-Vokabular
-und das Pflichtfeld `dicom.calling_ae` rein strukturell — **nicht**, ob
-eine Route fachlich sinnvoll ist (`match: {modality: CT}` bleibt gültig,
-selbst wenn genau das die eingebaute Root Cause eines Nodes ist).
+eindeutige `services[].id`/Route-`id`, das erlaubte `field`/`op`-Vokabular,
+den `enabled`-Typ und das Pflichtfeld `dicom.calling_ae` rein strukturell
+— **nicht**, ob eine Route fachlich sinnvoll ist (`match: {modality: CT}`
+bleibt gültig, selbst wenn genau das die eingebaute Root Cause eines Nodes
+ist).
 
 **Ab Phase A** (Object & Routing Foundation) führen `storescu` und der
 Sendeauftrag einer Modalitäts-Simulation zusätzlich zum unveränderten
@@ -788,8 +802,9 @@ Ein `content:validate`-Befehl prüft vor jedem Commit:
 - `route.destination.host` existiert in `environment.hosts`, `route.destination.service` ist eine `services[].id` **dieses** Ziel-Hosts
 - ein Host mit `routes` hat `dicom.calling_ae`
 - Route-`id` eindeutig je Node, `services[].id` eindeutig je Host
-- `match`-`field` aus der erlaubten Whitelist, `op` aus `equals|not_equals|in|exists`, `op: in` mit nicht-leerer `values`-Liste
-- geprüft wird ausschließlich die kanonische Form nach Normalisierung — Kurzform und Langform teilen sich einen Prüfpfad; **nicht** geprüft wird, ob eine Route fachlich sinnvoll ist
+- `match`-`field` aus der erlaubten Whitelist, `op` aus `equals|not_equals|in|exists`, `op: in` mit nicht-leerer `values`-Liste ohne zusätzliches `value`, `equals`/`not_equals` mit `value` ohne zusätzliches `values`, `exists` ohne `value`/`values`
+- `match`-Kurzform erlaubt genau ein Feld (nicht mehrere, nicht gemischt mit `all`/`any`) — geprüft wird ausschließlich die kanonische Form nach Normalisierung, Kurzform und Langform teilen sich einen Prüfpfad; **nicht** geprüft wird, ob eine Route fachlich sinnvoll ist
+- `routes[].enabled`, wenn gesetzt, muss ein echtes Boolean sein (kein `"false"`, `0`/`1` o. ä.)
 
 **Beispielregel**
 

@@ -56,8 +56,24 @@ def test_a_successful_store_registers_a_runtime_object_and_presence() -> None:
     assert stored["filename"] == "ct-bild.dcm"
     assert stored["sop_class"] == CT_IMAGE_STORAGE
     assert stored["modality"] == "CT"
-    assert stored["origin_host"] == "archive"
     assert state["stored_objects"]["archive"] == [object_id]
+
+
+def test_origin_host_is_the_sending_host_not_the_target_archive() -> None:
+    """ADR 0120, Phase-A-Review: `origin_host` ist der simulierte Host, von
+    dem ein Objekt urspruenglich gesendet wurde -- bei direktem `storescu`
+    von einer Shell ist das die Shell (`workstation`), nicht das Ziel-PACS
+    (`archive`). Herkunft (`origin_host`) und aktueller Speicherort
+    (Presence) sind unabhaengige Fragen: dasselbe Objekt hat EINEN Ursprung,
+    aber kann an mehreren Hosts liegen."""
+    state = rules.initial_state(NODE)
+
+    _store(state, "ct-bild.dcm")
+
+    object_id = next(iter(state["objects"]))
+    assert state["objects"][object_id]["origin_host"] == "workstation"
+    assert state["stored_objects"]["archive"] == [object_id]
+    assert "workstation" not in state.get("stored_objects", {})
 
 
 def test_a_rejected_store_registers_no_runtime_object() -> None:

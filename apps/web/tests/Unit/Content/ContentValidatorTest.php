@@ -4,6 +4,7 @@ namespace Tests\Unit\Content;
 
 use App\Content\ContentIssue;
 use App\Content\ContentValidator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -651,5 +652,170 @@ class ContentValidatorTest extends TestCase
         $issues = $this->validateNodes($nodes);
 
         $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'calling_ae')));
+    }
+
+    // -----------------------------------------------------------------
+    // ADR 0120, Phase-A-Review: Kurzform ist ein Authoring-Vertrag fuer
+    // GENAU EIN Feld -- kein implizites Multi-Key-'all'.
+    // -----------------------------------------------------------------
+
+    /**
+     * @param  array<string, mixed>  $match
+     */
+    private function nodeWithRouteMatch(array $match): array
+    {
+        return $this->nodeWithEnvironment([
+            'hosts' => [
+                [
+                    'name' => 'pacs', 'ip' => '10.20.0.10',
+                    'dicom' => ['calling_ae' => 'RAD-PACS'],
+                    'routes' => [[
+                        'id' => 'CT-TO-DOSE',
+                        'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+                        'match' => $match,
+                    ]],
+                ],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+    }
+
+    public function test_single_key_shorthand_match_is_valid(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteMatch(['modality' => 'CT']));
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'match')));
+    }
+
+    public function test_multi_key_shorthand_match_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteMatch([
+            'modality' => 'CT', 'sop_class' => '1.2.840.10008.5.1.4.1.1.2',
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'match muss entweder Kurzform mit genau einem Feld')));
+    }
+
+    public function test_canonical_all_with_multiple_conditions_is_valid(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteMatch(['all' => [
+            ['field' => 'modality', 'op' => 'equals', 'value' => 'CT'],
+            ['field' => 'sop_class', 'op' => 'equals', 'value' => '1.2.840.10008.5.1.4.1.1.2'],
+        ]]));
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'match')));
+    }
+
+    public function test_canonical_any_is_valid(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteMatch([
+            'any' => [['field' => 'modality', 'op' => 'equals', 'value' => 'CT']],
+        ]));
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'match')));
+    }
+
+    public function test_shorthand_mixed_with_all_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteMatch([
+            'all' => [['field' => 'modality', 'op' => 'equals', 'value' => 'CT']],
+            'sop_class' => '1.2.840.10008.5.1.4.1.1.2',
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'match muss entweder Kurzform mit genau einem Feld')));
+    }
+
+    public function test_exists_with_a_value_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteMatch([
+            'all' => [['field' => 'modality', 'op' => 'exists', 'value' => 'CT']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'op "exists" erlaubt weder value noch values')));
+    }
+
+    public function test_in_with_an_extra_value_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteMatch([
+            'all' => [['field' => 'modality', 'op' => 'in', 'values' => ['CT'], 'value' => 'CT']],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'op "in" erlaubt kein zusaetzliches value')));
+    }
+
+    public function test_equals_with_an_extra_values_is_rejected(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteMatch([
+            'all' => [['field' => 'modality', 'op' => 'equals', 'value' => 'CT', 'values' => ['CT']]],
+        ]));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'op "equals" erlaubt kein zusaetzliches values')));
+    }
+
+    // -----------------------------------------------------------------
+    // ADR 0120, Phase-A-Review: `enabled` muss ein echtes Boolean sein.
+    // -----------------------------------------------------------------
+
+    private function nodeWithRouteEnabled(mixed $enabled): array
+    {
+        $route = [
+            'id' => 'CT-TO-DOSE',
+            'destination' => ['host' => 'dose-scp', 'service' => 'dose-store'],
+            'match' => ['modality' => 'CT'],
+        ];
+
+        if ($enabled !== 'absent') {
+            $route['enabled'] = $enabled;
+        }
+
+        return $this->nodeWithEnvironment([
+            'hosts' => [
+                ['name' => 'pacs', 'ip' => '10.20.0.10', 'dicom' => ['calling_ae' => 'RAD-PACS'], 'routes' => [$route]],
+                ['name' => 'dose-scp', 'ip' => '10.20.0.30', 'services' => [['id' => 'dose-store', 'port' => 104]]],
+            ],
+        ]);
+    }
+
+    public function test_a_route_without_enabled_raises_no_issue(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteEnabled('absent'));
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'enabled')));
+    }
+
+    public function test_enabled_true_raises_no_issue(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteEnabled(true));
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'enabled')));
+    }
+
+    public function test_enabled_false_raises_no_issue(): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteEnabled(false));
+
+        $this->assertFalse(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'enabled')));
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    public static function nonBooleanEnabledProvider(): array
+    {
+        return [
+            'string false' => ['false'],
+            'string true' => ['true'],
+            'int zero' => [0],
+            'int one' => [1],
+            'string yes' => ['yes'],
+        ];
+    }
+
+    #[DataProvider('nonBooleanEnabledProvider')]
+    public function test_a_non_boolean_enabled_is_rejected(mixed $enabled): void
+    {
+        $issues = $this->validateNodes($this->nodeWithRouteEnabled($enabled));
+
+        $this->assertTrue(collect($this->messages($issues))->contains(fn ($m) => str_contains($m, 'enabled muss Boolean sein')));
     }
 }

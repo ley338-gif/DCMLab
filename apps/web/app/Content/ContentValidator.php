@@ -965,6 +965,7 @@ final class ContentValidator
                     $seenRouteIds[$routeId] = true;
                 }
 
+                $this->checkRouteEnabled($defFile, $defRaw, $label, $route);
                 $this->checkRouteDestination($defFile, $defRaw, $label, $route['destination'] ?? null, $hosts);
                 $this->checkRouteMatch($defFile, $defRaw, $label, $route['match'] ?? null);
             }
@@ -990,6 +991,23 @@ final class ContentValidator
             }
 
             $seen[$id] = true;
+        }
+    }
+
+    /**
+     * `enabled` muss, wenn vorhanden, ein echtes Boolean sein (ADR 0120,
+     * Phase-A-Review): `enabled: "false"` waere in einer schwach typisierten
+     * Auswertung wahr, weil ein nicht-leerer String truthy ist -- der
+     * Validator prueft die tatsaechlich geparste YAML-Struktur, nicht
+     * Rohtext-Syntax (ein YAML-Parser kann `yes`/`no` bereits selbst zu
+     * bool machen, das ist dann bereits ein echtes Boolean an dieser Stelle).
+     *
+     * @param  array<string, mixed>  $route
+     */
+    private function checkRouteEnabled(string $file, string $raw, string $label, array $route): void
+    {
+        if (array_key_exists('enabled', $route) && ! is_bool($route['enabled'])) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": enabled muss Boolean sein");
         }
     }
 
@@ -1047,7 +1065,7 @@ final class ContentValidator
         $conditions = $this->normalizeMatchConditions($match);
 
         if ($conditions === null) {
-            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": match muss entweder Kurzform (Feld: Wert) oder {all|any: [...]} sein, nicht beides");
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": match muss entweder Kurzform mit genau einem Feld (Feld: Wert) oder {all|any: [...]} sein, nicht gemischt oder mehrfach");
 
             return;
         }
@@ -1060,7 +1078,11 @@ final class ContentValidator
     /**
      * Kurzform und kanonische Form teilen sich diesen einen Normalisierungs-
      * Pfad (ADR 0120, 8.2/9.3) -- kein zweites, abweichendes Validierungs-
-     * modell fuer die Kurzform.
+     * modell fuer die Kurzform. Die Kurzform ist ein Authoring-Vertrag fuer
+     * GENAU EINE Gleichheitsbedingung (ADR 0120, Phase-A-Review): mehrere
+     * Felder muessen explizit `all`/`any` verwenden statt stillschweigend zu
+     * einem impliziten `all` zusammengefasst zu werden, und Kurzform darf
+     * nicht mit `all`/`any` gemischt werden.
      *
      * @param  array<string, mixed>  $match
      * @return list<mixed>|null
@@ -1072,9 +1094,17 @@ final class ContentValidator
                 return null;
             }
 
+            if (count($match) !== 1) {
+                return null;
+            }
+
             $conditions = $match['all'] ?? $match['any'];
 
             return is_array($conditions) && $conditions !== [] ? array_values($conditions) : null;
+        }
+
+        if (count($match) !== 1) {
+            return null;
         }
 
         return array_map(
@@ -1105,11 +1135,35 @@ final class ContentValidator
             return;
         }
 
-        if ($op === 'in' && (! isset($condition['values']) || ! is_array($condition['values']) || $condition['values'] === [])) {
-            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"in\" erfordert eine nicht-leere values-Liste");
+        $hasValue = array_key_exists('value', $condition);
+        $hasValues = array_key_exists('values', $condition);
+
+        if ($op === 'exists') {
+            if ($hasValue || $hasValues) {
+                $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"exists\" erlaubt weder value noch values");
+            }
+
+            return;
         }
 
-        if ($op !== 'in' && $op !== 'exists' && ! array_key_exists('value', $condition)) {
+        if ($op === 'in') {
+            if ($hasValue) {
+                $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"in\" erlaubt kein zusaetzliches value (nur values)");
+            }
+
+            if (! $hasValues || ! is_array($condition['values']) || $condition['values'] === []) {
+                $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"in\" erfordert eine nicht-leere values-Liste");
+            }
+
+            return;
+        }
+
+        // equals / not_equals
+        if ($hasValues) {
+            $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"{$op}\" erlaubt kein zusaetzliches values (nur value)");
+        }
+
+        if (! $hasValue) {
             $this->issue($file, LineFinder::firstLineContaining($raw, $label), "Route \"{$label}\": op \"{$op}\" erfordert value");
         }
     }

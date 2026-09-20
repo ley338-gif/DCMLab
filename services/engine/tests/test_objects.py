@@ -59,7 +59,7 @@ def test_different_filenames_get_different_object_ids() -> None:
     assert len(state["objects"]) == 2
 
 
-def test_synthetic_objects_get_a_deterministic_uid_never_derived_from_a_sop_class() -> None:
+def test_synthetic_objects_get_a_uuid_derived_uid_never_derived_from_a_sop_class() -> None:
     state: dict = {}
 
     object_id = runtime_objects.resolve_synthetic_object(
@@ -71,7 +71,6 @@ def test_synthetic_objects_get_a_deterministic_uid_never_derived_from_a_sop_clas
     stored = state["objects"][object_id]
     assert stored["sop_instance_uid"] != stored["sop_class"]
     assert not stored["sop_instance_uid"].startswith(stored["sop_class"])
-    assert stored["sop_instance_uid"].startswith("1.2.276.0.7230010.3.1.2.")
     assert stored["filename"] is None
     assert stored["origin_host"] == "ct-console"
 
@@ -89,6 +88,31 @@ def test_synthetic_sop_instance_uid_differs_per_index_and_per_node() -> None:
     c = runtime_objects.synthetic_sop_instance_uid("wrong-door", "ct-console:1")
 
     assert len({a, b, c}) == 3
+
+
+def test_synthetic_sop_instance_uid_uses_the_uuid_derived_2_25_root() -> None:
+    """PS3.5 Annex B: der Root 2.25 ist fuer UUID-abgeleitete UIDs reserviert
+    -- ganz ohne eigene UID-Root-Registrierung, anders als der zuvor
+    faelschlich weiterverwendete, fremde DCMTK-Test-Root."""
+    uid = runtime_objects.synthetic_sop_instance_uid("silent-ct", "ct-console:1")
+
+    assert uid.startswith("2.25.")
+
+
+def test_synthetic_sop_instance_uid_never_uses_the_foreign_dcmtk_root() -> None:
+    uid = runtime_objects.synthetic_sop_instance_uid("silent-ct", "ct-console:1")
+
+    assert not uid.startswith("1.2.276.0.7230010")
+
+
+def test_synthetic_sop_instance_uid_is_a_valid_dicom_uid() -> None:
+    """Nur Ziffern und Punkte, hoechstens 64 Zeichen (PS3.5 9.1)."""
+    uid = runtime_objects.synthetic_sop_instance_uid("silent-ct", "ct-console:1")
+
+    assert len(uid) <= 64
+    assert all(c.isdigit() or c == "." for c in uid)
+    assert not uid.startswith(".")
+    assert not uid.endswith(".")
 
 
 def test_resolving_the_same_synthetic_index_twice_is_idempotent() -> None:

@@ -18,21 +18,29 @@ Empfangsinformation, siehe die dort skizzierte Presence/Receipt-Erweiterung).
 
 from __future__ import annotations
 
-import hashlib
+import uuid
 from typing import Any
 
-# ADR 0120, 8.3: dieselbe Hash-Technik wie rules._study_instance_uid()/
-# _series_instance_uid(), unter der im Repo bereits fuer SOP-Instance-Ebene
-# etablierten Testwurzel (siehe content/nodes/letztes-glied-fehlt). Niemals
-# durch Anhaengen an eine SOP-Class-UID gebildet -- das waere DICOM-technisch
-# unzulaessig (ADR 0120, Review-Runde 4).
-_SOP_INSTANCE_UID_PREFIX = "1.2.276.0.7230010.3.1.2."
+# ADR 0120, Phase-A-Review: `1.2.276.0.7230010.3.*` ist DCMTKs registrierter
+# UID-Root, kein DCMLab-eigener -- neu synthetisierte UIDs sollen keinen
+# fremden Vendor-/Tool-Root weiterverwenden. Stattdessen PS3.5 Annex B: der
+# Root `2.25` ist im Standard reserviert fuer UUID-abgeleitete UIDs, ganz
+# ohne eigene UID-Root-Registrierung. Dieses UUID hier ist NUR ein fester,
+# projektinterner Namespace fuer deterministisches uuid5() -- es ist selbst
+# keine DICOM UID Root und braucht keine Registrierung.
+_SOP_INSTANCE_UID_NAMESPACE = uuid.UUID("0902ffd2-c7cd-455e-b4ce-9e06f76c5c15")
 
 
 def synthetic_sop_instance_uid(node_slug: str, key: str) -> str:
-    digest = hashlib.sha1(f"{node_slug}:sop-instance:{key}".encode()).hexdigest()
+    """Deterministisch (gleicher `node_slug`+`key` -> dieselbe UID), niemals
+    aus einer SOP Class UID gebildet. `2.25.<uuid5().int>` ist eine valide,
+    rein numerische DICOM UID (PS3.5 Annex B) von wohldefinierter, klar unter
+    64 Zeichen liegender Laenge (hoechstens 39 Stellen fuer das UUID-Integer
+    plus 5 fuer "2.25.")."""
 
-    return _SOP_INSTANCE_UID_PREFIX + str(int(digest[:12], 16)).rjust(12, "0")[:12]
+    derived = uuid.uuid5(_SOP_INSTANCE_UID_NAMESPACE, f"{node_slug}:sop-instance:{key}")
+
+    return f"2.25.{derived.int}"
 
 
 def _next_object_id(state: dict[str, Any]) -> str:

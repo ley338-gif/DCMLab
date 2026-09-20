@@ -14,10 +14,28 @@ def test_shorthand_match_normalizes_to_canonical_form() -> None:
     assert canonical == {"all": [{"field": "modality", "op": "equals", "value": "CT"}]}
 
 
-def test_shorthand_with_multiple_fields_becomes_an_implicit_all() -> None:
-    canonical = routing.normalize_match(
-        {"modality": "CT", "sop_class": "1.2.840.10008.5.1.4.1.1.2"},
-    )
+def test_shorthand_is_restricted_to_exactly_one_field() -> None:
+    """Authoring-Vertrag (ADR 0120, Phase-A-Review): die Kurzform ist fuer
+    GENAU EINE Gleichheitsbedingung gedacht. Mehrere Felder muessen explizit
+    'all'/'any' verwenden, statt stillschweigend zu einem impliziten 'all'
+    zusammengefasst zu werden."""
+    with pytest.raises(routing.RouteSchemaError):
+        routing.normalize_match({"modality": "CT", "sop_class": "1.2.840.10008.5.1.4.1.1.2"})
+
+
+def test_shorthand_mixed_with_all_is_a_schema_error() -> None:
+    with pytest.raises(routing.RouteSchemaError):
+        routing.normalize_match({
+            "all": [{"field": "modality", "op": "equals", "value": "CT"}],
+            "sop_class": "1.2.840.10008.5.1.4.1.1.2",
+        })
+
+
+def test_canonical_all_with_multiple_conditions_is_still_valid() -> None:
+    canonical = routing.normalize_match({"all": [
+        {"field": "modality", "op": "equals", "value": "CT"},
+        {"field": "sop_class", "op": "equals", "value": "1.2.840.10008.5.1.4.1.1.2"},
+    ]})
 
     assert canonical == {
         "all": [
@@ -25,6 +43,13 @@ def test_shorthand_with_multiple_fields_becomes_an_implicit_all() -> None:
             {"field": "sop_class", "op": "equals", "value": "1.2.840.10008.5.1.4.1.1.2"},
         ],
     }
+
+
+def test_canonical_any_is_valid() -> None:
+    condition = {"field": "modality", "op": "equals", "value": "CT"}
+    canonical = routing.normalize_match({"any": [condition]})
+
+    assert canonical == {"any": [condition]}
 
 
 def test_canonical_form_passes_through_unchanged() -> None:
@@ -70,6 +95,37 @@ def test_exists_operator_needs_neither_value_nor_values() -> None:
     canonical = routing.normalize_match({"all": [{"field": "modality", "op": "exists"}]})
 
     assert canonical == {"all": [{"field": "modality", "op": "exists"}]}
+
+
+def test_exists_operator_rejects_a_meaningless_value() -> None:
+    with pytest.raises(routing.RouteSchemaError):
+        routing.normalize_match({"all": [{"field": "modality", "op": "exists", "value": "CT"}]})
+
+
+def test_in_operator_rejects_an_extra_value_key() -> None:
+    with pytest.raises(routing.RouteSchemaError):
+        routing.normalize_match({
+            "all": [{"field": "modality", "op": "in", "values": ["CT"], "value": "CT"}],
+        })
+
+
+def test_equals_rejects_an_extra_values_key() -> None:
+    with pytest.raises(routing.RouteSchemaError):
+        routing.normalize_match({
+            "all": [{"field": "modality", "op": "equals", "value": "CT", "values": ["CT"]}],
+        })
+
+
+def test_not_equals_rejects_an_extra_values_key() -> None:
+    with pytest.raises(routing.RouteSchemaError):
+        routing.normalize_match({
+            "all": [{"field": "modality", "op": "not_equals", "value": "CT", "values": ["CT"]}],
+        })
+
+
+def test_equals_without_a_value_is_a_schema_error() -> None:
+    with pytest.raises(routing.RouteSchemaError):
+        routing.normalize_match({"all": [{"field": "modality", "op": "equals"}]})
 
 
 # ---------------------------------------------------------------------
@@ -192,6 +248,40 @@ def test_find_matching_routes_includes_disabled_and_non_matching_routes_as_not_m
         "enabled-match": True,
         "enabled-no-match": False,
     }
+
+
+def test_a_route_without_enabled_defaults_to_true() -> None:
+    host = {"routes": [{"id": "r1", "match": {"modality": "CT"}}]}
+
+    results = routing.find_matching_routes(host, {"modality": "CT"})
+
+    assert results == [{"matched": True, "route_id": "r1"}]
+
+
+def test_enabled_true_is_evaluated() -> None:
+    host = {"routes": [{"id": "r1", "enabled": True, "match": {"modality": "CT"}}]}
+
+    results = routing.find_matching_routes(host, {"modality": "CT"})
+
+    assert len(results) == 1
+
+
+def test_enabled_false_is_skipped_entirely() -> None:
+    host = {"routes": [{"id": "r1", "enabled": False, "match": {"modality": "CT"}}]}
+
+    results = routing.find_matching_routes(host, {"modality": "CT"})
+
+    assert results == []
+
+
+@pytest.mark.parametrize("enabled", ["false", "true", 0, 1, "yes", "no"])
+def test_a_non_boolean_enabled_is_a_schema_error_not_a_truthiness_check(enabled) -> None:
+    """ADR 0120, Phase-A-Review: routing.py interpretiert keine Strings/
+    Zahlen als Wahrheitswert -- kein bool("false") == True."""
+    host = {"routes": [{"id": "r1", "enabled": enabled, "match": {"modality": "CT"}}]}
+
+    with pytest.raises(routing.RouteSchemaError):
+        routing.find_matching_routes(host, {"modality": "CT"})
 
 
 def test_find_matching_routes_supports_fan_out_two_routes_can_match_the_same_object() -> None:

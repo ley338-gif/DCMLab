@@ -271,7 +271,7 @@ def exec_command(
     if tool == "findscu":
         return _exec_findscu(node, state, args)
     if tool == "storescu":
-        return _exec_storescu(node, state, args)
+        return _exec_storescu(node, state, host_name, args)
     if tool == "dcmdump":
         return _exec_dcmdump(node, args)
     if tool == "dcmftest":
@@ -660,7 +660,9 @@ def _exec_findscu_against_worklist(
     return ExecResult(stdout=stdout)
 
 
-def _exec_storescu(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
+def _exec_storescu(
+    node: NodeDefinition, state: dict[str, Any], host_name: str, args: list[str],
+) -> ExecResult:
     parsed = _parse_dcmtk_args("storescu", args)
 
     if parsed["ip"] is None or parsed["port"] is None:
@@ -731,12 +733,15 @@ def _exec_storescu(node: NodeDefinition, state: dict[str, Any], args: list[str])
 
     # ADR 0120, Phase A: RuntimeObject/Presence zusaetzlich zum unveraenderten
     # `bestand`-Zaehler fuehren -- storescu und send_study muenden ab hier in
-    # derselben zentralen store_object()-Operation. `result.target_host` ist
-    # an dieser Stelle nie None (accepted=True setzt ihn immer, siehe
-    # check_association) -- die Pruefung narrowed nur den Typ fuer mypy.
+    # derselben zentralen store_object()-Operation. `origin_host` ist der
+    # sendende Host (die Shell, von der aus storescu ausgefuehrt wird), nicht
+    # das Ziel-Archiv -- Presence (wo das Objekt jetzt LIEGT) ist davon
+    # unabhaengig und bleibt am Ziel-Host. `result.target_host` ist an dieser
+    # Stelle nie None (accepted=True setzt ihn immer, siehe check_association)
+    # -- die Pruefung narrowed nur den Typ fuer mypy.
     if result.target_host is not None:
         object_id = runtime_objects.resolve_object_from_environment_object(
-            state, obj, origin_host=result.target_host,
+            state, obj, origin_host=host_name,
         )
         runtime_objects.store_object(state, object_id, result.target_host)
 
