@@ -1232,21 +1232,24 @@ eines einzelnen Objekts über mehrere Hosts zeigt:
 $ pacs object show obj-001
 
 SOP Class UID:    1.2.840.10008.5.1.4.1.1.2 (CT Image Storage)
-SOP Instance UID: 1.2.276.0.7230010.3.1.2.881205337201
+SOP Instance UID: <simulated unique SOP Instance UID>
 Present at:
 - pacs
 - dose-scp
 ```
 
-**Review-Fix Runde 4**: SOP Class UID und SOP Instance UID werden hier
+**Review-Fix Runde 5**: SOP Class UID und SOP Instance UID werden hier
 bewusst als zwei getrennte, unterschiedliche Werte gezeigt — die SOP
 Class UID identifiziert den Objekt**typ** (hier: CT Image Storage,
 verbindlich durch PS3.6 definiert), die SOP Instance UID die
-konkrete **Instanz** dieses Typs. Die Instance-UID folgt dem in diesem
-Repo bereits etablierten Test-UID-Präfix
-(`1.2.276.0.7230010.3.1.2.*`, siehe `letztes-glied-fehlt`s SOP Instance
-UIDs) — sie wird **niemals** durch Anhängen an die SOP-Class-UID
-gebildet (siehe 8.3).
+konkrete **Instanz** dieses Typs, und wird **niemals** durch Anhängen
+an die SOP-Class-UID gebildet (siehe 8.3). Die Instance-UID ist hier
+bewusst als Platzhalter dargestellt, nicht als konkreter Wert — dieses
+ADR legt noch keine endgültige UID-Generierungsstrategie für
+synthetische `RuntimeObject`s fest (das bleibt Phase-A-
+Implementierungsdetail, siehe 8.3), und ein Beispielwert soll nicht
+implizit eine bestehende werkzeug-/fremdspezifische UID-Konvention zur
+DCMLab-Konvention erklären.
 
 Parser: kein neues Framework — derselbe `shlex.split`-Ansatz wie
 heute, ein kleiner handgeschriebener Dispatcher auf `args[0]`
@@ -1450,7 +1453,7 @@ actual: SR
 
 $ pacs object show rdsr-001.dcm
 SOP Class UID:    1.2.840.10008.5.1.4.1.1.88.67 (X-Ray Radiation Dose SR Storage)
-SOP Instance UID: 1.2.276.0.7230010.3.1.2.550331987299
+SOP Instance UID: <simulated unique SOP Instance UID>
 Present at:
 - pacs
 ```
@@ -1459,10 +1462,12 @@ Der letzte Befehl macht das Presence-Modell greifbar: dasselbe
 `RuntimeObject` ist nur an `pacs` vorhanden (nie geroutet), während ein
 CT-Bild derselben Study an `pacs` **und** `dose-scp` präsent wäre —
 kein Klon, derselbe `object_id`, zwei Presence-Einträge. **Review-Fix
-Runde 4**: SOP Class UID (Objekttyp) und SOP Instance UID (konkrete
+Runde 5**: SOP Class UID (Objekttyp) und SOP Instance UID (konkrete
 Instanz) sind bewusst zwei getrennte, unterschiedliche Werte — die
 Instance-UID ist **nicht** die um Ziffern verlängerte Class-UID (siehe
-8.3 zur UID-Erzeugung).
+8.3 zur UID-Erzeugung) und wird hier als Platzhalter statt als
+konkreter Beispielwert gezeigt, da dieses ADR noch keine endgültige
+UID-Generierungsstrategie für synthetische `RuntimeObject`s festlegt.
 
 Würde den didaktischen Wert dieses Nodes deutlich steigern (echte
 Evidenzsammlung statt vorgelesener Logs) — ein plausibler
