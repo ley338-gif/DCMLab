@@ -753,9 +753,10 @@ Initial Ingest, unabhängig von Fan-out (mehrere gleichzeitig matchende
 Routen erzeugen Geschwister-Jobs auf derselben Tiefe). Details und
 Begründung: ADR 0120.
 
-**Ab Phase C** (Read-only PACS CLI) kann ein Host `pacs` in `environment.tools`
-freigeben — wie jedes andere Werkzeug, derselbe `tool not in node.tools`-
-Mechanismus, keine neue Sonderprüfung. `pacs` liest ausschließlich bereits
+**Ab Phase C** (Read-only PACS CLI) kann eine Node `pacs` in `environment.tools`
+freigeben (nodeweit, wie jedes andere Werkzeug — nicht hostlokal) —
+derselbe `tool not in node.tools`-Mechanismus, keine neue Sonderprüfung.
+`pacs` liest ausschließlich bereits
 vorhandenen Phase-A-/Phase-B-Zustand (nie `bestand`) und ist komplett
 lesend, mit genau einer Ausnahme, die selbst side-effect-free ist:
 

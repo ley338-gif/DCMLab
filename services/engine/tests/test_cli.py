@@ -122,17 +122,45 @@ def test_bare_pacs_shows_usage_and_exits_one() -> None:
     result = _pacs(node, state, "")
 
     assert result.exit_code == 1
-    assert result.stderr == "usage: pacs <objects|routes|jobs|events> ..."
+    assert result.stderr == "usage: pacs <objects|object|routes|route|jobs|job|events> ..."
 
 
-def test_pacs_help_shows_usage_and_exits_zero() -> None:
+def test_pacs_help_lists_all_real_entry_points_and_exits_zero() -> None:
+    """Betreiber-Review (nach PR #169): `pacs help` soll die tatsaechlich
+    vorhandenen Einstiegspunkte zeigen, nicht nur die vier Listing-Befehle."""
     node = _node()
     state = rules.initial_state(node)
 
     result = _pacs(node, state, "help")
 
     assert result.exit_code == 0
-    assert "usage: pacs" in result.stdout
+    for line in [
+        "pacs objects", "pacs object show <object-id>",
+        "pacs routes", "pacs route show <route-id>",
+        "pacs route test <route-id> <object-id>",
+        "pacs jobs", "pacs job show <job-id>", "pacs events",
+    ]:
+        assert line in result.stdout
+
+
+def test_pacs_dashdash_help_is_the_same_as_help() -> None:
+    node = _node()
+    state = rules.initial_state(node)
+
+    result = _pacs(node, state, "--help")
+
+    assert result.exit_code == 0
+    assert "pacs route test <route-id> <object-id>" in result.stdout
+
+
+def test_pacs_help_with_extra_arguments_is_a_usage_error() -> None:
+    node = _node()
+    state = rules.initial_state(node)
+
+    result = _pacs(node, state, "help foo")
+
+    assert result.exit_code == 1
+    assert result.stderr == "usage: pacs help"
 
 
 def test_unknown_subcommand_is_a_clear_error() -> None:
@@ -143,6 +171,25 @@ def test_unknown_subcommand_is_a_clear_error() -> None:
 
     assert result.exit_code == 1
     assert result.stderr == 'pacs: unknown subcommand "foo"'
+
+
+@pytest.mark.parametrize(("command", "usage"), [
+    ("objects foo", "usage: pacs objects"),
+    ("routes nonsense", "usage: pacs routes"),
+    ("jobs x", "usage: pacs jobs"),
+    ("events whatever", "usage: pacs events"),
+])
+def test_plural_listing_commands_reject_extra_arguments(command: str, usage: str) -> None:
+    """Betreiber-Review (nach PR #169): ein Tippfehler soll laut scheitern,
+    statt so auszusehen, als haette ein Filter/Argument gegriffen -- die
+    Listing-Befehle nehmen bewusst keine Argumente entgegen."""
+    node = _node()
+    state = rules.initial_state(node)
+
+    result = _pacs(node, state, command)
+
+    assert result.exit_code == 1
+    assert result.stderr == usage
 
 
 # ---------------------------------------------------------------------

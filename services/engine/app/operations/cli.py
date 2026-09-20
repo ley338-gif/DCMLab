@@ -26,7 +26,20 @@ if TYPE_CHECKING:
 
 MISSING = "-"
 
-_USAGE = "usage: pacs <objects|routes|jobs|events> ..."
+_TOP_LEVEL_USAGE = "usage: pacs <objects|object|routes|route|jobs|job|events> ..."
+
+_HELP_TEXT = "\n".join([
+    _TOP_LEVEL_USAGE,
+    "",
+    "  pacs objects",
+    "  pacs object show <object-id>",
+    "  pacs routes",
+    "  pacs route show <route-id>",
+    "  pacs route test <route-id> <object-id>",
+    "  pacs jobs",
+    "  pacs job show <job-id>",
+    "  pacs events",
+])
 
 
 class RouteLookupAmbiguous(Exception):
@@ -42,20 +55,30 @@ def run(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> tuple[s
     hier, um einen rules.py<->cli.py-Modulzyklus zu vermeiden)."""
 
     if not args:
-        return "", _USAGE, 1
-
-    if args[0] in ("help", "--help"):
-        return _USAGE + "\n", "", 0
+        return "", _TOP_LEVEL_USAGE, 1
 
     subcommand, rest = args[0], args[1:]
 
+    if subcommand in ("help", "--help"):
+        if rest:
+            return "", "usage: pacs help", 1
+        return _HELP_TEXT + "\n", "", 0
+
+    # Die reinen Listing-Befehle nehmen keine weiteren Argumente -- ein
+    # Tippfehler (z. B. "pacs objects foo") soll laut scheitern, statt so
+    # auszusehen, als haette ein Filter/Argument gegriffen (Betreiber-
+    # Review nach PR #169).
     if subcommand == "objects":
+        if rest:
+            return "", "usage: pacs objects", 1
         return _cmd_objects(state)
     if subcommand == "object":
         if len(rest) != 2 or rest[0] != "show":
             return "", "usage: pacs object show <object-id>", 1
         return _cmd_object_show(state, rest[1])
     if subcommand == "routes":
+        if rest:
+            return "", "usage: pacs routes", 1
         return _cmd_routes(node)
     if subcommand == "route":
         if len(rest) == 2 and rest[0] == "show":
@@ -65,12 +88,16 @@ def run(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> tuple[s
 
         return "", "usage: pacs route <show <route-id>|test <route-id> <object-id>>", 1
     if subcommand == "jobs":
+        if rest:
+            return "", "usage: pacs jobs", 1
         return _cmd_jobs(state)
     if subcommand == "job":
         if len(rest) != 2 or rest[0] != "show":
             return "", "usage: pacs job show <job-id>", 1
         return _cmd_job_show(state, rest[1])
     if subcommand == "events":
+        if rest:
+            return "", "usage: pacs events", 1
         return _cmd_events(state)
 
     return "", f'pacs: unknown subcommand "{subcommand}"', 1
