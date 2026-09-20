@@ -13,6 +13,7 @@ from typing import Any
 
 from app import find
 from app.content import NodeDefinition, load_dataset
+from app.operations import objects as runtime_objects
 
 NON_NETWORK_COMMANDS = {"ping", "ls", "cat", "echo", "clear", "help"}
 
@@ -270,7 +271,7 @@ def exec_command(
     if tool == "findscu":
         return _exec_findscu(node, state, args)
     if tool == "storescu":
-        return _exec_storescu(node, state, args)
+        return _exec_storescu(node, state, host_name, args)
     if tool == "dcmdump":
         return _exec_dcmdump(node, args)
     if tool == "dcmftest":
@@ -659,7 +660,9 @@ def _exec_findscu_against_worklist(
     return ExecResult(stdout=stdout)
 
 
-def _exec_storescu(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
+def _exec_storescu(
+    node: NodeDefinition, state: dict[str, Any], host_name: str, args: list[str],
+) -> ExecResult:
     parsed = _parse_dcmtk_args("storescu", args)
 
     if parsed["ip"] is None or parsed["port"] is None:
@@ -727,6 +730,20 @@ def _exec_storescu(node: NodeDefinition, state: dict[str, Any], args: list[str])
     bestand["studies"] = 1
     bestand["series"] = 1
     bestand["instances"] += 1
+
+    # ADR 0120, Phase A: RuntimeObject/Presence zusaetzlich zum unveraenderten
+    # `bestand`-Zaehler fuehren -- storescu und send_study muenden ab hier in
+    # derselben zentralen store_object()-Operation. `origin_host` ist der
+    # sendende Host (die Shell, von der aus storescu ausgefuehrt wird), nicht
+    # das Ziel-Archiv -- Presence (wo das Objekt jetzt LIEGT) ist davon
+    # unabhaengig und bleibt am Ziel-Host. `result.target_host` ist an dieser
+    # Stelle nie None (accepted=True setzt ihn immer, siehe check_association)
+    # -- die Pruefung narrowed nur den Typ fuer mypy.
+    if result.target_host is not None:
+        object_id = runtime_objects.resolve_object_from_environment_object(
+            state, obj, origin_host=host_name,
+        )
+        runtime_objects.store_object(state, object_id, result.target_host)
 
     return ExecResult(exit_code=0)
 
@@ -850,6 +867,39 @@ def trigger_action(
     bestand["studies"] = 1
     bestand["series"] = 1
     bestand["instances"] = file_count
+
+    # ADR 0120, Phase A: `send_study` kennt (anders als `storescu`) keine
+    # einzelnen Objekte, nur einen file_count aus datasets.yml -- synthetisiert
+    # `file_count` RuntimeObjects deterministisch (eine Study, eine Series,
+    # konsistent mit der bestehenden Vereinfachung der C-FIND-Simulation, siehe
+    # _exec_findscu SERIES-Ebene) und fuehrt sie ueber dieselbe store_object()
+    # -Operation wie storescu. Modality/SOP-Class/Transfer-Syntax kommen nur
+    # aus der vorhandenen Sender-Konfiguration -- nichts wird erfunden, was der
+    # heutige Node-/Datensatz-Kontext nicht hergibt.
+    dataset = load_dataset(node.dataset_slug) if node.dataset_slug else None
+    dataset = dataset or {}
+    study_uid = _study_instance_uid(node)
+    series_uid = _series_instance_uid(node)
+    study_description = dataset.get("study")
+    series_description = dataset.get("series", [None])[0]
+
+    # result.target_host ist hier nie None (siehe Kommentar in _exec_storescu).
+    if result.target_host is not None:
+        for index in range(1, file_count + 1):
+            object_id = runtime_objects.resolve_synthetic_object(
+                state,
+                node_slug=node.slug,
+                host_name=host_name,
+                index=index,
+                study_uid=study_uid,
+                series_uid=series_uid,
+                sop_class=config.get("sop_class"),
+                modality=config.get("modality"),
+                transfer_syntax=config.get("transfer_syntax"),
+                study_description=study_description,
+                series_description=series_description,
+            )
+            runtime_objects.store_object(state, object_id, result.target_host)
 
     log = [
         f"{timestamp}  Sendeauftrag – Verbindungsaufbau {target_ip}:{target_port} …",
