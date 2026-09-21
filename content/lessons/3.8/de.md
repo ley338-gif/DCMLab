@@ -38,7 +38,7 @@ $ dcmdump +P SOPClassUID +P Modality rdsr-ct-thorax.dcm
 ```
 
 **Was du daran abliest:** `Modality` meldet nur `SR` — denselben Wert,
-den jeder andere Structured Report ebenfalls meldet. Ein Key Object
+den viele andere SR-Dokumenttypen ebenfalls melden. Ein Key Object
 Selection Document zählt dabei nicht dazu: Es trägt `Modality = KO`,
 nicht `SR` (Lektion 3.5). Erst `SOPClassUID` (0008,0016) sagt präzise,
 dass hier ein `XRayRadiationDoseSRStorage` vorliegt: der klassische
