@@ -3,7 +3,7 @@ title: „Association rejected" — die Verbindung kommt gar nicht erst zustande
 teaser: Eine Verbindung, die gar nicht erst zustande kommt, hat mehrere mögliche Ursachen zwischen Netzwerk und DICOM — dieses Kapitel zeigt, wie du sie sauber auseinanderhältst.
 objectives:
   - Netzwerk-/TCP-Fehler eindeutig von einer DICOM-Association-Ablehnung unterscheiden
-  - Eine Association-Rejection von einem späteren Association-Abort unterscheiden
+  - Eine Association-Rejection (Result/Source/Reason) von einem Association-Abort unterscheiden, unabhängig davon, wie weit die Verhandlung zuvor gekommen war
   - Called und Calling AE Title anhand des Ablehnungsgrunds richtig zuordnen, ohne daraus vorschnell die zu ändernde Konfigurationsseite abzuleiten
   - Die Aussagekraft eines erfolgreichen C-ECHO korrekt begrenzen
 ---
@@ -60,7 +60,7 @@ E: TCP Initialisation Error: [Errno 111] Connection refused
 I: Aborting Association
 ```
 
-**Was du daran abliest:** „Connection refused" heißt: Der Host antwortet, aber auf diesem Port nimmt aktuell niemand die Verbindung an. Das klingt eindeutiger, als es ist — eine Firewall-Regel, die aktiv mit `REJECT` statt mit stillem `DROP` antwortet, erzeugt exakt dasselbe Bild. „Connection refused" beweist also „kein akzeptierender Listener aus Sicht des Absenders", nicht zwingend „hier läuft überhaupt kein Dienst". Ein reiner Timeout (gar keine Antwort statt einer sofortigen Ablehnung) sieht dagegen komplett anders aus und deutet eher auf ein still verwerfendes `DROP` oder eine Route ins Leere — ein eigenes Fehlerbild mit eigener Ursache, siehe Lektion 4.4.
+**Was du daran abliest:** „Connection refused" heißt: Der TCP-Verbindungsversuch wurde aktiv zurückgewiesen (ein TCP-RST) — häufig, weil auf dem angesprochenen Port kein Dienst lauscht. Es kann aber ebenso ein aktives Firewall- oder Netzwerk-`REJECT` irgendwo auf dem Weg sein, nicht zwingend vom Zielhost selbst. „Connection refused" beweist deshalb nicht pauschal, dass der Zielhost geantwortet hat oder überhaupt sicher erreichbar ist — nur, dass irgendetwas auf dem Weg dorthin aktiv abgelehnt hat, nicht zwingend „hier läuft überhaupt kein Dienst". Ein reiner Timeout (gar keine Antwort statt einer sofortigen Ablehnung) sieht dagegen komplett anders aus und deutet eher auf ein still verwerfendes `DROP` oder eine Route ins Leere — ein eigenes Fehlerbild mit eigener Ursache, siehe Lektion 4.4.
 
 ```text
 $ echoscu -v -aet MEINE-WS -aec ORTHANC 10.255.255.1 4242
@@ -70,7 +70,7 @@ E: TCP Initialisation Error: [Errno 101] Network is unreachable
 I: Aborting Association
 ```
 
-**Was du daran abliest:** Eine andere Fehlermeldung für ein anderes Problem — hier fehlt jede Route zum Zielnetz, die Anfrage verlässt den eigenen Host gar nicht erst. Vier Meldungen für vier unterscheidbare Ursachen, die sich nicht gegenseitig ersetzen: `Connection refused` (Port erreichbar, niemand nimmt ab oder eine Firewall lehnt aktiv ab), `Network unreachable` (keine Route zum Zielnetz), `Host unreachable` (das Zielnetz ist erreichbar, der einzelne Host darin nicht) und ein reiner Timeout (gar keine Antwort). Die ersten beiden lassen sich hier live zeigen; `Host unreachable` und der reine Timeout brauchen eine andere Netzwerktopologie und sind Thema von Lektion 4.4.
+**Was du daran abliest:** Eine andere Fehlermeldung für ein anderes Problem — aus Sicht des eigenen Netzwerkstacks gibt es keine nutzbare Route zum Zielnetz, die Anfrage verlässt den lokalen Host gar nicht erst in Richtung des Ziels. Für den hier konkret nachgebauten, isolierten Docker-Aufbau lässt sich das genau benennen: Das Egress-lose interne Docker-Netz hatte schlicht keine Route nach außen — dieselbe Absicherung, die die echte Spielwiese laut ADR 0008 bewusst einsetzt. Vier Meldungen für vier unterscheidbare Ursachen, die sich nicht gegenseitig ersetzen: `Connection refused` (irgendetwas auf dem Weg lehnt aktiv ab — Zielhost oder Firewall, nicht zwingend „kein Dienst"), `Network unreachable` (aus Sicht des eigenen Netzwerkstacks keine Route zum Zielnetz), `Host unreachable` (typischerweise: eine Route zum Zielnetz existiert, aber der konkrete Zielhost antwortet auf dieser Route nicht — hier nicht live geprüft) und ein reiner Timeout (gar keine Antwort). Die ersten beiden lassen sich hier live zeigen; `Host unreachable` und der reine Timeout brauchen eine andere Netzwerktopologie und sind Thema von Lektion 4.4.
 
 ## Association Request, Accept, Reject und Abort
 
@@ -81,17 +81,24 @@ Stimmen Host und Port, verhandelt DICOM als Nächstes die {{term:association}} s
 - **A-ASSOCIATE Reject (A-ASSOCIATE-RJ)** — die Gegenstelle lehnt ab, *bevor* die Association zustande gekommen ist.
 - **A-ABORT** (bzw. providerseitig **A-P-ABORT**) — eine bereits stehende oder in Verhandlung befindliche Association wird abgebrochen.
 
-Der Unterschied ist mehr als Wortklauberei: Eine **Rejection** ist die ordentliche, ausgehandelte Antwort auf einen Verbindungsversuch, mit einem definierten Grund. Ein **Abort** kommt später oder bei einem unerwarteten Protokollfehler und trägt keinen fachlichen Ablehnungsgrund im selben Sinn (PS3.8 Tabelle 9-26, Abschnitt 9.3.8: providerseitig etwa `unrecognized-PDU` oder `unexpected-PDU`). Wer im Log „Abort" statt „Rejected" liest, ist bereits einen Schritt weiter als bei einer reinen Rejection.
+Der Unterschied ist mehr als Wortklauberei, auch wenn beide Meldungsarten im Alltag gleich klingen können: „es kam keine Verbindung zustande":
+
+- **A-ASSOCIATE-RJ** ist die bestätigte, ausgehandelte Ablehnung des Verbindungsaufbaus selbst — mit den drei Angaben Result/Source/Reason-Diagnostic aus der Tabelle unten.
+- **A-ABORT** (userseitig) bzw. **A-P-ABORT** (providerseitig) ist dagegen ein abrupter Abbruch, ausgelöst entweder vom Service-User selbst oder vom Service-Provider (PS3.8 Tabelle 9-26, Abschnitt 9.3.8: providerseitig z. B. `unrecognized-PDU` oder `unexpected-PDU`).
+- Ein Abort kann **während der laufenden Verhandlung** auftreten oder **nachdem die Association bereits vollständig aufgebaut war** — beides ist möglich, der Standard unterscheidet im Reason/Diagnostic-Feld nicht danach, wie weit die Verhandlung zuvor gekommen war.
+- Aus der bloßen Meldung „Abort" folgt deshalb **nicht automatisch**, ob überhaupt schon eine Association stand oder der Abbruch noch während der Verhandlung kam — das lässt sich nur am umgebenden Log bzw. Zeitstempel ablesen, nicht am PDU-Typ allein.
 
 Für eine A-ASSOCIATE-RJ definiert der Standard drei Angaben (PS3.8 Tabelle 9-21, Abschnitt 9.3.4):
 
 | Feld | Bedeutung |
 |---|---|
 | Result | `rejected-permanent` oder `rejected-transient` — bei „permanent" ist ein erneuter Versuch mit denselben Werten sinnlos |
-| Source | Wer die Ablehnung ausspricht — hier immer die Gegenstelle selbst (DICOM UL service-user), nicht das Netzwerk |
-| Reason/Diagnostic | Der konkrete Grund, u. a. `calling-AE-title-not-recognized` und `called-AE-title-not-recognized` |
+| Source | Wer ablehnt: `DICOM UL service-user` (die Gegenstelle selbst, aus fachlichen Gründen), `DICOM UL service-provider (ACSE-related)` oder `DICOM UL service-provider (Presentation-related)` — alle drei sind Protokollebene, keine Netzwerkebene |
+| Reason/Diagnostic | Der konkrete Grund; `calling-AE-title-not-recognized` und `called-AE-title-not-recognized` gelten bei Source `DICOM UL service-user` |
 
-Zwei dieser Gründe stehen im Zentrum dieser Lektion und werden häufig verwechselt:
+Wichtig zur Abgrenzung nach oben: Ein A-ASSOCIATE-RJ ist immer eine echte DICOM-PDU. Die TCP-/Netzwerkfehler aus dem vorigen Abschnitt (`Connection refused`, `Network is unreachable`) erzeugen **keine** A-ASSOCIATE-RJ — dafür müsste überhaupt erst eine TCP-Verbindung stehen, auf der sich DICOM-PDUs austauschen lassen. Beide Fehlerklassen gehören zu dieser Lektion, sind aber auf Protokollebene strikt getrennt.
+
+Zwei der `DICOM UL service-user`-Gründe stehen im Zentrum dieser Lektion und werden häufig verwechselt:
 
 - **`Called AE Title Not Recognized`** — die Gegenstelle wurde unter einem Namen angesprochen, den sie nicht als ihren eigenen erkennt.
 - **`Calling AE Title Not Recognized`** — die Gegenstelle kennt zwar ihren eigenen Namen, aber nicht den des Anrufers.
@@ -125,8 +132,8 @@ Genau diese beiden Ablehnungen zu erleben — und zu beheben — ist die Aufgabe
 | Beobachtung | Bewiesen | Nicht bewiesen | Nächster Schritt |
 |---|---|---|---|
 | `ping` zum Ziel antwortet | Host im Netz erreichbar | nichts über TCP-Port oder DICOM | `echoscu` gegen den Zielport probieren |
-| `echoscu` liefert `Connection refused` | Host erreichbar, aber kein Dienst nimmt auf diesem Port an (oder eine Firewall lehnt aktiv ab) | dass generell kein Dienst existiert — evtl. falscher Port | Port mit dem Betreiber der Gegenstelle abgleichen |
-| `echoscu` liefert `Network is unreachable` | Es gibt vom eigenen Host aus keine Route zum Zielnetz | irgendetwas über den Zielhost selbst, falls die Route existierte | Routing/Firewall zwischen den Netzen prüfen (Lektion 4.4) |
+| `echoscu` liefert `Connection refused` | Der TCP-Verbindungsversuch wurde aktiv zurückgewiesen (RST) — durch den Zielhost selbst oder ein Gerät auf dem Weg dorthin | dass der Zielhost selbst geantwortet hat, dass generell kein Dienst existiert, oder dass der Host sicher erreichbar ist | Port und Erreichbarkeit mit dem Betreiber der Gegenstelle abgleichen |
+| `echoscu` liefert `Network is unreachable` | Aus Sicht des eigenen Netzwerkstacks gibt es keine nutzbare Route zum Zielnetz | irgendetwas über den Zielhost selbst, falls eine Route existierte | Routing/Firewall zwischen den Netzen prüfen (Lektion 4.4) |
 | `echoscu` von der eigenen Workstation mit bekannten, funktionierenden Werten läuft erfolgreich | Die Association funktioniert mit *genau diesen* Werten | dass die tatsächlich betroffene Modalität mit *ihren* Werten ebenfalls durchkäme | denselben Test mit den tatsächlichen Werten der betroffenen Modalität wiederholen |
 | Association abgelehnt: `Called AE Title Not Recognized` | Der angesprochene Name wird von der Gegenstelle nicht als der eigene erkannt | welche der beiden Seiten vom vereinbarten Soll-Zustand abweicht | Soll-Konfiguration beider Seiten vergleichen (nächster Abschnitt) |
 | Association abgelehnt: `Calling AE Title Not Recognized` | Der Absendername ist beim Ziel nicht als bekannter Calling AE Title registriert | welche der beiden Seiten vom vereinbarten Soll-Zustand abweicht | Soll-Konfiguration beider Seiten vergleichen |
@@ -152,10 +159,10 @@ Node **„Silent CT"** (dein Lab zu dieser Lektion): Der Fehler liegt auf der **
 
 ## Stolperfallen
 
-- **„Connection refused heißt, da läuft nichts."** Nicht zwingend — eine Firewall, die aktiv ablehnt statt still zu verwerfen, erzeugt dasselbe Bild.
+- **„Connection refused heißt, der Zielhost hat geantwortet, nur der Dienst läuft dort nicht."** Auch ein aktives Firewall- oder Netzwerk-`REJECT` irgendwo auf dem Weg erzeugt dasselbe Bild — weder ist damit sicher, dass der Zielhost selbst geantwortet hat, noch dass er allgemein erreichbar ist.
 - **„Der Ablehnungsgrund sagt mir, welche Seite ich ändern muss."** Er sagt nur, welcher Name betroffen ist. Welche Seite vom vereinbarten Soll-Zustand abweicht, zeigt erst der Vergleich.
 - **„C-ECHO von meiner Workstation lief, also ist das Archiv nicht schuld."** Bewiesen ist nur, dass genau dieser Absender mit genau diesen Werten akzeptiert wurde — nicht, dass die tatsächlich betroffene Modalität mit ihren eigenen Werten ebenfalls durchkäme.
-- **Association-Rejection mit Association-Abort verwechseln.** Eine Rejection kommt vor der stehenden Association mit einem definierten Grund; ein Abort kommt später oder bei einem Protokollfehler und trägt keinen vergleichbaren fachlichen Grund.
+- **Association-Rejection mit Association-Abort verwechseln.** Eine Rejection ist die bestätigte Ablehnung des Verbindungsaufbaus mit Result/Source/Reason; ein Abort ist ein abrupter Abbruch durch Service-User oder Service-Provider, der sowohl während der Verhandlung als auch nach einer bereits stehenden Association auftreten kann — aus „Abort" allein folgt nicht, wie weit es vorher kam.
 - **AE Titles wie Hostnamen behandeln.** Zeichengenau, case-sensitive — Bindestrich und Unterstrich sind zwei verschiedene Zeichen.
 
 ## Selbstcheck
@@ -163,7 +170,7 @@ Node **„Silent CT"** (dein Lab zu dieser Lektion): Der Fehler liegt auf der **
 1. Ein Sendeauftrag scheitert mit `Connection refused`. Welche zwei Erklärungen sind beide möglich — und was schließt diese Meldung noch nicht aus?
 2. Die Fehlermeldung nennt `Calling AE Title Not Recognized`. Was genau sagt das aus — und was nicht?
 3. Warum beweist ein erfolgreiches C-ECHO von deiner eigenen Workstation nicht, dass die tatsächlich betroffene Modalität mit ihren eigenen Werten ebenfalls durchkäme?
-4. Worin unterscheidet sich eine Association-Rejection von einem Association-Abort?
+4. Worin unterscheidet sich eine Association-Rejection von einem Association-Abort — und was verrät die bloße Meldung „Abort" noch nicht darüber, wie weit die Verhandlung zuvor gekommen war?
 
 ## Quiz
 
@@ -186,7 +193,7 @@ Node **„Silent CT"** (dein Lab zu dieser Lektion): Der Fehler liegt auf der **
 2. Falsch
 
 **q4 — Ein Sendeauftrag von `CT_RAUM3` scheitert. `echoscu` von der Workstation mit `DCMLAB-WS` gegen dieselbe Zieladresse (`PACS-ARCHIV`) läuft erfolgreich. Welche Aussagen sind dadurch gerechtfertigt?** *(Mehrfachauswahl)*
-1. Das Archiv nimmt grundsätzlich Verbindungen entgegen
+1. Zum Zeitpunkt dieses Tests hat das Archiv unter `PACS-ARCHIV` eine Association mit genau den Werten Calling `DCMLAB-WS` / Called `PACS-ARCHIV` angenommen
 2. Damit ist bewiesen, dass auch `CT_RAUM3`s eigene Werte akzeptiert würden
 3. Der Fehler lässt sich nicht mehr durch einen komplett ausgefallenen oder unerreichbaren Archivdienst erklären
 4. Um sicher zu sein, muss der Fehler mit `CT_RAUM3`s tatsächlichen Werten nachgestellt werden
