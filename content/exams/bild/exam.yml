@@ -306,7 +306,7 @@ questions:
     type: multi
     answer: [0, 2]
     lesson: "3.8"
-    review: { lesson: "3.8", anchor: "vier-stationen-vier-moegliche-fehler" }
+    review: { lesson: "3.8", anchor: "sechs-stationen-sechs-moegliche-fehler" }
     difficulty: 3
     tags: [integration, datenmodell]
 
@@ -314,7 +314,7 @@ questions:
     type: truefalse
     answer: false
     lesson: "3.8"
-    review: { lesson: "3.8", anchor: "vier-stationen-vier-moegliche-fehler" }
+    review: { lesson: "3.8", anchor: "sechs-stationen-sechs-moegliche-fehler" }
     difficulty: 2
     tags: [integration]
 
