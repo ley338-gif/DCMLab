@@ -291,7 +291,7 @@ structured-report:
 radiation-dose-structured-report:
   term: Radiation Dose Structured Report
   expansion: Radiation Dose Structured Report (RDSR)
-  short: Ein Structured Report mit standardisiertem Content-Baum für Dosiswerte einer Untersuchung — für CT durch TID 10011–10013 festgelegt.
+  short: Ein Structured Report mit standardisiertem Content-Baum für Dosiswerte einer Untersuchung. Beim klassischen CT-RDSR strukturieren TID 10011–10013 Bericht, Summenwerte und einzelne Bestrahlungsereignisse — nicht alle RDSR-Arten verwenden dieselbe Wurzel.
   see_also: [structured-report, sop-class]
   lesson: "3.8"
 

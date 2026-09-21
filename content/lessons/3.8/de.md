@@ -26,9 +26,9 @@ Metadaten.
 
 ### RDSR ist strukturierte Information
 
-Ein Radiation Dose Structured Report enthält Dosisinformationen nicht
-als Screenshot, sondern als maschinenlesbare Inhalte in einem DICOM
-Structured Report — dieselbe Objektfamilie, die du in Lektion 3.5
+Ein {{term:radiation-dose-structured-report}} enthält Dosisinformationen
+nicht als Screenshot, sondern als maschinenlesbare Inhalte in einem
+DICOM Structured Report — dieselbe Objektfamilie, die du in Lektion 3.5
 kennengelernt hast.
 
 ```text
@@ -38,14 +38,15 @@ $ dcmdump +P SOPClassUID +P Modality rdsr-ct-thorax.dcm
 ```
 
 **Was du daran abliest:** `Modality` meldet nur `SR` — denselben Wert,
-den jeder andere Structured Report auch melden würde. Erst
-`SOPClassUID` (0008,0016) sagt präzise, dass hier ein
-`XRayRadiationDoseSRStorage` vorliegt: der klassische X-Ray Radiation
-Dose SR, `1.2.840.10008.5.1.4.1.1.88.67` (PS3.4 Annex B.5). `Modality =
-SR` ist dabei nur eine grobe Einordnung — sie steht identisch bei einem
-einfachen Befundtext, einem Key Object Selection Document oder einem
-{{term:radiation-dose-structured-report}}. Nur die `SOPClassUID`
-unterscheidet die drei konkret. Diese Lektion behandelt ausschließlich
+den jeder andere Structured Report ebenfalls meldet. Ein Key Object
+Selection Document zählt dabei nicht dazu: Es trägt `Modality = KO`,
+nicht `SR` (Lektion 3.5). Erst `SOPClassUID` (0008,0016) sagt präzise,
+dass hier ein `XRayRadiationDoseSRStorage` vorliegt: der klassische
+X-Ray Radiation Dose SR, `1.2.840.10008.5.1.4.1.1.88.67` (PS3.4 Annex
+B.5). `Modality = SR` ist dabei nur eine grobe Einordnung — sie
+unterscheidet ein RDSR nicht von einem einfachen Befundtext-SR oder
+einem anderen, eigenständigen Dose-SR-SOP-Class-Dokument; das leistet
+ausschließlich die `SOPClassUID`. Diese Lektion behandelt ausschließlich
 das klassische X-Ray Radiation Dose SR `.88.67` — der Standard kennt
 daneben weitere, eigenständige Dose-SR-SOP-Classes (z. B. für andere
 Modalitäten); die hier gezeigten Werte und Content-IDs gelten nicht
@@ -71,9 +72,13 @@ Messwert), einen `ConceptNameCodeSequence`-Code, der sagt, *was* das
 Element bedeutet, und bei `NUM` zusätzlich einen Zahlenwert mit
 codierter Einheit. Genau dieser Baum ist RDSRs eigentlicher Inhalt.
 
-Ein echtes, per `pydicom` gebautes RDSR (Root-Template TID 10011, CT
-Radiation Dose) — bewusst auf die für diese Lektion relevanten Zweige
-gekürzt, kein vollständiges Conformance-Objekt:
+Ein synthetisches, strukturell reduziertes Lehrbeispiel im
+DICOM-Part-10-Format, per `pydicom` gebaut (Root-Container `(113701,
+DCM, "X-Ray Radiation Dose Report")`, angelehnt an TID 10011 CT
+Radiation Dose) — einzelne Codes, Einheiten und Beziehungen wurden
+anhand von PS3.16 gewählt, das Beispiel lässt aber bewusst
+IOD-Pflichtinhalte aus und erhebt keinen Anspruch auf vollständige
+IOD-/TID-Konformität:
 
 ```text
 $ dcmdump rdsr-ct-thorax.dcm
@@ -230,7 +235,7 @@ $ dcmdump rdsr-ct-thorax.dcm
 
 **Was du daran abliest:** Der Root-Content-Item trägt `ValueType
 CONTAINER` mit dem Code `(113701, DCM, "X-Ray Radiation Dose Report")`
-— das ist TID 10011, die Wurzel jedes RDSR. Direkt darunter, als erstes
+— das ist TID 10011, die Wurzel dieses klassischen CT-RDSR. Direkt darunter, als erstes
 Element der `ContentSequence`, folgt ein zweiter `CONTAINER` mit Code
 `(113811, DCM, "CT Accumulated Dose Data")` (TID 10012) — der
 Gesamtwerte-Block. Seine eigene `ContentSequence` enthält zwei
@@ -252,25 +257,35 @@ Damit lässt sich der Gesamtwert auch nachrechnen: `221.00 + 205.10 =
 426.10` — genau der `CT Dose Length Product Total`-Wert von oben, bei
 `Total Number of Irradiation Events = 2`. Ein RDSR trägt also sowohl
 Gesamtwerte als auch Werte je einzelnem Irradiation Event, und der
-Standard erlaubt für `TID 10013` ausdrücklich `1-n` Events — bei mehr
-als einer CT-Serie in derselben Untersuchung ist das der Normalfall,
-kein Sonderfall.
+Standard erlaubt für `TID 10013` ausdrücklich `1-n` Events. Ein
+Irradiation Event ist dabei eine einzelne, zusammenhängende
+Strahlungsauslösung bzw. Akquisition — keine DICOM-Serie: Event und
+Series stehen in keiner 1:1-Beziehung, eine einzelne Akquisition kann
+mehrere Serien erzeugen (z. B. zusätzliche Rekonstruktionen), und die
+Zahl der `CT Acquisition`-Container im RDSR richtet sich nach der Zahl
+der tatsächlichen Strahlungsauslösungen, nicht nach der Zahl der
+Bildserien.
 
-Eine Study kann außerdem mehr als eine RDSR-Instance enthalten (z. B.
-bei nachträglicher Korrektur oder mehreren getrennten Untersuchungen
-derselben Study) — „ein RDSR pro Study" ist keine Regel, auf die du dich
-verlassen darfst.
+Eine Study kann außerdem mehr als eine RDSR-Instance enthalten — etwa
+bei mehreren getrennten Performed Procedure Steps, bei Beteiligung
+mehrerer Geräte oder bei unterschiedlichem Berichtsumfang (Scope of
+Accumulation) je Instance — „ein RDSR pro Study" ist keine Regel, auf
+die du dich verlassen darfst.
 
 ## Was darf man aus den Werten ableiten – und was nicht?
 
 `CTDIvol` und `DLP` sind standardisierte Dosisindizes: Protokoll- und
 Gerätewerte, die aus der Scanner-Einstellung berechnet werden — nicht
 automatisch die individuelle absorbierte Organdosis dieser einen
-Patientin. `DLP` ist außerdem nicht ohne Weiteres gleich der effektiven
-Dosis; eine Umrechnung bräuchte zusätzliche, körperregionabhängige
-Umrechnungsfaktoren, die ein RDSR nicht selbst mitliefert (`CT Effective
-Dose Total`, TID 10012 Zeile 4, ist ein separates, optionales Feld mit
-eigener Berechnungsmethode).
+Patientin. Aus `DLP` allein lässt sich außerdem keine effektive Dosis
+ablesen; eine Umrechnung bräuchte zusätzliche, körperregionabhängige
+Umrechnungsfaktoren. Ein RDSR *kann* optional eigene
+Effective-Dose-Angaben und den zugehörigen Berechnungskontext enthalten
+(`CT Effective Dose Total`, TID 10012, mit eigenem
+Berechnungsmethoden-Code) — sind solche Werte vorhanden, musst du
+prüfen, welche Berechnungsmethode, welches Referenzmodell und welche
+Umrechnungsfaktoren tatsächlich verwendet wurden, bevor du den Wert
+weiterverwendest.
 
 Diese Lektion vermittelt deshalb technische Interpretation und
 Workflow-Diagnostik — lesen, zuordnen, auf Vollständigkeit prüfen. Keine
