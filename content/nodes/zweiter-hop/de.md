@@ -89,10 +89,10 @@ evt-009  job.failed       obj-002  PACS-TO-POSTPROC  j-002  reason=abstract_synt
 
 **Was du daran abliest:** `route.evaluated` zeigt `matched=true` — die
 Route `PACS-TO-POSTPROC` hat `obj-002` ausdrücklich ausgewählt, genau wie
-`obj-001`. Die Route ist also nicht die Ursache. Erst danach, beim
-tatsächlichen Zustellversuch, scheitert der Job mit
-`reason=abstract_syntax_not_supported`. Kein `job.sent` für dieses
-Objekt.
+`obj-001`. Die Route ist nicht die Stelle, an der dieser Lauf technisch
+scheitert. Erst danach, beim tatsächlichen Zustellversuch, scheitert der
+Job mit `reason=abstract_syntax_not_supported`. Kein `job.sent` für
+dieses Objekt.
 
 ```
 $ pacs route test PACS-TO-POSTPROC obj-002
@@ -132,38 +132,49 @@ Endian) ist bei beiden Objekten identisch.
    `dcmdump`: Beide Objekte verwenden identisch
    `1.2.840.10008.1.2.1`, und der Fehlgrund lautet ausdrücklich
    `abstract_syntax_not_supported`, nicht `transfer_syntaxes_not_supported`.
-4. **Das Postprocessing-System unterstützt die konkrete SOP Class des
-   Objekts nicht.** Bestätigt: Ein Weiterleitungsjob wurde erzeugt (die
-   Route hat gematcht), scheitert aber beim Zustellversuch mit
-   `reason=abstract_syntax_not_supported` — der Zielservice akzeptiert
-   Enhanced CT Image Storage nicht, obwohl er CT Image Storage und
-   dieselbe Transfer Syntax akzeptiert.
+4. **Der Storage-Endpunkt des Postprocessing-Systems akzeptiert die
+   konkrete SOP Class des Objekts nicht.** Bestätigt: Ein
+   Weiterleitungsjob wurde erzeugt (die Route hat gematcht), scheitert
+   aber beim Zustellversuch mit `reason=abstract_syntax_not_supported` —
+   der Zielservice akzeptiert keinen Presentation Context für Enhanced CT
+   Image Storage, obwohl er CT Image Storage und dieselbe Transfer Syntax
+   akzeptiert.
 
 ### Wo die erste fehlerhafte Stelle liegt
 
-Nicht das PACS, nicht die Route, nicht die Transfer Syntax — der
-Weiterleitungsversuch scheitert bereits bei der Aushandlung des
-Presentation Context, weil das nachgelagerte Postprocessing-System die
-Enhanced-CT-SOP-Class als Abstract Syntax nicht akzeptiert. Die Route
-`PACS-TO-POSTPROC` selektiert
-nach `Modality == CT` und wählt damit folgerichtig beide Objekttypen aus
-— klassisches CT und Enhanced CT tragen beide `Modality = CT`. Das
-Postprocessing-System selbst unterstützt aber nur klassisches CT Image
-Storage (`1.2.840.10008.5.1.4.1.1.2`), nicht Enhanced CT Image Storage
-(`1.2.840.10008.5.1.4.1.1.2.1`).
+Nicht das PACS, nicht die Route, nicht die Transfer Syntax. Die Route
+`PACS-TO-POSTPROC` selektiert nach `Modality == CT` und wählt damit
+folgerichtig beide Objekttypen aus — klassisches CT und Enhanced CT
+tragen beide `Modality = CT`. Die Route hat das Objekt also ausgewählt;
+dort tritt der technische Fehler nicht auf.
+
+Das nachgelagerte Postprocessing-System lehnt die Enhanced-CT-SOP-Class
+während der Presentation-Context-Aushandlung ab — bevor überhaupt ein
+C-STORE stattfinden kann. Damit ist bewiesen, dass dieser DICOM-Storage-
+Endpunkt Enhanced CT Image Storage (`1.2.840.10008.5.1.4.1.1.2.1`) nicht
+annimmt, während er CT Image Storage (`1.2.840.10008.5.1.4.1.1.2`)
+akzeptiert. Ob die eigentliche Postprocessing-Anwendung dahinter Enhanced
+CT verarbeiten könnte, lässt sich daraus allein nicht ableiten — dieser
+Node beweist nur die DICOM-Storage-Annahmefähigkeit, nicht die fachliche
+Verarbeitung dahinter (vgl. Lektion 3.7: Storage-Support ≠
+Verarbeitungs-Support).
 
 Route-Match und erfolgreiche Zustellung sind damit zwei unterschiedliche
 Betriebsgrenzen: Eine Route kann ein Objekt korrekt auswählen, und der
-eigentliche Transfer kann trotzdem an der Fähigkeit des Zielsystems
-scheitern, den konkreten Objekttyp zu verarbeiten.
+eigentliche Transfer kann trotzdem an der Annahmefähigkeit des
+Ziel-Storage-SCPs scheitern.
 
 ### Saubere betriebliche Maßnahme
 
-Kurzfristig kann die Route bewusst auf nachweislich unterstützte SOP
-Classes begrenzt werden, um dauerhaft fehlschlagende Jobs zu vermeiden.
-Die eigentliche Integrationslösung ist jedoch die abgestimmte
-Enhanced-CT-Unterstützung des Zielsystems; bei einer späteren Erweiterung
-muss die Route entsprechend angepasst werden.
+Wenn Enhanced CT am Postprocessing tatsächlich benötigt wird, müssen zwei
+getrennte Fähigkeiten geprüft werden: erstens, ob der Storage SCP die SOP
+Class überhaupt annimmt, und zweitens, ob die Anwendung dahinter sie auch
+auswerten kann — dieser Node beweist nur das Fehlen der ersten
+Voraussetzung, nicht das Vorhandensein oder Fehlen der zweiten. Ist
+Enhanced CT dort gar nicht vorgesehen, kann die Route kurzfristig bewusst
+auf nachweislich unterstützte SOP Classes begrenzt werden, um dauerhaft
+fehlschlagende Jobs zu vermeiden; bei einer späteren Erweiterung des
+Zielsystems muss die Route dann entsprechend angepasst werden.
 
 ### Was du mitnimmst
 
@@ -189,8 +200,8 @@ nichts über Verarbeitungs-Unterstützung an einer anderen.
 Bei „Gefiltert" schließt die Route das Objekt bereits bei der Auswahl aus
 — es entsteht nie ein Auftrag. Hier wählt dieselbe Art Route das Objekt
 korrekt aus, und der Auftrag entsteht auch — er scheitert erst beim
-tatsächlichen Zustellversuch, weil das Ziel den konkreten Objekttyp nicht
-verarbeiten kann. Zwei unterschiedliche Betriebsgrenzen derselben
+tatsächlichen Zustellversuch, weil der Ziel-Storage-SCP die SOP Class des
+Objekts nicht annimmt. Zwei unterschiedliche Betriebsgrenzen derselben
 automatischen PACS-Weiterleitung.
 
 ### Verwandte Inhalte
