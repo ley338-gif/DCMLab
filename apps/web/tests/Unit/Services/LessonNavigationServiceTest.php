@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Track;
@@ -90,5 +91,86 @@ class LessonNavigationServiceTest extends TestCase
 
         $this->assertSame(1, $sidebar['overall']['completed']);
         $this->assertSame(3, $sidebar['overall']['total']);
+    }
+
+    /**
+     * Published Content Boundary Hardening: eine Draft-/Review-/archivierte
+     * Geschwister-Lektion darf im aktuellen Track weder Titel noch einen
+     * echten Navigationslink preisgeben.
+     */
+    public function test_it_excludes_draft_siblings_from_the_current_track_for_a_learner(): void
+    {
+        $track = Track::factory()->create(['order' => 1, 'status' => 'published']);
+        $current = Lesson::factory()->create(['track_id' => $track->id, 'order' => 0, 'lesson_id' => '1.0']);
+        Lesson::factory()->create(['track_id' => $track->id, 'order' => 1, 'lesson_id' => '1.1', 'status' => 'draft']);
+
+        $user = User::factory()->create();
+
+        $sidebar = (new LessonNavigationService)->sidebarFor($user, $current);
+
+        $this->assertSame(['1.0'], collect($sidebar['current_track']['lessons'])->pluck('lesson_id')->all());
+    }
+
+    /**
+     * Gegenprobe: ein zugewiesener Reviewer sieht ueber LessonPolicy::view()
+     * seine eigene sichtbare Draft-Geschwister-Lektion weiterhin.
+     */
+    public function test_an_authorized_reviewer_still_sees_a_draft_sibling(): void
+    {
+        $track = Track::factory()->create(['order' => 1, 'status' => 'published']);
+        $current = Lesson::factory()->create(['track_id' => $track->id, 'order' => 0, 'lesson_id' => '1.0']);
+        Lesson::factory()->create(['track_id' => $track->id, 'order' => 1, 'lesson_id' => '1.1', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.1']);
+
+        $reviewer = User::factory()->reviewer()->create();
+
+        $sidebar = (new LessonNavigationService)->sidebarFor($reviewer, $current);
+
+        $this->assertSame(['1.0', '1.1'], collect($sidebar['current_track']['lessons'])->pluck('lesson_id')->all());
+    }
+
+    /**
+     * Fortschrittszaehler der uebrigen Tracks: eine Draft-Lesson darf den
+     * Nenner nicht aufblaehen (analog DashboardController::index()).
+     */
+    public function test_other_track_counters_exclude_draft_lessons(): void
+    {
+        $currentTrack = Track::factory()->create(['order' => 1, 'status' => 'published']);
+        $lesson = Lesson::factory()->create(['track_id' => $currentTrack->id, 'order' => 0]);
+
+        $otherTrack = Track::factory()->create(['order' => 2, 'status' => 'published']);
+        Lesson::factory()->count(2)->create(['track_id' => $otherTrack->id]);
+        Lesson::factory()->create(['track_id' => $otherTrack->id, 'status' => 'draft']);
+
+        $user = User::factory()->create();
+
+        $sidebar = (new LessonNavigationService)->sidebarFor($user, $lesson);
+
+        $this->assertSame(2, $sidebar['other_tracks'][0]['lessons_count']);
+    }
+
+    /**
+     * Historische Progress-Datensaetze von Inhalten, die spaeter wieder auf
+     * Draft gesetzt wurden, duerfen den globalen Gesamtfortschritt nicht
+     * verfaelschen -- weder als zusaetzlicher Nenner noch als zusaetzlicher
+     * Zaehler.
+     */
+    public function test_overall_progress_ignores_draft_lessons_and_historical_progress_on_a_reverted_lesson(): void
+    {
+        $track = Track::factory()->create(['status' => 'published']);
+        $lessonA = Lesson::factory()->create(['track_id' => $track->id, 'order' => 0]);
+        $lessonB = Lesson::factory()->create(['track_id' => $track->id, 'order' => 1]);
+
+        $user = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $user->id, 'lesson_id' => $lessonA->id,
+            'status' => 'completed', 'started_at' => now(), 'completed_at' => now(),
+        ]);
+        $lessonA->update(['status' => 'draft']);
+
+        $sidebar = (new LessonNavigationService)->sidebarFor($user, $lessonB);
+
+        $this->assertSame(0, $sidebar['overall']['completed']);
+        $this->assertSame(1, $sidebar['overall']['total']);
     }
 }

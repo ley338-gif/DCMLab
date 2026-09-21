@@ -188,14 +188,26 @@ final class ExamAttemptService
         $trackIds = $tracks->pluck('id')->all();
         $examSlugs = array_keys($this->content->exams());
 
+        // Published Content Boundary Hardening: nur AKTUELL veroeffentlichte
+        // Lessons zaehlen zum pruefbaren Track-Umfang -- eine zusaetzliche
+        // Draft-Lesson darf eine sonst vollstaendige veroeffentlichte
+        // Sequenz nicht blockieren, und Fortschritt auf einer Draft-Lesson
+        // darf keine Pruefung vorzeitig freischalten. Da beide Zaehler
+        // (total/completed) hier symmetrisch gefiltert sind, wirkt sich das
+        // auch auf eine Lesson aus, die WAEHREND sie veroeffentlicht war
+        // abgeschlossen und seither wieder auf Draft/Review/Archived
+        // gesetzt wurde: sie zaehlt fortan in keinem der beiden Zaehler
+        // mehr mit.
         $lessonTotals = Lesson::query()
             ->whereIn('track_id', $trackIds)
+            ->where('status', 'published')
             ->select('track_id', DB::raw('count(*) as total'))
             ->groupBy('track_id')
             ->pluck('total', 'track_id');
 
         $completedTotals = $user === null ? collect() : Lesson::query()
             ->whereIn('track_id', $trackIds)
+            ->where('status', 'published')
             ->whereHas('progress', fn ($query) => $query
                 ->where('user_id', $user->id)
                 ->where('status', 'completed'),

@@ -120,6 +120,79 @@ class LabControllerTest extends TestCase
             );
     }
 
+    /**
+     * Published Content Boundary Hardening: eine ueber `LessonElement`
+     * verknuepfte Lesson, die selbst nicht (mehr) veroeffentlicht ist, darf
+     * nach dem Loesen eines Labs weder ihren Titel noch ihre `lesson_id`
+     * (und damit einen echten Link) preisgeben -- derselbe Katalog-
+     * Fallback wie fuer ein Lab ganz ohne Lesson-Bezug.
+     */
+    public function test_next_step_falls_back_to_the_labs_catalog_when_the_owning_lesson_is_a_draft(): void
+    {
+        Lab::factory()->create(['slug' => 'c-echo-connectivity']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.6', 'track_id' => $track->id, 'status' => 'draft', 'title' => ['de' => 'Geheime Draft-Lektion']]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $activity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+        LabAttempt::create(['user_id' => $user->id, 'activity_id' => $activity->id, 'status' => 'solved', 'started_at' => now(), 'completed_at' => now()]);
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertInertia(fn ($page) => $page
+                ->where('next_step', ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null]),
+            );
+    }
+
+    /**
+     * Gegenprobe: ein zugewiesener Reviewer/Administrator sieht denselben
+     * Draft-Rueckweg ueber `LessonPolicy::view()` weiterhin -- keine
+     * Regression fuer die autorisierte Vorschau.
+     */
+    public function test_an_authorized_administrator_still_sees_the_draft_lessons_next_step(): void
+    {
+        Lab::factory()->create(['slug' => 'c-echo-connectivity']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.6', 'track_id' => $track->id, 'status' => 'draft', 'title' => ['de' => 'Geheime Draft-Lektion']]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $activity->id, 'position' => 0]);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.6']);
+
+        $admin = User::factory()->administrator()->create();
+
+        $this->actingAs($admin)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertInertia(fn ($page) => $page
+                ->where('next_step', ['type' => 'lesson', 'lesson_id' => '1.6', 'lesson_title' => 'Geheime Draft-Lektion']),
+            );
+    }
+
+    /**
+     * Regressionsschutz: ein geloestes Lab mit einer weiterhin
+     * veroeffentlichten Lesson zeigt unveraendert den echten Rueckweg,
+     * unabhaengig vom Solve-Status (wie test_show_reports_the_owning_
+     * lesson_as_the_next_step oben, hier zusaetzlich mit einem echten
+     * geloesten Attempt).
+     */
+    public function test_solved_lab_with_a_published_lesson_keeps_the_existing_next_step(): void
+    {
+        Lab::factory()->create(['slug' => 'c-echo-connectivity']);
+        $activity = Activity::factory()->create(['type' => 'lab', 'key' => 'c-echo-connectivity']);
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.6', 'track_id' => $track->id, 'title' => ['de' => 'Erste Verbindung']]);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $activity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+        LabAttempt::create(['user_id' => $user->id, 'activity_id' => $activity->id, 'status' => 'solved', 'started_at' => now(), 'completed_at' => now()]);
+
+        $this->actingAs($user)
+            ->get('/de/labs/c-echo-connectivity')
+            ->assertInertia(fn ($page) => $page
+                ->where('next_step', ['type' => 'lesson', 'lesson_id' => '1.6', 'lesson_title' => 'Erste Verbindung']),
+            );
+    }
+
     public function test_show_reports_the_live_runtime_status_and_assertion_checklist(): void
     {
         SandboxTemplate::factory()->published()->create(['slug' => 'dicom-basic-tools']);

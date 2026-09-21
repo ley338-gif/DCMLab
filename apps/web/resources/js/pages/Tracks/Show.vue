@@ -17,7 +17,7 @@ import { show as showLesson } from '@/routes/lessons';
 import { show as showExam, start as startExam } from '@/routes/tracks/exam';
 import { index as tracksIndex, show as showTrack } from '@/routes/tracks';
 
-type UnmetRequirement = { lesson_id: string; title: string };
+type UnmetRequirement = { lesson_id: string | null; title: string };
 
 type LessonSummary = {
     lesson_id: string;

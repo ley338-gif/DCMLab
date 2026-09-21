@@ -107,7 +107,7 @@ class LabController extends Controller
             // -- immer mitberechnet (auch ohne Activity/Attempt gibt es
             // wenigstens den Katalog-Fallback), Vue zeigt es nur im
             // Abschluss-Bereich eines geloesten Attempts.
-            'next_step' => $activity === null ? ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null] : $home->nextStepAfterLab($activity),
+            'next_step' => $activity === null ? ['type' => 'labs_index', 'lesson_id' => null, 'lesson_title' => null] : $home->nextStepAfterLab($activity, $request->user()),
         ]);
     }
 

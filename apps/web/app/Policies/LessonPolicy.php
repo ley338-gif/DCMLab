@@ -29,7 +29,16 @@ class LessonPolicy
 
         $activity = $this->activityFor($lesson);
 
-        return $activity !== null && Gate::allows('update', $activity);
+        // Published Content Boundary Hardening: `Gate::forUser($user)`, nicht
+        // die ambiente `Gate::allows()`-Variante -- vorher wurde intern
+        // immer der GLOBAL angemeldete Nutzer geprueft, nicht der explizit
+        // uebergebene `$user`-Parameter. In jedem bisherigen Aufrufpfad
+        // (Controller ruft `Gate::allows('view', $lesson)` fuer den eigenen
+        // angemeldeten Nutzer auf) war das zufaellig deckungsgleich; sobald
+        // `view()` aber fuer einen ANDEREN Nutzer als den aktuell
+        // angemeldeten geprueft wird (z. B. LessonPrerequisiteService fuer
+        // eine Voraussetzung), muss die Pruefung explizit an `$user` haengen.
+        return $activity !== null && Gate::forUser($user)->allows('update', $activity);
     }
 
     private function activityFor(Lesson $lesson): ?Activity

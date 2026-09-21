@@ -11,6 +11,7 @@ use App\Models\LessonProgress;
 use App\Models\Track;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Verdichtet echte Fortschritts-/Lab-Daten zu den drei "Was jetzt?"-Bloecken
@@ -50,8 +51,13 @@ class DashboardHomeService
             return null;
         }
 
-        $lessonsCount = $track->lessons()->count();
+        // Published Content Boundary Hardening: dieselbe Fortschrittszaehler-
+        // Regel wie ueberall sonst (Dashboard-Trackliste, Sidebar) -- eine
+        // Draft-Lesson darf weder mitgezaehlt noch, ueber historischen
+        // Fortschritt, faelschlich als erledigt gezaehlt werden.
+        $lessonsCount = $track->lessons()->where('status', 'published')->count();
         $completedCount = $track->lessons()
+            ->where('status', 'published')
             ->whereHas('progress', fn ($query) => $query
                 ->where('user_id', $user->id)
                 ->where('status', 'completed'),
@@ -95,10 +101,14 @@ class DashboardHomeService
 
         $activityIds = $activitiesBySlug->pluck('id');
 
+        // Published Content Boundary Hardening: `status` muss mitgeladen
+        // werden -- visibleLesson() braucht die Spalte fuer
+        // LessonPolicy::view()/isPublished(), der bisherige partielle
+        // Select hatte nur id/lesson_id/track_id.
         $elementByActivityId = LessonElement::query()
             ->where('type', 'activity')
             ->whereIn('activity_id', $activityIds)
-            ->with('lesson:id,lesson_id,track_id')
+            ->with('lesson:id,lesson_id,track_id,status')
             ->get()
             ->keyBy('activity_id');
 
@@ -121,7 +131,12 @@ class DashboardHomeService
                 continue;
             }
 
-            $lesson = $elementByActivityId->get($activity->id)?->lesson;
+            // Published Content Boundary Hardening: eine fuer diesen
+            // Betrachter nicht sichtbare Lesson wird komplett wie "keine
+            // Verknuepfung" behandelt (lesson_id UND track_slug null) --
+            // kein Platzhalter, ein Lab kann auch eigenstaendig ohne
+            // Lesson-Bezug im Katalog stehen.
+            $lesson = $this->visibleLesson($elementByActivityId->get($activity->id)?->lesson, $user);
             $attempt = $attemptsByActivityId->get($activity->id);
             $trackSlug = $lesson === null ? null : $trackSlugById->get($lesson->track_id);
 
@@ -164,9 +179,15 @@ class DashboardHomeService
      * Track-Slug kommt dort selbst nur ueber `$lesson->track_id`). Der
      * Katalog-Fallback deckt diesen Fall wie vorgegeben ab.
      *
+     * Published Content Boundary Hardening: `$user` ist der anfragende
+     * Nutzer (vom Aufrufer uebergeben, kein `Auth::user()` innerhalb des
+     * Service) -- `LabController::show()` ist ausschliesslich fuer
+     * angemeldete Nutzer erreichbar (Route hinter `auth`-Middleware), daher
+     * hier bewusst nicht-nullable statt der `?User` von `labsOverview()`.
+     *
      * @return array{type: 'lesson'|'labs_index', lesson_id: string|null, lesson_title: string|null}
      */
-    public function nextStepAfterLab(Activity $activity): array
+    public function nextStepAfterLab(Activity $activity, User $user): array
     {
         $lesson = LessonElement::query()
             ->where('type', 'activity')
@@ -174,6 +195,11 @@ class DashboardHomeService
             ->with('lesson')
             ->first()
             ?->lesson;
+
+        // Eine fuer diesen Nutzer nicht sichtbare verknuepfte Lesson faellt
+        // auf denselben Katalog-Fallback zurueck wie ein Lab ganz ohne
+        // Lesson-Bezug -- kein Draft-Titel/-Link nach einem geloesten Lab.
+        $lesson = $this->visibleLesson($lesson, $user);
 
         if ($lesson !== null) {
             return [
@@ -221,6 +247,15 @@ class DashboardHomeService
 
         // Regel 1: ein Lab, dessen Lektion bereits abgeschlossen ist und das
         // selbst noch nicht geloest wurde -- bevorzugt im aktuellen Track.
+        // Published Content Boundary Hardening: `lesson_id !== null` allein
+        // reicht bereits als Sichtbarkeitsfilter, weil `$labsOverview` von
+        // `labsOverview($user)` mit demselben `$user` stammt (siehe
+        // DashboardController::index()) und `visibleLesson()` dort jede
+        // fuer diesen Nutzer unsichtbare Verknuepfung bereits auf `null`
+        // gesetzt hat -- historischer Fortschritt auf einer inzwischen
+        // unveroeffentlichten Lesson kann eine solche Zeile also gar nicht
+        // erst erreichen. Keine zweite Policy-Pruefung hier, um keine
+        // zusaetzliche Abfrage pro Kandidat zu erzeugen.
         $labCandidates = collect($labsOverview)
             ->filter(fn (array $lab) => $lab['status'] !== 'solved' && $lab['lesson_id'] !== null)
             ->filter(fn (array $lab) => LessonProgress::query()
@@ -291,6 +326,33 @@ class DashboardHomeService
             'completed_track_title' => $continueLearning['track_title']['de'] ?? null,
             'completed_track_title_key' => isset($continueLearning['track_title']['de']) ? null : ($continueLearning['track_title_key'] ?? null),
         ];
+    }
+
+    /**
+     * Published Content Boundary Hardening: zentrale Sichtbarkeitsregel
+     * fuer jede Lab-zu-Lesson-Verknuepfung (Katalog, Empfehlung, Abschluss-
+     * Rueckweg) -- eine Stelle statt dreimal dieselbe Regel unterschiedlich
+     * erfunden, analog LearnerViewBuilder::toolbarData()/
+     * LessonNavigationService. Fuer einen Gast (`$user === null`) gilt
+     * ausschliesslich der Veroeffentlichungsstatus -- LessonPolicy::view()
+     * erwartet einen echten Nutzer und wird fuer Gaeste nie aufgerufen. Fuer
+     * einen angemeldeten Nutzer entscheidet `Gate::forUser($user)`
+     * (nutzergebunden, nicht der ambiente globale Gate-Kontext) ueber
+     * dieselbe Policy wie ueberall sonst -- ein normaler Lernender sieht
+     * damit nur Veroeffentlichtes, ein zugewiesener Autor/Reviewer/
+     * Administrator zusaetzlich seine eigenen sichtbaren Entwuerfe.
+     */
+    private function visibleLesson(?Lesson $lesson, ?User $user): ?Lesson
+    {
+        if ($lesson === null) {
+            return null;
+        }
+
+        if ($user === null) {
+            return $lesson->isPublished() ? $lesson : null;
+        }
+
+        return Gate::forUser($user)->allows('view', $lesson) ? $lesson : null;
     }
 
     /**

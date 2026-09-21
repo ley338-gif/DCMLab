@@ -370,8 +370,13 @@ class NodeController extends Controller
     {
         $lessonIds = $nodes->pluck('related_lessons')->flatten()->unique()->values()->all();
 
+        // Published Content Boundary Hardening: der Node-Katalog ist auch
+        // fuer Gaeste ohne jede Authentifizierung erreichbar (Abschnitt 6)
+        // -- eine unveroeffentlichte "passende Lektion" darf hier unter
+        // keinen Umstaenden ihren Titel preisgeben.
         $lessonsById = Lesson::query()
             ->whereIn('lesson_id', $lessonIds)
+            ->where('status', 'published')
             ->get()
             ->keyBy('lesson_id');
 
