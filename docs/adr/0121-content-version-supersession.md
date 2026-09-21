@@ -62,6 +62,48 @@ zeigen nur `pending_version.status`, der `superseded` nie annehmen kann, und
 die bestehende `statusLabels[status] ?? status`-Fallback-Logik in der Node-
 Historie wäre ohnehin nicht abgestürzt.
 
+## Nachtrag: Stale-Model-Race behoben (Betreiber-Review, zweite Runde)
+
+Der erste Wurf dieses Fixes prüfte `$version->status` **vor** dem
+`Activity`-Lock — ein klassisches Time-of-check-to-time-of-use-Problem:
+Das vom Aufrufer übergebene PHP-Objekt kann veralten, während er auf den
+Lock wartet.
+
+**Blocker 1 (`publish()`):** Request A lädt eine Review-Version (`#22`),
+Request B veröffentlicht eine *andere* Version derselben Aktivität (`#23`)
+zuerst — das superseded `#22` in der DB, As Objekt trägt aber weiterhin
+`status = 'review'` im Speicher. Ruft A `publish()` mit diesem veralteten
+Objekt auf, hätte die ursprüngliche Prüfung (`$version->status !== 'review'`,
+noch vor jeder Sperre) das durchgelassen — `#22` hätte `#23` rückwirkend
+verdrängt.
+
+**Blocker 2 (`submitForReview()`):** dieselbe Race beim Einreichen: Request A
+lädt einen Draft, ein konkurrierender `createDraft()` superseded ihn, As
+Objekt weiß davon nichts und hätte den längst überholten Entwurf trotzdem
+noch zur Review einreichen können.
+
+**Fix:** Die maßgebliche Prüfung sitzt jetzt ausschließlich *innerhalb* der
+Transaktion, *hinter* dem `Activity`-Lock, gegen ein frisch — und ebenfalls
+mit `lockForUpdate()` gesperrt — aus der DB geladenes Modell. Die
+ursprüngliche Prüfung vor der Transaktion bleibt als früher Fast-Fail
+erhalten (schnelle Fehlermeldung für den häufigen Fall, z. B. ein
+Doppelklick), ist aber nie mehr die alleinige Absicherung.
+`createDraft()`, `submitForReview()` und `publish()` serialisieren sich
+dadurch alle über denselben `Activity`-Lock — zwei konkurrierende Aufrufe
+für dieselbe Aktivität laufen strikt nacheinander, nicht mehr mit
+zwischenzeitlich veralteten Objekten aneinander vorbei.
+
+Drei neue, deterministische Regressionstests (kein Threading nötig — die
+Race wird erzeugt, indem ein absichtlich *nicht* neu geladenes PHP-Objekt
+nach einer bereits abgeschlossenen konkurrierenden Operation weiterverwendet
+wird): ein stale Review-Modell wird nach einer konkurrierenden
+Veröffentlichung derselben Aktivität abgelehnt; ein stale Draft-Modell wird
+nach einem konkurrierenden `createDraft()` nicht mehr zur Review
+zugelassen; und — über den vollen `ContentPublishingService`-Pfad — wird
+eine solche Ablehnung erkannt, rollt die äußere Transaktion den
+zwischenzeitlichen `ActivityContentApplier::apply()`-Schreibvorgang
+vollständig zurück.
+
 ## Bewusst nicht in diesem Fix
 
 `ContentPublishingService::restoreVersion()` supersediert offene
@@ -90,6 +132,6 @@ Operationen (`createDraft`, `publish`) begrenzt; eine Erweiterung von
   `storeDraft`-HTTP-Aufrufe hintereinander, Editor (`pending_version`) und
   Review-Queue zeigen danach nur noch den neueren Entwurf, beide
   Freigabe-Endpunkte lehnen den überholten Entwurf ab.
-- Volle Suite (Pest 1037/1037, inkl. aller bestehenden Draft→Review→
-  Published- und Self-Approval-/Rollen-Tests unverändert grün), Pint,
-  PHPStan Level (Projekt-Standard) — alle clean.
+- Volle Suite (Pest 1040/1040 nach dem Nachtrag, inkl. aller bestehenden
+  Draft→Review→Published- und Self-Approval-/Rollen-Tests unverändert
+  grün), Pint, PHPStan — alle clean.
