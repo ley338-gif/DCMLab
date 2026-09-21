@@ -13,6 +13,7 @@ use App\Services\RuntimeSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -27,8 +28,20 @@ use Illuminate\Validation\ValidationException;
  */
 class SandboxController extends Controller
 {
+    /**
+     * Autorisierung wie jeder andere Lesson-Endpunkt (`LessonPolicy::view()`,
+     * siehe `LessonController`): ohne diesen Aufruf konnte ein Lernender mit
+     * einer bekannten Draft-Lesson-Id eine echte Sandbox-Laufzeit starten,
+     * ganz ohne vorherigen autorisierten Besuch der Lektion. Fuer eine
+     * autorisierte Draft-Vorschau darf die Sandbox weiterhin echt starten
+     * (der Lernweg soll vollstaendig testbar bleiben), nur das Achievement
+     * "sandbox-starter" bleibt fuer eine nicht veroeffentlichte Lektion
+     * unangetastet -- eine Vorschau darf keine echte Lernstatistik erzeugen.
+     */
     public function create(Lesson $lesson, RuntimeSessionService $sessions, AchievementService $achievements): JsonResponse
     {
+        abort_unless(Gate::allows('view', $lesson), 404);
+
         $datasetSlug = $lesson->sandbox['dataset'] ?? null;
 
         if ($datasetSlug === null) {
@@ -63,15 +76,21 @@ class SandboxController extends Controller
         }
 
         // "sandbox-starter" nur bei wirklich erzeugter Umgebung, nicht beim
-        // reinen Anklicken der Lektion (Achievement-System, Abschnitt 6).
-        $unlockResult = $achievements->unlock(Auth::user(), 'sandbox-starter', [
-            'lesson' => $lesson->lesson_id,
-            'source' => 'sandbox_started',
-        ]);
+        // reinen Anklicken der Lektion (Achievement-System, Abschnitt 6) --
+        // und nur fuer eine veroeffentlichte Lektion, nie fuer eine
+        // autorisierte Draft-Vorschau.
+        $unlockedAchievements = [];
 
-        $unlockedAchievements = $unlockResult->isNewlyUnlocked() && $unlockResult->definition !== null
-            ? [$achievements->toArray($unlockResult->definition, $unlockResult->unlock)]
-            : [];
+        if ($lesson->isPublished()) {
+            $unlockResult = $achievements->unlock(Auth::user(), 'sandbox-starter', [
+                'lesson' => $lesson->lesson_id,
+                'source' => 'sandbox_started',
+            ]);
+
+            $unlockedAchievements = $unlockResult->isNewlyUnlocked() && $unlockResult->definition !== null
+                ? [$achievements->toArray($unlockResult->definition, $unlockResult->unlock)]
+                : [];
+        }
 
         return response()->json([...$result, 'unlocked_achievements' => $unlockedAchievements], 201);
     }

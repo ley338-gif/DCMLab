@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { CircleCheck } from '@lucide/vue';
+import { CircleCheck, FlaskConical } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import LessonHero from '@/components/lesson/LessonHero.vue';
 import LessonSummary from '@/components/lesson/LessonSummary.vue';
@@ -19,6 +19,7 @@ import PreviousNextNavigation, {
 import QuizSection, {
     type QuizQuestion,
 } from '@/components/quiz/QuizSection.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useLessonProseEnhancements } from '@/composables/useLessonProseEnhancements';
 import { useLessonToc } from '@/composables/useLessonToc';
@@ -95,6 +96,14 @@ const props = defineProps<{
         other_tracks: SidebarTrackSummary[];
         overall: { completed: number; total: number };
     };
+    // Draft-Lesson-Vorschau (analog Node, ADR 0110/0119): serverseitig
+    // ermittelt (`LearnerViewBuilder::lessonProps()`), niemals aus einem
+    // Query-Parameter oder Client-Zustand ableitbar. Gilt sowohl fuer die
+    // autorisierte, echte Vorschau (`LessonController::show()`) als auch
+    // fuer die editorielle Copy-Vorschau (`LessonEditorController::
+    // preview()`) -- beide bedeuten fuer den Betrachter dasselbe: Ergebnisse
+    // und Fortschritt werden nicht gewertet.
+    draft_preview: boolean;
 }>();
 
 const contentRef = ref<HTMLElement | null>(null);
@@ -148,6 +157,14 @@ const nextNav = computed(() =>
                 @select="scrollToEntry"
             />
         </template>
+
+        <Alert v-if="draft_preview" class="mb-6">
+            <FlaskConical class="size-4" aria-hidden="true" />
+            <AlertTitle>{{ trans('Entwurfsvorschau') }}</AlertTitle>
+            <AlertDescription>
+                {{ trans('Ergebnisse und Fortschritt werden nicht gewertet.') }}
+            </AlertDescription>
+        </Alert>
 
         <LessonHero
             :track="track"

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AchievementUnlock;
+use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\SandboxSession;
 use App\Models\SandboxTemplate;
@@ -121,6 +122,60 @@ class SandboxControllerTest extends TestCase
         $session->refresh();
         $this->assertSame('destroyed', $session->status);
         $this->assertNotNull($session->finished_at);
+    }
+
+    /**
+     * ADR 0110/0119-Haertung, uebertragen auf Sandbox: vor diesem PR pruefte
+     * dieser Endpunkt den Veroeffentlichungsstatus der Lesson ueberhaupt
+     * nicht -- ein normaler Lernender mit bekannter Draft-Lesson-Id konnte
+     * hier direkt eine echte Sandbox-Laufzeit starten, ganz ohne vorherigen
+     * autorisierten Besuch von LessonController::show().
+     */
+    public function test_a_learner_cannot_start_a_sandbox_for_a_lesson_that_is_not_yet_published(): void
+    {
+        $lesson = $this->draftLessonWithSandbox();
+        $user = User::factory()->create();
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1', 'queue_position' => null], 201)]);
+
+        $this->actingAs($user)->postJson("/de/lessons/{$lesson->lesson_id}/sandbox")->assertNotFound();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, SandboxSession::query()->count());
+    }
+
+    /**
+     * Eine autorisierte Draft-Vorschau darf die Sandbox tatsaechlich starten
+     * (der Lernweg soll vollstaendig testbar bleiben), darf dabei aber kein
+     * Achievement ausloesen -- eine Vorschau erzeugt keine echte
+     * Lernstatistik.
+     */
+    public function test_an_authorized_previewer_can_start_a_sandbox_but_unlocks_no_achievement_for_a_draft_lesson(): void
+    {
+        $this->seed(AchievementSeeder::class);
+        $lesson = $this->draftLessonWithSandbox();
+        $author = User::factory()->author()->create();
+        Activity::query()->where('key', $lesson->lesson_id)->sole()->authorUsers()->attach($author);
+
+        Http::fake(['*/v1/sandboxes' => Http::response(['status' => 'running', 'sandbox_id' => 'sb-1', 'queue_position' => null], 201)]);
+
+        $response = $this->actingAs($author)->postJson("/de/lessons/{$lesson->lesson_id}/sandbox");
+
+        $response->assertCreated()->assertJson(['status' => 'running', 'unlocked_achievements' => []]);
+        $this->assertNotNull(SandboxSession::query()->where('runtime_instance_id', 'sb-1')->first());
+        $this->assertSame(0, AchievementUnlock::query()->count());
+    }
+
+    private function draftLessonWithSandbox(string $dataset = 'test-set'): Lesson
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create([
+            'lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft',
+            'sandbox' => ['required' => true, 'dataset' => $dataset],
+        ]);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+
+        return $lesson;
     }
 
     public function test_successful_sandbox_creation_unlocks_the_sandbox_starter_achievement(): void

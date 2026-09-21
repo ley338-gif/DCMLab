@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Models\Activity;
 use App\Models\Lesson;
+use App\Models\QuizReview;
 use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -105,6 +107,53 @@ class QuizControllerTest extends TestCase
 
         $this->postJson("/de/lessons/{$lesson->lesson_id}/quiz/q1/answer", ['value' => 1])
             ->assertUnauthorized();
+    }
+
+    /**
+     * ADR 0110/0119-Haertung, uebertragen auf Quiz: vor diesem PR pruefte
+     * dieser Endpunkt den Veroeffentlichungsstatus der Lesson ueberhaupt
+     * nicht -- ein normaler Lernender mit bekannter Draft-Lesson-Id konnte
+     * hier direkt eine echte Quiz-Antwort einreichen, ganz ohne vorherigen
+     * autorisierten Besuch von LessonController::show().
+     */
+    public function test_a_learner_cannot_answer_a_quiz_question_for_a_lesson_that_is_not_yet_published(): void
+    {
+        $lesson = $this->draftLessonWithActivity();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson("/de/lessons/{$lesson->lesson_id}/quiz/q1/answer", ['value' => 1])
+            ->assertNotFound();
+
+        $this->assertSame(0, QuizReview::query()->count());
+    }
+
+    /**
+     * Eine autorisierte Draft-Vorschau darf die Frage vollstaendig testen
+     * (echte Bewertung, korrektes `correct`), darf dabei aber keinen
+     * Wiederholungs-Zustand persistieren -- eine Vorschau erzeugt keine
+     * echte Lernstatistik.
+     */
+    public function test_an_authorized_previewer_gets_a_correct_grade_but_no_persisted_review_for_a_draft_lesson(): void
+    {
+        $lesson = $this->draftLessonWithActivity();
+        $author = User::factory()->author()->create();
+        Activity::query()->where('key', $lesson->lesson_id)->sole()->authorUsers()->attach($author);
+
+        $response = $this->actingAs($author)
+            ->postJson("/de/lessons/{$lesson->lesson_id}/quiz/q1/answer", ['value' => 1]);
+
+        $response->assertOk()->assertJson(['correct' => true, 'due_at' => null]);
+        $this->assertSame(0, QuizReview::query()->count());
+    }
+
+    private function draftLessonWithActivity(): Lesson
+    {
+        $track = Track::factory()->create(['slug' => 'fundamente']);
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+
+        return $lesson;
     }
 
     /**
