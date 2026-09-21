@@ -7,10 +7,10 @@ use App\Content\ContentRepository;
 use App\Content\MarkdownRenderer;
 use App\Content\NodeSections;
 use App\Content\RichContent\RichContentRenderer;
-use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\NodeAttempt;
+use App\Models\NodePreviewSession;
 use App\Services\EngineClientContract;
 use App\Services\EngineClientResolver;
 use App\Services\ProfileService;
@@ -82,16 +82,7 @@ class NodeController extends Controller
 
     public function show(Node $node, ContentRepository $content, EngineClientResolver $engineResolver): Response
     {
-        // Seit ADR 0110 (CMS-6d Haertung) ist eine nicht veroeffentlichte
-        // Node (draft/review, sowie archiviert) fuer normale Lernende
-        // gesperrt -- nur wer die zugehoerige Activity bearbeiten darf
-        // (zugewiesener Autor oder Reviewer/Administrator, ActivityPolicy)
-        // sieht sie trotzdem, das ist die "Vorschau" aus dem Studio-Editor
-        // (ADR 0109), keine zweite Route.
-        if ($node->status !== 'published') {
-            $activity = Activity::query()->where('type', 'node')->where('key', $node->slug)->first();
-            abort_unless($activity !== null && Gate::allows('update', $activity), 404);
-        }
+        $this->authorizeAccess($node);
 
         $engine = $engineResolver->for($node);
         $nodeContent = $content->nodes()[$node->slug] ?? null;
@@ -168,11 +159,19 @@ class NodeController extends Controller
             'attempt' => [
                 'status' => $attempt->status,
             ],
+            // Serverseitig ermittelt, nie clientseitig ableitbar (Abschnitt
+            // 5): jede Session auf einer nicht veroeffentlichten Node ist
+            // per Konstruktion eine autorisierte Vorschau (siehe
+            // NodePolicy::view()/attemptFor()) -- Nodes/Show.vue zeigt dafuer
+            // ein Banner, aendert aber sonst nichts an der echten,
+            // interaktiven Lernendenansicht.
+            'draft_preview' => ! $node->isPublished(),
         ]);
     }
 
     public function state(Node $node, EngineClientResolver $engineResolver): JsonResponse
     {
+        $this->authorizeAccess($node);
         $engine = $engineResolver->for($node);
         $attempt = $this->attemptFor($node, $engine);
 
@@ -181,6 +180,7 @@ class NodeController extends Controller
 
     public function exec(Request $request, Node $node, EngineClientResolver $engineResolver): JsonResponse
     {
+        $this->authorizeAccess($node);
         $engine = $engineResolver->for($node);
         $data = $request->validate(['host' => 'required|string', 'command' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
@@ -190,6 +190,7 @@ class NodeController extends Controller
 
     public function setConfig(Request $request, Node $node, EngineClientResolver $engineResolver): JsonResponse
     {
+        $this->authorizeAccess($node);
         $engine = $engineResolver->for($node);
         $data = $request->validate([
             'host' => 'required|string',
@@ -205,6 +206,7 @@ class NodeController extends Controller
 
     public function triggerAction(Request $request, Node $node, EngineClientResolver $engineResolver): JsonResponse
     {
+        $this->authorizeAccess($node);
         $engine = $engineResolver->for($node);
         $data = $request->validate(['host' => 'required|string', 'action' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
@@ -216,6 +218,7 @@ class NodeController extends Controller
 
     public function useHint(Request $request, Node $node, ContentRepository $content, EngineClientResolver $engineResolver): JsonResponse
     {
+        $this->authorizeAccess($node);
         $engine = $engineResolver->for($node);
         $data = $request->validate(['hint_id' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
@@ -233,6 +236,7 @@ class NodeController extends Controller
 
     public function viewWriteUp(Node $node, ContentRepository $content, EngineClientResolver $engineResolver): JsonResponse
     {
+        $this->authorizeAccess($node);
         $engine = $engineResolver->for($node);
         $attempt = $this->attemptFor($node, $engine);
         $result = $engine->viewWriteUp($attempt->engine_session_id);
@@ -253,6 +257,7 @@ class NodeController extends Controller
         ProfileService $profiles,
         ActivityProgressRecorder $progressRecorder,
     ): JsonResponse {
+        $this->authorizeAccess($node);
         $engine = $engineResolver->for($node);
         $data = $request->validate(['value' => 'required|string']);
         $attempt = $this->attemptFor($node, $engine);
@@ -278,7 +283,16 @@ class NodeController extends Controller
 
         $unlockedAchievements = [];
 
-        if ($solved) {
+        // Eine Draft-Vorschau (authorizeAccess() garantiert: nur autorisierte
+        // Studio-/Content-Nutzer erreichen diesen Codepfad ueberhaupt fuer
+        // eine nicht veroeffentlichte Node) darf niemals Profil-Punkte,
+        // Activity-Progress oder Achievements ausloesen -- sonst koennte ein
+        // Vorschau-Solve sogar einen globalen, einmaligen Achievement-Slot
+        // (z. B. "trailblazer", ADR 0090b) verbrauchen, bevor die Node
+        // ueberhaupt veroeffentlicht ist. Die Engine markiert den simulierten
+        // Node intern trotzdem als geloest (fuer Write-up/UI), nur die
+        // persistente Lernstatistik der Webanwendung bleibt unberuehrt.
+        if ($solved && $node->isPublished()) {
             $user = $request->user();
             $profiles->recomputeAfterSolve($user, $node);
             // Achievement-Vergabe (Trailblazer -- globaler Wettlauf um die
@@ -418,8 +432,27 @@ class NodeController extends Controller
         return (new MarkdownRenderer($content->glossary()))->render($legacyMarkdown);
     }
 
-    private function attemptFor(Node $node, EngineClientContract $engine): NodeAttempt
+    /**
+     * Zentraler Autorisierungsvertrag fuer JEDE Node-Session-Operation
+     * (ADR 0110/CMS-6d-Haertung, Abschnitt 4): ein einzeiliger Aufruf pro
+     * Endpunkt, die eigentliche Regel lebt ausschliesslich in
+     * `NodePolicy::view()`. `abort_unless(..., 404)` statt
+     * `Gate::authorize()` (das per Default 403 wirft), um die bestehende
+     * Konvention zu erhalten -- eine nicht veroeffentlichte Node soll fuer
+     * unberechtigte Nutzer wie "existiert nicht" aussehen, nicht wie
+     * "existiert, aber gesperrt".
+     */
+    private function authorizeAccess(Node $node): void
     {
+        abort_unless(Gate::allows('view', $node), 404);
+    }
+
+    private function attemptFor(Node $node, EngineClientContract $engine): NodeAttempt|NodePreviewSession
+    {
+        if (! $node->isPublished()) {
+            return $this->previewSessionFor($node, $engine);
+        }
+
         $attempt = NodeAttempt::firstOrNew(['user_id' => Auth::id(), 'node_id' => $node->id]);
 
         if (! $attempt->exists) {
@@ -433,7 +466,35 @@ class NodeController extends Controller
         return $attempt;
     }
 
-    private function syncAttempt(NodeAttempt $attempt, EngineClientContract $engine, bool $save = true): void
+    /**
+     * `authorizeAccess()` laeuft vor jedem Aufruf dieser Methode und laesst
+     * fuer eine nicht veroeffentlichte Node ausschliesslich autorisierte
+     * Studio-/Content-Nutzer durch (`NodePolicy::view()`) -- jede hier
+     * entstehende Session ist deshalb per Konstruktion eine Vorschau, nie
+     * ein echter Lernfortschritt. Eine eigene, von `node_attempts` komplett
+     * getrennte Tabelle (statt eines Zusatzfeldes dort) verhindert
+     * strukturell, dass `ProfileService`/`ActivityProgressRecorder` (beide
+     * lesen ausschliesslich `node_attempts`) eine Vorschau je sehen --
+     * selbst derselbe Nutzer bekommt nach einer spaeteren Veroeffentlichung
+     * einen frischen, echten `node_attempts`-Datensatz, keinen aus der
+     * Vorschau wiederverwendeten.
+     */
+    private function previewSessionFor(Node $node, EngineClientContract $engine): NodePreviewSession
+    {
+        $preview = NodePreviewSession::firstOrNew(['user_id' => Auth::id(), 'node_id' => $node->id]);
+
+        if (! $preview->exists) {
+            $session = $engine->createSession($node->slug);
+            $preview->engine_session_id = $session['session_id'];
+            $preview->status = 'started';
+            $preview->started_at = now();
+            $preview->save();
+        }
+
+        return $preview;
+    }
+
+    private function syncAttempt(NodeAttempt|NodePreviewSession $attempt, EngineClientContract $engine, bool $save = true): void
     {
         $state = $engine->state($attempt->engine_session_id);
         $attempt->hints_used = $state['hints_used'];

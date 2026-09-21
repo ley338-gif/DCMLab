@@ -6,8 +6,10 @@ use App\Content\ContentRepository;
 use App\Models\AchievementDefinition;
 use App\Models\AchievementUnlock;
 use App\Models\Activity;
+use App\Models\ActivityProgress;
 use App\Models\Node;
 use App\Models\NodeAttempt;
+use App\Models\NodePreviewSession;
 use App\Models\Themenfeld;
 use App\Models\User;
 use Database\Seeders\AchievementSeeder;
@@ -111,6 +113,133 @@ class NodeControllerTest extends TestCase
         ]);
 
         $this->actingAs($reviewer)->get('/de/nodes/test-node')->assertOk();
+    }
+
+    public function test_an_authorized_previewer_sees_the_draft_preview_banner_prop(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $admin = User::factory()->administrator()->create();
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'sess-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/sess-1/state' => Http::response($this->baseState()),
+        ]);
+
+        $this->actingAs($admin)->get('/de/nodes/test-node')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('draft_preview', true));
+    }
+
+    public function test_a_published_node_never_sets_the_draft_preview_prop(): void
+    {
+        [$user] = $this->userWithExistingAttempt();
+
+        Http::fake(['*/v1/sessions/existing-session/state' => Http::response($this->baseState())]);
+
+        $this->actingAs($user)->get('/de/nodes/test-node')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('draft_preview', false));
+    }
+
+    /**
+     * Der eigentliche Sicherheits-Fix (ADR 0110/CMS-6d-Haertung, Abschnitt
+     * 4): vor diesem PR pruefte nur `show()` den Draft-Status -- state/exec/
+     * config/action/hint/write-up/flag hingen ausschliesslich an
+     * `attemptFor()`, das anstandslos eine echte Session fuer JEDEN
+     * angemeldeten Nutzer angelegt haette, solange er den Node-Slug kennt.
+     * Jeder Unterendpunkt muss denselben `NodePolicy::view()`-Vertrag wie
+     * `show()` durchsetzen.
+     */
+    public function test_a_learner_cannot_use_any_session_endpoint_for_a_node_that_is_not_yet_published(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $learner = User::factory()->create();
+
+        $endpoints = [
+            ['get', '/de/nodes/test-node/state', []],
+            ['post', '/de/nodes/test-node/exec', ['host' => 'workstation', 'command' => 'ls']],
+            ['post', '/de/nodes/test-node/config', ['host' => 'workstation', 'field' => 'x', 'value' => 'y']],
+            ['post', '/de/nodes/test-node/action', ['host' => 'workstation', 'action' => 'send_study']],
+            ['post', '/de/nodes/test-node/hint', ['hint_id' => 'h1']],
+            ['post', '/de/nodes/test-node/write-up', []],
+            ['post', '/de/nodes/test-node/flag', ['value' => 'irrelevant']],
+        ];
+
+        foreach ($endpoints as [$method, $url, $data]) {
+            $response = $this->actingAs($learner)->json($method, $url, $data ?? []);
+            $response->assertNotFound();
+        }
+
+        // Kein einziger dieser Aufrufe darf irgendeine Session angelegt
+        // haben -- weder eine echte (node_attempts) noch eine Vorschau
+        // (node_preview_sessions).
+        $this->assertSame(0, NodeAttempt::query()->count());
+        $this->assertSame(0, NodePreviewSession::query()->count());
+    }
+
+    public function test_guests_are_redirected_to_login_for_a_draft_nodes_session_endpoints(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+
+        $this->postJson('/de/nodes/test-node/exec', ['host' => 'workstation', 'command' => 'ls'])
+            ->assertUnauthorized();
+    }
+
+    /**
+     * "Erratene Preview-Session-ID": es gibt in dieser Architektur keinen
+     * client-seitigen Session-Id-Parameter zu erraten -- jede Session wird
+     * serverseitig ausschliesslich ueber (authentifizierter Nutzer, Node)
+     * aufgeloest (`attemptFor()`/`previewSessionFor()`). Der eigentlich
+     * relevante Nachweis ist deshalb Cross-User-Isolation: ein normaler
+     * Lernender, der denselben Draft-Slug kennt, auf den ein Administrator
+     * bereits eine aktive Vorschau-Session hat, bekommt trotzdem 404 und
+     * beeinflusst dessen Vorschau-Session nicht.
+     */
+    public function test_a_learner_cannot_reach_another_users_active_preview_session_via_the_same_slug(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $admin = User::factory()->administrator()->create();
+        $learner = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'admin-preview', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/admin-preview/state' => Http::response($this->baseState()),
+        ]);
+        $this->actingAs($admin)->get('/de/nodes/test-node')->assertOk();
+        $this->assertSame(1, NodePreviewSession::query()->count());
+
+        $this->actingAs($learner)->postJson('/de/nodes/test-node/exec', [
+            'host' => 'workstation', 'command' => 'ls',
+        ])->assertNotFound();
+
+        // Der Lernende hat weder eine eigene Session bekommen noch die
+        // Vorschau-Session des Admins veraendert.
+        $this->assertSame(1, NodePreviewSession::query()->count());
+        $this->assertSame('admin-preview', NodePreviewSession::query()->sole()->engine_session_id);
+    }
+
+    public function test_second_preview_visit_reuses_the_existing_preview_session(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $author = User::factory()->author()->create();
+        Activity::query()->where('key', 'test-node')->sole()->authorUsers()->attach($author);
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'preview-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/preview-1/state' => Http::response($this->baseState()),
+        ]);
+        $this->actingAs($author)->get('/de/nodes/test-node')->assertOk();
+        $this->assertSame(1, NodePreviewSession::query()->count());
+
+        $this->actingAs($author)->get('/de/nodes/test-node')->assertOk();
+
+        $this->assertSame(1, NodePreviewSession::query()->count());
+        Http::assertSentCount(3); // 1x createSession + 2x state, kein zweites createSession
     }
 
     public function test_index_groups_nodes_by_themenfeld(): void
@@ -645,6 +774,76 @@ class NodeControllerTest extends TestCase
         $attempt->refresh();
         $this->assertSame('solved', $attempt->status);
         $this->assertNotNull($attempt->flag_submitted_at);
+    }
+
+    /**
+     * Abschnitt 6 des Auftrags: ein in der Draft-Vorschau "geloester" Node
+     * darf keinerlei regulaeren Lernfortschritt erzeugen -- kein
+     * `node_attempts`-Datensatz, kein Profil, kein ActivityProgress, kein
+     * Achievement. Die Engine selbst darf den simulierten Node intern
+     * trotzdem als geloest fuehren (fuer Write-up/UI), nur die persistente
+     * Lernstatistik der Webanwendung bleibt unberuehrt.
+     */
+    public function test_a_correctly_solved_draft_preview_creates_no_persistent_progress(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $admin = User::factory()->administrator()->create();
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'preview-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/preview-1/state' => Http::response($this->baseState()),
+            '*/v1/sessions/preview-1/flag' => Http::response(['correct' => true, 'solved' => true, 'points' => 50]),
+        ]);
+        // Session zuerst anlegen (wie ein echter Vorschau-Besuch).
+        $this->actingAs($admin)->get('/de/nodes/test-node')->assertOk();
+
+        $response = $this->actingAs($admin)
+            ->postJson('/de/nodes/test-node/flag', ['value' => 'Testflag']);
+
+        // Die Engine-Antwort selbst bleibt unveraendert -- der Lernende
+        // sieht denselben Solve/Write-up-Ablauf wie ein echter Learner.
+        $response->assertOk()->assertJson([
+            'correct' => true, 'solved' => true, 'unlocked_achievements' => [],
+        ]);
+
+        $this->assertSame(0, NodeAttempt::query()->count());
+        $this->assertSame(1, NodePreviewSession::query()->count());
+        $this->assertSame('solved', NodePreviewSession::query()->sole()->status);
+        $this->assertNull($admin->fresh()->profile);
+        $this->assertSame(0, AchievementUnlock::query()->count());
+        $this->assertSame(0, ActivityProgress::query()->count());
+    }
+
+    /**
+     * Mehrfaches Loesen/Hinweise/Write-up in der Vorschau darf ebenfalls
+     * nichts persistieren -- nicht nur der erste Aufruf.
+     */
+    public function test_repeated_draft_preview_solves_and_write_up_still_create_no_progress(): void
+    {
+        Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'node', 'key' => 'test-node']);
+        $author = User::factory()->author()->create();
+        Activity::query()->where('key', 'test-node')->sole()->authorUsers()->attach($author);
+
+        Http::fake([
+            '*/v1/sessions' => Http::response(['session_id' => 'preview-1', 'state' => $this->baseState()], 201),
+            '*/v1/sessions/preview-1/state' => Http::response(
+                [...$this->baseState(), 'solved' => true, 'write_up_seen' => true],
+            ),
+            '*/v1/sessions/preview-1/flag' => Http::response(['correct' => true, 'solved' => true, 'points' => 50]),
+            '*/v1/sessions/preview-1/write-up' => Http::response(['points' => 0]),
+        ]);
+        $this->actingAs($author)->get('/de/nodes/test-node')->assertOk();
+
+        $this->actingAs($author)->postJson('/de/nodes/test-node/flag', ['value' => 'a'])->assertOk();
+        $this->actingAs($author)->postJson('/de/nodes/test-node/flag', ['value' => 'b'])->assertOk();
+        $this->actingAs($author)->postJson('/de/nodes/test-node/write-up')->assertOk();
+
+        $this->assertSame(0, NodeAttempt::query()->count());
+        $this->assertNull($author->fresh()->profile);
+        $this->assertSame(0, AchievementUnlock::query()->count());
+        $this->assertSame(0, ActivityProgress::query()->count());
     }
 
     /**

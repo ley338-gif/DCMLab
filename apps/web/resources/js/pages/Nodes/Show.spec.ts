@@ -87,9 +87,9 @@ const baseProps = {
     attempt: { status: 'started' as const },
 };
 
-function mountShow() {
+function mountShow(propOverrides: Record<string, unknown> = {}) {
     return mount(Show, {
-        props: baseProps,
+        props: { ...baseProps, ...propOverrides },
         global: { stubs: { EngineTerminal: true } },
     });
 }
@@ -200,6 +200,40 @@ describe('Nodes/Show flag feedback (Phase D.2)', () => {
         expect(fetch).toHaveBeenCalledTimes(2);
         expect(showAchievementUnlockToastsMock).toHaveBeenCalledExactlyOnceWith(
             [achievement()],
+        );
+    });
+});
+
+/**
+ * Draft-Node-Vorschau (ADR 0110/CMS-6d-Haertung): `draft_preview` ist ein
+ * eigenes, serverseitig ermitteltes Prop, unabhaengig vom bestehenden
+ * `preview`-Prop (das die interaktive Ansicht durch einen Platzhalter
+ * ersetzt, siehe StudioNodeController::preview()). Das Banner darf nur bei
+ * einer echten Draft-Vorschau erscheinen, nie bei einer regulaer
+ * veroeffentlichten Node und nie nur, weil `preview` gesetzt ist.
+ */
+describe('Nodes/Show draft-preview banner', () => {
+    it('shows the draft-preview banner when draft_preview is true', () => {
+        const wrapper = mountShow({ draft_preview: true });
+
+        expect(wrapper.text()).toContain('Entwurfsvorschau');
+        expect(wrapper.text()).toContain(
+            'Ergebnisse und Fortschritt werden nicht gewertet.',
+        );
+    });
+
+    it('does not show the draft-preview banner for a regular published node', () => {
+        const wrapper = mountShow();
+
+        expect(wrapper.text()).not.toContain('Entwurfsvorschau');
+    });
+
+    it('does not show the draft-preview banner for the unrelated editorial preview placeholder', () => {
+        const wrapper = mountShow({ preview: true });
+
+        expect(wrapper.text()).not.toContain('Entwurfsvorschau');
+        expect(wrapper.text()).toContain(
+            'Vorschau: Sandbox und Terminal sind hier nicht verfügbar.',
         );
     });
 });

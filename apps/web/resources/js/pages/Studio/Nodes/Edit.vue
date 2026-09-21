@@ -15,6 +15,7 @@ import { postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
 import type { GlossaryTermOption } from '@/lib/richContent/slashCommand';
 import type { RichContentDocument } from '@/types/richContent';
+import { show as showNode } from '@/routes/nodes';
 import { index as nodesIndex } from '@/routes/studio/nodes';
 import { publish, submit } from '@/routes/author/quiz-versions';
 import {
@@ -347,6 +348,16 @@ function restore() {
                 <a :href="preview_url" target="_blank" rel="noopener">
                     <Button type="button" variant="outline">{{
                         trans('Vorschau')
+                    }}</Button>
+                </a>
+                <a
+                    v-if="node.has_runtime_config"
+                    :href="showNode(node.slug).url"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    <Button type="button" variant="outline">{{
+                        trans('Im Lernpfad testen')
                     }}</Button>
                 </a>
             </div>
