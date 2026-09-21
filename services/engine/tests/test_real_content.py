@@ -692,3 +692,202 @@ def test_gefiltert_is_solvable_from_the_real_content() -> None:
     assert rules.check_flag(node, state, "PACS-TO-DOSE") is True
     assert rules.check_flag(node, state, "SR") is False
     assert rules.check_flag(node, state, "CT-TO-DOSE") is False
+
+
+# ---------------------------------------------------------------------
+# "zweiter-hop": zweiter Hands-on-PACS-Operations-Node -- Generalisierungs-
+# test fuer Phase A-D.2 an einer anderen Betriebsgrenze als "gefiltert".
+# "gefiltert" endet VOR der Job-Erzeugung (matched=false, kein Job).
+# "zweiter-hop" prueft die naechste Grenze dahinter: Route matcht, ein Job
+# entsteht, aber der Zustellversuch scheitert am Ziel (SOP-Class-Ablehnung).
+# Kein neues Engine-Primitiv -- reine Content-/Real-Content-Test-Erweiterung.
+# ---------------------------------------------------------------------
+
+CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
+ENHANCED_CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2.1"
+EXPLICIT_VR_LITTLE_ENDIAN = "1.2.840.10008.1.2.1"
+
+
+def _ingest_classic(node: content.NodeDefinition, state: dict) -> rules.ExecResult:
+    return rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.84.0.10 104 ct-classic.dcm",
+    )
+
+
+def _ingest_enhanced(node: content.NodeDefinition, state: dict) -> rules.ExecResult:
+    return rules.exec_command(
+        node, state, "workstation",
+        "storescu -aet CT-KONSOLE -aec PACS-ARCHIV 10.84.0.10 104 ct-enhanced.dcm",
+    )
+
+
+def _object_id_by_sop_class(state: dict, sop_class: str) -> str:
+    # Nie obj-001/obj-002 annehmen (Ingest-Reihenfolge ist Lernenden-frei,
+    # Abschnitt "Testregel" des Auftrags) -- immer ueber die SOP Class
+    # nachschlagen, die die beiden Vergleichsobjekte eindeutig unterscheidet.
+    return next(oid for oid, obj in state["objects"].items() if obj["sop_class"] == sop_class)
+
+
+def test_zweiter_hop_zero_action_correct_flag_is_correct_but_incomplete() -> None:
+    """Phase D.2-Generalisierung (Abschnitt 38): die korrekte SOP-Class-UID
+    ohne jeden Ingest ist fachlich korrekt, aber der Incident wurde nie
+    reproduziert."""
+
+    node = content.load_node("zweiter-hop")
+    state = rules.initial_state(node)
+
+    outcome = rules.evaluate_flag(node, state, ENHANCED_CT_IMAGE_STORAGE)
+
+    assert outcome.correct is True
+    assert outcome.solved is False
+    assert outcome.reason == rules.REASON_PREREQUISITES_NOT_MET
+    assert state["solved"] is False
+
+
+def test_zweiter_hop_classic_only_does_not_solve() -> None:
+    """Abschnitt 39: nur die positive Kontrolle senden reicht nicht -- der
+    eigentliche Incident (das abgelehnte Enhanced-Objekt) fehlt."""
+
+    node = content.load_node("zweiter-hop")
+    state = rules.initial_state(node)
+    result = _ingest_classic(node, state)
+    assert result.exit_code == 0
+
+    outcome = rules.evaluate_flag(node, state, ENHANCED_CT_IMAGE_STORAGE)
+
+    assert outcome.correct is True
+    assert outcome.solved is False
+    assert outcome.reason == rules.REASON_PREREQUISITES_NOT_MET
+
+
+def test_zweiter_hop_enhanced_only_does_not_solve() -> None:
+    """Abschnitt 40: der Failed Job darf entstehen (und tut es), trotzdem
+    bleibt der Node ungeloest, solange der positive Kontrollpfad fehlt."""
+
+    node = content.load_node("zweiter-hop")
+    state = rules.initial_state(node)
+    result = _ingest_enhanced(node, state)
+    assert result.exit_code == 0
+
+    enhanced_id = _object_id_by_sop_class(state, ENHANCED_CT_IMAGE_STORAGE)
+    jobs_by_object = {job["object"]: job for job in state["jobs"].values()}
+    assert jobs_by_object[enhanced_id]["status"] == "failed"
+    assert jobs_by_object[enhanced_id]["reason"] == "abstract_syntax_not_supported"
+
+    outcome = rules.evaluate_flag(node, state, ENHANCED_CT_IMAGE_STORAGE)
+
+    assert outcome.correct is True
+    assert outcome.solved is False
+    assert outcome.reason == rules.REASON_PREREQUISITES_NOT_MET
+
+
+def test_zweiter_hop_is_solvable_from_the_real_content() -> None:
+    """ADR 0120, zweiter Hands-on-Node: Generalisierungstest fuer Phase
+    A-D.2 an einer anderen Betriebsgrenze als "gefiltert" (Route matcht,
+    Job entsteht, Zustellung scheitert am Ziel) -- echte
+    `rules.exec_command()`-Aufrufe, keine handgeschriebenen Jobs/Events."""
+
+    node = content.load_node("zweiter-hop")
+    state = rules.initial_state(node)
+
+    for result in (_ingest_classic(node, state), _ingest_enhanced(node, state)):
+        assert result.exit_code == 0
+
+    classic_id = _object_id_by_sop_class(state, CT_IMAGE_STORAGE)
+    enhanced_id = _object_id_by_sop_class(state, ENHANCED_CT_IMAGE_STORAGE)
+
+    # --- Beide Objekte: identische Transfer Syntax, nur die SOP Class
+    # unterscheidet sie (Abschnitt 2/18/45: keine Transfer-Syntax-Falle) ---
+    classic = state["objects"][classic_id]
+    enhanced = state["objects"][enhanced_id]
+    assert classic["transfer_syntax"] == EXPLICIT_VR_LITTLE_ENDIAN
+    assert enhanced["transfer_syntax"] == EXPLICIT_VR_LITTLE_ENDIAN
+
+    postproc_service = next(
+        s for h in node.hosts if h["name"] == "postproc-scp" for s in h["services"]
+        if s["id"] == "postproc-store"
+    )
+    assert EXPLICIT_VR_LITTLE_ENDIAN in postproc_service["accepted_transfer_syntaxes"]
+    assert ENHANCED_CT_IMAGE_STORAGE not in postproc_service["accepted_sop_classes"]
+
+    # --- RuntimeObject/Presence (Abschnitt 41) ---
+    assert classic_id in state["stored_objects"]["pacs"]
+    assert classic_id in state["stored_objects"]["postproc-scp"]
+    assert enhanced_id in state["stored_objects"]["pacs"]
+    assert enhanced_id not in state["stored_objects"].get("postproc-scp", [])
+
+    # --- Jobs (Abschnitt 41): classic sent, enhanced failed -- BEIDE haben
+    # tatsaechlich einen Job, anders als der "kein Job"-Fall bei gefiltert ---
+    jobs_by_object = {job["object"]: job for job in state["jobs"].values()}
+    assert jobs_by_object[classic_id]["route_id"] == "PACS-TO-POSTPROC"
+    assert jobs_by_object[classic_id]["status"] == "sent"
+    assert jobs_by_object[enhanced_id]["route_id"] == "PACS-TO-POSTPROC"
+    assert jobs_by_object[enhanced_id]["status"] == "failed"
+    # Zwingender Test (Abschnitt 18/45): NICHT transfer_syntaxes_not_supported.
+    assert jobs_by_object[enhanced_id]["reason"] == "abstract_syntax_not_supported"
+    assert jobs_by_object[enhanced_id]["reason"] != "transfer_syntaxes_not_supported"
+
+    # --- Events fuer Enhanced (Abschnitt 42): route.evaluated matched=true
+    # -- die Route HAT ausgewaehlt, anders als bei gefiltert -- gefolgt von
+    # job.created/job.failed, kein job.sent fuer dieses Objekt. ---
+    enhanced_events = [e for e in state["events"] if e.get("object") == enhanced_id]
+    enhanced_event_types = [e["type"] for e in enhanced_events]
+    assert enhanced_event_types == [
+        "store.completed", "route.evaluated", "job.created", "job.failed",
+    ]
+    route_evaluated = next(e for e in enhanced_events if e["type"] == "route.evaluated")
+    assert route_evaluated["matched"] is True
+    job_failed = next(e for e in enhanced_events if e["type"] == "job.failed")
+    assert job_failed["reason"] == "abstract_syntax_not_supported"
+    assert "job.sent" not in enhanced_event_types
+
+    # --- CLI End-to-End (Abschnitt 43): --object-Filter zeigt AUSSCHLIESSLICH
+    # das jeweils gefilterte Objekt, keine Vermischung mit dem Kontrollobjekt ---
+    enhanced_jobs_out = rules.exec_command(
+        node, state, "workstation", f"pacs jobs --object {enhanced_id}",
+    ).stdout
+    assert enhanced_id in enhanced_jobs_out
+    assert "failed" in enhanced_jobs_out
+    assert classic_id not in enhanced_jobs_out
+
+    enhanced_events_out = rules.exec_command(
+        node, state, "workstation", f"pacs events --object {enhanced_id}",
+    ).stdout
+    assert "route.evaluated" in enhanced_events_out
+    assert "matched=true" in enhanced_events_out
+    assert "reason=abstract_syntax_not_supported" in enhanced_events_out
+    assert classic_id not in enhanced_events_out
+
+    # --- `pacs route test` (Abschnitt 44): beweist, dass NICHT die Route
+    # das Objekt ausgeschlossen hat -- konzeptionelle Abgrenzung zu
+    # "gefiltert". Bleibt dabei ein echter Dry Run (State unveraendert). ---
+    before = copy.deepcopy(state)
+    route_test_out = rules.exec_command(
+        node, state, "workstation", f"pacs route test PACS-TO-POSTPROC {enhanced_id}",
+    ).stdout
+    assert route_test_out == "matched: true\n"
+    assert state == before
+
+    # --- Purity (Abschnitt 48): read-only Befehle mutieren nichts ---
+    before = copy.deepcopy(state)
+    rules.exec_command(node, state, "workstation", "pacs objects")
+    rules.exec_command(node, state, "workstation", f"pacs jobs --object {enhanced_id}")
+    rules.exec_command(node, state, "workstation", f"pacs events --object {enhanced_id}")
+    rules.exec_command(node, state, "workstation", "pacs route show PACS-TO-POSTPROC")
+    assert state == before
+
+    # --- Flag (Abschnitt 46/47): die SOP-Class-UID des abgelehnten
+    # Objekttyps -- nicht die Failure-Reason, nicht die Route-ID, nicht die
+    # (bei beiden Objekten identische) Transfer Syntax, nicht die SOP Class
+    # des Kontrollobjekts. ---
+    outcome = rules.evaluate_flag(node, state, ENHANCED_CT_IMAGE_STORAGE)
+    assert outcome.correct is True
+    assert outcome.solved is True
+    assert outcome.reason is None
+
+    for plausible_wrong_value in (
+        CT_IMAGE_STORAGE, "abstract_syntax_not_supported", "PACS-TO-POSTPROC",
+        EXPLICIT_VR_LITTLE_ENDIAN,
+    ):
+        assert rules.check_flag(node, state, plausible_wrong_value) is False
