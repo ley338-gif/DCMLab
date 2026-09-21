@@ -55,6 +55,17 @@ class Lesson extends Model
         return 'lesson_id';
     }
 
+    /**
+     * Einzige Stelle, die `status === 'published'` ausbuchstabiert (analog
+     * `Node::isPublished()`, ADR 0110/0119): `LessonPolicy::view()` und die
+     * Lesson-Endpunkte lesen diese Methode statt den String-Vergleich zu
+     * wiederholen.
+     */
+    public function isPublished(): bool
+    {
+        return $this->status === 'published';
+    }
+
     protected function casts(): array
     {
         return [

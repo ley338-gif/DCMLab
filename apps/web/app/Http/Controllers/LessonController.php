@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Activities\ActivityProgressRecorder;
 use App\Content\LearnerViewBuilder;
-use App\Models\Activity;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use Illuminate\Http\RedirectResponse;
@@ -20,30 +19,36 @@ class LessonController extends Controller
      * Zeigt eine Lektion: gerenderte Werkzeugleiste (Abschnitt 4.4), Prosa
      * mit aufgeloesten Glossar-Begriffen, Fortschritt fuer den Nutzer. Die
      * eigentliche Prop-Konstruktion lebt seit CMS-7d.3 Phase 6 (ADR 0118)
-     * in `LearnerViewBuilder`, damit die Draft-Vorschau
-     * (`LessonEditorController::preview()`) denselben Weg nimmt --
-     * `trackProgress: true` ist der einzige Unterschied zum Vorschau-Aufruf.
+     * in `LearnerViewBuilder`.
+     *
+     * Autorisierung (analog Node, ADR 0110/0119, Haertung): zentral in
+     * `LessonPolicy::view()`, ueber `Gate::allows('view', $lesson)` -- diese
+     * Methode UND jeder andere Lesson-Endpunkt, der Inhalt/Fortschritt
+     * beruehrt (complete/reopen unten, `QuizController::answer()`,
+     * `SandboxController::create()`), rufen dieselbe Regel auf. `trackProgress`
+     * haengt jetzt am Veroeffentlichungsstatus (vorher immer `true`): eine
+     * autorisierte Draft-Vorschau (zugewiesener Autor oder Reviewer/
+     * Administrator) darf die echte, interaktive Ansicht sehen, legt dabei
+     * aber -- genau wie die bereits bestehende editorielle Vorschau
+     * (`LessonEditorController::preview()`, `trackProgress: false`) -- keinen
+     * echten `LessonProgress`-Datensatz an. `draft_preview` (aus
+     * `lessonProps()`) zeigt dem Frontend serverseitig ermittelt, dass
+     * Ergebnisse/Fortschritt hier nicht gewertet werden.
      */
     public function show(Lesson $lesson, LearnerViewBuilder $builder): Response
     {
-        // Seit ADR 0119 (Lesson-Sichtbarkeit gehaertet, analog ADR 0110 fuer
-        // Node): eine nicht veroeffentlichte Lektion (draft/review, sowie
-        // archiviert) ist fuer normale Lernende gesperrt -- nur wer die
-        // zugehoerige Activity bearbeiten darf (zugewiesener Autor oder
-        // Reviewer/Administrator, ActivityPolicy) sieht sie trotzdem, das
-        // ist die "Vorschau" aus dem Studio-Editor (LessonEditorController::
-        // preview() ruft denselben Gate::authorize() bereits explizit auf),
-        // keine zweite Route.
-        if ($lesson->status !== 'published') {
-            $activity = Activity::query()->where('type', 'lesson')->where('key', $lesson->lesson_id)->first();
-            abort_unless($activity !== null && Gate::allows('update', $activity), 404);
-        }
+        abort_unless(Gate::allows('view', $lesson), 404);
 
-        return Inertia::render('Lessons/Show', $builder->lessonProps($lesson, Auth::user(), trackProgress: true));
+        return Inertia::render(
+            'Lessons/Show',
+            $builder->lessonProps($lesson, Auth::user(), trackProgress: $lesson->isPublished()),
+        );
     }
 
     public function complete(Request $request, Lesson $lesson, ActivityProgressRecorder $progressRecorder): RedirectResponse
     {
+        abort_unless(Gate::allows('view', $lesson), 404);
+
         $this->setStatus($request, $lesson, 'completed', $progressRecorder);
 
         return back();
@@ -51,6 +56,8 @@ class LessonController extends Controller
 
     public function reopen(Request $request, Lesson $lesson, ActivityProgressRecorder $progressRecorder): RedirectResponse
     {
+        abort_unless(Gate::allows('view', $lesson), 404);
+
         $this->setStatus($request, $lesson, 'started', $progressRecorder);
 
         return back();
@@ -58,6 +65,17 @@ class LessonController extends Controller
 
     private function setStatus(Request $request, Lesson $lesson, string $status, ActivityProgressRecorder $progressRecorder): void
     {
+        // Eine autorisierte Draft-Vorschau darf diese Buttons anklicken
+        // (Lessons/Show.vue zeigt sie unveraendert), aber keinerlei
+        // persistente Lernstatistik erzeugen -- kein LessonProgress, kein
+        // ActivityProgress, keine Achievements. Der `Gate::allows('view', ...)`-
+        // Aufruf in complete()/reopen() garantiert bereits, dass nur
+        // autorisierte Nutzer hierher kommen; fuer eine veroeffentlichte
+        // Lesson bleibt das Verhalten unveraendert.
+        if (! $lesson->isPublished()) {
+            return;
+        }
+
         $progress = LessonProgress::firstOrNew(['user_id' => $request->user()->id, 'lesson_id' => $lesson->id]);
         $progress->status = $status;
         $progress->started_at ??= now();

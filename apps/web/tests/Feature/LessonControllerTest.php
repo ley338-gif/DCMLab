@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Models\AchievementUnlock;
 use App\Models\Activity;
+use App\Models\ActivityProgress;
 use App\Models\Lab;
 use App\Models\LabAttempt;
 use App\Models\Lesson;
@@ -12,6 +14,7 @@ use App\Models\LessonProgress;
 use App\Models\Node;
 use App\Models\Track;
 use App\Models\User;
+use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -103,6 +106,132 @@ class LessonControllerTest extends TestCase
         $reviewer = User::factory()->reviewer()->create();
 
         $this->actingAs($reviewer)->get('/de/lessons/1.0')->assertOk();
+    }
+
+    public function test_an_authorized_previewer_sees_the_draft_preview_banner_prop(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft', 'body' => 'Prosa-Inhalt der Lektion.']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $admin = User::factory()->administrator()->create();
+
+        $this->actingAs($admin)->get('/de/lessons/1.0')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('draft_preview', true));
+    }
+
+    public function test_a_published_lesson_never_sets_the_draft_preview_prop(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'body' => 'Prosa-Inhalt der Lektion.']);
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get('/de/lessons/1.0')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('draft_preview', false));
+    }
+
+    /**
+     * Der eigentliche Sicherheits-Fix (ADR 0110/0119-Haertung uebertragen
+     * auf Lesson): vor diesem PR pruefte nur `show()` den Draft-Status --
+     * complete()/reopen() hingen an keinerlei Autorisierung, ein normaler
+     * Lernender mit bekannter Draft-Lesson-Id konnte hier direkt einen
+     * echten `LessonProgress`-Datensatz anlegen und `ActivityProgressRecorder`
+     * ausloesen, ganz ohne vorherigen autorisierten Besuch von `show()`.
+     */
+    public function test_a_learner_cannot_use_any_lesson_sub_endpoint_for_a_lesson_that_is_not_yet_published(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft', 'body' => 'Prosa-Inhalt der Lektion.']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $learner = User::factory()->create();
+
+        $this->actingAs($learner)->postJson('/de/lessons/1.0/complete')->assertNotFound();
+        $this->actingAs($learner)->postJson('/de/lessons/1.0/reopen')->assertNotFound();
+
+        $this->assertSame(0, LessonProgress::query()->count());
+        $this->assertSame(0, ActivityProgress::query()->count());
+    }
+
+    public function test_guests_are_redirected_to_login_for_a_draft_lessons_sub_endpoints(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+
+        $this->postJson('/de/lessons/1.0/complete')->assertUnauthorized();
+    }
+
+    /**
+     * Abschnitt "Fortschritts-Isolation": ein in der Draft-Vorschau
+     * "abgeschlossener" Lesson-Besuch darf keinerlei regulaeren
+     * Lernfortschritt erzeugen -- kein `LessonProgress` (weder aus dem
+     * blossen Ansehen via `trackProgress`, noch aus `complete()`), kein
+     * `ActivityProgress`, kein Achievement.
+     */
+    public function test_a_correctly_completed_draft_preview_creates_no_persistent_progress(): void
+    {
+        $this->seed(AchievementSeeder::class);
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft', 'body' => 'Prosa-Inhalt der Lektion.']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $admin = User::factory()->administrator()->create();
+
+        // Erst ansehen (trackProgress-Zweig), dann "erledigt" markieren --
+        // beides darf keine Zeile in lesson_progress anlegen.
+        $this->actingAs($admin)->get('/de/lessons/1.0')->assertOk();
+        $this->actingAs($admin)->postJson('/de/lessons/1.0/complete')->assertRedirect();
+
+        $this->assertSame(0, LessonProgress::query()->count());
+        $this->assertSame(0, ActivityProgress::query()->count());
+        $this->assertSame(0, AchievementUnlock::query()->count());
+    }
+
+    public function test_repeated_draft_preview_visits_and_completions_still_create_no_progress(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'status' => 'draft', 'body' => 'Prosa-Inhalt der Lektion.']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        $admin = User::factory()->administrator()->create();
+
+        $this->actingAs($admin)->get('/de/lessons/1.0')->assertOk();
+        $this->actingAs($admin)->postJson('/de/lessons/1.0/complete')->assertRedirect();
+        $this->actingAs($admin)->get('/de/lessons/1.0')->assertOk();
+        $this->actingAs($admin)->postJson('/de/lessons/1.0/reopen')->assertRedirect();
+        $this->actingAs($admin)->postJson('/de/lessons/1.0/complete')->assertRedirect();
+
+        $this->assertSame(0, LessonProgress::query()->count());
+        $this->assertSame(0, ActivityProgress::query()->count());
+    }
+
+    /**
+     * Lesson hat keine erratbare Session-/Attempt-ID wie Node -- die
+     * relevante Cross-State-Frage ist stattdessen: haengt die Autorisierung
+     * WIRKLICH nur am aktuellen Status + der Rolle, unabhaengig von
+     * bereits bestehendem, aus einer frueheren Veroeffentlichungsphase
+     * stammendem echten Fortschritt desselben Nutzers? Ein Lernender mit
+     * echtem, historischem LessonProgress darf nicht ploetzlich wieder
+     * Zugriff bekommen, nur weil er die Lektion vorher schon gesehen hatte.
+     */
+    public function test_a_learner_with_prior_progress_is_still_blocked_once_the_lesson_becomes_a_draft(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'body' => 'Prosa-Inhalt der Lektion.']);
+        $learner = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $learner->id, 'lesson_id' => $lesson->id,
+            'status' => 'completed', 'started_at' => now()->subDay(), 'completed_at' => now()->subDay(),
+        ]);
+
+        $lesson->update(['status' => 'draft']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+
+        $this->actingAs($learner)->get('/de/lessons/1.0')->assertNotFound();
+        $this->actingAs($learner)->postJson('/de/lessons/1.0/reopen')->assertNotFound();
+
+        $this->assertDatabaseHas('lesson_progress', [
+            'user_id' => $learner->id, 'lesson_id' => $lesson->id, 'status' => 'completed',
+        ]);
     }
 
     public function test_it_renders_the_lesson_with_toolbar_and_marks_new_tools(): void

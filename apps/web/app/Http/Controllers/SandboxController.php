@@ -13,6 +13,7 @@ use App\Services\RuntimeSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -27,8 +28,20 @@ use Illuminate\Validation\ValidationException;
  */
 class SandboxController extends Controller
 {
+    /**
+     * Autorisierung wie jeder andere Lesson-Endpunkt (`LessonPolicy::view()`,
+     * siehe `LessonController`): ohne diesen Aufruf konnte ein Lernender mit
+     * einer bekannten Draft-Lesson-Id eine echte Sandbox-Laufzeit starten,
+     * ganz ohne vorherigen autorisierten Besuch der Lektion. Fuer eine
+     * autorisierte Draft-Vorschau darf die Sandbox weiterhin echt starten
+     * (der Lernweg soll vollstaendig testbar bleiben), nur das Achievement
+     * "sandbox-starter" bleibt fuer eine nicht veroeffentlichte Lektion
+     * unangetastet -- eine Vorschau darf keine echte Lernstatistik erzeugen.
+     */
     public function create(Lesson $lesson, RuntimeSessionService $sessions, AchievementService $achievements): JsonResponse
     {
+        abort_unless(Gate::allows('view', $lesson), 404);
+
         $datasetSlug = $lesson->sandbox['dataset'] ?? null;
 
         if ($datasetSlug === null) {
@@ -63,21 +76,29 @@ class SandboxController extends Controller
         }
 
         // "sandbox-starter" nur bei wirklich erzeugter Umgebung, nicht beim
-        // reinen Anklicken der Lektion (Achievement-System, Abschnitt 6).
-        $unlockResult = $achievements->unlock(Auth::user(), 'sandbox-starter', [
-            'lesson' => $lesson->lesson_id,
-            'source' => 'sandbox_started',
-        ]);
+        // reinen Anklicken der Lektion (Achievement-System, Abschnitt 6) --
+        // und nur fuer eine veroeffentlichte Lektion, nie fuer eine
+        // autorisierte Draft-Vorschau.
+        $unlockedAchievements = [];
 
-        $unlockedAchievements = $unlockResult->isNewlyUnlocked() && $unlockResult->definition !== null
-            ? [$achievements->toArray($unlockResult->definition, $unlockResult->unlock)]
-            : [];
+        if ($lesson->isPublished()) {
+            $unlockResult = $achievements->unlock(Auth::user(), 'sandbox-starter', [
+                'lesson' => $lesson->lesson_id,
+                'source' => 'sandbox_started',
+            ]);
+
+            $unlockedAchievements = $unlockResult->isNewlyUnlocked() && $unlockResult->definition !== null
+                ? [$achievements->toArray($unlockResult->definition, $unlockResult->unlock)]
+                : [];
+        }
 
         return response()->json([...$result, 'unlocked_achievements' => $unlockedAchievements], 201);
     }
 
     public function state(string $sandboxId, RuntimeSessionService $sessions): JsonResponse
     {
+        $this->authorizeSandbox($sandboxId, $sessions);
+
         try {
             return response()->json($sessions->state($sandboxId));
         } catch (RuntimeGoneException) {
@@ -87,6 +108,8 @@ class SandboxController extends Controller
 
     public function exec(Request $request, string $sandboxId, RuntimeSessionService $sessions): JsonResponse
     {
+        $this->authorizeSandbox($sandboxId, $sessions);
+
         // 4096 Zeichen: identisch zu services/sandbox's Pydantic-Limit
         // (CMS-8b, Betreiber-Review) -- der Befehl wird seit den Exec-Facts
         // dauerhaft in Redis gespeichert, nicht mehr nur transient
@@ -104,8 +127,25 @@ class SandboxController extends Controller
 
     public function destroy(string $sandboxId, RuntimeSessionService $sessions): JsonResponse
     {
+        $this->authorizeSandbox($sandboxId, $sessions);
+
         $sessions->destroy($sandboxId);
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * IDOR-Haertung (Betreiber-Review nach PR #175): die sandbox_id ist --
+     * anders als jede Node-/Lesson-Session-ID -- ein echter Client-
+     * Parameter, der ausschliesslich im Browser lebt (siehe Klassenkommentar
+     * oben). Ohne diese Pruefung konnte jeder angemeldete Nutzer, der eine
+     * fremde sandbox_id kennt oder eraet, deren Zustand lesen, Befehle
+     * ausfuehren oder sie loeschen. `abort_unless` blockt VOR jedem Aufruf
+     * an RuntimeSessionService -- bei fehlendem Owner-Match findet
+     * garantiert kein Request an den Sandbox-Provider mehr statt.
+     */
+    private function authorizeSandbox(string $sandboxId, RuntimeSessionService $sessions): void
+    {
+        abort_unless($sessions->belongsToUser($sandboxId, (int) Auth::id()), 404);
     }
 }

@@ -156,6 +156,14 @@ final readonly class LearnerViewBuilder
                 'is_returning_visit' => $isReturningVisit,
             ],
             'sidebar' => $this->navigation->sidebarFor($user, $lesson),
+            // Serverseitig ermittelt, nie clientseitig ableitbar (analog
+            // Node): eine nicht veroeffentlichte Lesson zeigt hier immer
+            // true, egal ob ueber LessonController::show() (autorisierte
+            // Draft-Vorschau mit echter Interaktivitaet) oder
+            // LessonEditorController::preview() (editorielle Copy-Vorschau)
+            // aufgerufen -- beide bedeuten fuer den Betrachter dasselbe:
+            // Ergebnisse/Fortschritt werden hier nicht gewertet.
+            'draft_preview' => ! $lesson->isPublished(),
         ];
     }
 

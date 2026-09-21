@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import RichContentWorkbench from '@/components/RichContent/RichContentWorkbench.vue';
 import { postJson } from '@/lib/api';
 import { trans } from '@/lib/trans';
+import { show as showLesson } from '@/routes/lessons';
 import { index as studioIndex } from '@/routes/studio';
 import {
     index as studioLessonsIndex,
@@ -213,6 +214,15 @@ const statusLabels: Record<string, string> = {
                 <a :href="preview_url" target="_blank" rel="noopener">
                     <Button type="button" variant="outline">{{
                         trans('Vorschau')
+                    }}</Button>
+                </a>
+                <a
+                    :href="showLesson(lesson.lesson_id).url"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    <Button type="button" variant="outline">{{
+                        trans('Im Lernpfad testen')
                     }}</Button>
                 </a>
             </div>
