@@ -97,6 +97,8 @@ class SandboxController extends Controller
 
     public function state(string $sandboxId, RuntimeSessionService $sessions): JsonResponse
     {
+        $this->authorizeSandbox($sandboxId, $sessions);
+
         try {
             return response()->json($sessions->state($sandboxId));
         } catch (RuntimeGoneException) {
@@ -106,6 +108,8 @@ class SandboxController extends Controller
 
     public function exec(Request $request, string $sandboxId, RuntimeSessionService $sessions): JsonResponse
     {
+        $this->authorizeSandbox($sandboxId, $sessions);
+
         // 4096 Zeichen: identisch zu services/sandbox's Pydantic-Limit
         // (CMS-8b, Betreiber-Review) -- der Befehl wird seit den Exec-Facts
         // dauerhaft in Redis gespeichert, nicht mehr nur transient
@@ -123,8 +127,25 @@ class SandboxController extends Controller
 
     public function destroy(string $sandboxId, RuntimeSessionService $sessions): JsonResponse
     {
+        $this->authorizeSandbox($sandboxId, $sessions);
+
         $sessions->destroy($sandboxId);
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * IDOR-Haertung (Betreiber-Review nach PR #175): die sandbox_id ist --
+     * anders als jede Node-/Lesson-Session-ID -- ein echter Client-
+     * Parameter, der ausschliesslich im Browser lebt (siehe Klassenkommentar
+     * oben). Ohne diese Pruefung konnte jeder angemeldete Nutzer, der eine
+     * fremde sandbox_id kennt oder eraet, deren Zustand lesen, Befehle
+     * ausfuehren oder sie loeschen. `abort_unless` blockt VOR jedem Aufruf
+     * an RuntimeSessionService -- bei fehlendem Owner-Match findet
+     * garantiert kein Request an den Sandbox-Provider mehr statt.
+     */
+    private function authorizeSandbox(string $sandboxId, RuntimeSessionService $sessions): void
+    {
+        abort_unless($sessions->belongsToUser($sandboxId, (int) Auth::id()), 404);
     }
 }

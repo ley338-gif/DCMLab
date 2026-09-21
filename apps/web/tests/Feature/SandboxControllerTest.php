@@ -93,6 +93,7 @@ class SandboxControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $session = SandboxSession::factory()->create([
+            'user_id' => $user->id,
             'runtime_instance_id' => 'sb-1',
             'runtime_provider' => 'docker',
             'last_activity_at' => now()->subHour(),
@@ -111,6 +112,7 @@ class SandboxControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $session = SandboxSession::factory()->create([
+            'user_id' => $user->id,
             'runtime_instance_id' => 'sb-1',
             'runtime_provider' => 'docker',
         ]);
@@ -271,6 +273,11 @@ class SandboxControllerTest extends TestCase
     public function test_exec_proxies_to_the_sandbox(): void
     {
         $user = User::factory()->create();
+        SandboxSession::factory()->create([
+            'user_id' => $user->id,
+            'runtime_instance_id' => 'sb-1',
+            'runtime_provider' => 'docker',
+        ]);
 
         Http::fake([
             '*/v1/sandboxes/sb-1/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
@@ -293,6 +300,7 @@ class SandboxControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $session = SandboxSession::factory()->create([
+            'user_id' => $user->id,
             'runtime_instance_id' => 'sb-1',
             'runtime_provider' => 'docker',
         ]);
@@ -316,6 +324,7 @@ class SandboxControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $session = SandboxSession::factory()->create([
+            'user_id' => $user->id,
             'runtime_instance_id' => 'sb-1',
             'runtime_provider' => 'docker',
             'status' => 'queued',
@@ -338,7 +347,7 @@ class SandboxControllerTest extends TestCase
     public function test_exec_rejects_a_command_over_the_length_limit(): void
     {
         $user = User::factory()->create();
-        SandboxSession::factory()->create(['runtime_instance_id' => 'sb-1', 'runtime_provider' => 'docker']);
+        SandboxSession::factory()->create(['user_id' => $user->id, 'runtime_instance_id' => 'sb-1', 'runtime_provider' => 'docker']);
 
         $this->actingAs($user)
             ->postJson('/de/sandbox/sb-1/exec', ['command' => str_repeat('x', 4097)])
@@ -348,6 +357,7 @@ class SandboxControllerTest extends TestCase
     public function test_destroy_proxies_to_the_sandbox(): void
     {
         $user = User::factory()->create();
+        SandboxSession::factory()->create(['user_id' => $user->id, 'runtime_instance_id' => 'sb-1', 'runtime_provider' => 'docker']);
 
         Http::fake(['*/v1/sandboxes/sb-1' => Http::response('', 204)]);
 
@@ -355,6 +365,121 @@ class SandboxControllerTest extends TestCase
 
         Http::assertSent(fn ($request) => str_contains($request->url(), '/v1/sandboxes/sb-1')
             && $request->method() === 'DELETE');
+    }
+
+    /**
+     * Betreiber-Review (Cross-User-IDOR nach PR #175): die sandbox_id ist --
+     * anders als jede Node-/Lesson-Session-ID -- ein echter Client-
+     * Parameter. Diese Gruppe belegt den geforderten Owner-Abgleich: der
+     * Besitzer darf weiterhin alle drei Endpunkte nutzen (dieser Test), ein
+     * fremder Nutzer wird an allen drei ohne jeden Provider-Aufruf
+     * abgewiesen (die drei folgenden Tests), und eine unbekannte ID wird
+     * nicht ueber einen Fallback freigegeben (letzter Test).
+     */
+    public function test_the_owner_can_still_read_exec_and_destroy_their_own_sandbox(): void
+    {
+        $owner = User::factory()->create();
+        SandboxSession::factory()->create([
+            'user_id' => $owner->id,
+            'runtime_instance_id' => 'sb-owner',
+            'runtime_provider' => 'docker',
+        ]);
+
+        Http::fake([
+            '*/v1/sandboxes/sb-owner/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0]),
+            '*/v1/sandboxes/sb-owner' => Http::response(['status' => 'running']),
+        ]);
+
+        $this->actingAs($owner)->getJson('/de/sandbox/sb-owner')->assertOk();
+        $this->actingAs($owner)->postJson('/de/sandbox/sb-owner/exec', ['command' => 'echo hi'])->assertOk();
+        $this->actingAs($owner)->deleteJson('/de/sandbox/sb-owner')->assertOk();
+    }
+
+    public function test_a_different_user_cannot_read_another_users_sandbox_state(): void
+    {
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $session = SandboxSession::factory()->create([
+            'user_id' => $owner->id,
+            'runtime_instance_id' => 'sb-owner',
+            'runtime_provider' => 'docker',
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-owner' => Http::response(['status' => 'running'])]);
+
+        $this->actingAs($intruder)->getJson('/de/sandbox/sb-owner')->assertNotFound();
+
+        Http::assertNothingSent();
+        $this->assertSame($owner->id, $session->fresh()->user_id);
+        $this->assertSame('running', $session->fresh()->status);
+    }
+
+    public function test_a_different_user_cannot_exec_a_command_in_another_users_sandbox(): void
+    {
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $session = SandboxSession::factory()->create([
+            'user_id' => $owner->id,
+            'runtime_instance_id' => 'sb-owner',
+            'runtime_provider' => 'docker',
+            'last_activity_at' => now()->subHour(),
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-owner/exec' => Http::response(['stdout' => 'ok', 'stderr' => '', 'exit_code' => 0])]);
+
+        $this->actingAs($intruder)
+            ->postJson('/de/sandbox/sb-owner/exec', ['command' => 'rm -rf /'])
+            ->assertNotFound();
+
+        Http::assertNothingSent();
+        $fresh = $session->fresh();
+        $this->assertSame($owner->id, $fresh->user_id);
+        $this->assertTrue($fresh->last_activity_at->lt(now()->subMinute()));
+    }
+
+    public function test_a_different_user_cannot_destroy_another_users_sandbox(): void
+    {
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $session = SandboxSession::factory()->create([
+            'user_id' => $owner->id,
+            'runtime_instance_id' => 'sb-owner',
+            'runtime_provider' => 'docker',
+        ]);
+
+        Http::fake(['*/v1/sandboxes/sb-owner' => Http::response('', 204)]);
+
+        $this->actingAs($intruder)->deleteJson('/de/sandbox/sb-owner')->assertNotFound();
+
+        Http::assertNothingSent();
+        $fresh = $session->fresh();
+        $this->assertSame($owner->id, $fresh->user_id);
+        $this->assertSame('running', $fresh->status);
+        $this->assertNull($fresh->finished_at);
+    }
+
+    /**
+     * Fuenfter geforderter Nachweis: eine unbekannte ID (keine
+     * `SandboxSession`-Zeile ueberhaupt, z. B. geraten oder laengst
+     * abgelaufen) darf nicht ueber den bestehenden "docker"-Fallback in
+     * `RuntimeSessionService::runtimeProviderFor()` freigegeben werden --
+     * dieser Fallback existiert nur fuer den (durch den Owner-Check jetzt
+     * unerreichbaren) Fall einer sandbox_id aus der Zeit vor ADR 0096.
+     */
+    public function test_an_unknown_sandbox_id_is_rejected_on_all_three_endpoints_without_a_permissive_fallback(): void
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            '*/v1/sandboxes/*' => Http::response(['status' => 'running']),
+        ]);
+
+        $this->actingAs($user)->getJson('/de/sandbox/never-existed')->assertNotFound();
+        $this->actingAs($user)->postJson('/de/sandbox/never-existed/exec', ['command' => 'echo hi'])->assertNotFound();
+        $this->actingAs($user)->deleteJson('/de/sandbox/never-existed')->assertNotFound();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, SandboxSession::query()->count());
     }
 
     private function lessonWithSandbox(string $dataset = 'test-set'): Lesson

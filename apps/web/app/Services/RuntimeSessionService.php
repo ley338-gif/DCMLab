@@ -122,6 +122,24 @@ final readonly class RuntimeSessionService
     }
 
     /**
+     * IDOR-Schutz fuer state()/exec()/destroy() (Betreiber-Review nach PR
+     * #175): anders als jede Node-/Lesson-Session-ID ist die sandbox_id ein
+     * echter Client-Parameter (siehe Klassenkommentar von
+     * `SandboxController`). Nur eine existierende, dem Nutzer gehoerende
+     * `SandboxSession`-Zeile zaehlt als Treffer -- eine unbekannte oder
+     * einem anderen Nutzer gehoerende ID (auch eine alte, vor ADR 0096/
+     * CMS-2b entstandene ohne eindeutige Zuordnung) wird bewusst NICHT ueber
+     * einen Fallback freigegeben.
+     */
+    public function belongsToUser(string $sandboxId, int $userId): bool
+    {
+        return SandboxSession::query()
+            ->where('runtime_instance_id', $sandboxId)
+            ->where('user_id', $userId)
+            ->exists();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function state(string $sandboxId): array
