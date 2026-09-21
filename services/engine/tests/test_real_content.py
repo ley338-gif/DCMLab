@@ -758,6 +758,7 @@ def test_zweiter_hop_classic_only_does_not_solve() -> None:
 
     assert outcome.correct is True
     assert outcome.solved is False
+    assert outcome.reason == rules.REASON_PREREQUISITES_NOT_MET
 
 
 def test_zweiter_hop_enhanced_only_does_not_solve() -> None:
@@ -778,6 +779,7 @@ def test_zweiter_hop_enhanced_only_does_not_solve() -> None:
 
     assert outcome.correct is True
     assert outcome.solved is False
+    assert outcome.reason == rules.REASON_PREREQUISITES_NOT_MET
 
 
 def test_zweiter_hop_is_solvable_from_the_real_content() -> None:

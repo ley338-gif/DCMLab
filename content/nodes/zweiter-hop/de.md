@@ -141,9 +141,11 @@ Endian) ist bei beiden Objekten identisch.
 
 ### Wo die erste fehlerhafte Stelle liegt
 
-Nicht das PACS, nicht die Route, nicht die Transfer Syntax — das
-nachgelagerte Postprocessing-System lehnt beim Zustellversuch die
-konkrete SOP Class des Objekts ab. Die Route `PACS-TO-POSTPROC` selektiert
+Nicht das PACS, nicht die Route, nicht die Transfer Syntax — der
+Weiterleitungsversuch scheitert bereits bei der Aushandlung des
+Presentation Context, weil das nachgelagerte Postprocessing-System die
+Enhanced-CT-SOP-Class als Abstract Syntax nicht akzeptiert. Die Route
+`PACS-TO-POSTPROC` selektiert
 nach `Modality == CT` und wählt damit folgerichtig beide Objekttypen aus
 — klassisches CT und Enhanced CT tragen beide `Modality = CT`. Das
 Postprocessing-System selbst unterstützt aber nur klassisches CT Image
@@ -157,15 +159,11 @@ scheitern, den konkreten Objekttyp zu verarbeiten.
 
 ### Saubere betriebliche Maßnahme
 
-Die Route nicht einfach enger auf `sop_class equals CT Image Storage`
-umstellen — damit würde Enhanced CT dauerhaft gar nicht mehr an das
-Postprocessing gesendet, auch wenn das System es später unterstützen
-sollte. Sauberer ist, die Zielfähigkeit selbst zu klären: entweder das
-Postprocessing-System um Unterstützung für Enhanced CT Image Storage
-erweitern (technisch und organisatorisch), oder die Route bewusst so
-begrenzen, dass sie nur Objekttypen weiterleitet, die das Ziel nachweislich
-verarbeiten kann — in jedem Fall eine fachliche Entscheidung, keine reine
-Konfigurationskorrektur.
+Kurzfristig kann die Route bewusst auf nachweislich unterstützte SOP
+Classes begrenzt werden, um dauerhaft fehlschlagende Jobs zu vermeiden.
+Die eigentliche Integrationslösung ist jedoch die abgestimmte
+Enhanced-CT-Unterstützung des Zielsystems; bei einer späteren Erweiterung
+muss die Route entsprechend angepasst werden.
 
 ### Was du mitnimmst
 
