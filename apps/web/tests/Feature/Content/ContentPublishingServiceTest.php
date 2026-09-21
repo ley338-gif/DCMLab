@@ -913,6 +913,56 @@ class ContentPublishingServiceTest extends TestCase
         $this->assertSame('Korrigierte, finale Fassung.', $lesson->fresh()->rich_content['content'][0]['content'][0]['text'], 'die veraltete Fassung darf die korrigierte nicht mehr ueberschreiben koennen.');
     }
 
+    /**
+     * Betreiber-Review nach #179 (Blocker 1, voller Pfad): dieselbe Race wie
+     * oben, aber mit dem tatsaechlich VERALTETEN PHP-Objekt (kein `->fresh()`
+     * dazwischen) durch den vollen `ContentPublishingService`-Pfad -- genau
+     * das Szenario, das ein zweiter, gleichzeitiger Request erzeugen wuerde:
+     * `ActivityContentApplier::apply()` schreibt die Lesson probeweise
+     * BEVOR `ContentVersioningService::publish()` den inzwischen veralteten
+     * Status erkennt und wirft. Die AEUSSERE Transaktion (aus
+     * `ContentPublishingService::publish()`) muss diesen zwischenzeitlichen
+     * Live-Schreibvorgang vollstaendig zuruecknehmen.
+     */
+    public function test_publishing_a_stale_review_object_via_the_full_path_rolls_back_the_intermediate_live_write(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'title' => ['de' => 'Alt'], 'body' => 'Alt.']);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $author = User::factory()->author()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $stale = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review',
+            'payload' => $this->lessonDraftPayload('Veraltete Fassung.'),
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+        $corrected = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review',
+            'payload' => $this->lessonDraftPayload('Korrigierte Fassung.'),
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+
+        // Veroeffentlicht die korrigierte Fassung -- superseded $stale als
+        // Nebeneffekt in der DB, das PHP-Objekt $stale weiss davon nichts.
+        $issues = app(ContentPublishingService::class)->publish($corrected, $reviewer);
+        $this->assertSame([], $issues);
+        $this->assertSame('review', $stale->status, 'das In-Memory-Objekt bleibt bewusst unveraendert/veraltet.');
+
+        try {
+            app(ContentPublishingService::class)->publish($stale, $reviewer);
+            $this->fail('publish() des veralteten Objekts haette werfen muessen.');
+        } catch (RuntimeException) {
+            // erwartet: "Nur eine Version im Review-Status kann veroeffentlicht werden."
+        }
+
+        $lesson->refresh();
+        $this->assertSame('Korrigierte Fassung.', $lesson->rich_content['content'][0]['content'][0]['text'], 'der zwischenzeitliche ActivityContentApplier-Schreibvorgang fuer die veraltete Fassung muss vollstaendig zurueckgerollt worden sein.');
+        $this->assertSame('superseded', $stale->fresh()->status);
+        $this->assertSame('published', $corrected->fresh()->status);
+        $this->assertTrue($corrected->fresh()->is_current);
+    }
+
     private function engineState(): array
     {
         return [

@@ -71,29 +71,71 @@ final class ContentVersioningService
         });
     }
 
+    /**
+     * Betreiber-Review nach #179 (Stale-Model-Race): Die uebergebene
+     * `$version` kann veraltet sein, wenn der Aufrufer sie geladen hat,
+     * BEVOR eine parallele `createDraft()` sie superseded hat -- ein
+     * frueher Check auf `$version->status` allein wuerde dann faelschlich
+     * durchlaufen. Der massgebliche Check erfolgt deshalb erst INNERHALB
+     * der Transaktion, HINTER dem Activity-Lock, gegen ein frisch (und
+     * gesperrt) aus der DB geladenes Modell -- `createDraft()`,
+     * `submitForReview()` und `publish()` serialisieren sich dadurch alle
+     * ueber denselben Activity-Lock. Der Check oben bleibt als frueher
+     * Fast-Fail fuer den haeufigen Fall (z. B. Doppelklick) erhalten, ist
+     * aber nie die alleinige Pruefung.
+     */
     public function submitForReview(ContentVersion $version): ContentVersion
     {
         if ($version->status !== 'draft') {
             throw new RuntimeException('Nur ein Entwurf kann zur Pruefung eingereicht werden.');
         }
 
-        $version->status = 'review';
-        $version->save();
+        return DB::transaction(function () use ($version): ContentVersion {
+            Activity::query()->whereKey($version->activity_id)->lockForUpdate()->firstOrFail();
 
-        return $version;
+            $current = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
+
+            if ($current->status !== 'draft') {
+                throw new RuntimeException('Nur ein Entwurf kann zur Pruefung eingereicht werden.');
+            }
+
+            $current->status = 'review';
+            $current->save();
+
+            return $current;
+        });
     }
 
+    /**
+     * Derselbe Stale-Model-Race wie bei `submitForReview()` (Betreiber-Review
+     * nach #179): Zwei `publish()`-Aufrufe fuer verschiedene Versionen
+     * derselben Aktivitaet koennen beide ihre jeweilige `$version` mit
+     * Status `review` geladen haben, bevor einer von beiden den Activity-
+     * Lock erhaelt. Ohne einen massgeblichen Re-Check HINTER dem Lock
+     * wuerde der zweite Aufruf die vom ersten bereits superseded Version
+     * trotzdem noch veroeffentlichen und die frisch veroeffentlichte
+     * wieder verdraengen. Der fruehe Check oben bleibt nur Fast-Fail.
+     */
     public function publish(ContentVersion $version, User $reviewer): ContentVersion
     {
         if ($version->status !== 'review') {
             throw new RuntimeException('Nur eine Version im Review-Status kann veroeffentlicht werden.');
         }
 
-        DB::transaction(function () use ($version, $reviewer): void {
-            Activity::query()->whereKey($version->activity_id)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($version, $reviewer): ContentVersion {
+            $activity = Activity::query()->whereKey($version->activity_id)->lockForUpdate()->firstOrFail();
+
+            // Massgeblich: der Status IN DER DB, JETZT, hinter dem Lock --
+            // nicht das moeglicherweise veraltete $version-Objekt des
+            // Aufrufers (siehe Klassendoc-Ergaenzung oben).
+            $current = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
+
+            if ($current->status !== 'review') {
+                throw new RuntimeException('Nur eine Version im Review-Status kann veroeffentlicht werden.');
+            }
 
             ContentVersion::query()
-                ->where('activity_id', $version->activity_id)
+                ->where('activity_id', $activity->id)
                 ->where('is_current', true)
                 ->update(['is_current' => false]);
 
@@ -103,19 +145,19 @@ final class ContentVersioningService
             // publizierbar zu bleiben (Betreiber-Review nach #178). Greift
             // auch fuer Versionen, die VOR diesem Fix bereits existierten.
             ContentVersion::query()
-                ->where('activity_id', $version->activity_id)
+                ->where('activity_id', $activity->id)
                 ->whereIn('status', ['draft', 'review'])
-                ->where('id', '!=', $version->id)
+                ->where('id', '!=', $current->id)
                 ->update(['status' => 'superseded']);
 
-            $version->status = 'published';
-            $version->is_current = true;
-            $version->published_at = now();
-            $version->reviewed_by = $reviewer->id;
-            $version->save();
-        });
+            $current->status = 'published';
+            $current->is_current = true;
+            $current->published_at = now();
+            $current->reviewed_by = $reviewer->id;
+            $current->save();
 
-        return $version->refresh();
+            return $current;
+        });
     }
 
     /**
