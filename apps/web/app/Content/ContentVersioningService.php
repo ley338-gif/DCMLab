@@ -14,6 +14,16 @@ use RuntimeException;
  * vorherige veroeffentlichte Version. Ersetzt die Git-Historie als
  * Aenderungsverlauf.
  *
+ * Pro Aktivitaet ist ausserdem hoechstens eine `draft`/`review`-Version
+ * gleichzeitig aktiv (Betreiber-Review nach #178): `createDraft()` und
+ * `publish()` setzen dafuer jede andere offene `draft`/`review`-Version
+ * derselben Aktivitaet atomar auf den Endzustand `superseded` -- weder
+ * erneut einreichbar (`submitForReview()` verlangt Status `draft`) noch
+ * veroeffentlichbar (`publish()` verlangt Status `review`), beide Pruefungen
+ * bestanden bereits vor diesem Fix und brauchten keine Erweiterung.
+ * `superseded` ist kein DB-Constraint, nur ein weiterer freier Wert in der
+ * bestehenden `status`-Spalte (keine Migration noetig).
+ *
  * Bewusst getrennt von ContentWriter (W2): eine Version zu veroeffentlichen
  * oder zurueckzusetzen ist hier reine Buchfuehrung ueber `content_versions`.
  * Das tatsaechliche Zurueckschreiben eines `payload` nach content/ setzt
@@ -25,17 +35,40 @@ use RuntimeException;
 final class ContentVersioningService
 {
     /**
+     * Legt einen neuen Entwurf an und superseded dabei atomar jede andere
+     * `draft`- oder `review`-Version derselben Aktivitaet (Betreiber-Review
+     * nach #178/PR "content-version-supersession"): Vorher konnte
+     * `storeDraft()` in jedem der fuenf Editoren (Lesson/Node/Quiz/Exam/
+     * Achievement) beliebig oft aufgerufen werden, ohne dass ein aelterer,
+     * noch offener Entwurf oder eine bereits eingereichte Review-Version
+     * ungueltig wurde -- ein Reviewer haette Wochen spaeter versehentlich
+     * eine laengst ueberholte Fassung veroeffentlichen koennen. Pro
+     * Aktivitaet bleibt jetzt hoechstens eine `draft`/`review`-Version
+     * gleichzeitig aktiv; alle aelteren wandern auf `superseded` (siehe
+     * `publish()` fuer den spiegelbildlichen Fall beim Veroeffentlichen).
+     * Bereits veroeffentlichte Versionen und Versionen anderer Aktivitaeten
+     * bleiben unangetastet.
+     *
      * @param  array<string, mixed>  $payload
      */
     public function createDraft(Activity $activity, array $payload, User $author): ContentVersion
     {
-        return ContentVersion::create([
-            'activity_id' => $activity->id,
-            'status' => 'draft',
-            'payload' => $payload,
-            'is_current' => false,
-            'created_by' => $author->id,
-        ]);
+        return DB::transaction(function () use ($activity, $payload, $author): ContentVersion {
+            Activity::query()->whereKey($activity->id)->lockForUpdate()->firstOrFail();
+
+            ContentVersion::query()
+                ->where('activity_id', $activity->id)
+                ->whereIn('status', ['draft', 'review'])
+                ->update(['status' => 'superseded']);
+
+            return ContentVersion::create([
+                'activity_id' => $activity->id,
+                'status' => 'draft',
+                'payload' => $payload,
+                'is_current' => false,
+                'created_by' => $author->id,
+            ]);
+        });
     }
 
     public function submitForReview(ContentVersion $version): ContentVersion
@@ -57,10 +90,23 @@ final class ContentVersioningService
         }
 
         DB::transaction(function () use ($version, $reviewer): void {
+            Activity::query()->whereKey($version->activity_id)->lockForUpdate()->firstOrFail();
+
             ContentVersion::query()
                 ->where('activity_id', $version->activity_id)
                 ->where('is_current', true)
                 ->update(['is_current' => false]);
+
+            // Spiegelbild zu createDraft(): jede andere parallel entstandene
+            // draft-/review-Version derselben Aktivitaet wird beim
+            // Veroeffentlichen ungueltig, statt spaeter versehentlich
+            // publizierbar zu bleiben (Betreiber-Review nach #178). Greift
+            // auch fuer Versionen, die VOR diesem Fix bereits existierten.
+            ContentVersion::query()
+                ->where('activity_id', $version->activity_id)
+                ->whereIn('status', ['draft', 'review'])
+                ->where('id', '!=', $version->id)
+                ->update(['status' => 'superseded']);
 
             $version->status = 'published';
             $version->is_current = true;

@@ -858,6 +858,61 @@ class ContentPublishingServiceTest extends TestCase
         $this->assertSame('Historisch', Lab::where('slug', 'c-echo-connectivity')->value('title')['de'] ?? null);
     }
 
+    /**
+     * Reproduziert exakt den Fund aus PR #178 (Lesson 4.1, ContentVersion
+     * #22/#23): ein Reviewer hatte einen aelteren, inhaltlich ueberholten
+     * Review-Entwurf uebersehen koennen und ihn versehentlich AUCH NACH der
+     * Veroeffentlichung der korrigierten Fassung noch veroeffentlichen
+     * koennen -- `ContentVersioningService::publish()` supersediert seit
+     * diesem Fix jede andere offene draft-/review-Version derselben
+     * Aktivitaet in derselben Transaktion, in der die ausgewaehlte Version
+     * veroeffentlicht wird.
+     */
+    public function test_publishing_a_lesson_draft_supersedes_an_older_stale_review_version_of_the_same_lesson(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'title' => ['de' => 'Alt'], 'body' => 'Alt.']);
+        $activity = Activity::factory()->create(['type' => 'lesson', 'key' => $lesson->lesson_id]);
+        $author = User::factory()->author()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $staleReview = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review',
+            'payload' => $this->lessonDraftPayload('Veraltete, ueberholte Fassung.'),
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+        $correctedReview = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review',
+            'payload' => $this->lessonDraftPayload('Korrigierte, finale Fassung.'),
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+
+        $issues = app(ContentPublishingService::class)->publish($correctedReview, $reviewer);
+
+        $this->assertSame([], $issues);
+        $this->assertSame('published', $correctedReview->fresh()->status);
+        $this->assertTrue($correctedReview->fresh()->is_current);
+        $this->assertSame('superseded', $staleReview->fresh()->status, 'die veraltete Fassung darf nach der Veroeffentlichung der korrigierten nicht mehr publizierbar sein.');
+        $this->assertSame('Korrigierte, finale Fassung.', $lesson->fresh()->rich_content['content'][0]['content'][0]['text']);
+
+        // Requirement 3: eine superseded Version laesst sich nicht mehr
+        // veroeffentlichen -- selbst wenn jemand sie danach noch anklickt.
+        // `ContentVersioningService::publish()` wirft dabei (derselbe
+        // Fehlerpfad wie fuer einen 'draft'-Status, siehe
+        // test_publish_rolls_back_the_live_write_when_the_version_flip_fails_afterwards
+        // oben) -- die Transaktion rollt den zwischenzeitlichen
+        // `ActivityContentApplier::apply()`-Schreibvorgang deshalb zurueck.
+        try {
+            app(ContentPublishingService::class)->publish($staleReview->fresh(), $reviewer);
+            $this->fail('publish() einer superseded Version haette werfen muessen.');
+        } catch (RuntimeException) {
+            // erwartet: "Nur eine Version im Review-Status kann veroeffentlicht werden."
+        }
+
+        $this->assertSame('superseded', $staleReview->fresh()->status, 'bleibt superseded, nicht published.');
+        $this->assertSame('Korrigierte, finale Fassung.', $lesson->fresh()->rich_content['content'][0]['content'][0]['text'], 'die veraltete Fassung darf die korrigierte nicht mehr ueberschreiben koennen.');
+    }
+
     private function engineState(): array
     {
         return [

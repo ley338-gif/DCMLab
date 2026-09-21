@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Content\ContentVersioningService;
 use App\Models\Activity;
 use App\Models\ContentVersion;
 use App\Models\Lesson;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -267,6 +269,80 @@ class LessonEditorControllerTest extends TestCase
                     return str_contains($texts, 'Neue Einleitung') && ! str_contains($texts, 'Frage?');
                 }),
             );
+    }
+
+    /**
+     * Betreiber-Review nach #178 (Lesson 4.1, ContentVersion #22/#23): zwei
+     * Speichervorgaenge hintereinander duerfen nicht zwei parallel
+     * veroeffentlichbare Entwuerfe hinterlassen. Der Editor (`pending_version`)
+     * und die Review-Queue duerfen nach dem zweiten Speichern nur noch den
+     * neueren Entwurf sehen; der aeltere ist `superseded` und laesst sich
+     * ueber keinen der beiden Freigabe-Endpunkte mehr bewegen.
+     */
+    public function test_saving_a_second_draft_supersedes_the_first_and_both_editor_and_review_queue_reflect_only_the_newer_one(): void
+    {
+        [$lesson, $activity, $author] = $this->lessonAndActivity();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $payload = fn (string $title) => [
+            'title' => $title, 'teaser' => 'Teaser', 'level' => 'aufbau', 'duration_minutes' => 10,
+            'tools' => ['dcmdump'], 'requires' => [], 'glossary_terms' => ['dicom'],
+            'objectives' => ['Ziel'],
+            'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+            'related_node' => ['node' => null, 'optional' => true],
+            'rich_content' => [
+                'type' => 'doc', 'version' => 1,
+                'content' => [
+                    ['type' => 'code_block', 'attrs' => ['variant' => 'terminal'], 'text' => "\$ dcmdump datei.dcm\n(0008,0060) CS [CT]"],
+                    ['type' => 'paragraph', 'content' => [
+                        ['type' => 'text', 'text' => 'Was du daran abliest:', 'marks' => [['type' => 'bold']]],
+                        ['type' => 'text', 'text' => ' '.$title.'.'],
+                    ]],
+                ],
+            ],
+        ];
+
+        $this->actingAs($author)->post('/de/studio/lessons/1.0', $payload('Erster Entwurf'))->assertRedirect();
+        $stale = ContentVersion::where('activity_id', $activity->id)->sole();
+
+        $this->actingAs($author)->post('/de/studio/lessons/1.0', $payload('Korrigierter Entwurf'))->assertRedirect();
+
+        $this->assertSame(2, ContentVersion::where('activity_id', $activity->id)->count());
+        $this->assertSame('superseded', $stale->fresh()->status);
+        $fresh = ContentVersion::where('activity_id', $activity->id)->where('id', '!=', $stale->id)->sole();
+        $this->assertSame('draft', $fresh->status);
+
+        // Der Editor zeigt nur noch den neueren Entwurf als bearbeitbaren
+        // Stand an.
+        $this->actingAs($author)
+            ->get('/de/studio/lessons/1.0')
+            ->assertInertia(fn ($page) => $page
+                ->where('pending_version.id', $fresh->id)
+                ->where('pending_version.status', 'draft')
+            );
+
+        $this->actingAs($author)->post("/de/author/quiz-versions/{$fresh->id}/submit")->assertRedirect();
+
+        // Die Review-Queue zeigt jetzt nur den korrigierten Entwurf.
+        $this->actingAs($reviewer)
+            ->get('/de/author/review-queue')
+            ->assertInertia(fn ($page) => $page
+                ->has('items', 1)
+                ->where('items.0.version_id', $fresh->id)
+            );
+
+        // Beide Freigabe-Endpunkte lehnen die superseded Version weiterhin ab.
+        try {
+            app(ContentVersioningService::class)->submitForReview($stale->fresh());
+            $this->fail('submitForReview() einer superseded Version haette werfen muessen.');
+        } catch (RuntimeException) {
+            // erwartet
+        }
+
+        $this->actingAs($reviewer)->post("/de/author/quiz-versions/{$fresh->id}/publish")->assertRedirect();
+        $this->assertSame('published', $fresh->fresh()->status);
+        $this->assertSame('superseded', $stale->fresh()->status, 'bleibt superseded, wird durch das Veroeffentlichen des korrigierten Entwurfs nicht erneut angefasst.');
+        $this->assertSame('Korrigierter Entwurf', $lesson->fresh()->title['de']);
     }
 
     /**
