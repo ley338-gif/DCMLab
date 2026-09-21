@@ -99,6 +99,85 @@ class DashboardTest extends TestCase
         File::deleteDirectory($contentDir);
     }
 
+    /**
+     * Published Content Boundary Hardening (Dashboard "Weiterlernen" und
+     * Aktivitaetsverlauf): $recentProgress war bisher unabhaengig vom
+     * Status der zugehoerigen Lesson -- ein Lernender mit dem zuletzt
+     * beruehrten Fortschritt auf einer inzwischen unveroeffentlichten
+     * Lesson haette hier deren echten Titel samt aktivem Link gesehen, und
+     * "Weiterlernen" haette auf dieselbe, nun gesperrte Lektion verwiesen.
+     */
+    public function test_recent_lessons_and_continue_learning_exclude_a_lesson_that_is_now_a_draft(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.0', 'title' => ['de' => 'Geheime Draft-Lektion']]);
+        $user = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $user->id, 'lesson_id' => $lesson->id,
+            'status' => 'started', 'started_at' => now(),
+        ]);
+        $lesson->update(['status' => 'draft']);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('recent_lessons', 0)
+            ->where('continue_learning', null),
+        );
+    }
+
+    /**
+     * Published Content Boundary Hardening (Track-Fortschrittszaehler):
+     * eine Draft-Lesson darf weder den Nenner (lessons_count) noch den
+     * Zaehler (completed_lessons_count) der Dashboard-Trackliste
+     * beeinflussen.
+     */
+    public function test_dashboard_track_progress_counters_ignore_draft_lessons(): void
+    {
+        $track = Track::factory()->create(['status' => 'published']);
+        $done = Lesson::factory()->create(['track_id' => $track->id, 'order' => 0]);
+        Lesson::factory()->create(['track_id' => $track->id, 'order' => 1, 'status' => 'draft']);
+
+        $user = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $user->id, 'lesson_id' => $done->id,
+            'status' => 'completed', 'started_at' => now(), 'completed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('tracks.0.lessons_count', 1)
+            ->where('tracks.0.completed_lessons_count', 1),
+        );
+    }
+
+    /**
+     * Dieselbe Regel fuer DashboardHomeService::continueLearning() -- die
+     * "Lektion X von Y"-Anzeige der Weiterlernen-Karte darf eine
+     * zusaetzliche Draft-Lesson desselben Tracks nicht mitzaehlen.
+     */
+    public function test_continue_learning_lessons_count_ignores_draft_lessons(): void
+    {
+        $track = Track::factory()->create(['status' => 'published']);
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'order' => 0, 'lesson_id' => '1.0']);
+        Lesson::factory()->create(['track_id' => $track->id, 'order' => 1, 'lesson_id' => '1.1', 'status' => 'draft']);
+
+        $user = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $user->id, 'lesson_id' => $lesson->id,
+            'status' => 'started', 'started_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('continue_learning.lesson_id', '1.0')
+            ->where('continue_learning.lessons_count', 1),
+        );
+    }
+
     public function test_dashboard_exposes_the_achievement_registry_with_the_users_unlock_state(): void
     {
         $this->seed(AchievementSeeder::class);

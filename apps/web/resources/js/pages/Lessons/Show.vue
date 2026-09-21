@@ -37,7 +37,7 @@ type ToolbarTool = {
 
 type ToolbarData = {
     tools: ToolbarTool[];
-    requires: { lesson_id: string; title: string; completed: boolean }[];
+    requires: { lesson_id: string | null; title: string; completed: boolean }[];
     prerequisites_met: boolean;
     related_node_optional: boolean;
 };

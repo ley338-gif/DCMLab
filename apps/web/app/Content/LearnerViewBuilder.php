@@ -13,6 +13,7 @@ use App\Models\QuizReview;
 use App\Models\User;
 use App\Services\LessonNavigationService;
 use App\Services\LessonPrerequisiteService;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -114,7 +115,15 @@ final readonly class LearnerViewBuilder
             'last_result' => $reviewsByQuestion[$question['id']]->last_result ?? null,
         ])->all());
 
-        $trackLessons = $lesson->track->lessons()->get();
+        // Published Content Boundary Hardening: Positionsangabe, Prev/Next
+        // und Track-Laenge duerfen keine Draft-/Review-/archivierte
+        // Geschwister-Lektion mitzaehlen oder dorthin verlinken -- ein
+        // zugewiesener Autor/Reviewer/Administrator sieht in der
+        // autorisierten Vorschau trotzdem seine eigenen sichtbaren
+        // Entwuerfe (LessonPolicy::view()), keine zweite Sonderregel.
+        $trackLessons = $lesson->track->lessons()->get()
+            ->filter(fn (Lesson $candidate) => Gate::forUser($user)->allows('view', $candidate))
+            ->values();
         $positionInTrack = $trackLessons->search(fn (Lesson $candidate) => $candidate->id === $lesson->id);
         $previousLesson = $positionInTrack !== false && $positionInTrack > 0 ? $trackLessons->get($positionInTrack - 1) : null;
         $nextLesson = $positionInTrack !== false ? $trackLessons->get($positionInTrack + 1) : null;
@@ -419,16 +428,36 @@ final readonly class LearnerViewBuilder
         $datasetSlug = $lesson->sandbox['dataset'] ?? null;
         $dataset = $datasetSlug !== null ? ($datasets[$datasetSlug] ?? null) : null;
 
+        // Published Content Boundary Hardening: `unmetIds` selbst ist
+        // bereits status-bewusst (LessonPrerequisiteService::
+        // completedLessonIds() zaehlt nur Fortschritt auf aktuell
+        // veroeffentlichten Lektionen) -- eine unveroeffentlichte
+        // Voraussetzung erscheint hier also nie faelschlich als "completed",
+        // auch nicht ueber einen historischen, inzwischen ungueltigen
+        // Fortschritt.
         $unmetIds = array_column($this->prerequisites->unmetFor($user, $lesson), 'lesson_id');
 
         $requiresLessons = collect($lesson->requires)
             ->map(fn (string $requiredId) => Lesson::where('lesson_id', $requiredId)->first())
             ->filter()
-            ->map(fn (Lesson $required) => [
-                'lesson_id' => $required->lesson_id,
-                'title' => $required->title['de'] ?? $required->lesson_id,
-                'completed' => ! in_array($required->lesson_id, $unmetIds, true),
-            ])
+            ->map(function (Lesson $required) use ($unmetIds, $user) {
+                // Nur wer die Voraussetzung selbst sehen darf (veroeffentlicht,
+                // oder zugewiesener Autor/Reviewer/Administrator per
+                // LessonPolicy::view()) bekommt Titel/ID -- sonst derselbe
+                // generische Platzhalter wie im Track-Katalog. Der Eintrag
+                // bleibt trotzdem in der Liste (nie stillschweigend entfernt),
+                // damit kein falscher Eindruck einer erfuellten Voraussetzung
+                // entsteht.
+                if (Gate::forUser($user)->allows('view', $required)) {
+                    return [
+                        'lesson_id' => $required->lesson_id,
+                        'title' => $required->title['de'] ?? $required->lesson_id,
+                        'completed' => ! in_array($required->lesson_id, $unmetIds, true),
+                    ];
+                }
+
+                return ['lesson_id' => null, 'title' => 'Bald verfügbar', 'completed' => false];
+            })
             ->values();
 
         $relatedNode = null;
@@ -437,7 +466,14 @@ final readonly class LearnerViewBuilder
         if ($nodeSlug !== null) {
             $node = Node::where('slug', $nodeSlug)->first();
 
-            if ($node !== null) {
+            // Dieselbe Sichtbarkeitsregel wie bei `requires`: eine nicht
+            // veroeffentlichte verknuepfte Node bleibt fuer jeden ausser
+            // einem zugewiesenen Autor/Reviewer/Administrator unsichtbar --
+            // anders als `requires` ist `related_node` nie eine Pflicht-
+            // Voraussetzung (nur eine optionale Praxis-Karte), das Element
+            // darf deshalb komplett entfallen statt einen Platzhalter zu
+            // zeigen (PracticeTask.vue rendert bei `null` ohnehin nichts).
+            if ($node !== null && Gate::forUser($user)->allows('view', $node)) {
                 $relatedNode = [
                     'slug' => $node->slug,
                     'title' => $node->title['de'] ?? $node->slug,

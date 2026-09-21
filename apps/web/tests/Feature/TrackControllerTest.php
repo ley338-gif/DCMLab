@@ -155,4 +155,120 @@ class TrackControllerTest extends TestCase
             ->get('/de/tracks/fundamente')
             ->assertInertia(fn ($page) => $page->where('lessons.0.completed', false));
     }
+
+    /**
+     * Published Content Boundary Hardening (Audit-Befund A): `unmet_requires`
+     * kam bisher direkt aus LessonPrerequisiteService::unmetForMany() ohne
+     * Ruecksicht auf den Status der Voraussetzung -- ein normaler Lernender
+     * sah den echten Titel einer unveroeffentlichten Pflicht-Voraussetzung.
+     */
+    public function test_unmet_requires_do_not_leak_an_unpublished_requirements_title(): void
+    {
+        $track = Track::factory()->create(['slug' => 'fundamente']);
+        Lesson::factory()->create([
+            'track_id' => $track->id, 'lesson_id' => '1.0', 'order' => 0,
+            'status' => 'draft', 'title' => ['de' => 'Geheime Draft-Lektion'],
+        ]);
+        Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.1', 'order' => 1, 'requires' => ['1.0']]);
+
+        $viewer = User::factory()->create();
+
+        $this->actingAs($viewer)
+            ->get('/de/tracks/fundamente')
+            ->assertInertia(fn ($page) => $page
+                ->where('lessons.1.unmet_requires.0.lesson_id', null)
+                ->where('lessons.1.unmet_requires.0.title', fn (string $title) => $title !== 'Geheime Draft-Lektion'),
+            );
+    }
+
+    /**
+     * Published Content Boundary Hardening (Pflichtbefund B): eine
+     * zusaetzliche Draft-Lesson darf eine sonst vollstaendige
+     * veroeffentlichte Track-Sequenz nicht blockieren -- vorher zaehlte
+     * ExamAttemptService::statusForTracks() jede Lesson unabhaengig vom
+     * Status zum Track-Umfang.
+     */
+    public function test_all_lessons_completed_ignores_additional_draft_lessons(): void
+    {
+        $track = Track::factory()->create(['slug' => 'fundamente']);
+        $first = Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.0', 'order' => 0]);
+        $second = Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.1', 'order' => 1]);
+        Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.2', 'order' => 2, 'status' => 'draft']);
+
+        $user = User::factory()->create();
+        foreach ([$first, $second] as $lesson) {
+            LessonProgress::create([
+                'user_id' => $user->id, 'lesson_id' => $lesson->id,
+                'status' => 'completed', 'started_at' => now(), 'completed_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($user)
+            ->get('/de/tracks/fundamente')
+            ->assertInertia(fn ($page) => $page->where('exam.all_lessons_completed', true));
+    }
+
+    /**
+     * Pflichtbefund B: historischer Fortschritt auf einer Lesson, die
+     * WAEHREND ihrer Veroeffentlichung abgeschlossen und seither wieder auf
+     * Draft gesetzt wurde, darf eine Pruefung weder vorzeitig freischalten
+     * noch faelschlich als "vollstaendig" zaehlen -- gleichzeitig gilt ein
+     * Track ganz ohne veroeffentlichte Lessons nie als pruefungsbereit.
+     */
+    public function test_historical_progress_on_a_lesson_reverted_to_draft_does_not_grant_exam_readiness(): void
+    {
+        $track = Track::factory()->create(['slug' => 'fundamente']);
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.0', 'order' => 0]);
+
+        $user = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $user->id, 'lesson_id' => $lesson->id,
+            'status' => 'completed', 'started_at' => now()->subDay(), 'completed_at' => now()->subDay(),
+        ]);
+        $lesson->update(['status' => 'draft']);
+
+        $this->actingAs($user)
+            ->get('/de/tracks/fundamente')
+            ->assertInertia(fn ($page) => $page->where('exam.all_lessons_completed', false));
+    }
+
+    /**
+     * Pflichtbefund B: ein Track, der ausschliesslich Draft-Lessons
+     * enthaelt, gilt nie als pruefungsbereit -- unabhaengig davon, ob eine
+     * dieser Draft-Lessons zufaellig einen Fortschrittsdatensatz traegt.
+     */
+    public function test_a_track_with_only_a_draft_lesson_is_not_exam_ready(): void
+    {
+        $track = Track::factory()->create(['slug' => 'fundamente']);
+        Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.0', 'order' => 0, 'status' => 'draft']);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/tracks/fundamente')
+            ->assertInertia(fn ($page) => $page->where('exam.all_lessons_completed', false));
+    }
+
+    /**
+     * Regressionsschutz: das bestehende Verhalten eines vollstaendig
+     * veroeffentlichten, vollstaendig abgeschlossenen Tracks bleibt
+     * unveraendert (siehe auch DashboardTest::
+     * test_dashboard_shows_the_three_exam_states_per_track fuer dieselbe
+     * Semantik ueber die Dashboard-Route).
+     */
+    public function test_a_fully_published_and_completed_track_remains_exam_ready(): void
+    {
+        $track = Track::factory()->create(['slug' => 'fundamente']);
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.0', 'order' => 0]);
+
+        $user = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $user->id, 'lesson_id' => $lesson->id,
+            'status' => 'completed', 'started_at' => now(), 'completed_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/de/tracks/fundamente')
+            ->assertInertia(fn ($page) => $page->where('exam.all_lessons_completed', true));
+    }
 }

@@ -33,8 +33,12 @@ class DashboardController extends Controller
 
         $trackModels = Track::query()
             ->where('status', 'published')
-            ->withCount('lessons')
+            // Published Content Boundary Hardening: eine Draft-Lesson darf
+            // weder den Nenner noch den Zaehler der Track-Fortschrittsanzeige
+            // beeinflussen (analog LessonNavigationService::sidebarFor()).
+            ->withCount(['lessons' => fn ($query) => $query->where('status', 'published')])
             ->withCount(['lessons as completed_lessons_count' => fn ($query) => $query
+                ->where('status', 'published')
                 ->whereHas('progress', fn ($progressQuery) => $progressQuery
                     ->where('user_id', $user->id)
                     ->where('status', 'completed'),
@@ -59,8 +63,15 @@ class DashboardController extends Controller
             ],
         ]);
 
+        // Published Content Boundary Hardening: Aktivitaetsverlauf und
+        // "Weiterlernen" (ueber $recentProgress->first(), siehe unten)
+        // duerfen keine inzwischen unveroeffentlichte Lesson mehr zeigen --
+        // vorher haette hier ein echter Titel samt aktivem Link auf eine
+        // Draft-/Review-/archivierte Lektion erscheinen koennen, sobald sie
+        // die zuletzt beruehrte war.
         $recentProgress = LessonProgress::query()
             ->where('user_id', $user->id)
+            ->whereHas('lesson', fn ($query) => $query->where('status', 'published'))
             ->with('lesson.track')
             ->orderByDesc('started_at')
             ->limit(5)

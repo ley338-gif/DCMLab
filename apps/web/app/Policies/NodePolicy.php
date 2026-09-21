@@ -54,7 +54,10 @@ class NodePolicy
 
         $activity = $this->activityFor($node);
 
-        return $activity !== null && Gate::allows('update', $activity);
+        // Published Content Boundary Hardening: `Gate::forUser($user)`,
+        // nicht die ambiente `Gate::allows()`-Variante -- siehe
+        // LessonPolicy::view() fuer die ausfuehrliche Begruendung.
+        return $activity !== null && Gate::forUser($user)->allows('update', $activity);
     }
 
     private function activityFor(Node $node): ?Activity

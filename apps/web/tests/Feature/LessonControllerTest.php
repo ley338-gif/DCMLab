@@ -295,6 +295,173 @@ class LessonControllerTest extends TestCase
             );
     }
 
+    /**
+     * Published Content Boundary Hardening (Audit-Befund A):
+     * `LearnerViewBuilder::toolbarData()` loeste `related_node` bisher
+     * unabhaengig vom Node-Status auf -- ein normaler Lernender sah Titel,
+     * Punkte und Schwierigkeit einer noch nicht freigegebenen Node,
+     * inklusive eines echten Links dorthin (der Klick haette ohnehin nur
+     * 404 geliefert, NodePolicy::view() schuetzt den direkten Aufruf
+     * bereits).
+     */
+    public function test_it_hides_a_draft_related_nodes_metadata_from_a_learner(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.5', 'track_id' => $track->id, 'order' => 0,
+            'related_node' => ['node' => 'silent-ct', 'optional' => false],
+        ]);
+        Node::factory()->create(['slug' => 'silent-ct', 'status' => 'draft', 'title' => ['de' => 'Silent CT']]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.5')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('elements', 1)
+                ->where('elements.0.type', 'content'),
+            );
+    }
+
+    /**
+     * Gegenprobe zu oben: ein zugewiesener Reviewer/Administrator darf laut
+     * NodePolicy::view() dieselbe Draft-Node weiterhin sehen -- dieselbe
+     * Policy wie ueberall sonst, keine zweite Sonderregel fuer diese Stelle.
+     */
+    public function test_an_authorized_reviewer_still_sees_a_draft_related_nodes_metadata(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.5', 'track_id' => $track->id, 'order' => 0,
+            'related_node' => ['node' => 'silent-ct', 'optional' => false],
+        ]);
+        Node::factory()->create(['slug' => 'silent-ct', 'status' => 'draft', 'title' => ['de' => 'Silent CT']]);
+        Activity::factory()->create(['type' => 'node', 'key' => 'silent-ct']);
+
+        $reviewer = User::factory()->reviewer()->create();
+
+        $this->actingAs($reviewer)
+            ->get('/de/lessons/1.5')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('elements', 2)
+                ->where('elements.1.type', 'related_node')
+                ->where('elements.1.related_node.slug', 'silent-ct')
+                ->where('elements.1.related_node.title', 'Silent CT'),
+            );
+    }
+
+    /**
+     * "optional verknuepfte Nodes duerfen bei Unsichtbarkeit nicht als
+     * Pflichtvoraussetzung behandelt werden": die Lektion muss trotz einer
+     * versteckten Draft-Node vollstaendig und ohne Fehler weiterrendern.
+     */
+    public function test_an_unpublished_optional_related_node_does_not_block_the_lesson(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.5', 'track_id' => $track->id, 'order' => 0,
+            'related_node' => ['node' => 'silent-ct', 'optional' => true],
+            'body' => 'Prosa-Inhalt der Lektion.',
+        ]);
+        Node::factory()->create(['slug' => 'silent-ct', 'status' => 'draft']);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.5')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('elements', 1)
+                ->where('elements.0.type', 'content')
+                ->where('toolbar.related_node_optional', true),
+            );
+    }
+
+    /**
+     * Published Content Boundary Hardening (Audit-Befund A): eine
+     * unveroeffentlichte Pflicht-Voraussetzung in `requires` darf weder
+     * Titel noch ID preisgeben, und `prerequisites_met` darf nicht
+     * faelschlich `true` werden, nur weil die Voraussetzung aus der
+     * sichtbaren Liste verschwunden waere.
+     */
+    public function test_it_masks_an_unpublished_required_lessons_title_and_id_for_a_learner(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create([
+            'lesson_id' => '1.0', 'track_id' => $track->id, 'order' => 0,
+            'status' => 'draft', 'title' => ['de' => 'Geheime Draft-Lektion'],
+        ]);
+        Lesson::factory()->create(['lesson_id' => '1.1', 'track_id' => $track->id, 'order' => 1, 'requires' => ['1.0']]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('toolbar.requires.0.lesson_id', null)
+                ->where('toolbar.requires.0.title', fn (string $title) => $title !== 'Geheime Draft-Lektion')
+                ->where('toolbar.requires.0.completed', false)
+                ->where('toolbar.prerequisites_met', false),
+            );
+    }
+
+    /**
+     * Previous/Next, Positionsangabe und Sidebar duerfen fuer einen
+     * normalen Lernenden keine Draft-/Review-/archivierte Geschwister-
+     * Lektion zeigen -- weder als Ziel noch als Zaehlwert.
+     */
+    public function test_previous_next_and_sidebar_exclude_draft_siblings_for_a_learner(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'order' => 0, 'status' => 'draft']);
+        Lesson::factory()->create(['lesson_id' => '1.1', 'track_id' => $track->id, 'order' => 1]);
+        Lesson::factory()->create(['lesson_id' => '1.2', 'track_id' => $track->id, 'order' => 2, 'status' => 'draft']);
+        Lesson::factory()->create(['lesson_id' => '1.3', 'track_id' => $track->id, 'order' => 3]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/de/lessons/1.1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('lesson.prev', null)
+                ->where('lesson.next.lesson_id', '1.3')
+                ->where('lesson.track_lessons_count', 2)
+                ->where('sidebar.current_track.lessons', fn ($lessons) => collect($lessons)->pluck('lesson_id')->all() === ['1.1', '1.3']),
+            );
+    }
+
+    /**
+     * Gegenprobe: ein zugewiesener Reviewer/Administrator soll seine
+     * eigenen sichtbaren Draft-Geschwister in Previous/Next und Sidebar
+     * weiterhin vollstaendig pruefen koennen (LessonPolicy::view() je
+     * Geschwister-Lektion, keine neue Sonderregel).
+     */
+    public function test_an_authorized_previewer_still_sees_draft_siblings_in_previous_next_and_sidebar(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['lesson_id' => '1.0', 'track_id' => $track->id, 'order' => 0, 'status' => 'draft']);
+        Lesson::factory()->create(['lesson_id' => '1.1', 'track_id' => $track->id, 'order' => 1, 'status' => 'draft', 'body' => 'Prosa-Inhalt der Lektion.']);
+        Lesson::factory()->create(['lesson_id' => '1.2', 'track_id' => $track->id, 'order' => 2, 'status' => 'draft']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.0']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.1']);
+        Activity::factory()->create(['type' => 'lesson', 'key' => '1.2']);
+
+        $admin = User::factory()->administrator()->create();
+
+        $this->actingAs($admin)
+            ->get('/de/lessons/1.1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('lesson.prev.lesson_id', '1.0')
+                ->where('lesson.next.lesson_id', '1.2')
+                ->where('sidebar.current_track.lessons', fn ($lessons) => collect($lessons)->pluck('lesson_id')->all() === ['1.0', '1.1', '1.2']),
+            );
+    }
+
     public function test_it_omits_the_related_node_when_it_does_not_exist_yet(): void
     {
         $track = Track::factory()->create();

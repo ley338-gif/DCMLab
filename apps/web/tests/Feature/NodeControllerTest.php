@@ -7,10 +7,12 @@ use App\Models\AchievementDefinition;
 use App\Models\AchievementUnlock;
 use App\Models\Activity;
 use App\Models\ActivityProgress;
+use App\Models\Lesson;
 use App\Models\Node;
 use App\Models\NodeAttempt;
 use App\Models\NodePreviewSession;
 use App\Models\Themenfeld;
+use App\Models\Track;
 use App\Models\User;
 use Database\Seeders\AchievementSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -255,6 +257,26 @@ class NodeControllerTest extends TestCase
             ->component('Nodes/Index')
             ->where('nodes', fn (Collection $nodes) => $nodes->firstWhere('slug', 'dicom-node')['themenfeld'] === 'dicom'
                 && $nodes->firstWhere('slug', 'datenschutz-node')['themenfeld'] === 'datenschutz'),
+        );
+    }
+
+    /**
+     * Published Content Boundary Hardening: der Node-Katalog ist auch fuer
+     * Gaeste ohne jede Authentifizierung erreichbar -- relatedLessonForNodes()
+     * loeste die "passende Lektion" bisher unabhaengig von deren
+     * Veroeffentlichungsstatus auf, ein echter Titel-Leak ohne Login.
+     */
+    public function test_the_public_catalog_does_not_leak_a_draft_related_lessons_title(): void
+    {
+        $track = Track::factory()->create();
+        Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '9.9', 'status' => 'draft', 'title' => ['de' => 'Geheime Draft-Lektion']]);
+        Node::factory()->create(['slug' => 'test-node', 'related_lessons' => ['9.9']]);
+
+        $response = $this->get('/de/nodes');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('nodes', fn (Collection $nodes) => $nodes->firstWhere('slug', 'test-node')['related_lesson'] === null),
         );
     }
 

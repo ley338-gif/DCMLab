@@ -21,7 +21,11 @@ const props = defineProps<{
     objectivesCount: number;
     positionInTrack: number | null;
     trackLessonsCount: number;
-    requires: { lesson_id: string; title: string; completed: boolean }[];
+    // `lesson_id: null` heisst: der Server hat diese Voraussetzung maskiert
+    // (nicht veroeffentlicht, Betrachter nicht autorisiert sie zu sehen) --
+    // `title` traegt dann einen generischen Platzhalter statt des echten
+    // Titels, siehe LearnerViewBuilder::toolbarData().
+    requires: { lesson_id: string | null; title: string; completed: boolean }[];
 }>();
 
 const unmetRequires = computed(() =>
@@ -85,12 +89,15 @@ const levelLabels: Record<string, string> = {
                 {{ trans('Setzt voraus, dass du zuerst liest') }}:
                 <template
                     v-for="(required, index) in unmetRequires"
-                    :key="required.lesson_id"
+                    :key="required.lesson_id ?? `hidden-${index}`"
                 >
                     <span v-if="index > 0">, </span>
-                    <Link :href="showLesson(required.lesson_id)">{{
-                        required.title
-                    }}</Link>
+                    <Link
+                        v-if="required.lesson_id"
+                        :href="showLesson(required.lesson_id)"
+                        >{{ required.title }}</Link
+                    >
+                    <span v-else>{{ required.title }}</span>
                 </template>
                 — {{ trans('du kannst trotzdem hier weiterlesen') }}.
             </span>
@@ -100,12 +107,15 @@ const levelLabels: Record<string, string> = {
             {{ trans('Vorher') }}:
             <template
                 v-for="(required, index) in requires"
-                :key="required.lesson_id"
+                :key="required.lesson_id ?? `hidden-${index}`"
             >
                 <span v-if="index > 0">, </span>
-                <Link :href="showLesson(required.lesson_id)">{{
-                    required.title
-                }}</Link>
+                <Link
+                    v-if="required.lesson_id"
+                    :href="showLesson(required.lesson_id)"
+                    >{{ required.title }}</Link
+                >
+                <span v-else>{{ required.title }}</span>
             </template>
         </p>
     </header>

@@ -6,6 +6,7 @@ use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Track;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Liefert die Navigationsdaten fuer die linke Sidebar der Lesson-Ansicht:
@@ -34,8 +35,16 @@ final class LessonNavigationService
             ->pluck('lesson_id')
             ->all();
 
+        // Published Content Boundary Hardening: eine Draft-/Review-/
+        // archivierte Geschwister-Lektion darf hier weder Titel noch einen
+        // echten Navigationslink preisgeben -- ein zugewiesener Autor/
+        // Reviewer/Administrator sieht ueber LessonPolicy::view() trotzdem
+        // seine eigenen sichtbaren Entwuerfe (die aktuell betrachtete
+        // Lektion `$lesson` ist dabei immer sichtbar, sonst waere der
+        // Aufrufer schon vorher an LessonPolicy::view() gescheitert).
         $currentTrackLessons = $currentTrack->lessons()
             ->get()
+            ->filter(fn (Lesson $trackLesson) => Gate::forUser($user)->allows('view', $trackLesson))
             ->map(fn (Lesson $trackLesson) => [
                 'lesson_id' => $trackLesson->lesson_id,
                 'title' => $trackLesson->title['de'] ?? $trackLesson->lesson_id,
@@ -49,11 +58,15 @@ final class LessonNavigationService
             ->values()
             ->all();
 
+        // Dieselbe Regel fuer die Fortschrittszaehler der uebrigen Tracks:
+        // eine Draft-Lesson darf weder den Nenner (lessons_count) noch den
+        // Zaehler (completed_lessons_count) beeinflussen.
         $otherTracks = Track::query()
             ->where('status', 'published')
             ->where('id', '!=', $currentTrack->id)
-            ->withCount('lessons')
+            ->withCount(['lessons' => fn ($query) => $query->where('status', 'published')])
             ->withCount(['lessons as completed_lessons_count' => fn ($query) => $query
+                ->where('status', 'published')
                 ->whereHas('progress', fn ($progressQuery) => $progressQuery
                     ->where('user_id', $user->id)
                     ->where('status', 'completed'),
@@ -71,7 +84,23 @@ final class LessonNavigationService
             ->all();
 
         $totalLessons = Lesson::query()
+            ->where('status', 'published')
             ->whereHas('track', fn ($query) => $query->where('status', 'published'))
+            ->count();
+
+        // `$completedLessonIds` oben ist bewusst status-unabhaengig (dient
+        // nur der Anzeige innerhalb des bereits gefilterten aktuellen
+        // Tracks) -- der globale Gesamtfortschritt braucht dagegen einen
+        // eigenen, symmetrisch zu `$totalLessons` gefilterten Zaehler,
+        // sonst wuerde historischer Fortschritt auf einer inzwischen
+        // unveroeffentlichten Lesson den Prozentwert verfaelschen.
+        $overallCompleted = LessonProgress::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'completed')
+            ->whereHas('lesson', fn ($query) => $query
+                ->where('status', 'published')
+                ->whereHas('track', fn ($trackQuery) => $trackQuery->where('status', 'published')),
+            )
             ->count();
 
         return [
@@ -82,7 +111,7 @@ final class LessonNavigationService
             ],
             'other_tracks' => $otherTracks,
             'overall' => [
-                'completed' => count($completedLessonIds),
+                'completed' => $overallCompleted,
                 'total' => $totalLessons,
             ],
         ];

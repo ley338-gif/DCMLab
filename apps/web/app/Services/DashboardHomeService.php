@@ -50,8 +50,13 @@ class DashboardHomeService
             return null;
         }
 
-        $lessonsCount = $track->lessons()->count();
+        // Published Content Boundary Hardening: dieselbe Fortschrittszaehler-
+        // Regel wie ueberall sonst (Dashboard-Trackliste, Sidebar) -- eine
+        // Draft-Lesson darf weder mitgezaehlt noch, ueber historischen
+        // Fortschritt, faelschlich als erledigt gezaehlt werden.
+        $lessonsCount = $track->lessons()->where('status', 'published')->count();
         $completedCount = $track->lessons()
+            ->where('status', 'published')
             ->whereHas('progress', fn ($query) => $query
                 ->where('user_id', $user->id)
                 ->where('status', 'completed'),
