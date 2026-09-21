@@ -288,6 +288,13 @@ structured-report:
   see_also: [iod]
   lesson: "3.5"
 
+radiation-dose-structured-report:
+  term: Radiation Dose Structured Report
+  expansion: Radiation Dose Structured Report (RDSR)
+  short: Ein Structured Report mit standardisiertem Content-Baum für Dosiswerte einer Untersuchung. Beim klassischen CT-RDSR strukturieren TID 10011–10013 Bericht, Summenwerte und einzelne Bestrahlungsereignisse — nicht alle RDSR-Arten verwenden dieselbe Wurzel.
+  see_also: [structured-report, sop-class]
+  lesson: "3.8"
+
 key-object-selection:
   term: Key Object Selection
   expansion: Key Object Selection Document (KOS)

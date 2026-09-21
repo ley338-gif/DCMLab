@@ -276,7 +276,7 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Ein RDSR kann PACS → Dose-System über einen zweiten, unabhängigen Hop erreichen
 4. Sobald die Bildserie im PACS gespeichert ist, ist automatisch auch das RDSR gespeichert
 
-**Erklärung:** RDSR liegt strukturiert vor und lässt sich automatisch auswerten — ein Screenshot dagegen kaum. Der Weg zum Dose-System läuft häufig über einen zweiten, eigenständigen Transfer ab PACS oder Router. Bild- und RDSR-Instance sind getrennte Objekte; das eine zu speichern garantiert nicht das andere.
+**Erklärung:** RDSR liegt strukturiert vor und lässt sich automatisch auswerten — ein Screenshot ist dagegen nicht in derselben Weise standardisiert maschinenlesbar. Der Weg zum Dose-System läuft häufig über einen zweiten, eigenständigen Transfer ab PACS oder Router. Bild- und RDSR-Instance sind getrennte Objekte; das eine zu speichern garantiert nicht das andere.
 
 ### f37 — Ein grüner Bildtransfer beweist, dass auch die RDSR-SOP-Class auf einer Association akzeptiert wurde.
 

@@ -2,25 +2,34 @@ id: "3.8"
 track: bild
 order: 8
 title_key: lesson.3_8.title
-duration_minutes: 12
+duration_minutes: 16
 level: aufbau
-objectives_count: 4
+objectives_count: 5
 requires: ["3.7"]
 tools: [dcmdump]
 sandbox:
   required: false
   dataset: null
 related_node:
-  node: null
+  node: gefiltert
   optional: true
-glossary_terms: [sop-class]
+glossary_terms: [sop-class, radiation-dose-structured-report]
 quiz:
   - id: q1
     type: single
-    answer: 2
+    answer: 1
   - id: q2
+    type: single
+    answer: 1
+  - id: q3
     type: multi
     answer: [0, 1, 3]
-tools_checked: "2026-09-17"
+  - id: q4
+    type: multi
+    answer: [0, 1, 3]
+  - id: q5
+    type: single
+    answer: 1
+tools_checked: "2026-09-21"
 status: draft
-updated: "2026-09-17"
+updated: "2026-09-21"
