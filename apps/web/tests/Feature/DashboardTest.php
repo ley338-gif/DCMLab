@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Content\ContentRepository;
+use App\Models\Activity;
 use App\Models\ExamAttempt;
+use App\Models\Lab;
 use App\Models\Lesson;
+use App\Models\LessonElement;
 use App\Models\LessonProgress;
 use App\Models\Track;
 use App\Models\User;
@@ -176,6 +179,64 @@ class DashboardTest extends TestCase
             ->where('continue_learning.lesson_id', '1.0')
             ->where('continue_learning.lessons_count', 1),
         );
+    }
+
+    /**
+     * Baseline fuer DashboardHomeService::recommendedNext() Regel 1 (kein
+     * bestehender Test deckte diese Regel bislang ab): eine abgeschlossene,
+     * weiterhin veroeffentlichte Lesson mit einem noch ungeloesten,
+     * verknuepften Lab loest die Lab-Empfehlung wie vorgesehen aus.
+     */
+    public function test_a_completed_lessons_unsolved_lab_is_recommended(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.0']);
+        Lab::factory()->create(['slug' => 'echo-lab']);
+        $labActivity = Activity::factory()->create(['type' => 'lab', 'key' => 'echo-lab']);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $labActivity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $user->id, 'lesson_id' => $lesson->id,
+            'status' => 'completed', 'started_at' => now()->subDay(), 'completed_at' => now()->subDay(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('recommended.type', 'lab')
+            ->where('recommended.slug', 'echo-lab'),
+        );
+    }
+
+    /**
+     * Published Content Boundary Hardening: historischer Fortschritt auf
+     * einer Lesson, die WAEHREND ihrer Veroeffentlichung abgeschlossen und
+     * seither wieder auf Draft gesetzt wurde, darf keine Lab-Empfehlung
+     * mehr ausloesen -- Gegenprobe zum Test oben, sonst identisches Setup.
+     * `labsOverview()` setzt die Verknuepfung fuer diesen Nutzer bereits auf
+     * `lesson_id: null`, wodurch Regel 1 den Kandidaten gar nicht erst
+     * sieht; da der Track dadurch auch keine veroeffentlichte Lesson mehr
+     * hat, greift auch keine der beiden anderen Empfehlungsregeln.
+     */
+    public function test_historical_progress_on_a_lesson_reverted_to_draft_no_longer_recommends_its_lab(): void
+    {
+        $track = Track::factory()->create();
+        $lesson = Lesson::factory()->create(['track_id' => $track->id, 'lesson_id' => '1.0']);
+        Lab::factory()->create(['slug' => 'echo-lab']);
+        $labActivity = Activity::factory()->create(['type' => 'lab', 'key' => 'echo-lab']);
+        LessonElement::create(['lesson_id' => $lesson->id, 'type' => 'activity', 'activity_id' => $labActivity->id, 'position' => 0]);
+
+        $user = User::factory()->create();
+        LessonProgress::create([
+            'user_id' => $user->id, 'lesson_id' => $lesson->id,
+            'status' => 'completed', 'started_at' => now()->subDay(), 'completed_at' => now()->subDay(),
+        ]);
+        $lesson->update(['status' => 'draft']);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(fn ($page) => $page->where('recommended', null));
     }
 
     public function test_dashboard_exposes_the_achievement_registry_with_the_users_unlock_state(): void
