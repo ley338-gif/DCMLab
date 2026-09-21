@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, ArrowRight } from '@lucide/vue';
+import { ArrowLeft, ArrowRight, FlaskConical } from '@lucide/vue';
 import { computed, reactive, ref } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import EngineTerminal from '@/components/EngineTerminal.vue';
@@ -10,6 +10,7 @@ import PreviousNextNavigation, {
 import ScenarioPlayer, {
     type ScenarioState,
 } from '@/components/ScenarioPlayer.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -96,6 +97,14 @@ const props = defineProps<{
     // bereits vollstaendig aufgedeckt (siehe `LearnerViewBuilder::
     // nodePreviewProps()`), brauchen also keine eigene Sonderbehandlung.
     preview?: boolean;
+    // Draft-Node-Vorschau (ADR 0110/CMS-6d-Haertung): ein autorisierter
+    // Studio-/Content-Nutzer bekommt hier die ECHTE interaktive Ansicht
+    // (echte Session, echtes Terminal, echte Flag-Abgabe) -- anders als
+    // `preview` oben, das den interaktiven Teil komplett ersetzt. Nur ein
+    // Banner macht sichtbar, dass Ergebnisse/Fortschritt nicht gewertet
+    // werden; serverseitig ermittelt (`NodeController::show()`), niemals
+    // aus einem Query-Parameter oder client-seitigem Zustand.
+    draft_preview?: boolean;
 }>();
 
 function toNavNeighbor(neighbor: NodeNeighbor, label: string): NavNeighbor {
@@ -333,6 +342,18 @@ async function submitFlag() {
                         {{ node.scenario_title }}
                     </h1>
                 </div>
+
+                <Alert v-if="draft_preview">
+                    <FlaskConical class="size-4" aria-hidden="true" />
+                    <AlertTitle>{{ trans('Entwurfsvorschau') }}</AlertTitle>
+                    <AlertDescription>
+                        {{
+                            trans(
+                                'Ergebnisse und Fortschritt werden nicht gewertet.',
+                            )
+                        }}
+                    </AlertDescription>
+                </Alert>
 
                 <Card v-if="preview">
                     <CardContent class="text-muted-foreground text-sm">

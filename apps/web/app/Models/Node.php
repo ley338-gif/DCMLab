@@ -52,6 +52,18 @@ class Node extends Model
         return 'slug';
     }
 
+    /**
+     * Einzige Stelle, die `status === 'published'` ausbuchstabiert (ADR
+     * 0110/CMS-6d-Haertung): `NodePolicy::view()` und `NodeController`
+     * lesen diese Methode statt den String-Vergleich zu wiederholen -- die
+     * Invariante "nicht veroeffentlicht -> jede Session ist eine Vorschau"
+     * (siehe `NodeController::attemptFor()`) haengt direkt daran.
+     */
+    public function isPublished(): bool
+    {
+        return $this->status === 'published';
+    }
+
     protected function casts(): array
     {
         return [
