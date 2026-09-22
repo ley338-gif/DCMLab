@@ -224,6 +224,26 @@ class NodeControllerTest extends TestCase
         $this->assertSame('admin-preview', NodePreviewSession::query()->sole()->engine_session_id);
     }
 
+    /**
+     * War bis zu diesem Fund `Http::assertSentCount(3)` (1x createSession +
+     * 2x state) -- brach lokal, sobald ein zusaetzlicher, mit der
+     * Session-Wiederverwendung voellig unzusammenhaengender HTTP-Aufruf
+     * mitgezaehlt wurde: `Inertia\Ssr\HttpGateway::dispatch()` schickt bei
+     * `Vite::isRunningHot()` (d. h. `public/hot` existiert) einen echten
+     * `Http::post()` an die im Hot-File hinterlegte Vite-Dev-Server-URL,
+     * der ueber `Http::fake()` ebenfalls aufgezeichnet wird. Verifiziert:
+     * Der Test ist deterministisch (10x isoliert gruen) sobald kein
+     * `public/hot` vorhanden ist, und reproduzierbar auf 4 Anfragen, sobald
+     * doch eins existiert -- eine reine Artefakt-Leiche eines lokal
+     * gestarteten `npm run dev`, kein CI-Zustand (die Datei ist
+     * gitignored, CI startet nie `npm run dev` neben Pest) und kein Fehler
+     * in `previewSessionFor()`. Die pauschale Gesamtzaehlung war deshalb
+     * ohnehin der falsche Vertrag -- sie pruefte implizit "keine einzige
+     * fremde HTTP-Anfrage waehrend des Requests", nicht "keine zweite
+     * Session". Ersetzt durch endpunktspezifische Assertions, die exakt
+     * den fachlichen Vertrag pruefen und unabhaengig von einer lokal
+     * zufaellig aktiven SSR-Anfrage bestehen bleiben.
+     */
     public function test_second_preview_visit_reuses_the_existing_preview_session(): void
     {
         Node::factory()->create(['slug' => 'test-node', 'status' => 'draft']);
@@ -237,11 +257,29 @@ class NodeControllerTest extends TestCase
         ]);
         $this->actingAs($author)->get('/de/nodes/test-node')->assertOk();
         $this->assertSame(1, NodePreviewSession::query()->count());
+        $firstPreview = NodePreviewSession::query()->sole();
 
         $this->actingAs($author)->get('/de/nodes/test-node')->assertOk();
 
         $this->assertSame(1, NodePreviewSession::query()->count());
-        Http::assertSentCount(3); // 1x createSession + 2x state, kein zweites createSession
+        $secondPreview = NodePreviewSession::query()->sole();
+        $this->assertSame($firstPreview->id, $secondPreview->id, 'Der zweite Besuch muss dieselbe Preview-Session-Zeile wiederverwenden.');
+        $this->assertSame($firstPreview->engine_session_id, $secondPreview->engine_session_id, 'Die engine_session_id darf sich beim zweiten Besuch nicht aendern.');
+
+        // Keine echte NodeAttempt-Zeile: eine nicht veroeffentlichte Node
+        // erzeugt per Konstruktion (attemptFor()) ausschliesslich eine
+        // NodePreviewSession, nie einen echten Lernfortschritt.
+        $this->assertSame(0, NodeAttempt::query()->count());
+
+        $createSessionRequests = Http::recorded(
+            fn ($request) => $request->method() === 'POST' && str_ends_with($request->url(), '/v1/sessions'),
+        );
+        $this->assertCount(1, $createSessionRequests, 'Ueber beide Besuche hinweg darf genau eine Session erzeugt werden -- kein zweites createSession beim Wiederbesuch.');
+
+        $stateRequests = Http::recorded(
+            fn ($request) => $request->method() === 'GET' && str_contains($request->url(), '/v1/sessions/preview-1/state'),
+        );
+        $this->assertCount(2, $stateRequests, 'Jeder Besuch fragt genau einmal den aktuellen Engine-State ab.');
     }
 
     public function test_index_groups_nodes_by_themenfeld(): void
