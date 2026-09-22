@@ -9,14 +9,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Ein unveraenderlicher Versions-Snapshot einer Aktivitaet (ADR 0071, W3).
- * Zustandsuebergaenge (draft -> review -> published, Rollback) laufen
- * ausschliesslich ueber App\Content\ContentVersioningService, nie direkt
- * ueber dieses Model, damit die Invarianten (genau eine `is_current`
- * Version je Aktivitaet) an einer Stelle geprueft werden.
+ * Zustandsuebergaenge (draft -> review -> published, Rollback, sowie der
+ * Endzustand `superseded` fuer ueberholte parallele Entwuerfe, siehe
+ * Betreiber-Review nach #178) laufen ausschliesslich ueber
+ * App\Content\ContentVersioningService, nie direkt ueber dieses Model,
+ * damit die Invarianten (genau eine `is_current`-Version je Aktivitaet,
+ * hoechstens eine offene `draft`/`review`-Version je Aktivitaet) an einer
+ * Stelle geprueft werden.
  *
  * @property int $id
  * @property int $activity_id
- * @property string $status
+ * @property string $status draft | review | published | superseded
  * @property array<string, mixed> $payload
  * @property bool $is_current
  * @property int $created_by

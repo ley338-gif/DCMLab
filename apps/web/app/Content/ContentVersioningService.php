@@ -14,6 +14,16 @@ use RuntimeException;
  * vorherige veroeffentlichte Version. Ersetzt die Git-Historie als
  * Aenderungsverlauf.
  *
+ * Pro Aktivitaet ist ausserdem hoechstens eine `draft`/`review`-Version
+ * gleichzeitig aktiv (Betreiber-Review nach #178): `createDraft()` und
+ * `publish()` setzen dafuer jede andere offene `draft`/`review`-Version
+ * derselben Aktivitaet atomar auf den Endzustand `superseded` -- weder
+ * erneut einreichbar (`submitForReview()` verlangt Status `draft`) noch
+ * veroeffentlichbar (`publish()` verlangt Status `review`), beide Pruefungen
+ * bestanden bereits vor diesem Fix und brauchten keine Erweiterung.
+ * `superseded` ist kein DB-Constraint, nur ein weiterer freier Wert in der
+ * bestehenden `status`-Spalte (keine Migration noetig).
+ *
  * Bewusst getrennt von ContentWriter (W2): eine Version zu veroeffentlichen
  * oder zurueckzusetzen ist hier reine Buchfuehrung ueber `content_versions`.
  * Das tatsaechliche Zurueckschreiben eines `payload` nach content/ setzt
@@ -25,51 +35,129 @@ use RuntimeException;
 final class ContentVersioningService
 {
     /**
+     * Legt einen neuen Entwurf an und superseded dabei atomar jede andere
+     * `draft`- oder `review`-Version derselben Aktivitaet (Betreiber-Review
+     * nach #178/PR "content-version-supersession"): Vorher konnte
+     * `storeDraft()` in jedem der fuenf Editoren (Lesson/Node/Quiz/Exam/
+     * Achievement) beliebig oft aufgerufen werden, ohne dass ein aelterer,
+     * noch offener Entwurf oder eine bereits eingereichte Review-Version
+     * ungueltig wurde -- ein Reviewer haette Wochen spaeter versehentlich
+     * eine laengst ueberholte Fassung veroeffentlichen koennen. Pro
+     * Aktivitaet bleibt jetzt hoechstens eine `draft`/`review`-Version
+     * gleichzeitig aktiv; alle aelteren wandern auf `superseded` (siehe
+     * `publish()` fuer den spiegelbildlichen Fall beim Veroeffentlichen).
+     * Bereits veroeffentlichte Versionen und Versionen anderer Aktivitaeten
+     * bleiben unangetastet.
+     *
      * @param  array<string, mixed>  $payload
      */
     public function createDraft(Activity $activity, array $payload, User $author): ContentVersion
     {
-        return ContentVersion::create([
-            'activity_id' => $activity->id,
-            'status' => 'draft',
-            'payload' => $payload,
-            'is_current' => false,
-            'created_by' => $author->id,
-        ]);
+        return DB::transaction(function () use ($activity, $payload, $author): ContentVersion {
+            Activity::query()->whereKey($activity->id)->lockForUpdate()->firstOrFail();
+
+            ContentVersion::query()
+                ->where('activity_id', $activity->id)
+                ->whereIn('status', ['draft', 'review'])
+                ->update(['status' => 'superseded']);
+
+            return ContentVersion::create([
+                'activity_id' => $activity->id,
+                'status' => 'draft',
+                'payload' => $payload,
+                'is_current' => false,
+                'created_by' => $author->id,
+            ]);
+        });
     }
 
+    /**
+     * Betreiber-Review nach #179 (Stale-Model-Race): Die uebergebene
+     * `$version` kann veraltet sein, wenn der Aufrufer sie geladen hat,
+     * BEVOR eine parallele `createDraft()` sie superseded hat -- ein
+     * frueher Check auf `$version->status` allein wuerde dann faelschlich
+     * durchlaufen. Der massgebliche Check erfolgt deshalb erst INNERHALB
+     * der Transaktion, HINTER dem Activity-Lock, gegen ein frisch (und
+     * gesperrt) aus der DB geladenes Modell -- `createDraft()`,
+     * `submitForReview()` und `publish()` serialisieren sich dadurch alle
+     * ueber denselben Activity-Lock. Der Check oben bleibt als frueher
+     * Fast-Fail fuer den haeufigen Fall (z. B. Doppelklick) erhalten, ist
+     * aber nie die alleinige Pruefung.
+     */
     public function submitForReview(ContentVersion $version): ContentVersion
     {
         if ($version->status !== 'draft') {
             throw new RuntimeException('Nur ein Entwurf kann zur Pruefung eingereicht werden.');
         }
 
-        $version->status = 'review';
-        $version->save();
+        return DB::transaction(function () use ($version): ContentVersion {
+            Activity::query()->whereKey($version->activity_id)->lockForUpdate()->firstOrFail();
 
-        return $version;
+            $current = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
+
+            if ($current->status !== 'draft') {
+                throw new RuntimeException('Nur ein Entwurf kann zur Pruefung eingereicht werden.');
+            }
+
+            $current->status = 'review';
+            $current->save();
+
+            return $current;
+        });
     }
 
+    /**
+     * Derselbe Stale-Model-Race wie bei `submitForReview()` (Betreiber-Review
+     * nach #179): Zwei `publish()`-Aufrufe fuer verschiedene Versionen
+     * derselben Aktivitaet koennen beide ihre jeweilige `$version` mit
+     * Status `review` geladen haben, bevor einer von beiden den Activity-
+     * Lock erhaelt. Ohne einen massgeblichen Re-Check HINTER dem Lock
+     * wuerde der zweite Aufruf die vom ersten bereits superseded Version
+     * trotzdem noch veroeffentlichen und die frisch veroeffentlichte
+     * wieder verdraengen. Der fruehe Check oben bleibt nur Fast-Fail.
+     */
     public function publish(ContentVersion $version, User $reviewer): ContentVersion
     {
         if ($version->status !== 'review') {
             throw new RuntimeException('Nur eine Version im Review-Status kann veroeffentlicht werden.');
         }
 
-        DB::transaction(function () use ($version, $reviewer): void {
+        return DB::transaction(function () use ($version, $reviewer): ContentVersion {
+            $activity = Activity::query()->whereKey($version->activity_id)->lockForUpdate()->firstOrFail();
+
+            // Massgeblich: der Status IN DER DB, JETZT, hinter dem Lock --
+            // nicht das moeglicherweise veraltete $version-Objekt des
+            // Aufrufers (siehe Klassendoc-Ergaenzung oben).
+            $current = ContentVersion::query()->whereKey($version->id)->lockForUpdate()->firstOrFail();
+
+            if ($current->status !== 'review') {
+                throw new RuntimeException('Nur eine Version im Review-Status kann veroeffentlicht werden.');
+            }
+
             ContentVersion::query()
-                ->where('activity_id', $version->activity_id)
+                ->where('activity_id', $activity->id)
                 ->where('is_current', true)
                 ->update(['is_current' => false]);
 
-            $version->status = 'published';
-            $version->is_current = true;
-            $version->published_at = now();
-            $version->reviewed_by = $reviewer->id;
-            $version->save();
-        });
+            // Spiegelbild zu createDraft(): jede andere parallel entstandene
+            // draft-/review-Version derselben Aktivitaet wird beim
+            // Veroeffentlichen ungueltig, statt spaeter versehentlich
+            // publizierbar zu bleiben (Betreiber-Review nach #178). Greift
+            // auch fuer Versionen, die VOR diesem Fix bereits existierten.
+            ContentVersion::query()
+                ->where('activity_id', $activity->id)
+                ->whereIn('status', ['draft', 'review'])
+                ->where('id', '!=', $current->id)
+                ->update(['status' => 'superseded']);
 
-        return $version->refresh();
+            $current->status = 'published';
+            $current->is_current = true;
+            $current->published_at = now();
+            $current->reviewed_by = $reviewer->id;
+            $current->save();
+
+            return $current;
+        });
     }
 
     /**

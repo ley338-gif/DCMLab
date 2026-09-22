@@ -4,6 +4,7 @@ namespace Tests\Unit\Content;
 
 use App\Content\ContentVersioningService;
 use App\Models\Activity;
+use App\Models\ContentVersion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RuntimeException;
@@ -142,5 +143,249 @@ class ContentVersioningServiceTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         (new ContentVersioningService)->rollback($activity, $reviewer);
+    }
+
+    /**
+     * Betreiber-Review nach #178: `storeDraft()` in jedem der fuenf Editoren
+     * ruft `createDraft()` ohne jede Pruefung auf vorhandene Entwuerfe auf --
+     * vor diesem Fix haetten zwei Speichervorgaenge zwei parallele
+     * `draft`-Versionen derselben Aktivitaet hinterlassen.
+     */
+    public function test_creating_a_new_draft_supersedes_an_older_draft_of_the_same_activity(): void
+    {
+        $service = new ContentVersioningService;
+        $activity = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+
+        $older = $service->createDraft($activity, ['v' => 1], $author);
+        $newer = $service->createDraft($activity, ['v' => 2], $author);
+
+        $this->assertSame('superseded', $older->fresh()->status);
+        $this->assertSame('draft', $newer->fresh()->status);
+        $this->assertSame(['v' => 1], $older->fresh()->payload, 'die ueberholte Version bleibt unveraendert stehen, nur ihr Status wechselt.');
+    }
+
+    /**
+     * Genau der Fall, der PR #178 (Lesson 4.1) tatsaechlich passiert ist:
+     * ein Entwurf wurde bereits zur Review eingereicht (ContentVersion #22),
+     * dann entstand fuer dieselbe Aktivitaet ein neuer, korrigierter Entwurf
+     * (#23) -- #22 muss dabei ungueltig werden, nicht nur unauffaellig in
+     * der Review-Queue verschwinden.
+     */
+    public function test_creating_a_new_draft_supersedes_an_older_review_version_of_the_same_activity(): void
+    {
+        $service = new ContentVersioningService;
+        $activity = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+
+        $staleReview = $service->submitForReview($service->createDraft($activity, ['v' => 'stale'], $author));
+        $this->assertSame('review', $staleReview->status);
+
+        $correctedDraft = $service->createDraft($activity, ['v' => 'corrected'], $author);
+
+        $this->assertSame('superseded', $staleReview->fresh()->status);
+        $this->assertSame('draft', $correctedDraft->fresh()->status);
+    }
+
+    public function test_creating_a_new_draft_does_not_touch_published_versions(): void
+    {
+        $service = new ContentVersioningService;
+        $activity = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $published = $service->publish($service->submitForReview($service->createDraft($activity, ['v' => 1], $author)), $reviewer);
+        $service->createDraft($activity, ['v' => 2], $author);
+
+        $this->assertSame('published', $published->fresh()->status);
+        $this->assertTrue($published->fresh()->is_current);
+    }
+
+    public function test_creating_a_new_draft_does_not_touch_versions_of_other_activities(): void
+    {
+        $service = new ContentVersioningService;
+        $activityA = Activity::factory()->create();
+        $activityB = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+
+        $unrelatedDraft = $service->createDraft($activityB, ['v' => 'other-activity'], $author);
+        $service->createDraft($activityA, ['v' => 1], $author);
+
+        $this->assertSame('draft', $unrelatedDraft->fresh()->status, 'ein Entwurf einer anderen Aktivitaet darf nie superseded werden.');
+    }
+
+    /**
+     * Spiegelbildlich zu oben: Veroeffentlichen raeumt ebenfalls auf --
+     * jede andere parallele draft-/review-Version derselben Aktivitaet wird
+     * ungueltig, genau der Fix, der ContentVersion #22 (Lesson 4.1) bei der
+     * Veroeffentlichung von #23 automatisch bereinigen soll.
+     */
+    public function test_publishing_a_version_supersedes_all_other_pending_versions_of_the_same_activity(): void
+    {
+        $service = new ContentVersioningService;
+        $activity = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        // Zwei Entwuerfe koennen trotz der createDraft()-Sperre parallel
+        // existieren, wenn der aeltere schon vor diesem Fix (oder per
+        // direktem Model-Insert, wie ein Alt-Datensatz) angelegt wurde --
+        // publish() darf sich deshalb nicht allein auf createDraft() verlassen.
+        $staleReview = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review', 'payload' => ['v' => 'stale'],
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+        $staleDraft = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'draft', 'payload' => ['v' => 'stale-draft'],
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+        $theOneToPublish = ContentVersion::create([
+            'activity_id' => $activity->id, 'status' => 'review', 'payload' => ['v' => 'corrected'],
+            'is_current' => false, 'created_by' => $author->id,
+        ]);
+
+        $published = $service->publish($theOneToPublish, $reviewer);
+
+        $this->assertSame('published', $published->status);
+        $this->assertTrue($published->is_current);
+        $this->assertSame('superseded', $staleReview->fresh()->status);
+        $this->assertSame('superseded', $staleDraft->fresh()->status);
+    }
+
+    public function test_publishing_a_version_does_not_touch_pending_versions_of_other_activities(): void
+    {
+        $service = new ContentVersioningService;
+        $activityA = Activity::factory()->create();
+        $activityB = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $unrelatedReview = $service->submitForReview($service->createDraft($activityB, ['v' => 'other-activity'], $author));
+        $service->publish($service->submitForReview($service->createDraft($activityA, ['v' => 1], $author)), $reviewer);
+
+        $this->assertSame('review', $unrelatedReview->fresh()->status);
+    }
+
+    /**
+     * Requirement 3 (Betreiber-Vorgabe): eine `superseded`-Version darf
+     * weder erneut eingereicht noch veroeffentlicht werden. Beide Pruefungen
+     * existierten bereits vor diesem Fix (`submitForReview()` verlangt
+     * Status `draft`, `publish()` verlangt Status `review`) -- `superseded`
+     * erfuellt keine der beiden, die Guards brauchten keine Erweiterung.
+     */
+    public function test_a_superseded_version_cannot_be_submitted_for_review(): void
+    {
+        $service = new ContentVersioningService;
+        $activity = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+
+        $superseded = $service->createDraft($activity, ['v' => 1], $author);
+        $service->createDraft($activity, ['v' => 2], $author);
+        $this->assertSame('superseded', $superseded->fresh()->status);
+
+        $this->expectException(RuntimeException::class);
+        $service->submitForReview($superseded->fresh());
+    }
+
+    public function test_a_superseded_version_cannot_be_published(): void
+    {
+        $service = new ContentVersioningService;
+        $activity = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $superseded = $service->submitForReview($service->createDraft($activity, ['v' => 1], $author));
+        $service->createDraft($activity, ['v' => 2], $author);
+        $this->assertSame('superseded', $superseded->fresh()->status);
+
+        $this->expectException(RuntimeException::class);
+        $service->publish($superseded->fresh(), $reviewer);
+    }
+
+    /**
+     * Betreiber-Review nach #179 (Stale-Model-Race, Blocker 1): der frühe
+     * `$version->status !== 'review'`-Check allein reicht nicht, weil das
+     * übergebene PHP-Objekt veralten kann, während ein Aufrufer auf den
+     * Activity-Lock wartet. Konkreter Ablauf, hier deterministisch ohne
+     * Threading reproduziert: Request A laedt eine Review-Version (#stale),
+     * Request B veroeffentlicht eine ANDERE Version derselben Aktivitaet
+     * zuerst -- das superseded #stale in der DB, aber As PHP-Objekt traegt
+     * weiterhin den alten Wert 'review'. Ruft A publish() jetzt mit diesem
+     * veralteten Objekt auf, darf das nicht mehr durchgehen: der massgebliche
+     * Check muss gegen den frisch (und gesperrt) aus der DB gelesenen Status
+     * laufen, nicht gegen das im Speicher gehaltene Objekt.
+     */
+    public function test_publishing_a_stale_review_model_is_rejected_after_a_concurrent_publish_superseded_it(): void
+    {
+        $service = new ContentVersioningService;
+        $activity = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+        $reviewerA = User::factory()->reviewer()->create();
+        $reviewerB = User::factory()->reviewer()->create();
+
+        // "Request A" laedt seine Version und haelt sie unveraendert im
+        // Speicher -- genau wie ein PHP-Request-Objekt, das VOR der
+        // Konkurrenz-Veroeffentlichung geladen wurde.
+        $stale = $service->submitForReview($service->createDraft($activity, ['v' => 'stale'], $author));
+        $this->assertSame('review', $stale->status);
+
+        $corrected = $service->submitForReview($service->createDraft($activity, ['v' => 'corrected'], $author));
+
+        // "Request B" veroeffentlicht zuerst -- superseded #stale in der DB.
+        $published = $service->publish($corrected, $reviewerB);
+        $this->assertSame('published', $published->status);
+
+        // $stale ist im PHP-Speicher weiterhin (faelschlich) 'review'.
+        $this->assertSame('review', $stale->status, 'das In-Memory-Objekt bleibt bewusst veraltet, wie bei einem Request, der vor der Konkurrenz-Veroeffentlichung geladen hat.');
+
+        try {
+            $service->publish($stale, $reviewerA);
+            $this->fail('publish() mit dem veralteten Modell haette werfen muessen.');
+        } catch (RuntimeException) {
+            // erwartet: "Nur eine Version im Review-Status kann veroeffentlicht werden."
+        }
+
+        // Die korrigierte Version bleibt die aktuell veroeffentlichte --
+        // der stale Publish-Versuch darf sie nicht verdraengt haben.
+        $this->assertSame('published', $corrected->fresh()->status);
+        $this->assertTrue($corrected->fresh()->is_current);
+        $this->assertSame('superseded', $stale->fresh()->status, 'darf durch den abgelehnten Publish-Versuch nicht wieder ueberschrieben werden.');
+    }
+
+    /**
+     * Betreiber-Review nach #179 (Stale-Model-Race, Blocker 2): dieselbe
+     * Race fuer `submitForReview()`. Request A laedt einen Draft (#stale),
+     * Request B legt fuer dieselbe Aktivitaet einen neuen Entwurf an -- das
+     * superseded #stale in der DB, As Objekt traegt aber weiterhin 'draft'.
+     * Reicht A diesen veralteten Entwurf jetzt zur Review ein, darf das
+     * nicht mehr durchgehen, sonst existieren wieder zwei offene Versionen.
+     */
+    public function test_submitting_a_stale_draft_model_for_review_is_rejected_after_a_new_draft_superseded_it(): void
+    {
+        $service = new ContentVersioningService;
+        $activity = Activity::factory()->create();
+        $author = User::factory()->author()->create();
+
+        $stale = $service->createDraft($activity, ['v' => 'stale'], $author);
+        $this->assertSame('draft', $stale->status);
+
+        $service->createDraft($activity, ['v' => 'new'], $author);
+
+        // $stale ist im PHP-Speicher weiterhin (faelschlich) 'draft'.
+        $this->assertSame('draft', $stale->status, 'das In-Memory-Objekt bleibt bewusst veraltet, wie bei einem Request, der vor dem konkurrierenden createDraft() geladen hat.');
+
+        try {
+            $service->submitForReview($stale);
+            $this->fail('submitForReview() mit dem veralteten Modell haette werfen muessen.');
+        } catch (RuntimeException) {
+            // erwartet: "Nur ein Entwurf kann zur Pruefung eingereicht werden."
+        }
+
+        $this->assertSame('superseded', $stale->fresh()->status, 'bleibt superseded, wird durch den abgelehnten Versuch nicht wieder auf review gesetzt.');
+        $this->assertSame(
+            1,
+            ContentVersion::where('activity_id', $activity->id)->whereIn('status', ['draft', 'review'])->count(),
+            'hoechstens eine offene draft-/review-Version darf uebrig bleiben.',
+        );
     }
 }

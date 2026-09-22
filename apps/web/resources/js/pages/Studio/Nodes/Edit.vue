@@ -127,6 +127,10 @@ const statusLabels: Record<string, string> = {
     draft: trans('Entwurf'),
     review: trans('Zur Prüfung eingereicht'),
     published: trans('Veröffentlicht'),
+    // Nur in der Versionshistorie sichtbar (nie als pending_version, siehe
+    // ContentVersioningService) -- ein durch einen neueren Entwurf oder
+    // eine neuere Veroeffentlichung ueberholter, nie freigegebener Stand.
+    superseded: trans('Ersetzt'),
 };
 
 const difficultyLabels: Record<Difficulty, string> = {
