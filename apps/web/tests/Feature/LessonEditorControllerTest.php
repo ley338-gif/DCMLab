@@ -272,6 +272,74 @@ class LessonEditorControllerTest extends TestCase
     }
 
     /**
+     * Betreiber-Befund nach #178 (Lesson 4.1, ContentVersion #22/#23/#24):
+     * nach einer Freigabe ueber die UI gab es keine Anzeige, welche
+     * ContentVersion gerade aktiv ist -- weder fuer die aktuelle noch fuer
+     * eine fruehere, ueberholte Version. Der Node-Editor
+     * (StudioNodeController::edit()) hatte diese Historie laengst, der
+     * Lesson-Editor nie. `versions` muss deshalb -- analog dazu -- Status,
+     * `is_current`, Autor und Veroeffentlichungszeitpunkt jeder Version der
+     * Aktivitaet ausliefern, nicht nur des offenen Entwurfs
+     * (`pending_version`).
+     */
+    public function test_the_editor_exposes_the_full_version_history_including_the_currently_published_version(): void
+    {
+        [$lesson, $activity, $author] = $this->lessonAndActivity();
+        $reviewer = User::factory()->reviewer()->create();
+
+        $payload = fn (string $title) => [
+            'title' => $title, 'teaser' => 'Teaser', 'level' => 'aufbau', 'duration_minutes' => 10,
+            'tools' => ['dcmdump'], 'requires' => [], 'glossary_terms' => ['dicom'],
+            'objectives' => ['Ziel'],
+            'sandbox' => ['required' => false, 'dataset' => null, 'note' => null],
+            'related_node' => ['node' => null, 'optional' => true],
+            'rich_content' => [
+                'type' => 'doc', 'version' => 1,
+                'content' => [
+                    ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [['type' => 'text', 'text' => 'Intro']]],
+                    ['type' => 'code_block', 'attrs' => ['variant' => 'terminal'], 'text' => "\$ dcmdump datei.dcm\n(0008,0060) CS [CT]"],
+                    ['type' => 'paragraph', 'content' => [
+                        ['type' => 'text', 'text' => 'Was du daran abliest:', 'marks' => [['type' => 'bold']]],
+                        ['type' => 'text', 'text' => ' Test.'],
+                    ]],
+                ],
+            ],
+        ];
+
+        // Erster Entwurf: wird durch den zweiten ueberholt (superseded, PR
+        // #179), nie veroeffentlicht -- wie #22 im echten Vorfall.
+        $this->actingAs($author)->post("/de/studio/lessons/{$lesson->lesson_id}", $payload('Erster Entwurf'))->assertRedirect();
+        $stale = ContentVersion::where('activity_id', $activity->id)->firstOrFail();
+
+        // Zweiter Entwurf: eingereicht und von einem ANDEREN Account
+        // freigegeben (kein Self-Approval, siehe PR #178/#179) -- wie #24.
+        $this->actingAs($author)->post("/de/studio/lessons/{$lesson->lesson_id}", $payload('Zweiter Entwurf'))->assertRedirect();
+        $published = ContentVersion::where('activity_id', $activity->id)->where('id', '!=', $stale->id)->firstOrFail();
+        $this->actingAs($author)->post("/de/author/quiz-versions/{$published->id}/submit")->assertRedirect();
+        $this->actingAs($reviewer)->post("/de/author/quiz-versions/{$published->id}/publish")->assertRedirect();
+
+        $this->actingAs($reviewer)
+            ->get("/de/studio/lessons/{$lesson->lesson_id}")
+            ->assertInertia(fn ($page) => $page
+                ->has('versions', 2)
+                ->where('versions', function ($versions) use ($published, $stale, $author) {
+                    $byId = collect($versions)->keyBy('id');
+                    $publishedRow = $byId->get($published->id);
+                    $staleRow = $byId->get($stale->id);
+
+                    return $publishedRow !== null
+                        && $publishedRow['status'] === 'published'
+                        && $publishedRow['is_current'] === true
+                        && $publishedRow['author_name'] === $author->name
+                        && $publishedRow['published_at'] !== null
+                        && $staleRow !== null
+                        && $staleRow['status'] === 'superseded'
+                        && $staleRow['is_current'] === false;
+                }),
+            );
+    }
+
+    /**
      * Betreiber-Review nach #178 (Lesson 4.1, ContentVersion #22/#23): zwei
      * Speichervorgaenge hintereinander duerfen nicht zwei parallel
      * veroeffentlichbare Entwuerfe hinterlassen. Der Editor (`pending_version`)
