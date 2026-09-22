@@ -1,9 +1,9 @@
 id: "4.1"
 track: troubleshooting
 order: 1
-duration_minutes: 12
+duration_minutes: 18
 level: aufbau
-objectives_count: 3
+objectives_count: 4
 requires: ["1.5", "1.6"]
 tools: [echoscu]
 
@@ -16,6 +16,22 @@ related_node:
   optional: false
 
 glossary_terms: [called-ae-title, calling-ae-title, association]
-tools_checked: "2026-09-13"
+quiz:
+  - id: q1
+    type: single
+    answer: 1
+  - id: q2
+    type: single
+    answer: 1
+  - id: q3
+    type: single
+    answer: 1
+  - id: q4
+    type: multi
+    answer: [0, 2, 3]
+  - id: q5
+    type: input
+    answer: "Calling AE Title Not Recognized"
+tools_checked: "2026-09-21"
 status: published
-updated: "2026-09-13"
+updated: "2026-09-21"

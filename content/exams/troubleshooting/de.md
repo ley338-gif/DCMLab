@@ -3,14 +3,14 @@ title: Abschlussprüfung — Troubleshooting
 intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft wiederholbar.
 ---
 
-### f01 — Ein Sendeauftrag scheitert mit `Called AE Title Not Recognized`. Wessen Konfiguration muss korrigiert werden?
+### f01 — Ein Sendeauftrag scheitert mit `Called AE Title Not Recognized`. Was sagt dieser Ablehnungsgrund aus?
 
 1. Der Absender kennt sein eigenes Ziel nicht
-2. Das Ziel (Called-Seite) erkennt den angesprochenen Namen nicht als seinen eigenen
-3. Das Ziel kennt den Absender nicht
+2. Die Gegenstelle (Called-Seite) erkennt den angesprochenen Namen nicht als ihren eigenen
+3. Die Gegenstelle kennt den Absender nicht
 4. Die Firewall blockiert den Port
 
-**Erklärung:** `Called AE Title Not Recognized` betrifft immer das Ziel — die Gegenstelle wurde unter einem Namen angesprochen, den sie nicht als ihren eigenen erkennt. `Calling AE Title Not Recognized` wäre der umgekehrte Fall: Der Absender ist beim Ziel nicht registriert.
+**Erklärung:** `Called AE Title Not Recognized` betrifft immer das Ziel — die Gegenstelle wurde unter einem Namen angesprochen, den sie nicht als ihren eigenen erkennt. Welche Seite die Konfiguration ändern muss, folgt daraus noch nicht automatisch: Das hängt davon ab, welcher Name zwischen beiden Seiten eigentlich vereinbart war. `Calling AE Title Not Recognized` wäre der umgekehrte Fall: Der Absender ist beim Ziel nicht registriert.
 
 ### f02 — Ein Ablehnungsgrund nennt Presentation Context Result 4 (`transfer-syntaxes-not-supported`). Was ist betroffen?
 
@@ -168,14 +168,14 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Falsch. Bilder können vollständig angekommen sein, während die Commitment-Anfrage für ein *anderes*, nie übermitteltes Objekt scheitert — zwei getrennte Prüfungen mit zwei getrennten Fehlerquellen.
 
-### f23 — Ein Sendeauftrag scheitert mit `Calling AE Title Not Recognized`. Welche Konfiguration muss angepasst werden?
+### f23 — Ein Sendeauftrag scheitert mit `Calling AE Title Not Recognized`. Was sagt dieser Ablehnungsgrund aus?
 
-1. Der eigene AE Title der Modalität muss beim Empfänger als erlaubter Absender eingetragen werden
+1. Der eigene AE Title der Modalität ist beim Empfänger nicht als erlaubter Absender registriert
 2. Der Called AE Title der Modalität ist falsch eingetragen
 3. Der Port des Empfängers muss geändert werden
 4. Die Transfer Syntax muss angepasst werden
 
-**Erklärung:** `Calling AE Title Not Recognized` heißt: Der Empfänger kennt den Absender nicht. Die Konfiguration ist immer symmetrisch — der Absender muss beim Empfänger als erlaubter Calling AE Title eingetragen sein.
+**Erklärung:** `Calling AE Title Not Recognized` heißt: Der Empfänger kennt den vom Absender verwendeten Namen nicht als registrierten Calling AE Title. Ob dafür der Empfänger ergänzt oder die Modalität auf einen bereits registrierten Namen umgestellt wird, entscheidet der Vergleich mit der eigentlich vereinbarten Konfiguration — der Ablehnungsgrund allein schreibt das nicht vor.
 
 ### f24 — Welche Aussagen zur systematischen Fehlereingrenzung aus Lektion 4.10 stimmen? *(Mehrfachauswahl)*
 
