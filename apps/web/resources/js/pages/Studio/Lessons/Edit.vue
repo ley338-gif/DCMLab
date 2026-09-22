@@ -55,6 +55,14 @@ type PendingVersion = {
     status: 'draft' | 'review' | 'published';
 } | null;
 
+type VersionRow = {
+    id: number;
+    status: string;
+    is_current: boolean;
+    author_name: string | null;
+    published_at: string | null;
+};
+
 const props = defineProps<{
     lesson: { lesson_id: string; title: string };
     fields: LessonFields;
@@ -66,6 +74,7 @@ const props = defineProps<{
         nodes: string[];
     };
     pending_version: PendingVersion;
+    versions: VersionRow[];
     can_publish: boolean;
     preview_url: string;
 }>();
@@ -170,6 +179,10 @@ const statusLabels: Record<string, string> = {
     draft: trans('Entwurf'),
     review: trans('Zur Prüfung eingereicht'),
     published: trans('Veröffentlicht'),
+    // Nur in der Versionshistorie sichtbar (nie als pending_version, siehe
+    // ContentVersioningService) -- ein durch einen neueren Entwurf oder eine
+    // neuere Veroeffentlichung ueberholter, nie freigegebener Stand.
+    superseded: trans('Ersetzt'),
 };
 </script>
 
@@ -238,6 +251,37 @@ const statusLabels: Record<string, string> = {
                 </ul>
             </AlertDescription>
         </Alert>
+
+        <Card class="mb-4">
+            <CardHeader>
+                <CardTitle class="text-base">{{
+                    trans('Versionen')
+                }}</CardTitle>
+            </CardHeader>
+            <CardContent class="space-y-2">
+                <p
+                    v-if="versions.length === 0"
+                    class="text-muted-foreground text-sm"
+                >
+                    {{ trans('Noch keine Versionshistorie.') }}
+                </p>
+                <div
+                    v-for="version in versions"
+                    :key="version.id"
+                    class="flex items-center justify-between text-sm"
+                >
+                    <span
+                        >{{ trans('v:id', { id: version.id }) }}
+                        {{
+                            statusLabels[version.status] ?? version.status
+                        }}</span
+                    >
+                    <Badge v-if="version.is_current" variant="default">{{
+                        trans('aktiv')
+                    }}</Badge>
+                </div>
+            </CardContent>
+        </Card>
 
         <Card>
             <CardHeader>

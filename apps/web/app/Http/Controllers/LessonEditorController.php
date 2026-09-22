@@ -9,6 +9,7 @@ use App\Content\LearnerViewBuilder;
 use App\Content\QuizContent;
 use App\Content\RichContent\LessonPayloadNormalizer;
 use App\Models\Activity;
+use App\Models\ContentVersion;
 use App\Models\Lesson;
 use App\Models\Node;
 use Illuminate\Http\JsonResponse;
@@ -90,6 +91,23 @@ class LessonEditorController extends Controller
                 'id' => $pendingVersion->id,
                 'status' => $pendingVersion->status,
             ],
+            // Analog Studio/Nodes/Edit.vue (StudioNodeController::edit()):
+            // die vollstaendige Versionshistorie, nicht nur der offene
+            // Entwurf -- ein Reviewer sieht sonst nach dem Freigeben nicht,
+            // welche ContentVersion gerade aktiv ist (Betreiber-Befund nach
+            // #178: Freigabe ueber die UI ausgefuehrt, aber keine Anzeige,
+            // welche Version das war).
+            'versions' => $activity->contentVersions()
+                ->with('author')
+                ->latest()
+                ->get()
+                ->map(fn (ContentVersion $version) => [
+                    'id' => $version->id,
+                    'status' => $version->status,
+                    'is_current' => $version->is_current,
+                    'author_name' => $version->author?->name,
+                    'published_at' => $version->published_at?->toIso8601String(),
+                ]),
             'can_publish' => Gate::allows('publish', $activity),
             // Echte Learner View des ungespeicherten Entwurfs (CMS-7d.3
             // Phase 6, ADR 0118) statt eines Links auf die veroeffentlichte
