@@ -404,3 +404,58 @@ gegen die echte DB ein eigener, letzter Schritt nach Freigabe (harte Regel
 des Auftrags). Für 1.7, 2.3 und 4.5 wäre der richtige Weg vermutlich, den
 Dateistand in Studio zu veröffentlichen (Reconciliation wie PR #162) und
 erst danach zu exportieren.
+
+## Nachtrag Phase 3 — `content:sync` dreht den Studio-Stand nicht mehr zurück
+
+Umgesetzt ist die Empfehlung aus Phase 0. Die offene Frage 1 ist dabei
+zurückhaltend beantwortet: `Node.status` bleibt ohne veröffentlichte
+Version datei-geführt.
+
+- **Regel A (versionsgebunden).** `ContentSync` lädt einmal je Lauf alle
+  veröffentlichten Versionen (Restores eingeschlossen) und ordnet sie nach
+  Payload-Art zu, mit demselben Diskriminator wie `ActivityContentApplier`:
+  - Lektionsfeld-Version: Die `LessonContentPublisher`-Felder bleiben
+    unangetastet, ebenso Activity-`title`/`teaser`.
+  - Quiz-Version: `quiz` und `body` bleiben.
+  - Node-Version: alle `NodeContentPublisher`-Felder einschließlich
+    `status`, dazu Activity-`title`/`status`.
+- **Regel B (nur beim Anlegen).**
+  - Track `themenfeld_id`/`order`/`level`/`hours`/`status`
+  - Node `themenfeld_id`
+  - Activity `sandbox`/`quiz` `track_id`/`order`: bisher inkonsistent zur
+    Activity `lesson` und deshalb mitkorrigiert
+- **Warnung nur bei echter Abweichung.** Grundlage ist
+  `ContentFieldComparison`, derselbe Vergleich wie beim Export (u. a. zählt
+  `sandbox.note: null` nicht). Die Warnung nennt Ressource, Versionsnummern
+  und Felder.
+- **`--force-from-files`** hebt beide Regeln auf. Der Befehl fragt nach und
+  bricht mit `--no-interaction` ab. Dokumentiert ist er in
+  `docs/betrieb.md`.
+- **Unverändert:**
+  - Nicht-Studio-Felder (`status` der Lektion, `authors`, `updated`,
+    `tools_checked`, `source_hash`) synchronisieren weiter.
+  - Eine DB ohne `content_versions` synchronisiert wie bisher.
+  - `ContentWriter` (Exam-/Achievement-Freigabe) ruft weiterhin
+    `content:sync` auf, jetzt mit Schutz.
+
+**Tests.** Der Phase-0-Test ist umgedreht und umbenannt
+(`ContentSyncKeepsStudioStateTest`, 12 Fälle):
+
+- Lektions-Metadaten, Quiz, Node inklusive `status`, Track-Einstellungen und
+  Node-Themenfeld bleiben erhalten.
+- Sandbox-/Quiz-Activities behalten eine Verschiebung.
+- Nicht-Studio-Felder synchronisieren weiter.
+- Keine Warnung bei formal verschiedenem, inhaltlich gleichem Stand.
+- Eine DB ohne `content_versions` synchronisiert Dateiänderungen wie
+  bisher.
+- `--force-from-files` überschreibt nach Bestätigung und ändert nichts bei
+  „nein“ oder ohne Interaktion.
+- Archivierte Node ohne Version: bleibt bewusst datei-geführt (offene
+  Frage 1).
+
+**Nicht gegen die echte DB ausgeführt.** `content:sync` schreibt, und
+schreibende Läufe gegen `dcmlab` schließt der Auftrag aus. Nach dem Merge
+würde der nächste Sync dort für 2.2, 3.1, 3.3, 3.4 (Lektionsfelder) und
+`halbe-sache` (Node) greifen. Warnungen wären nur bei tatsächlicher
+Abweichung zu erwarten; laut Phase-2-`--check` gibt es in diesen Feldern
+keine.
