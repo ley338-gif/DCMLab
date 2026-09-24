@@ -163,6 +163,11 @@ final class ContentRepository
         return $this->readIfExists('tools/de.yml');
     }
 
+    public function tracksRaw(): ?string
+    {
+        return $this->readIfExists('tracks.yml');
+    }
+
     /**
      * @return array<string, array<string, mixed>> keyed by Glossar-Slug
      */

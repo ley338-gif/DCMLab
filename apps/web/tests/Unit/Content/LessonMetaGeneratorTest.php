@@ -200,4 +200,20 @@ class LessonMetaGeneratorTest extends TestCase
         $this->assertSame($meta['related_node'], $reparsedMeta['related_node']);
         $this->assertSame($frontMatter['attributes']['objectives'], $reparsedFrontMatter['attributes']['objectives']);
     }
+
+    /**
+     * ADR 0122: status/track/order setzt kein Autoren-Entwurf, content:export
+     * schreibt sie aber aus dem DB-Stand zurueck.
+     */
+    public function test_regenerate_index_replaces_status_track_and_order_only(): void
+    {
+        $metaRaw = "id: \"1.0\"\ntrack: fundamente\norder: 3\n# Kommentar bleibt\nlevel: einsteiger\nstatus: draft\n";
+
+        $regenerated = LessonMetaGenerator::regenerateIndex($metaRaw, ['track' => 'services', 'order' => 7, 'status' => 'published']);
+
+        $this->assertSame("id: \"1.0\"\ntrack: services\norder: 7\n# Kommentar bleibt\nlevel: einsteiger\nstatus: published\n", $regenerated);
+        $this->assertSame($metaRaw, LessonMetaGenerator::regenerateIndex($metaRaw, []));
+        // META_FIELDS bleiben davon unberuehrt -- und umgekehrt.
+        $this->assertSame($metaRaw, LessonMetaGenerator::regenerateMeta($metaRaw, ['status' => 'published', 'track' => 'x']));
+    }
 }

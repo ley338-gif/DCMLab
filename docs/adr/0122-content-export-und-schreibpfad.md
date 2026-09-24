@@ -332,3 +332,75 @@ Alle sind semantisch neutral oder waren schon vorher nach dem Import
 verloren.
 
 `rich-content:audit`: weiterhin 0 blockierende Funde.
+
+## Nachtrag Phase 2 — `php artisan content:export`
+
+`content:export {--only=lessons,nodes,tracks} {--id=} {--check} {--path=}`
+(`ContentExporter` + `ContentExportResult`, Befehl `ContentExport`).
+
+- **Quelle** sind die Live-Spalten, nie `content_versions` (Punkt 4).
+  `draft`/`review` können so strukturell nicht exportiert werden; ein
+  Test legt beide an und prüft, dass `--check` sauber bleibt.
+- **Semantischer Diff.** Jedes Feld wird mit der Datei verglichen. Nicht
+  als Abweichung zählen:
+  - Default-Werte und fehlende Schlüssel
+  - `sandbox.note: null`, `jsonb`-Schlüsselreihenfolge, YAML-Schreibweise
+    (`"1.0"`/`1.0`)
+  - Prosa, die bei rich-content-Ressourcen über den Konverter inhaltsgleich
+    zurückliest (`RichContentToMarkdownSerializer::equivalent()`)
+
+  Nur abweichende Felder werden über die vorhandenen Generatoren ersetzt.
+  Kommentare und alle übrigen Zeilen bleiben stehen. Folge: Ein zweiter Lauf
+  findet nichts mehr und ändert kein Byte (Test). LF-Zeilenenden;
+  `core.autocrlf` im Checkout wird beim Vergleich ignoriert.
+- **Lektions-Body.** Stimmt nur der Quiz-Abschnitt nicht, wird nur er
+  ersetzt (aus `lessons.body`, ADR 0118). Die Prosa bleibt zeichengleich.
+  Weicht die Prosa ab, wird `rich_content` serialisiert. Der Fußtext nach
+  dem Quiz („Als Nächstes“) kommt wieder hinter das Quiz, solange die
+  letzten Blöcke von `rich_content` noch mit ihm übereinstimmen.
+- **Neu an den Generatoren**, als eigene Methoden, sodass
+  `LessonActivity::serialize()` unverändert bleibt:
+  - `LessonMetaGenerator::regenerateIndex()` für `track`/`order`/`status`
+  - `NodeMetaGenerator::regenerateIndex()` für `status`/`themenfeld`
+  - `TrackCatalogGenerator` für feldweisen Ersatz in `tracks.yml`, nach dem
+    Blockmuster von `AchievementCatalogGenerator`
+  - `ContentRepository::tracksRaw()`
+- **Vorläufig und zurückhaltend**, bis die offenen Fragen beantwortet sind:
+  - `--only` kennt nur `lessons`, `nodes`, `tracks` (Fragen 4, 5). Das Quiz
+    gehört zu `lessons`.
+  - Track-`title`/`teaser` werden nicht exportiert.
+  - Kein `GeneratedFileMarker` (Frage 6).
+  - Ressourcen ohne Datei-Vorlage (nur in Studio angelegt) werden als Fehler
+    gemeldet, nicht neu erzeugt.
+- **Schreibziel**: `--path`, Default `config('content.path')`. Im
+  `app`-Container ist `content/` `:ro`, und auf dem Host fehlt der
+  pgsql-Treiber. Deshalb läuft der schreibende Lauf als Einmal-Container
+  mit rw-Mount (README, „Content exportieren“). Der `--check`-Lauf über
+  diesen Weg ist verifiziert; `content/` blieb unverändert.
+
+### `content:export --check` gegen die lokale DB `dcmlab` (rein lesend, 2026-09-24)
+
+Exit-Code 1: 7 Dateien weichen ab, 1 Ressource ist nicht exportierbar.
+Nodes und Tracks sind ohne Abweichung.
+
+| Lektion | Feld | Studio-Version | Befund |
+|---|---|---|---|
+| 1.7 | Prosa (`rich_content`) | keine | 1 Block: Die Datei beschreibt das Lab „Halbe Sache“ im neuen Szenario (PR #158, 2026-09-19), `rich_content` noch im alten. Die **Datei ist neuer**. |
+| 2.3 | Prosa | keine | Die Datei hat einen `## Lab`-Abschnitt (PR #158), der in `rich_content` fehlt. Die **Datei ist neuer**. |
+| 4.5 | Prosa | keine | wie 2.3 (PR #158), die **Datei ist neuer** |
+| 2.2 | Prosa | #14 | 2 Blöcke, u. a. in einem Konsolenbeispiel der DB `daten//` statt `daten/ct-thorax-60/`. Das wirkt wie ein Editorverlust in Studio. |
+| 3.1 | Prosa | #15 | 8 Blöcke ab Block 13; die DB hat einen Block mehr als die Datei |
+| 3.3 | Prosa | #16 | ab Block 1 verschoben; die DB hat einen Block mehr. Das in #16 geänderte **Lernziel** ist live bereits verloren (Phase 0) und taucht deshalb hier **nicht** auf. |
+| 3.4 | Prosa | #21 | Die DB hat einen `## Lab`-Abschnitt (#21, 2026-09-19), der in der Datei fehlt (letzte Dateiänderung 2026-09-13). Die **DB ist neuer**. |
+| 2.1 | — | keine | nicht exportierbar: Fettdruck ohne Leerzeichen vor „Fünf“ (Nachtrag Phase 1) |
+
+**Folgerung**: Ein schreibender Export gegen diese DB würde bei 1.7, 2.3
+und 4.5 inhaltlich *neuere* Repo-Stände durch ältere DB-Stände ersetzen.
+Die rich-content-Umstellung hat diese späteren Datei-Änderungen für
+Lernende unsichtbar gemacht. „DB ist die Wahrheit“ heißt hier, dass die
+Lernenden heute den älteren Stand sehen. Welcher Stand gewinnt, ist je
+Lektion eine Inhaltsentscheidung. Deshalb bleibt der schreibende Export
+gegen die echte DB ein eigener, letzter Schritt nach Freigabe (harte Regel
+des Auftrags). Für 1.7, 2.3 und 4.5 wäre der richtige Weg vermutlich, den
+Dateistand in Studio zu veröffentlichen (Reconciliation wie PR #162) und
+erst danach zu exportieren.
