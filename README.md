@@ -1,7 +1,9 @@
 # DCM Lab
 
-Lernplattform für DICOM und PACS. Arbeitsstand 16.09.2026 — alle Phasen P0
-bis P9 aus `dcm-lab-agent-prompt.md` (Abschnitt 10) umgesetzt.
+Lernplattform für DICOM und PACS. Arbeitsstand 24.09.2026 — alle Phasen P0
+bis P9 aus `dcm-lab-agent-prompt.md` (Abschnitt 10) umgesetzt, dazu das
+Studio-CMS (ADR 0101 ff.). Lektionen und Nodes werden in Studio gepflegt,
+`content/` wird per `make content-export` aus der DB erzeugt (ADR 0122).
 
 ## Aufbau
 
@@ -132,6 +134,18 @@ Prüfen, ohne etwas zu schreiben. Exit-Code 1 samt Liste, wenn `content/`
 abweicht:
 
 ```bash
+make content-check
+```
+
+Schreiben:
+
+```bash
+make content-export
+```
+
+Dahinter stehen folgende Aufrufe:
+
+```bash
 docker compose -f infra/docker-compose.yml --env-file .env \
   -f infra/docker-compose.dev.yml exec app php artisan content:export --check
 ```
@@ -161,15 +175,33 @@ Nicht darstellbarer Rich Content, z. B. ein `callout`, bricht für diese
 Ressource mit Fundstelle ab. Er wird nie still verworfen, und die Datei
 bleibt unverändert.
 
+**Content-Änderungen laufen über Studio, nicht über `content/`.** Der
+vorgesehene Weg (Einzelheiten in `docs/betrieb.md`, „Content-Änderungen
+ins Repo bringen“):
+
+1. In Studio veröffentlichen.
+2. `make content-export` ausführen.
+3. Den Export als eigenen PR einreichen, Commit-Präfix `content-export:`.
+
+Von Hand bearbeitete Dateien unter `content/` sind nur noch für neue
+Ressourcen gedacht, die es in der DB noch nicht gibt. Für Lektionen,
+Nodes und Track-Einstellungen mit Studio-Stand überschreibt `content:sync`
+sie ohnehin nicht mehr.
+
 ## Was funktioniert
 
-- **Sechs Tracks, alle vollständig veröffentlicht** (`status: published`):
+- **Neun Tracks, davon sechs veröffentlicht** (`status: published`):
   „Fundamente" (1.0–1.8), „Die Services" (2.1–2.8), „Das Bild selbst"
-  (3.1–3.6), „Troubleshooting" (4.1–4.10), „Betrieb und Integration"
-  (5.1–5.8) sowie „Grundlagen" (6.1, Themenfeld Datenschutz) — jeweils
-  vollständiger Fließtext, Werkzeugleiste, Glossar, Fortschritt. Der
+  (3.1–3.8), „Troubleshooting" (4.1–4.12), „Betrieb und Integration"
+  (5.1–5.12) sowie „Grundlagen" (6.1, Themenfeld Datenschutz) — jeweils
+  vollständiger Fließtext, Werkzeugleiste, Glossar, Fortschritt. Im Aufbau
+  (`draft`) sind „HL7" (7.1–7.3), „Klinische Workflows" (7.4–7.6) und
+  „FHIR/DICOMweb" (8.1–8.3) im Themenfeld Interoperabilität sowie die
+  jüngsten Lektionen der veröffentlichten Tracks (3.7, 3.8, 4.11, 4.12,
+  5.9–5.12). Insgesamt 59 Lektionen, davon 42 veröffentlicht. Der
   Bauverlauf je Track steht in `docs/content-todo.md`.
-- **17 Node-Definitionen**, alle spielbar — von einfachen Association-
+- **34 Node-Definitionen** (17 veröffentlicht, 17 im Entwurf), alle
+  spielbar — von einfachen Association-
   Rätseln bis zu Szenario-Nodes (`interaction: scenario`, z. B.
   `anruf-am-empfang`); Details je Node: `docs/content-todo.md`.
 - **Node-Engine** (simuliert, `services/engine`): Association-Prüfung

@@ -1,6 +1,28 @@
 # Content-Schemas — DCM Lab
 
-Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Metadaten (Titel, Lernziele, Werkzeuge, Voraussetzungen, Schwierigkeit, Punkte, …) liegen immer im Git-Repo und werden bei jedem `content:sync`-Lauf aus den Dateien geschrieben — unabhängig vom Migrationsstatus einer Lektion/Node. Für die eigentliche **Prosa** gilt das nur mit einer wichtigen Ausnahme, siehe die Warnung direkt darunter.
+Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar.
+
+> ### Schreibpfad: Studio → DB → `content:export` → `content/` (ADR 0122)
+>
+> Für Lektionen, Nodes und Track-Einstellungen ist die **Datenbank** die
+> Autoren-Wahrheit. Geändert wird in Studio. `content/` ist in diesem
+> Format der **Export** des veröffentlichten DB-Stands (`make
+> content-export`, danach ein eigener PR mit Präfix `content-export:`, siehe
+> `docs/betrieb.md`). Von Hand bearbeitete Content-PRs für bestehende
+> Lektionen und Nodes sind nicht mehr der vorgesehene Weg.
+>
+> `content:sync` liest `content/` weiterhin ein, für frische Umgebungen,
+> Seed und Demo und für neue Ressourcen. Sobald eine Lektion oder Node in
+> Studio veröffentlicht wurde, überschreibt der Sync deren Studio-Felder
+> nicht mehr. Track-Einstellungen und das Node-Themenfeld überschreibt er
+> nach dem Anlegen nie. Abweichungen meldet er als Warnung. Nur in
+> `content/` gepflegt bleiben:
+>
+> - Prüfungen
+> - Achievements
+> - Glossar
+> - Datasets, Worklists, Tools, Skills, Themenfelder
+> - `environment`/`flag` einer Node
 
 > ### ⚠️ Prosa-Änderungen an bereits migrierten Lektionen/Nodes bleiben wirkungslos
 >
@@ -38,10 +60,10 @@ Verbindliches Format für Lektionen, Nodes, Werkzeuge und Glossar. Metadaten (Ti
 > angelegten Lektionen/Nodes sind noch datei-basiert (`rich_content` ist
 > dort `null`); dort funktioniert der klassische
 > `de.md`/`node.yml` → `content:sync`-Weg wie in diesem Dokument beschrieben
-> unverändert. `meta.yml`/`node.yml`-Felder wie `title`, `objectives`,
-> `requires`, `tools`, `hints[*].cost`, `points`, `difficulty` bleiben
-> **immer** datei-/`content:sync`-geführt, unabhängig vom Cutover-Status —
-> nur die Prosa selbst wechselt die Quelle.
+> unverändert. ~~`meta.yml`/`node.yml`-Felder bleiben **immer**
+> datei-/`content:sync`-geführt~~ — gilt seit ADR 0122 nur noch, solange
+> für die Ressource keine Studio-Version veröffentlicht ist (siehe
+> „Schreibpfad“ oben).
 
 **Track und Themenfeld:** `Themenfeld` ist die Track-übergreifende Ebene (Abschnitt 13), `Track` bleibt das Kapitel innerhalb eines Themenfelds. Jeder Track referenziert per `themenfeld:`-Feld genau ein Themenfeld aus `themenfelder.yml`. Aktuell gibt es ein einziges Themenfeld (`dicom`), dem alle fünf Tracks angehören — die Ebene existiert bereits im Datenmodell, damit eine spätere Erweiterung auf weitere Themenfelder (siehe `docs/konzept-lernplattform.md` Abschnitt 13, "Mehr als DICOM") kein Schema-Bruch ist, keine neue Migration von Bestandsdaten erfordert.
 
