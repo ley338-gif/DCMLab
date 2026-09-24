@@ -126,13 +126,13 @@ final class ContentExporter
             'order' => $lesson->order,
             'status' => $lesson->status,
         ], fn (mixed $value): bool => $value !== null);
-        $index = array_filter($index, fn (mixed $value, string $key): bool => ! self::same($value, $meta[$key] ?? ($key === 'status' ? 'draft' : null)), ARRAY_FILTER_USE_BOTH);
+        $index = array_filter($index, fn (mixed $value, string $key): bool => ! ContentFieldComparison::same($value, $meta[$key] ?? ($key === 'status' ? 'draft' : null)), ARRAY_FILTER_USE_BOTH);
 
         $metaFields = [];
         foreach (self::LESSON_META_DEFAULTS as $key => $default) {
             $dbValue = $key === 'objectives_count' ? count($lesson->objectives ?? []) : ($lesson->{$key} ?? $default);
 
-            if (! self::same($dbValue, $meta[$key] ?? $default)) {
+            if (! ContentFieldComparison::same($dbValue, $meta[$key] ?? $default)) {
                 $metaFields[$key] = $dbValue;
             }
         }
@@ -141,21 +141,21 @@ final class ContentExporter
         $metaRaw = LessonMetaGenerator::regenerateMeta($metaRaw, $metaFields);
         $metaChanged = [...array_keys($index), ...array_keys($metaFields)];
 
-        $sandbox = self::normalizedSandbox($lesson->sandbox);
-        if (! self::same($sandbox, self::normalizedSandbox($meta['sandbox'] ?? null))) {
+        $sandbox = ContentFieldComparison::sandbox($lesson->sandbox);
+        if (! ContentFieldComparison::same($sandbox, ContentFieldComparison::sandbox($meta['sandbox'] ?? null))) {
             $metaRaw = LessonMetaGenerator::regenerateSandbox($metaRaw, $sandbox);
             $metaChanged[] = 'sandbox';
         }
 
-        $relatedNode = self::normalizedRelatedNode($lesson->related_node);
-        if (! self::same($relatedNode, self::normalizedRelatedNode($meta['related_node'] ?? null))) {
+        $relatedNode = ContentFieldComparison::relatedNode($lesson->related_node);
+        if (! ContentFieldComparison::same($relatedNode, ContentFieldComparison::relatedNode($meta['related_node'] ?? null))) {
             $metaRaw = LessonMetaGenerator::regenerateRelatedNode($metaRaw, $relatedNode);
             $metaChanged[] = 'related_node';
         }
 
         $quiz = array_map(fn (array $q): array => ['id' => (string) $q['id'], 'type' => (string) $q['type'], 'answer' => $q['answer']], $lesson->quiz ?? []);
         $fileQuiz = array_map(fn (array $q): array => ['id' => (string) ($q['id'] ?? ''), 'type' => (string) ($q['type'] ?? ''), 'answer' => $q['answer'] ?? null], $meta['quiz'] ?? []);
-        if (! self::same($quiz, $fileQuiz)) {
+        if (! ContentFieldComparison::same($quiz, $fileQuiz)) {
             $metaRaw = LessonQuizGenerator::regenerateMeta($metaRaw, array_map(fn (array $q): array => [...$q, 'question' => '', 'options' => []], $quiz));
             $metaChanged[] = 'quiz';
         }
@@ -163,11 +163,11 @@ final class ContentExporter
         $frontMatterFields = [];
         foreach (['title', 'teaser'] as $key) {
             $dbValue = $lesson->{$key}['de'] ?? '';
-            if (! self::same($dbValue, $frontMatter[$key] ?? '')) {
+            if (! ContentFieldComparison::same($dbValue, $frontMatter[$key] ?? '')) {
                 $frontMatterFields[$key] = $dbValue;
             }
         }
-        if (! self::same($lesson->objectives ?? [], $frontMatter['objectives'] ?? [])) {
+        if (! ContentFieldComparison::same($lesson->objectives ?? [], $frontMatter['objectives'] ?? [])) {
             $frontMatterFields['objectives'] = $lesson->objectives ?? [];
         }
 
@@ -286,10 +286,10 @@ final class ContentExporter
         $mdRaw = self::lf((string) $entry['md_raw']);
 
         $index = [];
-        if (! self::same($node->status, $def['status'] ?? 'draft')) {
+        if (! ContentFieldComparison::same($node->status, $def['status'] ?? 'draft')) {
             $index['status'] = $node->status;
         }
-        if ($themenfeld !== null && ! self::same($themenfeld, $def['themenfeld'] ?? 'dicom')) {
+        if ($themenfeld !== null && ! ContentFieldComparison::same($themenfeld, $def['themenfeld'] ?? 'dicom')) {
             $index['themenfeld'] = $themenfeld;
         }
 
@@ -297,7 +297,7 @@ final class ContentExporter
         foreach (self::NODE_DEF_DEFAULTS as $key => $default) {
             $dbValue = $node->{$key} ?? $default;
 
-            if (! self::same($dbValue, $def[$key] ?? $default)) {
+            if (! ContentFieldComparison::same($dbValue, $def[$key] ?? $default)) {
                 $defFields[$key] = $dbValue;
             }
         }
@@ -308,7 +308,7 @@ final class ContentExporter
 
         $hints = array_map(fn (array $h): array => ['id' => (string) $h['id'], 'cost' => (int) $h['cost']], $node->hints ?? []);
         $fileHints = array_map(fn (array $h): array => ['id' => (string) ($h['id'] ?? ''), 'cost' => (int) ($h['cost'] ?? 0)], $def['hints'] ?? []);
-        if (! self::same($hints, $fileHints)) {
+        if (! ContentFieldComparison::same($hints, $fileHints)) {
             $defRaw = NodeMetaGenerator::regenerateHints($defRaw, $hints);
             $defChanged[] = 'hints';
         }
@@ -316,7 +316,7 @@ final class ContentExporter
         $frontMatterFields = [];
         foreach (['title', 'scenario_title'] as $key) {
             $dbValue = $node->{$key}['de'] ?? '';
-            if (! self::same($dbValue, $frontMatter[$key] ?? '')) {
+            if (! ContentFieldComparison::same($dbValue, $frontMatter[$key] ?? '')) {
                 $frontMatterFields[$key] = $dbValue;
             }
         }
@@ -364,7 +364,7 @@ final class ContentExporter
         $hintsA = is_array($a['hints'] ?? null) ? $a['hints'] : [];
         $hintsB = is_array($b['hints'] ?? null) ? $b['hints'] : [];
 
-        if (! self::same(array_keys($hintsA), array_keys($hintsB)) && ! self::same(self::sortedKeys($hintsA), self::sortedKeys($hintsB))) {
+        if (! ContentFieldComparison::same(array_keys($hintsA), array_keys($hintsB)) && ! ContentFieldComparison::same(self::sortedKeys($hintsA), self::sortedKeys($hintsB))) {
             return false;
         }
 
@@ -413,7 +413,7 @@ final class ContentExporter
                 'level' => $track->level,
                 'hours' => $track->hours,
                 'status' => $track->status,
-            ], fn (mixed $value, string $key): bool => $value !== null && ! self::same($value, $fileTrack[$key] ?? null), ARRAY_FILTER_USE_BOTH);
+            ], fn (mixed $value, string $key): bool => $value !== null && ! ContentFieldComparison::same($value, $fileTrack[$key] ?? null), ARRAY_FILTER_USE_BOTH);
 
             if ($fields === []) {
                 continue;
@@ -426,41 +426,6 @@ final class ContentExporter
         }
 
         $result->file('tracks.yml', $raw, $changed);
-    }
-
-    /**
-     * `sandbox` ohne Block, `null` und `{required: false}` ohne dataset/note
-     * bedeuten dasselbe; `note: null` aus Studio-Payloads zaehlt nicht
-     * (ADR 0122, Phase 0).
-     *
-     * @return array{required: bool, dataset?: string, note?: string}
-     */
-    private static function normalizedSandbox(mixed $sandbox): array
-    {
-        $sandbox = is_array($sandbox) ? $sandbox : [];
-        $normalized = ['required' => (bool) ($sandbox['required'] ?? false)];
-
-        foreach (['dataset', 'note'] as $key) {
-            if (is_string($sandbox[$key] ?? null) && $sandbox[$key] !== '') {
-                $normalized[$key] = $sandbox[$key];
-            }
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * @return array{node: string|null, optional: bool}
-     */
-    private static function normalizedRelatedNode(mixed $relatedNode): array
-    {
-        $relatedNode = is_array($relatedNode) ? $relatedNode : [];
-        $node = $relatedNode['node'] ?? null;
-
-        return [
-            'node' => is_string($node) && $node !== '' ? $node : null,
-            'optional' => (bool) ($relatedNode['optional'] ?? true),
-        ];
     }
 
     /**
@@ -494,24 +459,6 @@ final class ContentExporter
         sort($keys);
 
         return $keys;
-    }
-
-    private static function same(mixed $a, mixed $b): bool
-    {
-        return RichContentToMarkdownSerializer::canonical(self::scalarized($a)) === RichContentToMarkdownSerializer::canonical(self::scalarized($b));
-    }
-
-    /**
-     * YAML liest `1.0` als Float, `"1.0"` als String, `10` als Int -- der
-     * Vergleich soll nur am Wert haengen, nicht an der Schreibweise.
-     */
-    private static function scalarized(mixed $value): mixed
-    {
-        if (is_array($value)) {
-            return array_map(self::scalarized(...), $value);
-        }
-
-        return is_int($value) || is_float($value) ? (string) $value : $value;
     }
 
     private static function lf(string $text): string
