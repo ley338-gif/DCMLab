@@ -72,6 +72,37 @@ exportieren“), nicht eine Handänderung an `content/`.
 Eine frische DB ohne `content_versions` (Seed, Demo, neue Umgebung)
 synchronisiert wie bisher vollständig aus `content/`.
 
+### Content-Änderungen ins Repo bringen
+
+Die DB ist die Autoren-Wahrheit, `content/` ist ihr Export (ADR 0122). Der
+vorgesehene Weg für jede inhaltliche Änderung an einer bestehenden Lektion,
+Node oder Track-Einstellung:
+
+1. **In Studio bearbeiten und veröffentlichen.** Das geht über den normalen
+   Entwurf-, Review- und Freigabe-Ablauf.
+2. **`make content-export`** schreibt den veröffentlichten Stand nach
+   `content/`. Entwürfe und Versionen im Review werden nie exportiert.
+3. **Den Export als eigenen PR einreichen.** Der Commit bekommt das Präfix
+   `content-export:`, z. B. `content-export: Lektion 3.4 (Lab-Abschnitt aus
+   Studio)`. Der PR enthält nur den Export, keine Handänderungen und keinen
+   Code.
+
+Vor dem Review lässt sich mit `make content-check` prüfen, ob `content/`
+dem DB-Stand entspricht (Exit-Code 1 samt Datei- und Feldliste). Einen
+automatischen Drift-Check in CI gibt es bewusst nicht, weil CI keine
+Produktions-DB hat. CI committet auch nie selbst.
+
+Handänderungen an `content/` sind nur noch für **neue** Ressourcen
+vorgesehen, die es in der DB noch nicht gibt (erster `content:sync` legt
+sie an), und für die Bereiche, die weiterhin nur in `content/` gepflegt
+werden:
+
+- Prüfungen
+- Achievements
+- Glossar
+- Datasets, Worklists, Tools, Skills, Themenfelder
+- `environment`/`flag` einer Node
+
 ### Studio-Stand bewusst mit `content/` überschreiben
 
 Nur für eine gezielte Rücksetzung, z. B. wenn ein Studio-Stand verworfen
