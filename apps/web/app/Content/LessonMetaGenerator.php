@@ -41,6 +41,27 @@ final class LessonMetaGenerator
     }
 
     /**
+     * Index-Felder, die kein Autoren-Entwurf traegt, `content:export`
+     * (ADR 0122) aber aus dem DB-Stand zurueckschreiben muss: `status`,
+     * `track` (Slug) und `order` -- die beiden letzten verschiebt Studio
+     * (`StudioTrackController::moveLesson()`/`reorderLessons()`). Bewusst
+     * eine eigene Methode statt einer Erweiterung von META_FIELDS, damit
+     * `LessonActivity::serialize()` weiterhin nichts davon anfasst.
+     *
+     * @param  array{status?: string, track?: string, order?: int}  $fields
+     */
+    public static function regenerateIndex(string $metaRaw, array $fields): string
+    {
+        foreach (['track', 'order', 'status'] as $key) {
+            if (array_key_exists($key, $fields)) {
+                $metaRaw = self::replaceLine($metaRaw, $key, "{$key}: ".self::dumpValue($fields[$key]));
+            }
+        }
+
+        return $metaRaw;
+    }
+
+    /**
      * `sandbox: {required, dataset?, note?}` (ADR 0089) -- `dataset`/`note`
      * werden nur geschrieben, wenn sie einen Wert tragen (leer/null lassen
      * die Zeile ganz weg, wie im echten Bestand: `sandbox.dataset` fehlt
