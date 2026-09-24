@@ -274,3 +274,61 @@ schützen wäre.
    Diff in jeder Datei) oder weglassen?
 7. **`ContentWriter` gegen `:ro`-Mount** (Nebenbefund oben): als eigenes
    Thema erfassen?
+
+## Nachtrag Phase 1 — `RichContentToMarkdownSerializer`
+
+`app/Content/RichContent/RichContentToMarkdownSerializer.php`:
+
+- `serialize(doc)` gibt Markdown zurück.
+- `serializeNodeContent(envelope, hintOrder)` gibt den Node-Body zurück:
+  `## Briefing` / `## Hints` mit `### <id>` / `## Write-up`, ohne
+  `---`-Trenner wie bei 32 von 34 Nodes im Bestand. Die Hint-Reihenfolge
+  kommt aus den `hints`-Metadaten, weil `jsonb` die Schlüssel umsortiert.
+
+**Round-Trip** `convert(serialize(convert(md))) == convert(md)`, verglichen
+auf Rich-Content-Ebene mit schlüsselreihenfolge-unabhängigem Vergleich:
+
+| Quelle | Ergebnis |
+|---|---|
+| alle 59 Lektionen und 34 Nodes aus `content/` (datengetriebener Test) | 93/93 gleich |
+| alle 59 `rich_content`-Spalten der lokalen DB `dcmlab` (42 Lektionen, 17 Nodes; rein lesend) | 58/59 gleich, 1 Abbruch mit Fundstelle (siehe unten) |
+
+**Nie still verworfen.** Nicht darstellbare Knoten werfen
+`UnrepresentableRichContentException`:
+
+- unbekannte Block-, Inline- und Mark-Typen
+- `callout`, `dicom_tag_table`, `dicom_dump`: vorläufig, bis zur
+  Entscheidung über die offene Frage 3
+- `console` ohne Prompt-Zeile, `code` mit Sprache `mermaid`
+- Tabellen ohne genau eine Kopfzeile, Umbrüche in Zellen oder Überschriften
+- wörtlicher Text `{{term:x}}`
+- eine `## `-/`### `-Zeile, die Node-Abschnitte zerschneiden würde
+
+Als letzte Sicherung liest `serialize()` jedes Ergebnis mit dem Konverter
+zurück und wirft bei jeder Abweichung. Einzige bewusste Auslassung: leere
+Absätze, weil sie keinen Inhalt tragen.
+
+**Befund aus der Echt-DB, Lektion 2.1** (`doc.content[5]`): Studio hat
+fett „**Was du daran abliest:**“ ohne Leerzeichen direkt vor „Fünf“
+gespeichert. Nach den Flanking-Regeln von CommonMark ist `**…:**Fünf` kein
+Fettdruck, das lässt sich in Markdown nicht ausdrücken. Vermutlich fehlt in
+Studio schlicht ein Leerzeichen. Die Korrektur ist eine Inhaltsänderung
+über Studio, keine Aufgabe dieses Auftrags. Bis dahin meldet der Export 2.1
+als Fehler.
+
+**Textgleichheit auf Markdown-Ebene**: 13/93. Die Abweichungen stammen alle
+aus Informationen, die der Konverter nicht behält:
+
+- Sprachangabe eines `<!-- kein-beispiel -->`-Blocks (` ```text `,
+  ` ```mermaid ` werden zu ` ``` `)
+- Startnummer geordneter Listen (`2.` wird zu `1.`)
+- Zeilenumbrüche innerhalb von Code-Spans (werden zu Leerzeichen)
+- Fettdruck um einen Glossarverweis (`**{{term:x}}**`, der Konverter
+  verwirft die Marks am `glossary_term`)
+- weiche statt harter Zeilenumbrüche sowie lockere statt enger Listen
+- doppelte Leerzeilen
+
+Alle sind semantisch neutral oder waren schon vorher nach dem Import
+verloren.
+
+`rich-content:audit`: weiterhin 0 blockierende Funde.
