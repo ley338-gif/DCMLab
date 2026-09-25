@@ -1,7 +1,7 @@
 COMPOSE = docker compose -f infra/docker-compose.yml --env-file .env
 COMPOSE_DEV = $(COMPOSE) -f infra/docker-compose.dev.yml
 
-.PHONY: up down test test-db-pgsql lint seed content-validate content-build logs sandbox-images
+.PHONY: up down test test-db-pgsql lint seed content-validate content-build content-check content-export logs sandbox-images
 
 up: sandbox-images
 	$(COMPOSE_DEV) up --build -d
@@ -57,3 +57,14 @@ content-validate:
 
 content-build:
 	cd apps/web && php artisan content:build
+
+# ADR 0122: veroeffentlichten DB-Stand nach content/ -- `content-check`
+# schreibt nichts (Exit-Code 1 bei Abweichung), `content-export` schreibt.
+# content/ ist im app-Container read-only und dem Host fehlt der
+# pgsql-Treiber, deshalb ein Einmal-Container mit zusaetzlichem rw-Mount.
+# Unter Git Bash auf Windows: `MSYS_NO_PATHCONV=1 make content-export`.
+content-check:
+	$(COMPOSE_DEV) exec app php artisan content:export --check
+
+content-export:
+	$(COMPOSE_DEV) run --rm --no-deps -v "$(CURDIR)/content:/var/www/html/content-rw" app php artisan content:export --path=/var/www/html/content-rw

@@ -1,6 +1,6 @@
 # 0122 — `content:export` und ein einziger Schreibpfad für Content
 
-Status: Entwurf (Phase 0 — Audit)
+Status: umgesetzt in Phasen 0–4 (PRs #182–#186), Betreiberabnahme und offene Fragen 1–6 stehen aus
 Datum: 2026-09-24
 
 ## Kontext
@@ -459,3 +459,57 @@ würde der nächste Sync dort für 2.2, 3.1, 3.3, 3.4 (Lektionsfelder) und
 `halbe-sache` (Node) greifen. Warnungen wären nur bei tatsächlicher
 Abweichung zu erwarten; laut Phase-2-`--check` gibt es in diesen Feldern
 keine.
+
+## Nachtrag Phase 4 — Workflow und Doku
+
+- **Makefile**: `make content-check` (`content:export --check` im
+  laufenden `app`-Container) und `make content-export` (Einmal-Container mit
+  rw-Mount von `content/`). Den zugrunde liegenden Aufruf hat Phase 2 mit
+  `--check` verifiziert; `make` selbst fehlt auf dem Windows-Host des
+  Betreibers, dort gilt der Rohaufruf aus dem README.
+- **Workflow** (`docs/betrieb.md`, „Content-Änderungen ins Repo bringen“;
+  ein PR-Template gibt es im Repo nicht):
+  1. In Studio veröffentlichen.
+  2. `make content-export` ausführen.
+  3. Den Export als eigenen PR einreichen, Commit-Präfix `content-export:`.
+
+  Kein Drift-Job in CI (keine Produktions-DB), kein automatischer Commit.
+- **Vermerkt** in `docs/content-schema.md` (neuer Kasten „Schreibpfad“, die
+  bisherige Aussage „Metadaten immer datei-geführt“ ist korrigiert) und im
+  README: Von Hand bearbeitete Content-PRs für bestehende Lektionen und
+  Nodes sind nicht mehr der vorgesehene Weg.
+- **`docs/offene-fragen.md`**: „`content:export` fehlt noch“ ist
+  durchgestrichen und als umgesetzt markiert.
+- **README**:
+  - Arbeitsstand auf 24.09.2026 gesetzt
+  - 9 Tracks, 6 davon veröffentlicht
+  - 59 Lektionen, 42 davon veröffentlicht
+  - 34 Node-Definitionen, 17 davon veröffentlicht
+
+## Stand der offenen Fragen (nach Phase 4)
+
+Alle Punkte sind vorläufig **zurückhaltend** umgesetzt und lassen sich ohne
+Umbau ändern:
+
+| # | Frage | vorläufig umgesetzt |
+|---|---|---|
+| 1 | Regel B für `Node.status`? | Nein: Ohne veröffentlichte Version bleibt der Status datei-geführt. Mit Version schützt ihn Regel A. |
+| 2 | Lektion 3.3: Lernziel aus #16 wieder live setzen? | Offen, Betreiberhandlung. Kein Code ändert ContentVersions. |
+| 3 | Syntax für `callout`/`dicom_tag_table`/`dicom_dump` | Keine: Der Serialisierer wirft eine Exception, der Export meldet die Ressource. Heute gibt es 0 Vorkommen. |
+| 4 | Track-`title`/`teaser` | Werden nicht exportiert, `tracks.yml` bleibt bei `title_key`. |
+| 5 | `--only=exams,achievements,glossary` | Nicht angeboten; der Befehl lehnt sie mit Begründung ab. |
+| 6 | `GeneratedFileMarker` im Export | Wird nicht gesetzt. |
+| 7 | `ContentWriter` gegen den `:ro`-Mount | Steht schon in `docs/offene-fragen.md` („`content/` ist … read-only gemountet“). Kein neuer Eintrag. |
+
+Neu hinzugekommen:
+
+- **Lektion 2.1**: Fettdruck ohne Leerzeichen vor „Fünf“ in Studio
+  korrigieren. Danach ist 2.1 exportierbar.
+- **Drift in 1.7, 2.3, 4.5**: Die Datei ist neuer (PR #158). Diese Stände
+  vor dem ersten schreibenden Export in Studio veröffentlichen, sonst
+  würde der Export sie im Repo zurückdrehen.
+- **Erster schreibender Export gegen `dcmlab`**: eigener, letzter PR nach
+  Freigabe (harte Regel des Auftrags).
+- **Restore über `restoreVersion()`** (ADR 0121) ist unverändert. Nach
+  einem Restore gilt dieselbe Regel A, der Export zieht den wiederhergestellten
+  Stand nach.
