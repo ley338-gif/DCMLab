@@ -43,11 +43,50 @@ docker compose -f infra/docker-compose.yml --env-file .env exec app php artisan 
 docker compose -f infra/docker-compose.yml --env-file .env exec app php artisan content:sync
 ```
 
-`content:sync` ist idempotent (Abschnitt 7: die DB ist nur ein Index über
-`content/`) — nach jedem `git pull`, der Content geändert hat, erneut
-laufen lassen. `make seed` macht `migrate:fresh --seed` und ist **nur**
-für eine frische Instanz gedacht — auf einem Server mit echten
+`content:sync` ist idempotent — nach jedem `git pull`, der Content geändert
+hat, erneut laufen lassen. `make seed` macht `migrate:fresh --seed` und ist
+**nur** für eine frische Instanz gedacht — auf einem Server mit echten
 Nutzerdaten löscht `migrate:fresh` diese unwiderruflich.
+
+**`content:sync` überschreibt keinen Studio-Stand mehr** (ADR 0122). Die DB
+ist die Autoren-Wahrheit für Lektionen, Nodes und Track-Einstellungen. Der
+Sync lässt deshalb liegen:
+
+- bei einer Lektion oder Node mit mindestens einer **veröffentlichten**
+  `content_versions`-Zeile genau die Felder, die Studio veröffentlicht:
+  - Lektion: Titel, Teaser, Lernziele, Level, Dauer, Werkzeuge,
+    Voraussetzungen, Glossarbegriffe, Spielwiese, verwandte Node
+  - Quiz: `quiz` und den Quiz-Abschnitt
+  - Node: alle Felder aus `node.yml` außer `environment`/`flag`,
+    einschließlich `status`
+- **immer**, sobald die Zeile existiert: Track-`themenfeld`, `order`,
+  `level`, `hours` und `status` sowie Node-`themenfeld`. Diese Felder setzt
+  Studio direkt.
+
+Weicht `content/` in einem dieser Felder ab, meldet der Sync das je
+Ressource mit den Feldnamen (`… abweichende Dateiwerte für title, objectives
+nicht übernommen`). Die Warnung ist kein Fehler. Sie heißt, dass Studio
+neuer ist als das Repo. Richtig ist dann `content:export` (README, „Content
+exportieren“), nicht eine Handänderung an `content/`.
+
+Eine frische DB ohne `content_versions` (Seed, Demo, neue Umgebung)
+synchronisiert wie bisher vollständig aus `content/`.
+
+### Studio-Stand bewusst mit `content/` überschreiben
+
+Nur für eine gezielte Rücksetzung, z. B. wenn ein Studio-Stand verworfen
+werden soll und `content/` der gewünschte Stand ist:
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file .env exec app php artisan content:sync --force-from-files
+```
+
+Der Befehl fragt interaktiv nach. Mit `--no-interaction` bricht er ab, ohne
+etwas zu schreiben. Er hebt **beide** Schutzregeln für **alle** Ressourcen
+auf, das ist das Verhalten von vor ADR 0122. Die Versionshistorie
+(`content_versions`) bleibt unverändert. Danach steht in ihr ein Stand als
+aktuell, der nicht mehr live ist. Vorher also mit `content:export --check`
+prüfen, was sich ändern würde.
 
 Die Sandbox-Images (`containers/orthanc`, `containers/toolbox`) werden
 separat gebaut, weil sie keine Compose-Services sind, sondern zur Laufzeit

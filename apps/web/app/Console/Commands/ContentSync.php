@@ -2,15 +2,18 @@
 
 namespace App\Console\Commands;
 
+use App\Content\ContentFieldComparison;
 use App\Content\ContentRepository;
 use App\Content\QuizContent;
 use App\Models\Activity;
+use App\Models\ContentVersion;
 use App\Models\Lesson;
 use App\Models\LessonElement;
 use App\Models\Node;
 use App\Models\Themenfeld;
 use App\Models\Track;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Liest content/ ein und aktualisiert den Index in der Datenbank
@@ -19,15 +22,70 @@ use Illuminate\Console\Command;
  *
  * Zusaetzlich (ADR 0072): ein `activities`-Verzeichniseintrag je Lektion,
  * Node und Track-Pruefung, damit sie ueber ActivityRegistry aufloesbar sind.
+ *
+ * Schutz des Studio-Stands (ADR 0122, Phase 3) -- vorher drehte jeder Lauf
+ * jede Studio-Aenderung ausser `rich_content` still zurueck:
+ *
+ *   Regel A (versionsgebunden): hat eine Lektion/Node mindestens eine
+ *     veroeffentlichte `content_versions`-Zeile, bleiben genau die Felder,
+ *     die der zugehoerige Publisher schreibt, unangetastet (Lektionsfelder,
+ *     Quiz, Node-Felder -- je nach Payload-Art getrennt).
+ *   Regel B (nur beim Anlegen): Felder, die Studio direkt ohne Version
+ *     setzt -- Track `themenfeld_id/order/level/hours/status`, Node
+ *     `themenfeld_id`, Activity `sandbox`/`quiz` `track_id/order` --
+ *     kommen nur beim allerersten Sync aus der Datei (wie schon bisher
+ *     Lesson `track_id`/`order` und Track `title`/`teaser`).
+ *
+ * Weicht die Datei in einem geschuetzten Feld ab, gibt es eine Warnung mit
+ * den Feldnamen. `--force-from-files` hebt beide Regeln nach Rueckfrage auf.
+ * Eine frische DB ohne `content_versions` synchronisiert unveraendert.
  */
 class ContentSync extends Command
 {
-    protected $signature = 'content:sync';
+    protected $signature = 'content:sync
+        {--force-from-files : Studio-Stand bewusst mit content/ ueberschreiben (fragt nach, siehe docs/betrieb.md)}';
 
     protected $description = 'Aktualisiert den DB-Index (tracks, lessons, nodes, activities) aus content/ (Abschnitt 7)';
 
+    /**
+     * Genau die Felder, die LessonContentPublisher schreibt (ohne
+     * rich_content, das content:sync ohnehin nie anfasst).
+     */
+    private const LESSON_STUDIO_FIELDS = ['title', 'teaser', 'level', 'duration_minutes', 'tools', 'requires', 'glossary_terms', 'objectives', 'objectives_count', 'sandbox', 'related_node'];
+
+    /** QuizContentPublisher. */
+    private const QUIZ_STUDIO_FIELDS = ['quiz', 'body'];
+
+    /** NodeContentPublisher (inklusive status, den er auf published setzt). */
+    private const NODE_STUDIO_FIELDS = ['title', 'scenario_title', 'difficulty', 'points', 'category', 'interaction', 'estimated_minutes', 'skills', 'related_lessons', 'hints', 'status'];
+
+    /** StudioTrackController::update()/publish()/unpublish()/archive()/restore(). */
+    private const TRACK_STUDIO_FIELDS = ['themenfeld_id', 'order', 'level', 'hours', 'status'];
+
+    private bool $forceFromFiles = false;
+
+    /**
+     * Veroeffentlichte Versionen je Payload-Art und Activity-Key.
+     *
+     * @var array{lesson: array<string, list<int>>, quiz: array<string, list<int>>, node: array<string, list<int>>}
+     */
+    private array $studioVersions = ['lesson' => [], 'quiz' => [], 'node' => []];
+
     public function handle(ContentRepository $content): int
     {
+        $this->forceFromFiles = (bool) $this->option('force-from-files');
+
+        if ($this->forceFromFiles && ! $this->confirm(
+            'content/ ueberschreibt damit jeden in Studio veroeffentlichten Stand (Metadaten, Quiz, Node-Felder, Track-Einstellungen). Wirklich fortfahren?',
+            false,
+        )) {
+            $this->warn('Abgebrochen -- nichts synchronisiert.');
+
+            return self::FAILURE;
+        }
+
+        $this->studioVersions = $this->loadStudioVersions();
+
         $themenfeldIds = $this->syncThemenfelder($content);
         $trackIds = $this->syncTracks($content, $themenfeldIds);
         $lessonCount = $this->syncLessons($content, $trackIds);
@@ -49,6 +107,91 @@ class ContentSync extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Welche Lektionen/Nodes einen in Studio veroeffentlichten Stand haben
+     * -- getrennt nach Payload-Art, derselbe Diskriminator wie
+     * `ActivityContentApplier` (`quiz`-Schluessel = Quiz-Entwurf).
+     * Wiederherstellungen zaehlen mit: auch sie setzen Live-Daten.
+     *
+     * @return array{lesson: array<string, list<int>>, quiz: array<string, list<int>>, node: array<string, list<int>>}
+     */
+    private function loadStudioVersions(): array
+    {
+        $versions = ['lesson' => [], 'quiz' => [], 'node' => []];
+
+        if ($this->forceFromFiles) {
+            return $versions;
+        }
+
+        $published = ContentVersion::query()
+            ->where('status', 'published')
+            ->whereHas('activity', fn ($query) => $query->whereIn('type', ['lesson', 'node']))
+            ->with('activity:id,type,key')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($published as $version) {
+            $activity = $version->activity;
+            $kind = $activity->type === 'node' ? 'node' : (array_key_exists('quiz', $version->payload) ? 'quiz' : 'lesson');
+            $versions[$kind][$activity->key][] = $version->id;
+        }
+
+        return $versions;
+    }
+
+    /**
+     * Entfernt die geschuetzten Felder aus `$attributes` und warnt, falls
+     * die Datei in einem davon tatsaechlich etwas anderes sagt als die DB --
+     * nie bei rein formalen Unterschieden (ContentFieldComparison).
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  list<string>  $fields
+     * @return array<string, mixed>
+     */
+    private function withoutStudioFields(array $attributes, Model $existing, array $fields, string $resource, string $reason): array
+    {
+        $differing = [];
+
+        foreach ($fields as $field) {
+            if (! array_key_exists($field, $attributes)) {
+                continue;
+            }
+
+            if (! self::sameFieldValue($field, $attributes[$field], $existing->getAttribute($field))) {
+                $differing[] = $field;
+            }
+
+            unset($attributes[$field]);
+        }
+
+        if ($differing !== []) {
+            $this->warn(
+                "{$resource}: {$reason} -- abweichende Dateiwerte fuer ".implode(', ', $differing).' nicht uebernommen. '
+                .'Studio-Stand nach content/ holen: content:export; bewusst zuruecksetzen: content:sync --force-from-files.',
+            );
+        }
+
+        return $attributes;
+    }
+
+    private static function sameFieldValue(string $field, mixed $fromFile, mixed $inDb): bool
+    {
+        return match ($field) {
+            'sandbox' => ContentFieldComparison::same(ContentFieldComparison::sandbox($fromFile), ContentFieldComparison::sandbox($inDb)),
+            'related_node' => ContentFieldComparison::same(ContentFieldComparison::relatedNode($fromFile), ContentFieldComparison::relatedNode($inDb)),
+            'body' => str_replace("\r\n", "\n", (string) $fromFile) === str_replace("\r\n", "\n", (string) $inDb),
+            default => ContentFieldComparison::same($fromFile, $inDb),
+        };
+    }
+
+    /**
+     * @param  list<int>  $versionIds
+     */
+    private static function versionReason(array $versionIds): string
+    {
+        return 'in Studio veroeffentlicht (ContentVersion #'.implode(', #', $versionIds).')';
     }
 
     /**
@@ -91,17 +234,24 @@ class ContentSync extends Command
                 continue;
             }
 
-            $model = Track::updateOrCreate(
-                ['slug' => $track['slug']],
-                [
-                    'themenfeld_id' => $themenfeldIds[$themenfeldSlug],
-                    'order' => $track['order'],
-                    'title_key' => $track['title_key'],
-                    'level' => $track['level'],
-                    'hours' => $track['hours'],
-                    'status' => $track['status'],
-                ],
-            );
+            $attributes = [
+                'themenfeld_id' => $themenfeldIds[$themenfeldSlug],
+                'order' => $track['order'],
+                'title_key' => $track['title_key'],
+                'level' => $track['level'],
+                'hours' => $track['hours'],
+                'status' => $track['status'],
+            ];
+
+            // ADR 0122, Regel B: StudioTrackController setzt diese Felder
+            // direkt -- nach dem Anlegen gilt die DB (wie title/teaser).
+            $existing = Track::query()->where('slug', $track['slug'])->first();
+
+            if ($existing !== null && ! $this->forceFromFiles) {
+                $attributes = $this->withoutStudioFields($attributes, $existing, self::TRACK_STUDIO_FIELDS, "Track {$track['slug']}", 'Einstellungen werden in Studio gepflegt');
+            }
+
+            $model = Track::updateOrCreate(['slug' => $track['slug']], $attributes);
 
             $ids[$track['slug']] = $model->id;
         }
@@ -222,6 +372,19 @@ class ContentSync extends Command
                 $activityAttributes['order'] = $order;
             }
 
+            // ADR 0122, Regel A: in Studio veroeffentlichte Felder gewinnen.
+            if ($existingLesson !== null && ! $this->forceFromFiles) {
+                if (isset($this->studioVersions['lesson'][$id])) {
+                    $lessonAttributes = $this->withoutStudioFields($lessonAttributes, $existingLesson, self::LESSON_STUDIO_FIELDS, "Lektion {$id}", self::versionReason($this->studioVersions['lesson'][$id]));
+                    unset($activityAttributes['title'], $activityAttributes['teaser']);
+                    $title = $existingLesson->title;
+                }
+
+                if (isset($this->studioVersions['quiz'][$id])) {
+                    $lessonAttributes = $this->withoutStudioFields($lessonAttributes, $existingLesson, self::QUIZ_STUDIO_FIELDS, "Lektion {$id} (Quiz)", self::versionReason($this->studioVersions['quiz'][$id]));
+                }
+            }
+
             Lesson::updateOrCreate(['lesson_id' => $id], $lessonAttributes);
             Activity::updateOrCreate(['type' => 'lesson', 'key' => $id], $activityAttributes);
 
@@ -233,38 +396,40 @@ class ContentSync extends Command
             // ihr Activity-Eintrag bestehen (content:sync loescht nie, siehe
             // docs/offene-fragen.md).
             if (($lesson['meta']['sandbox']['dataset'] ?? null) !== null) {
-                Activity::updateOrCreate(
-                    ['type' => 'sandbox', 'key' => $id],
-                    [
-                        'track_id' => $trackIds[$trackSlug],
-                        'order' => $order,
-                        'status' => $status,
-                        'title' => $title,
-                        'source_hash' => $sourceHash,
-                    ],
-                );
+                $this->syncLessonChildActivity('sandbox', $id, $trackIds[$trackSlug], $order, $status, $title, $sourceHash);
             }
 
             // ADR 0104/0105 (CMS-6a/CMS-6b): analog zur Spielwiese oben --
             // nur wenn die Lektion tatsaechlich ein Quiz hat (quiz:-Block in
             // meta.yml nicht leer).
             if (($lesson['meta']['quiz'] ?? []) !== []) {
-                Activity::updateOrCreate(
-                    ['type' => 'quiz', 'key' => $id],
-                    [
-                        'track_id' => $trackIds[$trackSlug],
-                        'order' => $order,
-                        'status' => $status,
-                        'title' => $title,
-                        'source_hash' => $sourceHash,
-                    ],
-                );
+                $this->syncLessonChildActivity('quiz', $id, $trackIds[$trackSlug], $order, $status, $title, $sourceHash);
             }
 
             $count++;
         }
 
         return $count;
+    }
+
+    /**
+     * Spielwiesen-/Quiz-Eintrag einer Lektion. `track_id`/`order` nur beim
+     * Anlegen (ADR 0122, Regel B) -- vorher ueberschrieb jeder Lauf sie mit
+     * dem Dateistand, obwohl Studio die Lektion selbst (und deren eigenen
+     * Activity-Eintrag) laengst verschoben haben konnte.
+     *
+     * @param  array<string, string>  $title
+     */
+    private function syncLessonChildActivity(string $type, string $key, int $trackId, int $order, string $status, array $title, string $sourceHash): void
+    {
+        $attributes = ['status' => $status, 'title' => $title, 'source_hash' => $sourceHash];
+
+        if ($this->forceFromFiles || ! Activity::query()->where('type', $type)->where('key', $key)->exists()) {
+            $attributes['track_id'] = $trackId;
+            $attributes['order'] = $order;
+        }
+
+        Activity::updateOrCreate(['type' => $type, 'key' => $key], $attributes);
     }
 
     /**
@@ -383,44 +548,55 @@ class ContentSync extends Command
                 );
             }
 
-            Node::updateOrCreate(
-                ['slug' => $slug],
-                [
-                    'difficulty' => $node['def']['difficulty'] ?? 'easy',
-                    'points' => $node['def']['points'] ?? 0,
-                    'category' => $node['def']['category'] ?? 'netzwerk',
-                    'themenfeld_id' => $themenfeldIds[$themenfeldSlug],
-                    'interaction' => $node['def']['interaction'] ?? 'terminal',
-                    'skills' => $node['def']['skills'] ?? [],
-                    'related_lessons' => $node['def']['related_lessons'] ?? [],
-                    'estimated_minutes' => $node['def']['estimated_minutes'] ?? 0,
-                    'status' => $status,
-                    'content_updated_at' => $node['def']['updated'] ?? null,
-                    'title' => $title,
-                    'scenario_title' => ['de' => $node['frontmatter']['scenario_title'] ?? ''],
-                    // ADR 0107 (CMS-6d): dieselbe Datei wie title/
-                    // scenario_title, nur der vollstaendige Markdown-Body
-                    // (Briefing/Hints/Write-up) bzw. der hints:-Block aus
-                    // node.yml.
-                    'body' => $node['body'] ?? null,
-                    'hints' => $node['def']['hints'] ?? [],
-                    'source_hash' => $sourceHash,
-                ],
-            );
+            $nodeAttributes = [
+                'difficulty' => $node['def']['difficulty'] ?? 'easy',
+                'points' => $node['def']['points'] ?? 0,
+                'category' => $node['def']['category'] ?? 'netzwerk',
+                'themenfeld_id' => $themenfeldIds[$themenfeldSlug],
+                'interaction' => $node['def']['interaction'] ?? 'terminal',
+                'skills' => $node['def']['skills'] ?? [],
+                'related_lessons' => $node['def']['related_lessons'] ?? [],
+                'estimated_minutes' => $node['def']['estimated_minutes'] ?? 0,
+                'status' => $status,
+                'content_updated_at' => $node['def']['updated'] ?? null,
+                'title' => $title,
+                'scenario_title' => ['de' => $node['frontmatter']['scenario_title'] ?? ''],
+                // ADR 0107 (CMS-6d): dieselbe Datei wie title/
+                // scenario_title, nur der vollstaendige Markdown-Body
+                // (Briefing/Hints/Write-up) bzw. der hints:-Block aus
+                // node.yml.
+                'body' => $node['body'] ?? null,
+                'hints' => $node['def']['hints'] ?? [],
+                'source_hash' => $sourceHash,
+            ];
 
             // Nodes tragen anders als Lektionen/Tracks kein eigenes
             // `order`-Feld (ihre Reihenfolge ergibt sich in NodeController
             // aus Themenfeld/Kategorie/Schwierigkeit/Slug) und kein
             // `authors`-Feld -- beides bleibt hier auf dem Standardwert.
-            Activity::updateOrCreate(
-                ['type' => 'node', 'key' => $slug],
-                [
-                    'track_id' => null,
-                    'status' => $status,
-                    'title' => $title,
-                    'source_hash' => $sourceHash,
-                ],
-            );
+            $activityAttributes = [
+                'track_id' => null,
+                'status' => $status,
+                'title' => $title,
+                'source_hash' => $sourceHash,
+            ];
+
+            if ($existingNode !== null && ! $this->forceFromFiles) {
+                // ADR 0122, Regel B: StudioNodeController::updateThemenfeld().
+                $nodeAttributes = $this->withoutStudioFields($nodeAttributes, $existingNode, ['themenfeld_id'], "Node {$slug}", 'Themenfeld wird in Studio gepflegt');
+
+                // ADR 0122, Regel A. Ohne veroeffentlichte Version bleibt
+                // `status` datei-gefuehrt (offene Betreiberfrage 1) -- eine
+                // Archivierung einer nie veroeffentlichten Node nimmt ein
+                // Sync deshalb weiterhin zurueck.
+                if (isset($this->studioVersions['node'][$slug])) {
+                    $nodeAttributes = $this->withoutStudioFields($nodeAttributes, $existingNode, self::NODE_STUDIO_FIELDS, "Node {$slug}", self::versionReason($this->studioVersions['node'][$slug]));
+                    unset($activityAttributes['title'], $activityAttributes['status']);
+                }
+            }
+
+            Node::updateOrCreate(['slug' => $slug], $nodeAttributes);
+            Activity::updateOrCreate(['type' => 'node', 'key' => $slug], $activityAttributes);
 
             $count++;
         }
