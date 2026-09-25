@@ -43,28 +43,40 @@ dahin bleibt die bestehende "historisches before + live
 Fenster nachweislich eindeutig, weil noch niemand das Dokument im neuen
 Editor angefasst hat.
 
-## `content:export` fehlt noch -- `content/` ist nur noch Import-Format, kein deterministischer Export
+## ~~`content:export` fehlt noch -- `content/` ist nur noch Import-Format, kein deterministischer Export~~ Umgesetzt
 
-**Frage:** Wann bekommt `content/` ein echtes Gegenstueck zu
+~~**Frage:** Wann bekommt `content/` ein echtes Gegenstueck zu
 `content:sync` -- ein `content:export`, das den aktuellen DB-Bestand
 deterministisch nach `content/**` schreibt (fuer Backups, neue
 Umgebungen, oder um einen DB-Stand als Ausgangspunkt fuer einen
-git-Diff zu haben)?
+git-Diff zu haben)?~~
 
-**Kontext:** ADR 0102 (CMS-5b) stoppt den bisherigen automatischen
+~~**Kontext:** ADR 0102 (CMS-5b) stoppt den bisherigen automatischen
 Schreibpfad (Lektionsfeld-Freigabe schreibt jetzt direkt in die DB,
 nicht mehr nach `content/`) -- wie von Anfang an in
 `docs/studio-architecture-plan.md` Abschnitt 3 vorgesehen, wird
 `content/` damit endgueltig auf "Import/Export/Seed/Demo" reduziert.
 Die Export-Haelfte davon existiert aber noch nicht; `content/` ist
 seitdem nur noch "was `content:sync` zuletzt importiert hat", nicht
-"was der aktuelle DB-Stand tatsaechlich waere".
+"was der aktuelle DB-Stand tatsaechlich waere".~~
 
-**Empfehlung:** Erst bauen, wenn ein echter Bedarf ansteht (Backup,
+~~**Empfehlung:** Erst bauen, wenn ein echter Bedarf ansteht (Backup,
 Umzug, Community-Beitrag) -- ein Export muss dieselbe YAML-/Markdown-
 Formatierung reproduzieren, die bisher `ContentWriter`/die Generatoren
 uebernommen haben, und ist ein eigenstaendiges, nicht triviales
-Vorhaben.
+Vorhaben.~~
+
+**Umgesetzt (24.09.2026, ADR 0122):** `php artisan content:export`
+(`make content-export`/`make content-check`) schreibt den
+veroeffentlichten DB-Stand deterministisch nach `content/` -- nur
+abweichende Felder, ueber dieselben chirurgischen Generatoren, die
+frueher `ContentWriter` benutzt hat; Prosa aus `rich_content` ueber den
+neuen `RichContentToMarkdownSerializer`. `--check` ist der Drift-Check
+(Exit-Code 1 samt Liste). Gleichzeitig ueberschreibt `content:sync` keinen
+in Studio veroeffentlichten Stand mehr (`--force-from-files` fuer bewusste
+Ruecksetzungen). Der Schreibpfad ist jetzt: Studio -> `make
+content-export` -> eigener PR mit Praefix `content-export:`
+(`docs/betrieb.md`). Offen geblieben: siehe ADR 0122, "Offene Fragen".
 
 ## `ContentVersioningService::rollback()` schreibt die wiederhergestellte Version nicht auf die Lektion zurueck
 

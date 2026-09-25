@@ -37,6 +37,25 @@ final class NodeMetaGenerator
     }
 
     /**
+     * Gegenstueck zu `LessonMetaGenerator::regenerateIndex()` (ADR 0122):
+     * `status` und `themenfeld` (Slug) setzt Studio ausserhalb des Entwurfs
+     * (`NodeContentPublisher`, `StudioNodeController::archive()/restore()/
+     * updateThemenfeld()`), `content:export` schreibt sie zurueck.
+     *
+     * @param  array{status?: string, themenfeld?: string}  $fields
+     */
+    public static function regenerateIndex(string $defRaw, array $fields): string
+    {
+        foreach (['themenfeld', 'status'] as $key) {
+            if (array_key_exists($key, $fields)) {
+                $defRaw = self::replaceLine($defRaw, $key, "{$key}: ".self::dumpValue($fields[$key]));
+            }
+        }
+
+        return $defRaw;
+    }
+
+    /**
      * @param  list<array{id: string, cost: int}>  $hints
      */
     public static function regenerateHints(string $defRaw, array $hints): string

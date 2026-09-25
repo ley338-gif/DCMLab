@@ -1,6 +1,6 @@
 # 0122 — `content:export` und ein einziger Schreibpfad für Content
 
-Status: Entwurf (Phase 0 — Audit)
+Status: umgesetzt in Phasen 0–4 (PRs #182–#186), Betreiberabnahme und offene Fragen 1–6 stehen aus
 Datum: 2026-09-24
 
 ## Kontext
@@ -274,3 +274,242 @@ schützen wäre.
    Diff in jeder Datei) oder weglassen?
 7. **`ContentWriter` gegen `:ro`-Mount** (Nebenbefund oben): als eigenes
    Thema erfassen?
+
+## Nachtrag Phase 1 — `RichContentToMarkdownSerializer`
+
+`app/Content/RichContent/RichContentToMarkdownSerializer.php`:
+
+- `serialize(doc)` gibt Markdown zurück.
+- `serializeNodeContent(envelope, hintOrder)` gibt den Node-Body zurück:
+  `## Briefing` / `## Hints` mit `### <id>` / `## Write-up`, ohne
+  `---`-Trenner wie bei 32 von 34 Nodes im Bestand. Die Hint-Reihenfolge
+  kommt aus den `hints`-Metadaten, weil `jsonb` die Schlüssel umsortiert.
+
+**Round-Trip** `convert(serialize(convert(md))) == convert(md)`, verglichen
+auf Rich-Content-Ebene mit schlüsselreihenfolge-unabhängigem Vergleich:
+
+| Quelle | Ergebnis |
+|---|---|
+| alle 59 Lektionen und 34 Nodes aus `content/` (datengetriebener Test) | 93/93 gleich |
+| alle 59 `rich_content`-Spalten der lokalen DB `dcmlab` (42 Lektionen, 17 Nodes; rein lesend) | 58/59 gleich, 1 Abbruch mit Fundstelle (siehe unten) |
+
+**Nie still verworfen.** Nicht darstellbare Knoten werfen
+`UnrepresentableRichContentException`:
+
+- unbekannte Block-, Inline- und Mark-Typen
+- `callout`, `dicom_tag_table`, `dicom_dump`: vorläufig, bis zur
+  Entscheidung über die offene Frage 3
+- `console` ohne Prompt-Zeile, `code` mit Sprache `mermaid`
+- Tabellen ohne genau eine Kopfzeile, Umbrüche in Zellen oder Überschriften
+- wörtlicher Text `{{term:x}}`
+- eine `## `-/`### `-Zeile, die Node-Abschnitte zerschneiden würde
+
+Als letzte Sicherung liest `serialize()` jedes Ergebnis mit dem Konverter
+zurück und wirft bei jeder Abweichung. Einzige bewusste Auslassung: leere
+Absätze, weil sie keinen Inhalt tragen.
+
+**Befund aus der Echt-DB, Lektion 2.1** (`doc.content[5]`): Studio hat
+fett „**Was du daran abliest:**“ ohne Leerzeichen direkt vor „Fünf“
+gespeichert. Nach den Flanking-Regeln von CommonMark ist `**…:**Fünf` kein
+Fettdruck, das lässt sich in Markdown nicht ausdrücken. Vermutlich fehlt in
+Studio schlicht ein Leerzeichen. Die Korrektur ist eine Inhaltsänderung
+über Studio, keine Aufgabe dieses Auftrags. Bis dahin meldet der Export 2.1
+als Fehler.
+
+**Textgleichheit auf Markdown-Ebene**: 13/93. Die Abweichungen stammen alle
+aus Informationen, die der Konverter nicht behält:
+
+- Sprachangabe eines `<!-- kein-beispiel -->`-Blocks (` ```text `,
+  ` ```mermaid ` werden zu ` ``` `)
+- Startnummer geordneter Listen (`2.` wird zu `1.`)
+- Zeilenumbrüche innerhalb von Code-Spans (werden zu Leerzeichen)
+- Fettdruck um einen Glossarverweis (`**{{term:x}}**`, der Konverter
+  verwirft die Marks am `glossary_term`)
+- weiche statt harter Zeilenumbrüche sowie lockere statt enger Listen
+- doppelte Leerzeilen
+
+Alle sind semantisch neutral oder waren schon vorher nach dem Import
+verloren.
+
+`rich-content:audit`: weiterhin 0 blockierende Funde.
+
+## Nachtrag Phase 2 — `php artisan content:export`
+
+`content:export {--only=lessons,nodes,tracks} {--id=} {--check} {--path=}`
+(`ContentExporter` + `ContentExportResult`, Befehl `ContentExport`).
+
+- **Quelle** sind die Live-Spalten, nie `content_versions` (Punkt 4).
+  `draft`/`review` können so strukturell nicht exportiert werden; ein
+  Test legt beide an und prüft, dass `--check` sauber bleibt.
+- **Semantischer Diff.** Jedes Feld wird mit der Datei verglichen. Nicht
+  als Abweichung zählen:
+  - Default-Werte und fehlende Schlüssel
+  - `sandbox.note: null`, `jsonb`-Schlüsselreihenfolge, YAML-Schreibweise
+    (`"1.0"`/`1.0`)
+  - Prosa, die bei rich-content-Ressourcen über den Konverter inhaltsgleich
+    zurückliest (`RichContentToMarkdownSerializer::equivalent()`)
+
+  Nur abweichende Felder werden über die vorhandenen Generatoren ersetzt.
+  Kommentare und alle übrigen Zeilen bleiben stehen. Folge: Ein zweiter Lauf
+  findet nichts mehr und ändert kein Byte (Test). LF-Zeilenenden;
+  `core.autocrlf` im Checkout wird beim Vergleich ignoriert.
+- **Lektions-Body.** Stimmt nur der Quiz-Abschnitt nicht, wird nur er
+  ersetzt (aus `lessons.body`, ADR 0118). Die Prosa bleibt zeichengleich.
+  Weicht die Prosa ab, wird `rich_content` serialisiert. Der Fußtext nach
+  dem Quiz („Als Nächstes“) kommt wieder hinter das Quiz, solange die
+  letzten Blöcke von `rich_content` noch mit ihm übereinstimmen.
+- **Neu an den Generatoren**, als eigene Methoden, sodass
+  `LessonActivity::serialize()` unverändert bleibt:
+  - `LessonMetaGenerator::regenerateIndex()` für `track`/`order`/`status`
+  - `NodeMetaGenerator::regenerateIndex()` für `status`/`themenfeld`
+  - `TrackCatalogGenerator` für feldweisen Ersatz in `tracks.yml`, nach dem
+    Blockmuster von `AchievementCatalogGenerator`
+  - `ContentRepository::tracksRaw()`
+- **Vorläufig und zurückhaltend**, bis die offenen Fragen beantwortet sind:
+  - `--only` kennt nur `lessons`, `nodes`, `tracks` (Fragen 4, 5). Das Quiz
+    gehört zu `lessons`.
+  - Track-`title`/`teaser` werden nicht exportiert.
+  - Kein `GeneratedFileMarker` (Frage 6).
+  - Ressourcen ohne Datei-Vorlage (nur in Studio angelegt) werden als Fehler
+    gemeldet, nicht neu erzeugt.
+- **Schreibziel**: `--path`, Default `config('content.path')`. Im
+  `app`-Container ist `content/` `:ro`, und auf dem Host fehlt der
+  pgsql-Treiber. Deshalb läuft der schreibende Lauf als Einmal-Container
+  mit rw-Mount (README, „Content exportieren“). Der `--check`-Lauf über
+  diesen Weg ist verifiziert; `content/` blieb unverändert.
+
+### `content:export --check` gegen die lokale DB `dcmlab` (rein lesend, 2026-09-24)
+
+Exit-Code 1: 7 Dateien weichen ab, 1 Ressource ist nicht exportierbar.
+Nodes und Tracks sind ohne Abweichung.
+
+| Lektion | Feld | Studio-Version | Befund |
+|---|---|---|---|
+| 1.7 | Prosa (`rich_content`) | keine | 1 Block: Die Datei beschreibt das Lab „Halbe Sache“ im neuen Szenario (PR #158, 2026-09-19), `rich_content` noch im alten. Die **Datei ist neuer**. |
+| 2.3 | Prosa | keine | Die Datei hat einen `## Lab`-Abschnitt (PR #158), der in `rich_content` fehlt. Die **Datei ist neuer**. |
+| 4.5 | Prosa | keine | wie 2.3 (PR #158), die **Datei ist neuer** |
+| 2.2 | Prosa | #14 | 2 Blöcke, u. a. in einem Konsolenbeispiel der DB `daten//` statt `daten/ct-thorax-60/`. Das wirkt wie ein Editorverlust in Studio. |
+| 3.1 | Prosa | #15 | 8 Blöcke ab Block 13; die DB hat einen Block mehr als die Datei |
+| 3.3 | Prosa | #16 | ab Block 1 verschoben; die DB hat einen Block mehr. Das in #16 geänderte **Lernziel** ist live bereits verloren (Phase 0) und taucht deshalb hier **nicht** auf. |
+| 3.4 | Prosa | #21 | Die DB hat einen `## Lab`-Abschnitt (#21, 2026-09-19), der in der Datei fehlt (letzte Dateiänderung 2026-09-13). Die **DB ist neuer**. |
+| 2.1 | — | keine | nicht exportierbar: Fettdruck ohne Leerzeichen vor „Fünf“ (Nachtrag Phase 1) |
+
+**Folgerung**: Ein schreibender Export gegen diese DB würde bei 1.7, 2.3
+und 4.5 inhaltlich *neuere* Repo-Stände durch ältere DB-Stände ersetzen.
+Die rich-content-Umstellung hat diese späteren Datei-Änderungen für
+Lernende unsichtbar gemacht. „DB ist die Wahrheit“ heißt hier, dass die
+Lernenden heute den älteren Stand sehen. Welcher Stand gewinnt, ist je
+Lektion eine Inhaltsentscheidung. Deshalb bleibt der schreibende Export
+gegen die echte DB ein eigener, letzter Schritt nach Freigabe (harte Regel
+des Auftrags). Für 1.7, 2.3 und 4.5 wäre der richtige Weg vermutlich, den
+Dateistand in Studio zu veröffentlichen (Reconciliation wie PR #162) und
+erst danach zu exportieren.
+
+## Nachtrag Phase 3 — `content:sync` dreht den Studio-Stand nicht mehr zurück
+
+Umgesetzt ist die Empfehlung aus Phase 0. Die offene Frage 1 ist dabei
+zurückhaltend beantwortet: `Node.status` bleibt ohne veröffentlichte
+Version datei-geführt.
+
+- **Regel A (versionsgebunden).** `ContentSync` lädt einmal je Lauf alle
+  veröffentlichten Versionen (Restores eingeschlossen) und ordnet sie nach
+  Payload-Art zu, mit demselben Diskriminator wie `ActivityContentApplier`:
+  - Lektionsfeld-Version: Die `LessonContentPublisher`-Felder bleiben
+    unangetastet, ebenso Activity-`title`/`teaser`.
+  - Quiz-Version: `quiz` und `body` bleiben.
+  - Node-Version: alle `NodeContentPublisher`-Felder einschließlich
+    `status`, dazu Activity-`title`/`status`.
+- **Regel B (nur beim Anlegen).**
+  - Track `themenfeld_id`/`order`/`level`/`hours`/`status`
+  - Node `themenfeld_id`
+  - Activity `sandbox`/`quiz` `track_id`/`order`: bisher inkonsistent zur
+    Activity `lesson` und deshalb mitkorrigiert
+- **Warnung nur bei echter Abweichung.** Grundlage ist
+  `ContentFieldComparison`, derselbe Vergleich wie beim Export (u. a. zählt
+  `sandbox.note: null` nicht). Die Warnung nennt Ressource, Versionsnummern
+  und Felder.
+- **`--force-from-files`** hebt beide Regeln auf. Der Befehl fragt nach und
+  bricht mit `--no-interaction` ab. Dokumentiert ist er in
+  `docs/betrieb.md`.
+- **Unverändert:**
+  - Nicht-Studio-Felder (`status` der Lektion, `authors`, `updated`,
+    `tools_checked`, `source_hash`) synchronisieren weiter.
+  - Eine DB ohne `content_versions` synchronisiert wie bisher.
+  - `ContentWriter` (Exam-/Achievement-Freigabe) ruft weiterhin
+    `content:sync` auf, jetzt mit Schutz.
+
+**Tests.** Der Phase-0-Test ist umgedreht und umbenannt
+(`ContentSyncKeepsStudioStateTest`, 12 Fälle):
+
+- Lektions-Metadaten, Quiz, Node inklusive `status`, Track-Einstellungen und
+  Node-Themenfeld bleiben erhalten.
+- Sandbox-/Quiz-Activities behalten eine Verschiebung.
+- Nicht-Studio-Felder synchronisieren weiter.
+- Keine Warnung bei formal verschiedenem, inhaltlich gleichem Stand.
+- Eine DB ohne `content_versions` synchronisiert Dateiänderungen wie
+  bisher.
+- `--force-from-files` überschreibt nach Bestätigung und ändert nichts bei
+  „nein“ oder ohne Interaktion.
+- Archivierte Node ohne Version: bleibt bewusst datei-geführt (offene
+  Frage 1).
+
+**Nicht gegen die echte DB ausgeführt.** `content:sync` schreibt, und
+schreibende Läufe gegen `dcmlab` schließt der Auftrag aus. Nach dem Merge
+würde der nächste Sync dort für 2.2, 3.1, 3.3, 3.4 (Lektionsfelder) und
+`halbe-sache` (Node) greifen. Warnungen wären nur bei tatsächlicher
+Abweichung zu erwarten; laut Phase-2-`--check` gibt es in diesen Feldern
+keine.
+
+## Nachtrag Phase 4 — Workflow und Doku
+
+- **Makefile**: `make content-check` (`content:export --check` im
+  laufenden `app`-Container) und `make content-export` (Einmal-Container mit
+  rw-Mount von `content/`). Den zugrunde liegenden Aufruf hat Phase 2 mit
+  `--check` verifiziert; `make` selbst fehlt auf dem Windows-Host des
+  Betreibers, dort gilt der Rohaufruf aus dem README.
+- **Workflow** (`docs/betrieb.md`, „Content-Änderungen ins Repo bringen“;
+  ein PR-Template gibt es im Repo nicht):
+  1. In Studio veröffentlichen.
+  2. `make content-export` ausführen.
+  3. Den Export als eigenen PR einreichen, Commit-Präfix `content-export:`.
+
+  Kein Drift-Job in CI (keine Produktions-DB), kein automatischer Commit.
+- **Vermerkt** in `docs/content-schema.md` (neuer Kasten „Schreibpfad“, die
+  bisherige Aussage „Metadaten immer datei-geführt“ ist korrigiert) und im
+  README: Von Hand bearbeitete Content-PRs für bestehende Lektionen und
+  Nodes sind nicht mehr der vorgesehene Weg.
+- **`docs/offene-fragen.md`**: „`content:export` fehlt noch“ ist
+  durchgestrichen und als umgesetzt markiert.
+- **README**:
+  - Arbeitsstand auf 24.09.2026 gesetzt
+  - 9 Tracks, 6 davon veröffentlicht
+  - 59 Lektionen, 42 davon veröffentlicht
+  - 34 Node-Definitionen, 17 davon veröffentlicht
+
+## Stand der offenen Fragen (nach Phase 4)
+
+Alle Punkte sind vorläufig **zurückhaltend** umgesetzt und lassen sich ohne
+Umbau ändern:
+
+| # | Frage | vorläufig umgesetzt |
+|---|---|---|
+| 1 | Regel B für `Node.status`? | Nein: Ohne veröffentlichte Version bleibt der Status datei-geführt. Mit Version schützt ihn Regel A. |
+| 2 | Lektion 3.3: Lernziel aus #16 wieder live setzen? | Offen, Betreiberhandlung. Kein Code ändert ContentVersions. |
+| 3 | Syntax für `callout`/`dicom_tag_table`/`dicom_dump` | Keine: Der Serialisierer wirft eine Exception, der Export meldet die Ressource. Heute gibt es 0 Vorkommen. |
+| 4 | Track-`title`/`teaser` | Werden nicht exportiert, `tracks.yml` bleibt bei `title_key`. |
+| 5 | `--only=exams,achievements,glossary` | Nicht angeboten; der Befehl lehnt sie mit Begründung ab. |
+| 6 | `GeneratedFileMarker` im Export | Wird nicht gesetzt. |
+| 7 | `ContentWriter` gegen den `:ro`-Mount | Steht schon in `docs/offene-fragen.md` („`content/` ist … read-only gemountet“). Kein neuer Eintrag. |
+
+Neu hinzugekommen:
+
+- **Lektion 2.1**: Fettdruck ohne Leerzeichen vor „Fünf“ in Studio
+  korrigieren. Danach ist 2.1 exportierbar.
+- **Drift in 1.7, 2.3, 4.5**: Die Datei ist neuer (PR #158). Diese Stände
+  vor dem ersten schreibenden Export in Studio veröffentlichen, sonst
+  würde der Export sie im Repo zurückdrehen.
+- **Erster schreibender Export gegen `dcmlab`**: eigener, letzter PR nach
+  Freigabe (harte Regel des Auftrags).
+- **Restore über `restoreVersion()`** (ADR 0121) ist unverändert. Nach
+  einem Restore gilt dieselbe Regel A, der Export zieht den wiederhergestellten
+  Stand nach.
