@@ -119,6 +119,48 @@ gewesen (das Risiko besteht ausschließlich, wenn die Suite in einer Umgebung
 läuft, die schon reale Datenbank-Zugangsdaten im Prozess hat, also lokal
 oder im Dev-Container).
 
+## Content exportieren (DB → `content/`)
+
+Seit ADR 0101/0118 ist die Datenbank die Autoren-Wahrheit für Lektionen
+und Nodes. `content:export` (ADR 0122) schreibt den **veröffentlichten**
+DB-Stand deterministisch nach `content/` zurück. Es schreibt nur Dateien
+und Felder, die tatsächlich abweichen, und nutzt dieselben chirurgischen
+Generatoren wie der frühere Studio-Schreibpfad. Entwürfe und Versionen im
+Review werden nie exportiert.
+
+Prüfen, ohne etwas zu schreiben. Exit-Code 1 samt Liste, wenn `content/`
+abweicht:
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file .env \
+  -f infra/docker-compose.dev.yml exec app php artisan content:export --check
+```
+
+Schreiben: `content/` ist im `app`-Container read-only gemountet, und auf
+dem Host fehlt der pgsql-Treiber. Der schreibende Lauf startet deshalb
+einen Einmal-Container mit zusätzlichem rw-Mount. Unter Git Bash auf
+Windows zusätzlich `MSYS_NO_PATHCONV=1` voranstellen und `$(pwd -W)`
+statt `$(pwd)` verwenden.
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file .env \
+  -f infra/docker-compose.dev.yml run --rm --no-deps \
+  -v "$(pwd)/content:/var/www/html/content-rw" \
+  app php artisan content:export --path=/var/www/html/content-rw
+```
+
+Optionen:
+
+- `--only=lessons,nodes,tracks` schränkt die Bereiche ein. Das Quiz gehört
+  zu `lessons`. Prüfungen, Achievements und Glossar pflegt man weiterhin
+  in `content/`.
+- `--id=<lesson-id|node-slug|track-slug>` exportiert nur eine einzelne
+  Ressource.
+
+Nicht darstellbarer Rich Content, z. B. ein `callout`, bricht für diese
+Ressource mit Fundstelle ab. Er wird nie still verworfen, und die Datei
+bleibt unverändert.
+
 ## Was funktioniert
 
 - **Sechs Tracks, alle vollständig veröffentlicht** (`status: published`):

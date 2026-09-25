@@ -54,6 +54,21 @@ final class RichContentToMarkdownSerializer
     }
 
     /**
+     * Inhaltsgleichheit zweier Dokumente so, wie sie ein Round-Trip ueber
+     * Markdown ueberhaupt unterscheiden kann (Schluesselreihenfolge,
+     * benachbarte Texte, leere Absaetze egal). `content:export` (ADR 0122)
+     * schreibt eine Datei nur, wenn ihr Inhalt so vom DB-Stand abweicht --
+     * nie wegen rein kosmetischer Markdown-Unterschiede.
+     *
+     * @param  array<string, mixed>  $a
+     * @param  array<string, mixed>  $b
+     */
+    public function equivalent(array $a, array $b): bool
+    {
+        return self::canonical($this->comparable($a)) === self::canonical($this->comparable($b));
+    }
+
+    /**
      * Letzte Sicherung hinter allen Einzelregeln: das Ergebnis wird mit
      * demselben Konverter zurueckgelesen, den `content:sync`/die Normalizer
      * benutzen. Weicht es ab, ist der Export verlustbehaftet -- z. B. eine
