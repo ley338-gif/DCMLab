@@ -25,7 +25,7 @@ import { home } from '@/routes';
             <div class="bg-muted rounded-lg border p-4 text-sm">
                 {{
                     trans(
-                        'Platzhalter — hier stehen die Angaben nach § 5 TMG (Betreiber, Anschrift, Kontakt, ggf. Registereintrag), sobald DCM Lab von einer echten Rechtsperson betrieben wird.',
+                        'Platzhalter — hier stehen die Angaben nach § 5 DDG (Betreiber, Anschrift, Kontakt, ggf. Registereintrag), sobald DCM Lab von einer echten Rechtsperson betrieben wird.',
                     )
                 }}
             </div>
