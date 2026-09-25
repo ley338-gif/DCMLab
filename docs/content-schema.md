@@ -244,6 +244,8 @@ objectives:
 - Fragen als Zwischenüberschriften sind gut („Was steht in dieser Datei?"), aber eine Frage ohne darauffolgendes Beispiel ist unvollständig.
 - **Den Inhalt der Werkzeugleiste nicht wiederholen.** Wer im Fließtext nochmal aufzählt, was oben steht, schreibt die Lektion doppelt.
 
+Was eine Lektion über dieses Format hinaus leisten muss (Diagnose-Einstieg, Beweiskraft, geprüfter Normbezug, Pflichtquiz, Review-Checkliste), steht in `docs/lektions-standard.md`.
+
 ## 4. Fachbegriffe — die Übersetzungsregel
 
 **Englische Fachbegriffe werden nicht übersetzt.** Weder ins Deutsche noch später in eine andere Sprache.

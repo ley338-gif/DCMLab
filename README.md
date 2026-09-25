@@ -25,6 +25,7 @@ prototyp/      Die spielbare Node "Silent CT" als einzelne HTML-Datei (P0)
 | die Plattform starten | Abschnitt "Starten" unten |
 | verstehen, worum es geht | `docs/konzept-lernplattform.md` |
 | Content schreiben | `docs/content-schema.md`, dann `docs/werkzeug-registry.md` |
+| eine Lektion auf Standard bringen | `docs/lektions-standard.md` |
 | den Betrieb verstehen (Backup, Update, Logs) | `docs/betrieb.md` |
 | bekannte Content-Lücken sehen | `docs/content-todo.md` |
 | Entscheidungen je Phase nachvollziehen | `docs/adr/` |
