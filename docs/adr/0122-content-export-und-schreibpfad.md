@@ -388,7 +388,7 @@ Nodes und Tracks sind ohne Abweichung.
 | 1.7 | Prosa (`rich_content`) | keine | 1 Block: Die Datei beschreibt das Lab „Halbe Sache“ im neuen Szenario (PR #158, 2026-09-19), `rich_content` noch im alten. Die **Datei ist neuer**. |
 | 2.3 | Prosa | keine | Die Datei hat einen `## Lab`-Abschnitt (PR #158), der in `rich_content` fehlt. Die **Datei ist neuer**. |
 | 4.5 | Prosa | keine | wie 2.3 (PR #158), die **Datei ist neuer** |
-| 2.2 | Prosa | #14 | 2 Blöcke, u. a. in einem Konsolenbeispiel der DB `daten//` statt `daten/ct-thorax-60/`. Das wirkt wie ein Editorverlust in Studio. |
+| 2.2 | Prosa | #14 | 2 Blöcke, u. a. in einem Konsolenbeispiel der DB den Platzhalter `daten/<datensatz>/` statt `daten/ct-thorax-60/` (Korrektur 2026-09-26: ursprünglich hier als `daten//` notiert, weil ein Diagnoseskript den Platzhalter per `strip_tags` verschluckt hatte). |
 | 3.1 | Prosa | #15 | 8 Blöcke ab Block 13; die DB hat einen Block mehr als die Datei |
 | 3.3 | Prosa | #16 | ab Block 1 verschoben; die DB hat einen Block mehr. Das in #16 geänderte **Lernziel** ist live bereits verloren (Phase 0) und taucht deshalb hier **nicht** auf. |
 | 3.4 | Prosa | #21 | Die DB hat einen `## Lab`-Abschnitt (#21, 2026-09-19), der in der Datei fehlt (letzte Dateiänderung 2026-09-13). Die **DB ist neuer**. |
