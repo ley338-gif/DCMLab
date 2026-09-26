@@ -184,7 +184,9 @@ Grundlagenwiederholung war *der* Befund, nicht die Länge)
 ## 9. Ablauf seit ADR 0122
 
 1. **Entwerfen.** Eine Datei oder ein Branch gilt nur als Arbeitsstand.
-2. **Als Entwurf in Studio anlegen** (Lesson-Editor und Quiz-Editor).
+2. **Als Entwurf in Studio anlegen**, im Lesson- und Quiz-Editor oder aus der Datei
+   mit `php artisan content:draft <X.Y> --from=<de.md> --author=<nutzer>`.
+   Letzteres legt nur einen Entwurf an und veröffentlicht nie.
 3. **Review durch eine zweite Rolle.** Reviewer und Autor sind verschiedene Personen.
    Die Checkliste unten wird abgehakt.
 4. **In Studio veröffentlichen.**

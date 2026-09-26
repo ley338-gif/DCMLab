@@ -138,4 +138,25 @@ class LessonQuizGeneratorTest extends TestCase
         $reparsedQuestions = QuizContent::parseQuestions($reparsedSplit['quiz_raw'], $reparsedMeta['quiz'], $renderer);
         $this->assertSame(array_column($meta['quiz'], 'id'), array_column($reparsedQuestions, 'id'));
     }
+
+    /**
+     * content:draft: QuizContent::parseRawQuestions() ist das rohe
+     * Gegenstueck zu renderCard() -- Fragetext und Optionen kommen
+     * unveraendert (Markdown, ohne Typ-Zusatz) zurueck.
+     */
+    public function test_raw_questions_parse_back_to_the_generated_text(): void
+    {
+        $questions = [...self::QUESTIONS, ['id' => 'q4', 'type' => 'single', 'answer' => 0, 'question' => 'Was zeigt `echoscu -v`?', 'options' => ['`Association Accepted`', 'Nichts']]];
+        $body = LessonQuizGenerator::regenerateBody("Prosa.\n\n## Quiz\n\n*Wissenskarten.*\n", $questions);
+
+        $parsed = QuizContent::parseRawQuestions(QuizContent::splitBody($body)['quiz_raw']);
+
+        $this->assertSame(['q1', 'q2', 'q3', 'q4'], array_keys($parsed));
+        foreach ($questions as $question) {
+            $this->assertSame(
+                ['question' => $question['question'], 'options' => $question['type'] === 'input' ? [] : $question['options']],
+                $parsed[$question['id']],
+            );
+        }
+    }
 }
