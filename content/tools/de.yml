@@ -96,7 +96,7 @@ img2dcm:
 # ---------- Über das Netz reden ----------
 echoscu:
   name: echoscu
-  suite: dcmtk
+  suite: python        # Spielwiese: pynetdicom-Programm (/usr/local/bin), DCMTK liegt unter /usr/bin
   kind: netz
   purpose: Fragt eine Gegenstelle, ob sie antwortet (C-ECHO).
   example: "echoscu -v -aec ORTHANC 127.0.0.1 4242"
@@ -106,7 +106,7 @@ echoscu:
 
 storescu:
   name: storescu
-  suite: dcmtk
+  suite: python        # Spielwiese: pynetdicom-Programm (/usr/local/bin), DCMTK liegt unter /usr/bin
   kind: netz
   purpose: Schickt Objekte an ein Archiv (C-STORE).
   example: "storescu -aec ORTHANC 127.0.0.1 4242 datei.dcm"
@@ -116,7 +116,7 @@ storescu:
 
 storescp:
   name: storescp
-  suite: dcmtk
+  suite: python        # Spielwiese: pynetdicom-Programm (/usr/local/bin), DCMTK liegt unter /usr/bin
   kind: netz
   purpose: Nimmt selbst Objekte entgegen — du wirst zum Archiv.
   example: "storescp -od ./eingang 11112"
@@ -146,7 +146,7 @@ dcmrecv:
 
 findscu:
   name: findscu
-  suite: dcmtk
+  suite: python        # Spielwiese: pynetdicom-Programm (/usr/local/bin), DCMTK liegt unter /usr/bin
   kind: netz
   purpose: Fragt ab, welche Daten ein Archiv kennt (C-FIND).
   example: "findscu -S -k QueryRetrieveLevel=STUDY -aec ORTHANC 127.0.0.1 4242"
@@ -156,7 +156,7 @@ findscu:
 
 movescu:
   name: movescu
-  suite: dcmtk
+  suite: python        # Spielwiese: pynetdicom-Programm (/usr/local/bin), DCMTK liegt unter /usr/bin
   kind: netz
   purpose: Fordert Objekte an, geliefert wird an eine dritte Stelle (C-MOVE).
   example: "movescu -S -aem ZIEL -k StudyInstanceUID=1.2.3 127.0.0.1 4242"
@@ -166,7 +166,7 @@ movescu:
 
 getscu:
   name: getscu
-  suite: dcmtk
+  suite: python        # Spielwiese: pynetdicom-Programm (/usr/local/bin), DCMTK liegt unter /usr/bin
   kind: netz
   purpose: Fordert Objekte an, geliefert wird auf derselben Verbindung (C-GET).
   example: "getscu -S -k StudyInstanceUID=1.2.3 127.0.0.1 4242"
