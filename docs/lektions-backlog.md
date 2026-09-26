@@ -57,6 +57,15 @@ kein Urteil über fachliche Richtigkeit. Die prüft erst die Überarbeitung selb
 - **Keine einzige veröffentlichte Lektion in Track 2–5 außer 4.1 hat ein
   Lektionsquiz.** Die Entwürfe 3.7, 4.11, 4.12 und 5.9–5.12 haben 2–3 Fragen; der
   Standard verlangt 4–5.
+- **`storescu`, `storescp`, `echoscu`, `findscu` der Spielwiese sind die pynetdicom-Programme**
+  (`/usr/local/bin`, pynetdicom 3.0.4), nicht DCMTK (`/usr/bin`, 3.6.7). Das DCMTK-Programm ist
+  installiert, liegt aber im `PATH` dahinter (live geprüft 2026-09-26).
+  - Die Ausgaben in den Lektionen stammen deshalb von pynetdicom.
+  - Die Werkzeug-Registry (`content/tools/de.yml`: `suite: dcmtk`) und Formulierungen wie
+    „DCMTK-Werkzeug“ stimmen nicht.
+  - Verhalten, das vom Werkzeug abhängt, ist betroffen. Beispiel: Der Exitcode von `storescu`
+    bleibt bei abgelehnten Objekten `0`; siehe den Entwurf zu 2.2.
+  - Jede Lektion mit diesen Werkzeugen ist bei ihrer Überarbeitung darauf zu prüfen.
 - **Eine Diagnosematrix haben nur 4.1 und 3.8.**
 - **Track 3 (3.1–3.6) hat keinen Abschnitt `## Stolperfallen`.** Die Lektionsstruktur
   in `content-schema.md` verlangt ihn.
