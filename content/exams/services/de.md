@@ -87,9 +87,9 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 1. Eine SERIES-Abfrage kann mehrere Response-Blöcke liefern
 2. Eine leere Antwort mit Status Success ist ein gültiges Ergebnis
 3. `*` steht für genau ein beliebiges Zeichen
-4. Matching-Keys und Rückgabefelder werden in getrennten DIMSE-Paketen übertragen
+4. Die Suchkriterien (der Identifier) werden als eigenes Paket getrennt vom C-FIND-Kommando übertragen
 
-**Erklärung:** Eine tiefere Ebene kann mehrere Treffer liefern, eine leere, erfolgreiche Antwort ist gültig, und die Matching-Keys reisen als eigenes `C-FIND-RQ-DATA`-Paket getrennt vom Kommando. `*` steht für eine beliebige Zeichenfolge — `?` steht für genau ein Zeichen.
+**Erklärung:** Eine tiefere Ebene kann mehrere Treffer liefern, eine leere, erfolgreiche Antwort ist gültig, und der Identifier — Matching-Keys *und* Rückgabefelder gemeinsam — reist als eigenes `C-FIND-RQ-DATA`-Paket getrennt vom Kommando `C-FIND-RQ`. `*` steht für eine beliebige Zeichenfolge — `?` steht für genau ein Zeichen.
 
 ### f12 — Eine `findscu`-Abfrage ohne Treffer, die mit `Success` endet, ist ein technischer Fehler.
 
