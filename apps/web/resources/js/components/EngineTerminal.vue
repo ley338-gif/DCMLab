@@ -19,6 +19,12 @@ const props = defineProps<{
      * Grossbuchstaben-Lauf zu raten (der auch mitten in "StudyInstanceUID"
      * anschlagen wuerde). */
     placeholders?: string[];
+    /** Exitcode nach jedem Befehl als eigene Zeile anzeigen. Die Spielwiese
+     * fuehrt jede Eingabe in einer frischen Shell aus (`sh -c`, siehe
+     * services/sandbox/app/docker_ops.py) -- ein nachgeschobenes `echo $?`
+     * zeigt dort immer 0. Ohne diese Zeile waere der Exitcode, auf den
+     * mehrere Lektionen aufbauen (2.2, 4.4, 4.10 ...), gar nicht sichtbar. */
+    showExitCode?: boolean;
 }>();
 
 const container = ref<HTMLDivElement | null>(null);
@@ -92,6 +98,12 @@ async function submit() {
             .join('\r\n');
         if (lines.length > 0) {
             term?.write(lines.replaceAll('\n', '\r\n') + '\r\n');
+        }
+
+        if (props.showExitCode) {
+            term?.write(
+                `\x1b[90m[${trans('Exitcode :code', { code: result.exit_code })}]\x1b[0m\r\n`,
+            );
         }
     } finally {
         // Ein Fehlschlag in onCommand() darf die Eingabe nie dauerhaft

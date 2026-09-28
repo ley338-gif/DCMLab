@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils';
+import { Terminal } from '@xterm/xterm';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import EngineTerminal from './EngineTerminal.vue';
 
@@ -67,9 +68,10 @@ function mountTerminal(
     onCommand: (
         command: string,
     ) => Promise<{ stdout: string; stderr: string; exit_code: number }>,
+    extraProps: { showExitCode?: boolean } = {},
 ) {
     const wrapper = mount(EngineTerminal, {
-        props: { onCommand },
+        props: { onCommand, ...extraProps },
         attachTo: document.body,
     });
     const textarea = wrapper.find('textarea').element as HTMLTextAreaElement;
@@ -146,5 +148,63 @@ describe('EngineTerminal busy state', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(onCommand).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('EngineTerminal exit code', () => {
+    /** Alles, was die Komponente seit dem Mount ins Terminal geschrieben hat. */
+    function written(write: { mock: { calls: unknown[][] } }): string {
+        return write.mock.calls.map((call) => String(call[0])).join('');
+    }
+
+    it('shows the exit code after the output when showExitCode is set', async () => {
+        const write = vi.spyOn(Terminal.prototype, 'write');
+        const onCommand = vi.fn().mockResolvedValue({
+            stdout: '',
+            stderr: 'E: Association Rejected',
+            exit_code: 1,
+        });
+
+        const { textarea } = mountTerminal(onCommand, { showExitCode: true });
+        typeText(textarea, 'echoscu');
+        pressEnter(textarea);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const output = written(write);
+        expect(output).toContain('[Exitcode 1]');
+        expect(output.indexOf('E: Association Rejected')).toBeLessThan(
+            output.indexOf('[Exitcode 1]'),
+        );
+        write.mockRestore();
+    });
+
+    it('also shows exit code 0 -- a silent success is a finding too', async () => {
+        const write = vi.spyOn(Terminal.prototype, 'write');
+        const onCommand = vi
+            .fn()
+            .mockResolvedValue({ stdout: '', stderr: '', exit_code: 0 });
+
+        const { textarea } = mountTerminal(onCommand, { showExitCode: true });
+        typeText(textarea, 'storescu');
+        pressEnter(textarea);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(written(write)).toContain('[Exitcode 0]');
+        write.mockRestore();
+    });
+
+    it('does not show the exit code by default', async () => {
+        const write = vi.spyOn(Terminal.prototype, 'write');
+        const onCommand = vi
+            .fn()
+            .mockResolvedValue({ stdout: 'ok', stderr: '', exit_code: 1 });
+
+        const { textarea } = mountTerminal(onCommand);
+        typeText(textarea, 'ls');
+        pressEnter(textarea);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(written(write)).not.toContain('Exitcode');
+        write.mockRestore();
     });
 });
