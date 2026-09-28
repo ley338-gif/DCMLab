@@ -40,6 +40,15 @@ dcmdump:
 - `example` ist der kürzeste sinnvolle Aufruf, nicht der vollständigste. Der vollständige steht in der Lektion.
 - `lesson` + `anchor` zeigen auf die Stelle, an der das Werkzeug erklärt wird — meistens 1.0, bei Spezialwerkzeugen die Fachlektion.
 - Ein Werkzeug, das in keiner Lektion erklärt wird, gehört nicht in die Registry.
+- `suite` beschreibt das Programm, das in der **Spielwiese** unter diesem Namen tatsächlich läuft.
+
+**Zwei Programme gleichen Namens (live geprüft am 26.09.2026).** Im Toolbox-Image sind DCMTK und pynetdicom installiert. `echoscu`, `storescu`, `storescp`, `findscu`, `movescu` und `getscu` gibt es doppelt. Das pynetdicom-Programm liegt in `/usr/local/bin` und damit im `PATH` vor dem DCMTK-Programm in `/usr/bin`. Ein Aufruf ohne Pfad startet also pynetdicom, deshalb steht bei diesen sechs `suite: python`. Beide verhalten sich an entscheidenden Stellen unterschiedlich:
+
+- Exitcode, wenn das Archiv ein Objekt ablehnt: pynetdicom `0`, DCMTK `167`
+- vorgeschlagene Presentation Contexts bei `findscu -W`: pynetdicom 19, DCMTK 1
+- Ausgabeformat
+
+Eine Lektion zeigt deshalb nur Ausgaben des Programms, das der gezeigte Befehl tatsächlich aufruft. Wird das DCMTK-Programm gebraucht, steht der volle Pfad im Befehl (`/usr/bin/storescu`). Siehe `docs/lektions-backlog.md`, übergreifende Befunde.
 
 ---
 
