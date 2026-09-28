@@ -46,6 +46,9 @@ dcmdump:
 
 - Exitcode, wenn das Archiv ein Objekt ablehnt: pynetdicom `0`, DCMTK `167`
 - vorgeschlagene Presentation Contexts bei `findscu -W`: pynetdicom 19, DCMTK 1
+- Exitcode von `echoscu` beim DIMSE-Timeout (Association steht, Antwort bleibt aus): pynetdicom `0`, DCMTK `70`; das pynetdicom-`storescu` endet dabei ebenfalls mit `0` (live geprüft am 28.09.2026)
+- Wartezeiten laut `--help`: Das pynetdicom-`echoscu` hat keine eigene Frist für den TCP-Verbindungsaufbau (es wartet, bis das Betriebssystem aufgibt, gemessen 134 s), `-ta`/`-td`/`-tn` je 30 s. Das DCMTK-`echoscu` hat `-to` (voreingestellt unbegrenzt), `-ta` 30 s und `-td` (unbegrenzt).
+- Größe der Association-Anfrage von `storescu` ohne `-cx`: pynetdicom schlägt 120 Presentation Contexts vor, 16 123 Byte (mit `-cx`: 219 Byte); relevant bei MTU-Problemen (Lektion 4.4)
 - Ausgabeformat
 
 Eine Lektion zeigt deshalb nur Ausgaben des Programms, das der gezeigte Befehl tatsächlich aufruft. Wird das DCMTK-Programm gebraucht, steht der volle Pfad im Befehl (`/usr/bin/storescu`). Siehe `docs/lektions-backlog.md`, übergreifende Befunde.
