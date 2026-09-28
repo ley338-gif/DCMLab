@@ -87,9 +87,9 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 1. Eine SERIES-Abfrage kann mehrere Response-Blöcke liefern
 2. Eine leere Antwort mit Status Success ist ein gültiges Ergebnis
 3. `*` steht für genau ein beliebiges Zeichen
-4. Matching-Keys und Rückgabefelder werden in getrennten DIMSE-Paketen übertragen
+4. Die Suchkriterien (der Identifier) werden als eigenes Paket getrennt vom C-FIND-Kommando übertragen
 
-**Erklärung:** Eine tiefere Ebene kann mehrere Treffer liefern, eine leere, erfolgreiche Antwort ist gültig, und die Matching-Keys reisen als eigenes `C-FIND-RQ-DATA`-Paket getrennt vom Kommando. `*` steht für eine beliebige Zeichenfolge — `?` steht für genau ein Zeichen.
+**Erklärung:** Eine tiefere Ebene kann mehrere Treffer liefern, eine leere, erfolgreiche Antwort ist gültig, und der Identifier — Matching-Keys *und* Rückgabefelder gemeinsam — reist als eigenes `C-FIND-RQ-DATA`-Paket getrennt vom Kommando `C-FIND-RQ`. `*` steht für eine beliebige Zeichenfolge — `?` steht für genau ein Zeichen.
 
 ### f12 — Eine `findscu`-Abfrage ohne Treffer, die mit `Success` endet, ist ein technischer Fehler.
 
@@ -147,16 +147,16 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 1. Die Worklist ist ein eigenes, flaches Informationsmodell ohne QueryRetrieveLevel
 2. Eine leere Worklist-Antwort mit Success ist ein gültiges Ergebnis
-3. In echten Häusern beantwortet meist das Archiv selbst die Worklist
-4. `-W` verhandelt genau eine eigene Presentation Context
+3. Die Worklist muss immer vom Bildarchiv selbst beantwortet werden
+4. Das DCMTK-`findscu` (`/usr/bin/findscu`) schlägt mit `-W` genau eine Presentation Context vor
 
-**Erklärung:** Die Worklist ist flach und ohne `QueryRetrieveLevel`, eine leere, erfolgreiche Antwort ist gültig, und `-W` schlägt genau eine Presentation Context vor (Modality Worklist Information Model FIND). In echten Häusern ist es dagegen fast immer ein RIS oder Broker, nicht das Archiv selbst, der die Worklist beantwortet.
+**Erklärung:** Die Worklist ist flach und ohne `QueryRetrieveLevel`, eine leere, erfolgreiche Antwort ist gültig, und das DCMTK-`findscu` schlägt mit `-W` genau eine Presentation Context vor (Modality Worklist Information Model – FIND). Das `findscu` der Spielwiese (pynetdicom) schlägt dagegen neunzehn vor — die Zahl ist eine Eigenschaft des Werkzeugs, nicht des Dienstes. Wer die Worklist beantwortet, legt jedes Haus selbst fest: häufig ein RIS oder ein Worklist-Broker, nicht zwingend das Bildarchiv.
 
-### f20 — In echten Häusern ist es fast immer das Archiv selbst, das eine Worklist-Anfrage beantwortet.
+### f20 — Eine Worklist-Anfrage wird immer vom Bildarchiv selbst beantwortet.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. In echten Häusern übernimmt das fast immer ein RIS oder ein eigener Broker — das Archiv speichert Bilder, ein RIS/Broker verwaltet Termine. Nur in dieser Spielwiese beantwortet Orthanc selbst die Worklist, als bewusste Vereinfachung.
+**Erklärung:** Falsch. Wer die Worklist beantwortet, legt jedes Haus selbst fest — häufig ein RIS oder ein eigener Worklist-Broker, der die Aufträge verwaltet; das Bildarchiv speichert Bilder. Ob beides dieselbe Installation ist, hängt vom Haus ab. In dieser Spielwiese beantwortet Orthanc selbst die Worklist, als bewusste Vereinfachung.
 
 ### f21 — Mit welcher DIMSE-Nachricht meldet eine Modalität den Beginn einer Untersuchung per MPPS?
 

@@ -170,7 +170,7 @@ questions:
 
   - id: f18
     type: truefalse
-    answer: true
+    answer: false
     lesson: "cross"
     review:
       - { lesson: "4.10", anchor: "stolperfallen" }
