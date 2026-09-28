@@ -19,7 +19,7 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. PhotometricInterpretation
 4. WindowCenter
 
-**Erklärung:** Ohne `StudyInstanceUID` (Type 1) weiß kein Archiv, zu welcher Untersuchung die Daten gehören — Orthanc lehnt mit `0xA700` und dem Klartextgrund "required tags … missing" ab. Ein fehlendes `PatientID` (Type 2) wurde dagegen anstandslos angenommen.
+**Erklärung:** Ohne `StudyInstanceUID` (Type 1) kann das Archiv das Objekt keiner Untersuchung zuordnen — Orthanc lehnt mit `0xA700` ab. Die Antwort selbst nennt keinen Grund; den Klartext "required tags … missing" schreibt Orthanc nur in sein eigenes Log. Ein fehlendes `PatientID` (Type 2) wurde dagegen angenommen, obwohl das Fehlen eines Type-2-Attributs selbst ein Standardverstoß ist.
 
 ### f03 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
@@ -34,7 +34,7 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Type-2- und Type-3-Attribute dürfen leer sein oder ganz fehlen — das ist vom Standard so vorgesehen, kein Defekt.
+**Erklärung:** Falsch. Ein Type-3-Attribut darf ganz fehlen, ebenso ein Attribut aus einem weggelassenen U-Modul oder ein 1C/2C-Attribut, dessen Bedingung nicht erfüllt ist — das ist vom Standard so vorgesehen. Ein Type-2-Attribut dagegen darf leer sein, aber nicht fehlen.
 
 ### f05 — Was bedeutet `PhotometricInterpretation MONOCHROME1`?
 
