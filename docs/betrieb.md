@@ -79,7 +79,21 @@ vorgesehene Weg für jede inhaltliche Änderung an einer bestehenden Lektion,
 Node oder Track-Einstellung:
 
 1. **In Studio bearbeiten und veröffentlichen.** Das geht über den normalen
-   Entwurf-, Review- und Freigabe-Ablauf.
+   Entwurf-, Review- und Freigabe-Ablauf. Einen außerhalb geschriebenen
+   Lektionstext legt `content:draft` als Entwurf an. Veröffentlicht wird
+   trotzdem nur in Studio:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml --env-file .env \
+     -f infra/docker-compose.dev.yml exec app php artisan content:draft 2.2 \
+     --from=/pfad/im/container/de.md --author=autorin@example.org
+   ```
+
+   Die Datei muss im Container erreichbar sein, z. B. per `docker cp`.
+   Weitere Optionen:
+   - `--meta=…` übernimmt Metadaten und Quiz-Antworten.
+   - `--part=lesson|quiz` wählt den Teil, wenn Lektionsfelder und Quiz beide
+     abweichen. Pro Lektion ist nur ein offener Entwurf möglich (ADR 0121).
 2. **`make content-export`** schreibt den veröffentlichten Stand nach
    `content/`. Entwürfe und Versionen im Review werden nie exportiert.
 3. **Den Export als eigenen PR einreichen.** Der Commit bekommt das Präfix

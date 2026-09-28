@@ -5,6 +5,11 @@ Stand: 2026-09-25. Die Referenzen sind 4.1 (erfüllt den Standard) und 3.8 (fast
 **Nur bewertet, nichts korrigiert.** Keine Lektion und keine ContentVersion wurde
 angefasst.
 
+> **Korrektur (2026-09-26):** Frühere Fassungen dieses Dokuments und ADR 0122 nannten
+> bei 2.2 `daten//`. Tatsächlich steht dort `daten/<datensatz>/`. Ein Diagnoseskript
+> hatte den Platzhalter per `strip_tags` verschluckt. #25 ist inhaltlich identisch mit
+> dem Live-Stand und kann ohne Verlust ersetzt werden.
+
 ## Quelle und Methode
 
 **Live-Stand statt Repo.** Studio-Änderungen sind neuer als `content/`. Die Tabelle
@@ -52,6 +57,15 @@ kein Urteil über fachliche Richtigkeit. Die prüft erst die Überarbeitung selb
 - **Keine einzige veröffentlichte Lektion in Track 2–5 außer 4.1 hat ein
   Lektionsquiz.** Die Entwürfe 3.7, 4.11, 4.12 und 5.9–5.12 haben 2–3 Fragen; der
   Standard verlangt 4–5.
+- **`storescu`, `storescp`, `echoscu`, `findscu` der Spielwiese sind die pynetdicom-Programme**
+  (`/usr/local/bin`, pynetdicom 3.0.4), nicht DCMTK (`/usr/bin`, 3.6.7). Das DCMTK-Programm ist
+  installiert, liegt aber im `PATH` dahinter (live geprüft 2026-09-26).
+  - Die Ausgaben in den Lektionen stammen deshalb von pynetdicom.
+  - Die Werkzeug-Registry (`content/tools/de.yml`: `suite: dcmtk`) und Formulierungen wie
+    „DCMTK-Werkzeug“ stimmen nicht.
+  - Verhalten, das vom Werkzeug abhängt, ist betroffen. Beispiel: Der Exitcode von `storescu`
+    bleibt bei abgelehnten Objekten `0`; siehe den Entwurf zu 2.2.
+  - Jede Lektion mit diesen Werkzeugen ist bei ihrer Überarbeitung darauf zu prüfen.
 - **Eine Diagnosematrix haben nur 4.1 und 3.8.**
 - **Track 3 (3.1–3.6) hat keinen Abschnitt `## Stolperfallen`.** Die Lektionsstruktur
   in `content-schema.md` verlangt ihn.
@@ -64,7 +78,7 @@ kein Urteil über fachliche Richtigkeit. Die prüft erst die Überarbeitung selb
 | Lektion | Wörter | Quiz | Einstieg | Beweis | Norm | Beispiele | Node veröffentlicht? | offene Version | Aufwand | Hauptlücken |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2.1 C-ECHO | 664 | nein | nein | 3 | – | 4, echt laut Commit (#35) | – | – | M | **nicht exportierbar** (Fettdruck ohne Leerzeichen vor „Fünf“, `doc.content[5]`); kürzeste Service-Lektion; Einstieg ist eine Grundsatzfrage statt eines Tickets |
-| 2.2 C-STORE | 862 | nein | Auftrag | 2 | – | 6, echt laut Commit (#36) | – | **#25 review** | M | Live-Konsolenbeispiel `daten//` statt `daten/ct-thorax-60/` (Editorverlust?); #25 vor jeder Überarbeitung klären; kein Quiz |
+| 2.2 C-STORE | 862 | nein | Auftrag | 2 | – | 6, echt laut Commit (#36) | – | **#25 review** | M | Live-Konsolenbeispiel mit Platzhalter `daten/<datensatz>/` statt `daten/ct-thorax-60/` (verstößt gegen die Beispielregel, `content-schema.md` Abschnitt 0); #25 ist inhaltsgleich mit dem Live-Stand (Leerlauf-Review); kein Quiz |
 | 2.3 C-FIND | 1018 | nein | Auftrag | 0 | – | 5, echt laut Commit (#37) | – | – | M | Lab-Abschnitt aus PR #158 für Lernende unsichtbar (Datei neuer als DB); keine Beweiskraft-Aussagen; kein Quiz |
 | 2.4 C-MOVE/C-GET | 1238 | nein | ja | 0 | – | 6, echt laut Commit | – | – | M | keine Beweiskraft-Aussagen (was beweist „leerer Zielordner“?); keine PS3-Fundstelle zu Move-Destination; kein Quiz |
 | 2.5 MWL | 956 | nein | Auftrag | 0 | 1/1 | 5, echt laut Commit (#32) | – | – | M | Einstieg als Auftrag; keine Beweiskraft; kein Quiz |
@@ -111,7 +125,7 @@ Studio:
 
 1. **2.1**: das fehlende Leerzeichen nach „Was du daran abliest:“ ergänzen. Danach
    ist 2.1 exportierbar.
-2. **2.2**: `daten//` im Konsolenbeispiel korrigieren und die offene Version **#25
+2. **2.2**: den Platzhalter `daten/<datensatz>/` im Konsolenbeispiel durch `daten/ct-thorax-60/` ersetzen und die offene Version **#25
    (review)** entscheiden (veröffentlichen oder verwerfen), bevor eine neue Fassung
    entsteht. `createDraft()` würde sie sonst superseden (ADR 0121).
 3. **1.7, 2.3, 4.5**: den neueren Dateistand aus PR #158 in Studio veröffentlichen,
@@ -172,11 +186,15 @@ Innerhalb des Tracks zuerst 5.9, weil 5.10 und 5.12 sie voraussetzen.
    vorausgesetzt. Hier zahlt sich der Standard (Kette, Beweiskraft) am stärksten
    aus.
 
-## Vorschlag, nicht gebaut: Datei-Entwurf nach Studio übernehmen
+## Datei-Entwurf nach Studio übernehmen: `content:draft` (umgesetzt)
 
 **Problem.** Ein in einer Datei geschriebener Lektionsentwurf, etwa eine
 Agent-Überarbeitung, lässt sich heute nur durch Abtippen im Rich-Content-Editor als
 Studio-Entwurf anlegen. Für ein Backlog dieser Größe ist das eine echte Bremse.
+
+**Umgesetzt** nach Freigabe am 2026-09-26. Aufruf:
+`php artisan content:draft <lesson> --from=<de.md> [--meta=<meta.yml>] --author=<id|email> [--part=lesson|quiz] [--supersede]`.
+Die Skizze ist unten unverändert, die Abweichungen stehen danach.
 
 **Skizze.** Ein Befehl `php artisan content:draft {lesson} --from=<datei>`:
 
@@ -207,4 +225,16 @@ Studio-Entwurf anlegen. Für ein Backlog dieser Größe ist das eine echte Brems
 - *Autorschaft*: `created_by` muss ein echter Nutzer sein, kein Systemkonto, sonst
   verliert „Reviewer ≠ Autor“ seine Aussagekraft.
 
-Umsetzung nur nach Freigabe durch den Betreiber.
+**Abweichungen von der Skizze in der Umsetzung:**
+
+- **`--part=lesson|quiz`**: Lektionsfelder und Quiz hängen an derselben
+  Lesson-Activity, und ADR 0121 erlaubt pro Activity nur einen offenen Entwurf. Ein
+  zweiter `createDraft()` würde den ersten sofort superseden. Weichen beide Teile
+  ab, bricht der Befehl mit Erklärung ab. Man legt sie nacheinander an und
+  veröffentlicht dazwischen.
+- **Kein Entwurf ohne Änderung**: Ist die Datei inhaltlich gleich dem Live-Stand,
+  entsteht keine Version. So entsteht kein Leerlauf-Review wie #25.
+- **`--author` ist Pflicht** und muss die Lektion bearbeiten dürfen
+  (`ActivityPolicy::update`).
+- **Supersession nur bewusst**: Die offenen Versionen werden genannt. Ohne
+  Interaktion bricht der Befehl ab, außer mit `--supersede`.

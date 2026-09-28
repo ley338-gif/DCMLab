@@ -72,6 +72,45 @@ final class QuizContent
     }
 
     /**
+     * Rohes Gegenstueck zu `LessonQuizGenerator::renderCard()`: Fragetext
+     * und Optionen als Markdown, nicht gerendert -- genau die Form, die ein
+     * `quiz`-Entwurf (`question`/`options`) traegt (`content:draft`, ADR
+     * 0122-Nachfolge). Der Typ-Zusatz `*(Mehrfachauswahl)*`/`*(Freitext)*`
+     * steht ausserhalb des Fettdrucks und gehoert nicht zum Fragetext.
+     *
+     * @return array<string, array{question: string, options: list<string>}> in Dokumentreihenfolge
+     */
+    public static function parseRawQuestions(string $quizRaw): array
+    {
+        /** @var array<string, string> $texts */
+        $texts = [];
+        /** @var array<string, list<string>> $options */
+        $options = [];
+        $currentId = null;
+
+        foreach (preg_split('/\R/', $quizRaw) ?: [] as $line) {
+            if (preg_match('/^\*\*(q\d+)\s*—\s*(.+?)\*\*/u', $line, $match)) {
+                $currentId = $match[1];
+                $texts[$currentId] = trim($match[2]);
+                $options[$currentId] = [];
+
+                continue;
+            }
+
+            if ($currentId !== null && preg_match('/^\d+\.\s+(.+)$/', $line, $match)) {
+                $options[$currentId][] = trim($match[1]);
+            }
+        }
+
+        $questions = [];
+        foreach ($texts as $id => $text) {
+            $questions[$id] = ['question' => $text, 'options' => $options[$id]];
+        }
+
+        return $questions;
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $quizMeta
      * @return array<int, array{id: string, type: string, question_html: string, options_html: array<int, string>}>
      */
@@ -82,38 +121,21 @@ final class QuizContent
             $typeById[(string) ($entry['id'] ?? '')] = (string) ($entry['type'] ?? 'single');
         }
 
-        $lines = preg_split('/\R/', $quizRaw) ?: [];
-        $order = [];
-        /** @var array<string, string> $questionText */
-        $questionText = [];
-        /** @var array<string, list<string>> $questionOptions */
-        $questionOptions = [];
-        $currentId = null;
+        $questions = [];
 
-        foreach ($lines as $line) {
-            if (preg_match('/^\*\*(q\d+)\s*—\s*(.+?)\*\*/u', $line, $match)) {
-                $currentId = $match[1];
-                $order[] = $currentId;
-                $questionText[$currentId] = $match[2];
-                $questionOptions[$currentId] = [];
-
-                continue;
-            }
-
-            if ($currentId !== null && preg_match('/^\d+\.\s+(.+)$/', $line, $match)) {
-                $questionOptions[$currentId][] = $match[1];
-            }
+        foreach (self::parseRawQuestions($quizRaw) as $id => $raw) {
+            $questions[] = [
+                'id' => $id,
+                'type' => $typeById[$id] ?? 'single',
+                'question_html' => self::renderInline($raw['question'], $renderer),
+                'options_html' => array_map(
+                    fn (string $option): string => self::renderInline($option, $renderer),
+                    $raw['options'],
+                ),
+            ];
         }
 
-        return array_map(fn (string $id): array => [
-            'id' => $id,
-            'type' => $typeById[$id] ?? 'single',
-            'question_html' => self::renderInline($questionText[$id], $renderer),
-            'options_html' => array_map(
-                fn (string $option): string => self::renderInline($option, $renderer),
-                $questionOptions[$id],
-            ),
-        ], $order);
+        return $questions;
     }
 
     /**
