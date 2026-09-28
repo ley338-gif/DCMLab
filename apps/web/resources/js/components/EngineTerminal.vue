@@ -207,6 +207,22 @@ onMounted(() => {
     resizeObserver = new ResizeObserver(() => fitAddon?.fit());
     resizeObserver.observe(container.value!);
 
+    // Einfuegen (Strg+V, Rechtsklick): xterm liefert eingefuegten Text nur
+    // ueber `onData`, nie ueber `onKey` -- ohne diesen Handler liess sich kein
+    // Befehl einfuegen, auch nicht die langen Einzeiler mancher Lektionen.
+    // Einzelne Zeichen kommen hier ebenfalls an, die behandelt aber schon
+    // `onKey`; Escape-Sequenzen (Pfeiltasten u. Ae.) ebenso. Zeilenumbrueche
+    // im eingefuegten Text werden zu Leerzeichen: Er landet in der
+    // Eingabezeile und wird nie automatisch ausgefuehrt.
+    term.onData((data) => {
+        if (executing.value || data.length < 2 || data.includes('\x1b')) {
+            return;
+        }
+
+        const text = data.replace(/\r\n|\r|\n/g, ' ').trimEnd();
+        if (text !== '') typeChar(text);
+    });
+
     term.onKey(({ key, domEvent }) => {
         // Waehrend ein Befehl laeuft ist die Eingabe komplett gesperrt --
         // keine zweite, ueberlappende Ausfuehrung moeglich (Prioritaet 2).

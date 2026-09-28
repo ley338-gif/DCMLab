@@ -208,3 +208,62 @@ describe('EngineTerminal exit code', () => {
         write.mockRestore();
     });
 });
+
+describe('EngineTerminal paste', () => {
+    /** Ein echtes `paste`-Ereignis auf xterms eigenem `<textarea>` -- xterm
+     * liest `clipboardData.getData('text/plain')` und reicht den Text ueber
+     * `onData` weiter (jsdom kennt kein ClipboardEvent, daher von Hand). */
+    function paste(textarea: HTMLTextAreaElement, text: string) {
+        const event = new Event('paste', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'clipboardData', {
+            value: { getData: () => text },
+        });
+        textarea.dispatchEvent(event);
+    }
+
+    it('puts pasted text into the input line without running it', async () => {
+        const onCommand = vi
+            .fn()
+            .mockResolvedValue({ stdout: '', stderr: '', exit_code: 0 });
+        const { textarea } = mountTerminal(onCommand);
+
+        paste(textarea, 'storescu -v -aec ORTHANC 127.0.0.1 4242 a.dcm');
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(onCommand).not.toHaveBeenCalled();
+
+        pressEnter(textarea);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(onCommand).toHaveBeenCalledWith(
+            'storescu -v -aec ORTHANC 127.0.0.1 4242 a.dcm',
+        );
+    });
+
+    it('turns line breaks into spaces and drops a trailing one', async () => {
+        const onCommand = vi
+            .fn()
+            .mockResolvedValue({ stdout: '', stderr: '', exit_code: 0 });
+        const { textarea } = mountTerminal(onCommand);
+
+        paste(textarea, 'dcmdump +P PatientID\ndaten/a.dcm\n');
+        pressEnter(textarea);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(onCommand).toHaveBeenCalledWith(
+            'dcmdump +P PatientID daten/a.dcm',
+        );
+    });
+
+    it('can be combined with typing', async () => {
+        const onCommand = vi
+            .fn()
+            .mockResolvedValue({ stdout: '', stderr: '', exit_code: 0 });
+        const { textarea } = mountTerminal(onCommand);
+
+        typeText(textarea, 'x');
+        paste(textarea, 'yz');
+        pressEnter(textarea);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(onCommand).toHaveBeenCalledWith('xyz');
+    });
+});
