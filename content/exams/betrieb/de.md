@@ -160,16 +160,16 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. DICOM verweigert grundsätzlich frei erfundene Namen
 4. Nur C-ECHO funktioniert, C-FIND wird abgelehnt
 
-**Erklärung:** Sowohl C-ECHO als auch C-FIND funktionieren mit frei erfundenen AE-Titles — ein AE-Title ist ein Klartextname, den DICOM per Standard nicht kryptografisch prüft.
+**Erklärung:** Sowohl C-ECHO als auch C-FIND funktionieren mit frei erfundenen AE-Titles — ein AE-Title ist ein Klartextname, den DICOM per Standard nicht kryptografisch prüft. Die Spielwiese erlaubt Abfragen und Abrufe von Unbekannten allerdings ausdrücklich per Konfiguration; ein Orthanc mit Voreinstellungen hätte die C-FIND-Anfrage abgebrochen.
 
 ### f22 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
 1. Netzsegmentierung beseitigt die fehlende AE-Title-Authentifizierung vollständig
-2. DICOM TLS (Supplement 51) würde das gezeigte Problem lösen
+2. DICOM TLS (Supplement 31) mit gegenseitiger Zertifikatsprüfung würde das gezeigte Problem lösen
 3. Legacy-Modalitäten sind oft nicht mit einem AE-Title-Check nachrüstbar
 4. Die zitierte 2026-Studie fand das Verhalten bei über 1.700 real erreichbaren Diensten
 
-**Erklärung:** TLS würde eine echte Authentifizierung erzwingen, Legacy-Geräte sind selten nachrüstbar, und die Studie fand über 1.700 betroffene reale Dienste. Netzsegmentierung reduziert dagegen nur die Angriffsfläche — innerhalb des Segments funktioniert der Angriff weiterhin.
+**Erklärung:** TLS mit gegenseitiger Zertifikatsprüfung erzwingt eine echte Authentifizierung der Systeme (eingeführt mit Supplement 31, heutige Profile in PS3.15 Anhang B), Legacy-Geräte sind selten nachrüstbar, und die Studie fand über 1.700 betroffene reale Dienste. Netzsegmentierung reduziert dagegen nur die Angriffsfläche — innerhalb des Segments funktioniert der Angriff weiterhin.
 
 ### f23 — Netzsegmentierung eines Modalitäts-VLANs schließt den gezeigten AE-Title-Angriff für jeden Angreifer innerhalb dieses Segments aus.
 
