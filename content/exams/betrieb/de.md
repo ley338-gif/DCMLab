@@ -141,17 +141,17 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Jedes DICOM-Gerät muss ATNA verpflichtend implementieren
 4. Es beantwortet zusätzlich zu einem reinen Änderungsprotokoll auch die Frage „wer" hat zugegriffen
 
-**Erklärung:** ATNA bringt Node Authentication und einen strukturierten Audit Trail — beides beantwortet die Frage „wer" zusätzlich zu einem reinen Änderungsprotokoll. ATNA ist aber ein Muster, keine Pflicht-Implementierung für jedes DICOM-Gerät.
+**Erklärung:** ATNA bringt Node Authentication und einen strukturierten Audit Trail. Node Authentication weist per TLS-Zertifikat aus, welches **System** spricht; der Audit Trail hält fest, wer über welches System auf welche Daten zugegriffen hat — mit Personenidentität, sofern das System sie kennt. ATNA ist ein IHE-Profil, keine Pflicht-Implementierung für jedes DICOM-Gerät.
 
-### f19 — Eine gesetzliche Aufbewahrungspflicht wie § 127 StrlSchV steht laut DSGVO in einem unauflösbaren Widerspruch zum Löschanspruch.
+### f19 — Eine gesetzliche Aufbewahrungspflicht wie § 85 StrlSchG steht laut DSGVO in einem unauflösbaren Widerspruch zum Löschanspruch.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Art. 17 Abs. 3 DSGVO löst diesen scheinbaren Widerspruch ausdrücklich auf: Eine gesetzliche Aufbewahrungspflicht ist ein expliziter Grund, aus dem eine Löschung verweigert werden darf.
+**Erklärung:** Falsch. Art. 17 Abs. 3 lit. b DSGVO löst diesen scheinbaren Widerspruch ausdrücklich auf: Verlangt eine rechtliche Pflicht die Speicherung, besteht kein Löschanspruch. Nach Ablauf der Frist entfällt dieser Grund wieder.
 
-### f20 — Wie viele Jahre müssen Röntgenuntersuchungen (Bilder/Aufzeichnungen) nach § 127 StrlSchV in Deutschland mindestens aufbewahrt werden (nur die Zahl)? *(Freitext)*
+### f20 — Wie viele Jahre müssen Aufzeichnungen und Bilder einer Röntgenuntersuchung bei einer volljährigen Person nach § 85 StrlSchG in Deutschland mindestens aufbewahrt werden (nur die Zahl)? *(Freitext)*
 
-**Erklärung:** `10`. Röntgenbehandlungen müssen dagegen 30 Jahre aufbewahrt werden, und bei Minderjährigen gilt Aufbewahrung bis zur Vollendung des 28. Lebensjahres.
+**Erklärung:** `10` (§ 85 Abs. 2 StrlSchG). Behandlungen müssen dagegen 30 Jahre aufbewahrt werden, und bei Minderjährigen gilt Aufbewahrung bis zur Vollendung des 28. Lebensjahres. § 127 StrlSchV regelt Aufbewahrung und Weitergabe und verweist für die Dauer auf § 85 StrlSchG.
 
 ### f21 — Was zeigt der reale Test mit frei erfundenen AE-Titles (`PYNETDICOM`/`ANY-SCP`) gegen die Spielwiese?
 
