@@ -269,11 +269,11 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Angenommen wurde die Verhandlung, nicht die Übertragung. Jeder Presentation Context wird einzeln beantwortet; ist genau deiner abgelehnt, steht die Association und trotzdem kommt `No presentation context for: CT Image Storage`.
+**Erklärung:** Falsch. Angenommen wurde die Verhandlung, nicht die Übertragung. Jeder Presentation Context wird einzeln beantwortet; ist genau deiner abgelehnt, steht die Association, und das Sendewerkzeug meldet trotzdem, dass für den Objekttyp kein Kontext angenommen wurde. Im Mitschnitt fehlt dann jedes P-DATA (`0x04`).
 
-### f36 — Welche Meldung bekommst du, wenn die Gegenstelle den Objekttyp gar nicht kennt? *(Freitext)*
+### f36 — Mit welchem Ergebnis lehnt eine Gegenstelle nach Norm einen Presentation Context ab, wenn sie den Objekttyp gar nicht kennt? Der Wortlaut aus dem Log. *(Freitext)*
 
-**Erklärung:** `No presentation context for:` — gefolgt vom betroffenen Objekttyp. Sie erscheint sowohl, wenn die Abstract Syntax unbekannt ist, als auch, wenn nur die angebotene Transfer Syntax nicht unterstützt wird; das genaue Kontextergebnis im Association-Log unterscheidet beide Fälle.
+**Erklärung:** `Abstract Syntax Not Supported` (PS3.8 Tabelle 9-18, Ergebnis 3). Kennt die Gegenstelle den Objekttyp, aber nicht die angebotene Kodierung, lautet das Ergebnis `Transfer Syntaxes Not Supported` (4). Weil manche Gegenstellen — in der Spielwiese Orthanc — auch eine unbekannte Kodierung mit Ergebnis 3 ablehnen, prüft man mit demselben Objekttyp in einer Standardkodierung gegen. Die Fehlermeldung des Sendewerkzeugs (DCMTK: „No presentation context for:", pynetdicom: „No presentation context for … has been accepted") unterscheidet die beiden Fälle nicht.
 
 ### f37 — Ein C-ECHO zwischen Modalität und Archiv ist grün, trotzdem kommt kein Bild an. Was prüfst du als Nächstes?
 
