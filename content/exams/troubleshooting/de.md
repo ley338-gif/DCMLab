@@ -61,7 +61,7 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Jeder `storescu`-Aufruf ist unabhängig — ein Erfolg sagt nichts über andere Objekte derselben Study, etwa wenn ein Aufruf schlicht ausgelassen wurde. `NumberOfStudyRelatedInstances` gegen die lokale Anzahl zu prüfen ist der zuverlässige Nachweis.
+**Erklärung:** Falsch. Ein Erfolg gilt nur für das eine Objekt — ein Aufruf kann ausgelassen worden sein, und ein Objekt, dessen SOP-Klasse das Archiv nicht annimmt, erhält gar keinen Status, während `storescu` trotzdem mit Exitcode 0 endet. `NumberOfStudyRelatedInstances` gegen die Soll-Zahl zu prüfen ist der zuverlässige Nachweis.
 
 ### f08 — Eine `findscu -W`-Abfrage, die mit `Success` endet, aber keine einzige Antwortzeile liefert, ist ein Fehler der Worklist-Abfrage selbst.
 
@@ -140,7 +140,7 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 ### f19 — Ein Presentation Context wird mit Result 3 (`abstract-syntax-not-supported`) abgelehnt. Welches Fehlerbild aus Lektion 4.3 kann dieselbe Ursache haben?
 
-1. Ein Teiltransfer, weil ein bestimmter Objekttyp (z. B. ein Screenshot) regelmäßig abgelehnt wird
+1. Ein Teiltransfer, weil ein bestimmter Objekttyp (z. B. ein herstellerprivates Zusatzobjekt) regelmäßig abgelehnt wird
 2. Ein Split der Study
 3. Ein TLS-Handshake-Fehler
 4. Eine leere Worklist-Antwort
