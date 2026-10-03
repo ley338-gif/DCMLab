@@ -73,6 +73,27 @@ describe('SandboxPanel', () => {
         expect(wrapper.text()).not.toContain('Spielwiese starten');
     });
 
+    it('asks the terminal to show exit codes -- every command runs in a fresh shell, so `echo $?` cannot', async () => {
+        fetchMock.mockResolvedValueOnce(
+            fakeResponse(201, {
+                status: 'running',
+                sandbox_id: 'sb-1',
+                queue_position: null,
+                unlocked_achievements: [],
+            }),
+        );
+
+        const wrapper = mountPanel();
+        await wrapper.find('button').trigger('click');
+        await flushPromises();
+
+        expect(
+            wrapper
+                .findComponent({ name: 'EngineTerminal' })
+                .props('showExitCode'),
+        ).toBe(true);
+    });
+
     it('shows the queue position while a runtime request is queued', async () => {
         fetchMock.mockResolvedValueOnce(
             fakeResponse(201, {

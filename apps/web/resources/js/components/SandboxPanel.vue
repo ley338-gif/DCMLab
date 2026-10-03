@@ -201,7 +201,11 @@ async function stop() {
         </div>
 
         <div v-if="status === 'running'" class="space-y-2">
-            <EngineTerminal ref="terminal" :on-command="runCommand" />
+            <EngineTerminal
+                ref="terminal"
+                :on-command="runCommand"
+                show-exit-code
+            />
             <Button type="button" variant="ghost" size="sm" @click="stop">
                 <Square class="size-4" />
                 {{ trans('Spielwiese beenden') }}

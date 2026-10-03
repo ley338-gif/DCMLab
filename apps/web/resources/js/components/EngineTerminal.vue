@@ -19,6 +19,12 @@ const props = defineProps<{
      * Grossbuchstaben-Lauf zu raten (der auch mitten in "StudyInstanceUID"
      * anschlagen wuerde). */
     placeholders?: string[];
+    /** Exitcode nach jedem Befehl als eigene Zeile anzeigen. Die Spielwiese
+     * fuehrt jede Eingabe in einer frischen Shell aus (`sh -c`, siehe
+     * services/sandbox/app/docker_ops.py) -- ein nachgeschobenes `echo $?`
+     * zeigt dort immer 0. Ohne diese Zeile waere der Exitcode, auf den
+     * mehrere Lektionen aufbauen (2.2, 4.4, 4.10 ...), gar nicht sichtbar. */
+    showExitCode?: boolean;
 }>();
 
 const container = ref<HTMLDivElement | null>(null);
@@ -92,6 +98,12 @@ async function submit() {
             .join('\r\n');
         if (lines.length > 0) {
             term?.write(lines.replaceAll('\n', '\r\n') + '\r\n');
+        }
+
+        if (props.showExitCode) {
+            term?.write(
+                `\x1b[90m[${trans('Exitcode :code', { code: result.exit_code })}]\x1b[0m\r\n`,
+            );
         }
     } finally {
         // Ein Fehlschlag in onCommand() darf die Eingabe nie dauerhaft
@@ -194,6 +206,22 @@ onMounted(() => {
 
     resizeObserver = new ResizeObserver(() => fitAddon?.fit());
     resizeObserver.observe(container.value!);
+
+    // Einfuegen (Strg+V, Rechtsklick): xterm liefert eingefuegten Text nur
+    // ueber `onData`, nie ueber `onKey` -- ohne diesen Handler liess sich kein
+    // Befehl einfuegen, auch nicht die langen Einzeiler mancher Lektionen.
+    // Einzelne Zeichen kommen hier ebenfalls an, die behandelt aber schon
+    // `onKey`; Escape-Sequenzen (Pfeiltasten u. Ae.) ebenso. Zeilenumbrueche
+    // im eingefuegten Text werden zu Leerzeichen: Er landet in der
+    // Eingabezeile und wird nie automatisch ausgefuehrt.
+    term.onData((data) => {
+        if (executing.value || data.length < 2 || data.includes('\x1b')) {
+            return;
+        }
+
+        const text = data.replace(/\r\n|\r|\n/g, ' ').trimEnd();
+        if (text !== '') typeChar(text);
+    });
 
     term.onKey(({ key, domEvent }) => {
         // Waehrend ein Befehl laeuft ist die Eingabe komplett gesperrt --
