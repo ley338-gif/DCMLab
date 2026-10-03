@@ -118,10 +118,10 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 1. Beide sind vom eigentlichen Bildtransfer unabhängig
 2. MPPS bestätigt, dass Bilddaten angekommen sind
-3. Eine Storage-Commitment-Ablehnung für ein tatsächlich gespeichertes Objekt deutet auf ein Konfigurationsproblem des Rückrufs hin, nicht auf einen fehlenden Bildtransfer
+3. Eine Storage-Commitment-Ablehnung mit Grund für ein tatsächlich gespeichertes Objekt deutet auf einen Fehler in der Anfrage hin, nicht auf einen fehlenden Bildtransfer
 4. Beide Dienste laufen immer über dieselbe Verbindung wie der Bildtransfer
 
-**Erklärung:** MPPS und Storage Commitment sind eigene, vom Bildtransfer unabhängige Meldewege — eine Commitment-Ablehnung für ein real gespeichertes Objekt zeigt eher ein Problem im Rückruf-Mechanismus als einen gescheiterten Transfer. MPPS bestätigt dabei nie den Bildinhalt, und beide Dienste laufen über eigene Verbindungen.
+**Erklärung:** MPPS und Storage Commitment sind eigene, vom Bildtransfer unabhängige Meldewege. Kommt eine Commitment-Ablehnung mit Grund an, funktioniert der Rückruf — für ein real gespeichertes Objekt passt dann die Anfrage nicht zum Bestand (etwa eine falsche SOP Class, Orthanc meldet `281` = `0x0119`). Ein kaputter Rückruf liefert dagegen gar keinen Bericht. MPPS bestätigt nie den Bildinhalt, und beide Dienste laufen über eigene Verbindungen.
 
 ### f17 — Ein TLS-Handshake scheitert. Welche DICOM-spezifische Information sieht die Gegenstelle davon?
 
@@ -166,7 +166,7 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Bilder können vollständig angekommen sein, während die Commitment-Anfrage für ein *anderes*, nie übermitteltes Objekt scheitert — zwei getrennte Prüfungen mit zwei getrennten Fehlerquellen.
+**Erklärung:** Falsch. `274` (`0x0112`, „No such SOP Instance", PS3.3 C.14.1.1) heißt nur: Das gefragte System kennt diese UID nicht. Liegt das Bild nachweislich im Archiv, steckt der Fehler in der Commitment-Anfrage — eine andere UID als gesendet oder ein anderes System gefragt — und nicht im Bildtransfer. Bildtransfer und Commitment sind zwei getrennte Prüfungen mit getrennten Fehlerquellen.
 
 ### f23 — Ein Sendeauftrag scheitert mit `Calling AE Title Not Recognized`. Was sagt dieser Ablehnungsgrund aus?
 
