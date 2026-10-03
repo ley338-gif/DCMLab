@@ -230,7 +230,7 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Lektion 5.6
 4. Lektion 5.7
 
-**Erklärung:** Lektion 5.3s realer Zwei-Archiv-Test (UID-Erhalt vs. UID-Neuvergabe) ist die Grundlage für die entsprechende Ausschreibungsfrage in Lektion 5.8.
+**Erklärung:** Lektion 5.3s Migrationstest (UID-Erhalt vs. UID-Neuvergabe) ist die Grundlage für die entsprechende Ausschreibungsfrage in Lektion 5.8.
 
 ### f31 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
