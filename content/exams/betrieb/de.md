@@ -109,11 +109,11 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. U (durch neue, gültige UID ersetzen)
 4. K (unverändert lassen)
 
-**Erklärung:** `StudyInstanceUID` ist Type 1 (Lektion 3.1) — ein leerer oder fehlender Wert würde vom Archiv abgelehnt. Deshalb bekommt sie den eigenen Aktionscode **U**: durch eine neue, aber weiterhin gültige UID ersetzen.
+**Erklärung:** `StudyInstanceUID` ist Pflicht (Type 1, Lektion 3.1) und kann selbst identifizieren. Deshalb wird sie nicht geleert oder entfernt, sondern mit **U** ersetzt: durch eine neue UID, die über alle Objekte der Menge konsistent ist — alle Bilder einer Studie bekommen dieselbe neue Study Instance UID.
 
 ### f14 — Wie lautet der DICOM-Aktionscode für „unverändert lassen" in PS3.15 Annex E? *(Freitext)*
 
-**Erklärung:** `K`. Im Lektionsbeispiel bleibt `PatientID` bewusst mit **K** unverändert, weil sie für eine spätere Pseudonymisierungs-Zuordnung noch gebraucht werden könnte.
+**Erklärung:** `K` (keep). Im Basic Profile bekommt allerdings kaum ein Attribut mit Patientenbezug K — die `PatientID` etwa hat **Z/D**. K taucht vor allem in den Optionen auf, etwa „Retain UIDs" für die UIDs.
 
 ### f15 — Anonymisierung und Pseudonymisierung unterscheiden sich vor allem darin, wie stark die Daten verschleiert werden.
 
@@ -123,7 +123,7 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 ### f16 — In welcher DICOM-Sequenz (Tag) werden bei DICOMs eigenem Pseudonymisierungsmechanismus die verschlüsselten Originalwerte mitgeführt? *(Freitext)*
 
-**Erklärung:** `0400,0550` (Encrypted Attributes Sequence). Die Originalwerte werden verschlüsselt im de-identifizierten Objekt selbst mitgeführt — wer den Schlüssel hat, kann sie extrahieren.
+**Erklärung:** `0400,0500` (Encrypted Attributes Sequence). Die Originalwerte stehen in einer Modified Attributes Sequence (0400,0550); dieser Datensatz wird verschlüsselt und als Eintrag der Encrypted Attributes Sequence im de-identifizierten Objekt mitgeführt (PS3.15 E.1.1) — wer den Schlüssel hat, kann ihn auspacken.
 
 ### f17 — Ein Bild wird über Orthancs REST-API heruntergeladen. Was zeigt `/changes` danach?
 

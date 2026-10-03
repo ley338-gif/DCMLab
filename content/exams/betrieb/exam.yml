@@ -132,7 +132,7 @@ questions:
 
   - id: f16
     type: input
-    answer: "0400,0550"
+    answer: "0400,0500"
     lesson: "5.4"
     review: { lesson: "5.4", anchor: "anonymisierung-vs-pseudonymisierung-rueckfuehrbarkeit" }
     difficulty: 3
