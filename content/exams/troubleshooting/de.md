@@ -84,7 +84,7 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Presentation Context (Objekttyp/Kodierung)
 4. Das kann C-ECHO nicht ausschließen, es könnte jede der drei sein
 
-**Erklärung:** C-ECHO prüft nur die TCP-Ebene und dass überhaupt eine Association mit der Verification SOP Class zustande kommt. Ein sofort scheiternder Sendeauftrag nach grünem C-ECHO zeigt auf die Presentation-Context-Aushandlung für den eigentlichen Bildtyp — eine eigene, unabhängige Aushandlung.
+**Erklärung:** Ein grünes C-ECHO belegt die TCP-Verbindung und eine Association mit genau diesen AE Titles — ausgehandelt wird dabei aber nur der Presentation Context für die Verification SOP Class. Ein sofort scheiternder Sendeauftrag nach grünem C-ECHO zeigt deshalb auf die Presentation-Context-Aushandlung für den eigentlichen Bildtyp, die für jeden Objekttyp einzeln beantwortet wird.
 
 ### f12 — Ein Sendeauftrag über 60 Dateien meldet für jede einzelne Datei Erfolg, dauert aber ungewöhnlich lange, und eine Datei fehlt am Ende im Archiv. Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
