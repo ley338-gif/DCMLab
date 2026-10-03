@@ -180,7 +180,9 @@ anhand der SOP Class des Dosisberichts selbst
 (`1.2.840.10008.5.1.4.1.1.88.67`, X-Ray Radiation Dose SR Storage) —
 entweder als separate Regel oder als eigener SOP-Class-Match neben der
 bestehenden Modality-Bedingung, nicht als zusätzliche UND-Bedingung an
-derselben Regel (das würde weiterhin ausschließlich CT-Bilder treffen).
+derselben Regel: `Modality = CT` UND `SOPClassUID = …88.67` träfe gar
+kein Objekt mehr — das RDSR nicht, weil es `Modality = SR` trägt, die
+CT-Bilder nicht, weil sie eine andere SOP Class haben.
 
 ### Was du mitnimmst
 
