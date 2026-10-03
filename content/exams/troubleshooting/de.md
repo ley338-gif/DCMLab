@@ -105,14 +105,14 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Richtig. Gleicht das Archiv beim Speichern Werte an — etwa Patient ID oder Study Instance UID —, muss es mit einem Warnstatus antworten (PS3.4 Abschnitt B.4.1.3); vorgesehen ist `0xB000` ("Warning: Coercion of Data Elements", PS3.4 Tabelle B.2-1).
 
-### f15 — Eine Worklist-Abfrage läuft technisch fehlerfrei, liefert aber keinen erwarteten Auftrag. Wo suchst du als Nächstes, laut Lektion 4.7?
+### f15 — Eine Worklist-Abfrage läuft technisch fehlerfrei und bleibt auch **ohne** einschränkende Filter leer; ein erwarteter Auftrag fehlt. Wo suchst du als Nächstes, laut Lektion 4.7?
 
 1. Beim RIS/Broker, nicht am Gerät oder Archiv selbst
 2. In der Firewall-Konfiguration
 3. In der Transfer-Syntax-Aushandlung
 4. Im Storage-Commitment-Status
 
-**Erklärung:** Die Worklist-Abfrage selbst kann korrekt sein, während der Auftrag nie im RIS/Broker ankam — eine dieser Übergaben liegt außerhalb dessen, was am Gerät oder am Archiv sichtbar ist.
+**Erklärung:** Bleibt schon die Abfrage ohne Filter leer, liegt es nicht an einem zu engen Filter: Der Auftrag kam nie im RIS/Broker an oder wurde dort keiner Station zugeordnet — eine Übergabe außerhalb dessen, was am Gerät oder am Archiv sichtbar ist. Liefert die Abfrage ohne Filter den Auftrag, ist ein Filter zu eng (Scheduled Station AE Title, Datum, Modalität).
 
 ### f16 — Welche Aussagen zur Statuskette aus MPPS und Storage Commitment stimmen? *(Mehrfachauswahl)*
 
