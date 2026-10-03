@@ -198,11 +198,11 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. C-STORE und C-FIND
 4. A-ASSOCIATE und A-RELEASE
 
-**Erklärung:** `N-ACTION` stößt die Prüfung an, `N-EVENT-REPORT` liefert das Ergebnis — typischerweise über zwei eigene, getrennte Associations, anders als bei MPPS.
+**Erklärung:** `N-ACTION` stößt die Prüfung an, `N-EVENT-REPORT` liefert das Ergebnis. Das Archiv darf die Antwort über dieselbe Verbindung versuchen, muss sie aber auch über eine neue schicken können, weil der Anfragende die erste jederzeit schließen darf (PS3.4 J.3.3.1.2).
 
-### f26 — Welcher REST-Parameter muss bei Orthanc für die Gegenstelle gesetzt sein, damit eine Storage-Commitment-Anfrage nicht scheitert? *(Freitext)*
+### f26 — Mit welchem Parameter im Orthanc-Eintrag einer Gegenstelle lässt sich Storage Commitment für sie sperren? *(Freitext)*
 
-**Erklärung:** `AllowStorageCommitment`. Ohne diese Berechtigung beim Eintrag der Gegenstelle (`modalities/<name>`) scheitert die Anfrage — ohne dass der ursprüngliche Speichervorgang selbst je fehlschlägt.
+**Erklärung:** `AllowStorageCommitment`. Er fasst die beiden Rechte `AllowNAction` und `AllowEventReport` zusammen, die bei einem Eintrag standardmäßig erlaubt sind. Mit `false` lehnt Orthanc das N-ACTION ab — der Anfragende sieht dann keine Ablehnung mit Grund, sondern nur, dass keine Antwort kam; der Grund steht im Log des Archivs.
 
 ### f27 — Ein erfolgreiches C-STORE beweist, dass das Archiv das Objekt auch dauerhaft behält.
 
@@ -210,9 +210,9 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Falsch. Ein erfolgreiches C-STORE beweist nur den Moment der Übertragung. Ob das Archiv das Objekt dauerhaft behält, beantwortet erst Storage Commitment — eine eigene, spätere Zusicherung.
 
-### f28 — Wie lautet der FailureReason-Code aus PS3.4 Annex J.3.4 für eine referenzierte, nicht vorhandene SOP Instance bei einer Storage-Commitment-Ablehnung? *(Freitext)*
+### f28 — Welchen FailureReason zeigt Orthanc (dezimal) bei einer Storage-Commitment-Ablehnung für eine nicht vorhandene SOP Instance? *(Freitext)*
 
-**Erklärung:** `274`. Ein konkreter, im Standard definierter Wert — kein vages "Störung", sondern ein exakter, nachschlagbarer Ablehnungsgrund.
+**Erklärung:** `274`. Hexadezimal ist das `0112H`, „No such SOP Instance" (PS3.3 C.14.1.1) — ein konkreter, im Standard definierter Wert, kein vages „Störung".
 
 ### f29 — Welcher DIMSE-Dienst entspricht QIDO-RS?
 
