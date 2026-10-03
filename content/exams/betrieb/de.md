@@ -36,14 +36,14 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Falsch. SWF.b nimmt vorhandene DICOM-Dienste (Worklist-Abfrage, C-STORE, MPPS) und schreibt nur fest, in welcher Reihenfolge und mit welchen Akteuren sie zusammenspielen müssen.
 
-### f05 — In welchem Abschnitt eines Conformance Statement nach PS3.2 stehen unterstützte SOP-Klassen und Transfer-Syntaxen einer AE?
+### f05 — In welchem Abschnitt des aktuellen Conformance-Statement-Musters (PS3.2, Annex N) stehen alle unterstützten Storage-SOP-Klassen mit Rollen und Transfer-Syntaxen?
 
-1. Einleitung
+1. Introduction
 2. Implementation Model
-3. AE Specifications
-4. Media Interchange
+3. Overview (Abschnitt „Content and Transfer")
+4. Security
 
-**Erklärung:** Die AE Specifications listen für jede Application Entity Rolle, unterstützte SOP-Klassen und Transfer-Syntaxen pro SOP-Klasse — der Abschnitt, der in der Praxis am häufigsten gebraucht wird.
+**Erklärung:** Im aktuellen Muster listet die Overview im Abschnitt „Content and Transfer" alle Storage-SOP-Klassen mit Rollen und Transfer-Syntax-Sets. Im älteren Muster (bis PS3.2 2022d, Annex A), nach dem viele Herstellerdokumente noch aufgebaut sind, standen diese Angaben in den AE Specifications unter Networking.
 
 ### f06 — Zwei Geräte unterstützen dieselbe SOP-Klasse mit passenden Rollen, aber keine gemeinsame Transfer-Syntax. Was folgt daraus?
 
@@ -67,7 +67,7 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ein grüner Abgleich bedeutet nur, dass die Verbindung zustande kommen kann — nichts über Performance, Verhalten bei kaputten Daten oder tatsächlich getestete Kombinationen.
+**Erklärung:** Falsch. Ein grüner Abgleich bedeutet nur, dass die Verbindung zustande kommen kann. Er belegt weder Performance noch eine tatsächlich getestete Kombination — und auch nicht, dass sich das Gerät bei unvollständigen Daten so verhält, wie das Dokument es beschreibt. Das zeigt erst ein Test.
 
 ### f09 — Was ändert sich bei einer netzwerkbasierten Migration (C-STORE) laut dem realen Test typischerweise, wenn UIDs und Pixeldaten unverändert bleiben?
 
@@ -263,7 +263,7 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Eine funktionierende DICOM-Verbindung und eine sichere DICOM-Verbindung sind zwei unabhängige Fragen
 4. Ein Conformance-Statement-Abgleich ersetzt eine Sicherheitsprüfung vollständig
 
-**Erklärung:** Ein Conformance Statement beschreibt Fähigkeiten (SOP-Klassen, Rollen, Transfer-Syntaxen), nicht Sicherheit — ob ein Gerät den AE-Title tatsächlich prüft, ist eine unabhängige Frage, die das Dokument nicht beantwortet.
+**Erklärung:** Ein Conformance Statement beschreibt, was der Hersteller zusagt — nach dem aktuellen PS3.2-Muster auch, wie das System auf einen unbekannten Called AE Title reagiert und welche Sicherheitsprofile es unterstützt. Ob das Gerät den AE Title tatsächlich prüft, zeigt erst ein Test wie in 5.6. Eine funktionierende und eine sichere Verbindung bleiben zwei getrennte Fragen.
 
 ### f35 — Sowohl eine Migration (5.3) als auch eine Anonymisierung (5.4) können eine StudyInstanceUID verändern. Worin unterscheiden sich die beiden Fälle?
 

@@ -340,7 +340,7 @@ xds-i:
 conformance-statement:
   term: Conformance Statement
   expansion: DICOM Conformance Statement (PS3.2)
-  short: Herstellerdokument, das für jede Application Entity angibt, welche SOP-Klassen, Rollen (SCU/SCP) und Transfer-Syntaxen sie unterstützt — sagt nichts über Performance oder Verhalten bei Kantenfällen.
+  short: Herstellerdokument nach PS3.2, das angibt, welche SOP-Klassen, Rollen (SCU/SCP) und Transfer-Syntaxen ein System unterstützt und wie es sich dabei verhalten soll — eine Zusage, kein Beleg; Performance und tatsächliches Verhalten zeigt erst ein Test.
   see_also: [sop-class, association]
   lesson: "5.2"
 
