@@ -21,14 +21,14 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Result 4 heißt: Das Archiv kennt den Objekttyp, aber keine der angebotenen Transfer Syntaxes. Result 3 wäre der Fall, dass der Objekttyp selbst unbekannt ist.
 
-### f03 — `findscu` liefert für einen Patienten zwei getrennte Study-Einträge mit unterschiedlichen `StudyInstanceUID`-Werten. Was liegt vor?
+### f03 — Zu **einem** Auftrag (dieselbe Accession Number, direkt aufeinanderfolgende Serien) liefert `findscu` zwei getrennte Study-Einträge mit unterschiedlichen `StudyInstanceUID`-Werten. Was liegt vor?
 
 1. Ein Split
 2. Eine Dublette
 3. Ein Coercion-Fall
 4. Ein Timeout
 
-**Erklärung:** Ein Split entsteht, wenn dieselbe Untersuchung zwei verschiedene Study Instance UIDs bekommt — das Archiv sieht sie als zwei eigenständige Studies. Eine Dublette dagegen verändert den Bestand nicht, weil dieselben Objekte unter derselben UID erneut eingespielt werden.
+**Erklärung:** Ein Split entsteht, wenn dieselbe Untersuchung zwei verschiedene Study Instance UIDs bekommt — das Archiv sieht sie als zwei eigenständige Studies. Zwei UIDs allein beweisen das noch nicht (es können auch zwei echte Untersuchungen sein); erst der gemeinsame Auftrag macht daraus einen Split. Eine Dublette dagegen verändert den Bestand nicht, weil dieselben Objekte unter derselben UID erneut eingespielt werden.
 
 ### f04 — Ein C-STORE ist erfolgreich, das RIS zeigt die Untersuchung trotzdem als „geplant". Welche zwei Dienste prüfst du als Nächstes?
 
@@ -95,9 +95,9 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Einzelne Erfolgsmeldungen beweisen nie die Vollständigkeit der Study, der UID-basierte Zählabgleich ist der verlässliche Nachweis, und eine stille Ablehnung einzelner Objekte (SOP Class, Größenlimit) tritt unabhängig von der Association auf. Eine lange Laufzeit allein ist dagegen kein Timeout-Beweis.
 
-### f13 — Welcher DICOM-Wert entscheidet bei zwei äußerlich identischen Studies, ob es sich um einen echten Split handelt (nicht der angezeigte Name)? *(Freitext)*
+### f13 — Welcher DICOM-Wert entscheidet bei zwei äußerlich identischen Einträgen, ob das Archiv sie als eine Study führt (Dublette) oder als zwei (möglicher Split) — nicht der angezeigte Name? *(Freitext)*
 
-**Erklärung:** `StudyInstanceUID`. Namensgleichheit beweist nichts — erst zwei unterschiedliche Study Instance UIDs belegen, dass das Archiv zwei eigenständige Untersuchungen sieht.
+**Erklärung:** `StudyInstanceUID`. Namensgleichheit beweist nichts — erst zwei unterschiedliche Study Instance UIDs belegen, dass das Archiv zwei eigenständige Studies führt. Ob das ein Split ist oder zwei echte Untersuchungen, zeigt erst der Auftrag (Accession Number, RIS).
 
 ### f14 — Der Warnstatus `0xB000` aus Lektion 2.2 (C-STORE) und die in Lektion 4.6 beschriebene Coercion hängen zusammen — `0xB000` ist genau der Status, den ein C-STORE bei einer Coercion-Umschreibung durch das Archiv zurückgibt.
 
