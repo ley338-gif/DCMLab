@@ -197,7 +197,7 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Das ist ein Anzeigefehler, der Job war erfolgreich
 4. Progress 100 bedeutet immer Erfolg
 
-**Erklärung:** Ein Job mit `Progress: 100` und `State` ungleich `Success` ist ein eigenes, monitoring-relevantes Ereignis, das eine reine „läuft noch/läuft nicht mehr"-Prüfung nicht von einem echten Erfolg unterscheiden könnte.
+**Erklärung:** Ein Job mit `Progress: 100` und `State` ungleich `Success` ist ein eigenes, monitoring-relevantes Ereignis, das eine reine „läuft noch/läuft nicht mehr"-Prüfung nicht von einem echten Erfolg unterscheiden könnte. Maßgeblich ist immer `State`: Ein gescheiterter Job kann auch bei `Progress: 0` stehen, etwa wenn das Ziel gar nicht erreichbar war.
 
 ### f27 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
