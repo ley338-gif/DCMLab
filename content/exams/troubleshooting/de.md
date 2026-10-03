@@ -69,9 +69,9 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Falsch. Eine leere, erfolgreiche Antwort ist ein gültiges Ergebnis — es war einfach nichts geplant, das zum Filter passte, oder der Filter war zu eng.
 
-### f09 — Welchen DIMSE-Statuscode liefert ein C-STORE, wenn das Archiv Patientendaten aktiv gegen seinen Bestand überschreibt (Coercion)? *(Freitext)*
+### f09 — Welchen DIMSE-Statuscode liefert ein C-STORE, wenn das Archiv beim Speichern Werte wie die Patient ID an seinen Bestand angleicht (Coercion)? *(Freitext)*
 
-**Erklärung:** `0xB000` — „Warning: Coercion of Data Elements". Das Objekt wurde angenommen, aber nicht unverändert übernommen.
+**Erklärung:** `0xB000` — „Warning: Coercion of Data Elements" (PS3.4 Tabelle B.2-1). Das Objekt wurde angenommen, aber nicht unverändert übernommen. Welche Attribute ein Archiv so angleichen darf, begrenzt PS3.4 Abschnitt B.4.1.3: Patient ID, Issuer of Patient ID, Other Patient IDs Sequence, Study und Series Instance UID.
 
 ### f10 — Mit welchem Präfix beginnt ein TLS-Handshake-Fehlercode bei den DCMTK-Werkzeugen, im Unterschied zu einem DICOM-Statuscode? *(Freitext)*
 
@@ -103,7 +103,7 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Richtig / Falsch**
 
-**Erklärung:** Richtig. `0xB000` ("Warning: Coercion of Data Elements") ist der konkrete DIMSE-Status, den ein C-STORE liefert, wenn das Archiv ankommende Patientendaten aktiv gegen seinen eigenen Bestand überschreibt.
+**Erklärung:** Richtig. Gleicht das Archiv beim Speichern Werte an — etwa Patient ID oder Study Instance UID —, muss es mit einem Warnstatus antworten (PS3.4 Abschnitt B.4.1.3); vorgesehen ist `0xB000` ("Warning: Coercion of Data Elements", PS3.4 Tabelle B.2-1).
 
 ### f15 — Eine Worklist-Abfrage läuft technisch fehlerfrei, liefert aber keinen erwarteten Auftrag. Wo suchst du als Nächstes, laut Lektion 4.7?
 

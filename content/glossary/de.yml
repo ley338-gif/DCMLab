@@ -221,7 +221,7 @@ explicit-vr:
 coercion:
   term: Coercion
   expansion: Coercion of Data Elements
-  short: Das Archiv überschreibt ankommende Patientendaten aktiv gegen seinen Bestand — quittiert mit Status 0xB000.
+  short: Das Archiv gleicht beim Speichern Werte wie Patient ID oder Study Instance UID an seinen Bestand an (PS3.4 B.4.1.3) — und muss das mit einem Warnstatus melden, vorgesehen ist 0xB000.
   see_also: [patient-id, c-store]
   lesson: "4.6"
 
