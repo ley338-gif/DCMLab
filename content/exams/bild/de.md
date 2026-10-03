@@ -95,7 +95,7 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 ### f12 — Auf welchen ungefähren Hounsfield-Wert wird Luft in der CT-Praxis normiert (nur die Zahl, ohne Einheit)? *(Freitext)*
 
-**Erklärung:** `-1000`. `RescaleIntercept -1024` mit `RescaleSlope 1` ist die in der CT-Praxis nahezu universelle Konvention, die einen unsigned Rohwertbereich so verschiebt, dass Luft auf etwa `-1000 HU` landet.
+**Erklärung:** `-1000`. Die Hounsfield-Skala ist so definiert, dass Wasser bei 0 und Luft bei −1000 HU liegt. `RescaleSlope` und `RescaleIntercept` des Geräts rechnen die gespeicherten Rohwerte nur auf diese Skala um; ein Intercept von −1024 ist dabei verbreitet, aber weder vorgeschrieben noch universell.
 
 ### f13 — Ein Archiv meldet für eine Study `NumberOfStudyRelatedInstances: 1`. Was folgt daraus über die Bildzahl?
 
@@ -117,18 +117,18 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 ### f15 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
-1. Schon klassische IODs wie Secondary Capture erlauben mehrere Frames pro Instance
+1. Schon klassische IODs wie Ultrasound Multi-frame oder RT Dose erlauben mehrere Frames pro Instance
 2. NumberOfFrames größer 1 bedeutet automatisch ein Enhanced-Objekt
 3. Bei klassischem multiframe gelten Attribute wie WindowCenter einmal für die ganze Datei
 4. Ein Auswertungsskript, das Dateien statt Frames zählt, kann bei multiframe-Objekten falschliegen
 
-**Erklärung:** Secondary Capture erlaubt bereits mehrere Frames ohne Enhanced zu sein, klassisches multiframe teilt Attribute wie WindowCenter für alle Frames, und ein dateibasiertes Zählskript liegt bei solchen Objekten falsch. `NumberOfFrames > 1` bedeutet aber nicht automatisch Enhanced — das ist eine eigene, zusätzliche Strukturebene.
+**Erklärung:** Ultrasound Multi-frame oder RT Dose erlauben bereits mehrere Frames, ohne Enhanced zu sein (der klassische Secondary-Capture-Typ dagegen ist laut PS3.3 A.8.1.1 ein Einzelbild; für mehrere Frames gibt es eigene Multi-frame-SC-Typen), klassisches multiframe teilt Attribute wie WindowCenter für alle Frames, und ein dateibasiertes Zählskript liegt bei solchen Objekten falsch. `NumberOfFrames > 1` bedeutet aber nicht automatisch Enhanced — das ist eine eigene, zusätzliche Strukturebene.
 
 ### f16 — NumberOfFrames > 1 bedeutet automatisch, dass es sich um ein Enhanced-Objekt handelt.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Multiframe ist schon bei klassischen IODs wie Secondary Capture möglich. Enhanced ist eine zusätzliche, eigene Strukturebene (Functional Groups), keine reine Frage der Frame-Zahl.
+**Erklärung:** Falsch. Multiframe ist schon bei klassischen IODs wie Ultrasound Multi-frame oder RT Dose möglich. Enhanced ist eine zusätzliche, eigene Strukturebene (Functional Groups), keine reine Frage der Frame-Zahl.
 
 ### f17 — Welche SOPClassUID hat ein Structured Report in der Lektion?
 
