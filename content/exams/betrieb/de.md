@@ -16,19 +16,19 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 1. XDS-I.b
 2. PIR
-3. SWF.b
+3. SWF (das ursprüngliche Scheduled Workflow)
 4. ATNA
 
-**Erklärung:** SWF.b (Scheduled Workflow) setzt eine bereits korrekt registrierte Patientenidentität voraus. Genau für den Fall, dass das nicht zutrifft (Notfall, Doppelanlage), existiert das eigene Profil PIR.
+**Erklärung:** Das ursprüngliche Scheduled Workflow (RAD TF-1, Kapitel 3) setzt eine bereits korrekt registrierte Patientenidentität voraus. Für den Fall, dass das nicht zutrifft (Notfall, falsche oder vorläufige Kennung), erweitert PIR es — unter anderem bekommen dann auch Archiv und Befundsystem die Patientenupdates. SWF.b (Kapitel 34) enthält diese Fälle bereits selbst.
 
 ### f03 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
 1. SWF.b definiert neue DICOM-Dienste, die es vorher nicht gab
 2. Das bei XDS-I.b veröffentlichte Manifest ist technisch ein Key Object Selection Document
 3. PIR ist der IHE-Prozessrahmen für nachträglich korrigierte Patientenzuordnungen
-4. XDS-I.b läuft über eine Registry, nicht über eine direkte Archiv-zu-Archiv-Verbindung
+4. Bei XDS-I.b wird das Manifest über Registry und Repository gefunden, die Bilder selbst kommen vom Imaging Document Source
 
-**Erklärung:** Das XDS-I-Manifest ist ein echtes KOS, PIR behandelt nachträgliche Patientenkorrekturen, und XDS-I.b greift über Registry/Repository, nie direkt. SWF.b definiert dagegen keine neuen Dienste — es legt nur Reihenfolge und Pflicht-Transaktionen für vorhandene DICOM-Dienste fest.
+**Erklärung:** Das XDS-I-Manifest ist ein echtes KOS, PIR behandelt nachträgliche Patientenkorrekturen, und bei XDS-I.b dient die Registry dem Finden: Mit dem Manifest holt der Consumer die Bilder beim Imaging Document Source der abgebenden Einrichtung (RAD-69, WADO, WADO-RS oder DICOM-Abruf, RAD TF-1 Tabelle 18.1-1). SWF.b definiert dagegen keine neuen Dienste — es legt Reihenfolge, Pflicht-Transaktionen und die Übernahme der Auftragswerte für vorhandene DICOM-Dienste fest.
 
 ### f04 — SWF.b führt neue technische Mechanismen ein, die es vor IHE in DICOM nicht gab.
 

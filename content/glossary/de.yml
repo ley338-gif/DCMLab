@@ -319,7 +319,7 @@ specific-character-set:
 scheduled-workflow:
   term: Scheduled Workflow
   expansion: IHE Radiology Scheduled Workflow (SWF.b)
-  short: Bündelt Worklist-Abfrage, Bildtransfer und MPPS-Statusmeldungen zu einem benannten, prüfbaren Ablauf mit eigenen Transaktionsnummern (RAD-5, RAD-8, RAD-6/7).
+  short: Bündelt Worklist-Abfrage, Bildtransfer, MPPS-Statusmeldungen und Storage Commitment zu einem benannten, prüfbaren Ablauf mit eigenen Transaktionsnummern (RAD-5 bis RAD-8, RAD-10); die Modalität übernimmt dabei Auftragswerte wie die Accession Number in die Bilder.
   see_also: [worklist, mpps]
   lesson: "5.1"
 
@@ -333,7 +333,7 @@ patient-information-reconciliation:
 xds-i:
   term: XDS-I
   expansion: Cross-Enterprise Document Sharing for Imaging
-  short: Teilt Bilder zwischen Einrichtungen über Registry/Repository statt direkter Archiv-zu-Archiv-Verbindung — das geteilte Manifest ist technisch ein Key Object Selection Document.
+  short: Macht Bilder zwischen Einrichtungen auffindbar — ein Manifest, technisch ein Key Object Selection Document, liegt in Registry/Repository; die Bilder selbst holt der Empfänger danach beim Quell-PACS.
   see_also: [key-object-selection]
   lesson: "5.1"
 
