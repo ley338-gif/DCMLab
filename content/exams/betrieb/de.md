@@ -69,14 +69,14 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Falsch. Ein grüner Abgleich bedeutet nur, dass die Verbindung zustande kommen kann. Er belegt weder Performance noch eine tatsächlich getestete Kombination — und auch nicht, dass sich das Gerät bei unvollständigen Daten so verhält, wie das Dokument es beschreibt. Das zeigt erst ein Test.
 
-### f09 — Was ändert sich bei einer netzwerkbasierten Migration (C-STORE) laut dem realen Test typischerweise, wenn UIDs und Pixeldaten unverändert bleiben?
+### f09 — Was ändert sich bei einer Migration per C-STORE an der Datei, wenn dieselbe Transfer-Syntax ausgehandelt wird wie im Original?
 
 1. Nur die File-Meta-Signatur (ImplementationClassUID/-VersionName)
 2. Die PatientID
 3. Die Pixeldaten werden neu komprimiert
 4. Nichts ändert sich, auch nicht die Meta-Signatur
 
-**Erklärung:** Der reale Zwei-Archiv-Test zeigt: Patient, Study, Series, Instance und Pixeldaten überleben unverändert — nur welche Implementierung die Datei zuletzt geschrieben hat (die File-Meta-Signatur), ändert sich.
+**Erklärung:** Der Test der Lektion zeigt: Der Datensatz hinter der File Meta Information bleibt Byte für Byte gleich, Pixeldaten eingeschlossen — es ändert sich nur, welche Implementierung die Datei zuletzt geschrieben hat (samt Gruppenlänge). Wird eine andere Transfer-Syntax ausgehandelt, speichert das Ziel das Objekt in dieser Kodierung; bei Implicit VR verlieren private Attribute dabei ihren Datentyp.
 
 ### f10 — Ein Migrationswerkzeug vergibt beim Import neue StudyInstanceUIDs. Was passiert am Ziel-Archiv mit einer bereits vorhandenen Studie desselben Patienten?
 
@@ -100,7 +100,7 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Der gezeigte UID-Fehlerfall hätte diesen Test bestanden (3 Bilder vorher, 3 Bilder in der korrekten Studie danach) und trotzdem eine zusätzliche, fehlerhafte Studie erzeugt.
+**Erklärung:** Falsch. Ein Werkzeug, das beim Import alle UIDs neu vergibt, besteht diesen Test — die Bildanzahl stimmt, aber keine Studie liegt mehr unter ihrer alten UID. Und einzelne doppelt geschriebene Objekte mit neuen UIDs bilden eigene Studien, die ein reiner Zähler nicht als solche erkennt.
 
 ### f13 — Welchen Aktionscode aus PS3.15 Annex E bekommt StudyInstanceUID bei der De-Identifikation?
 
