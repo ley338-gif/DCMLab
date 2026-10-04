@@ -207,7 +207,7 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. `findscu`
 4. `storescp`
 
-**Erklärung:** `storescp` startet einen eigenen Empfänger. Damit siehst du, was wirklich ankommt und welchen Calling AE Title die Gegenstelle tatsächlich schickt — das beantwortet die häufigste Streitfrage bei Inbetriebnahmen zuverlässiger als eine Konsolenmeldung.
+**Erklärung:** `storescp` startet einen eigenen Empfänger. Damit siehst du, was wirklich ankommt und welchen Calling AE Title die Gegenstelle tatsächlich schickt — das beantwortet eine häufige Streitfrage bei Inbetriebnahmen („Wir senden doch") zuverlässiger als eine Konsolenmeldung. Starte ihn in der Spielwiese im Hintergrund, sonst blockiert er das Terminal (Lektion 1.6).
 
 ### f27 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
