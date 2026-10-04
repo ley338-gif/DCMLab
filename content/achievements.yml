@@ -12,7 +12,7 @@
 
 - slug: first-blood
   name: First Blood
-  description: Löse deinen ersten Lab- oder Node.
+  description: Löse dein erstes Lab oder deine erste Node.
   image: first-blood.png
   category: labs
   rarity: common
