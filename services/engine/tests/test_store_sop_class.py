@@ -86,9 +86,12 @@ def test_dcmdump_shows_the_real_sop_class_uid_of_an_object() -> None:
     result = rules.exec_command(NODE, state, "workstation", "dcmdump screenshot.dcm")
 
     assert result.exit_code == 0
-    assert "(0008,0016)" in result.stdout
-    assert SECONDARY_CAPTURE in result.stdout
-    assert "SOPClassUID" in result.stdout
+    assert "(0008,0016) UI =SecondaryCaptureImageStorage" in result.stdout
+
+    as_number = rules.exec_command(
+        NODE, state, "workstation", "dcmdump -Un +P SOPClassUID screenshot.dcm",
+    )
+    assert as_number.stdout.startswith(f"(0008,0016) UI [{SECONDARY_CAPTURE}]")
 
 
 def test_dcmdump_on_an_object_without_a_declared_sop_class_keeps_the_pre_p10_10_behaviour() -> None:

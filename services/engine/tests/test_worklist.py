@@ -4,9 +4,9 @@ dasselbe Wildcard-Matching wie STUDY/SERIES (app/find.py), gegen geplante
 Verfahren statt vorhandener Studies.
 """
 
-from app import rules
+from app import dump, rules
 from app.content import NodeDefinition
-from app.find import find_worklist
+from app.find import find_worklist, split_worklist_keys
 
 ENTRIES = [
     {
@@ -71,7 +71,13 @@ def test_findscu_dash_w_queries_the_worklist_not_studies() -> None:
     )
 
     assert "I: Number of Matches: 2" in result.stdout
-    assert "I: (0010,0010) PN [MEYER^HANS]  # xx, 1 PatientName" in result.stdout
+    # PatientName war nicht angefragt (PS3.4 C.4.1.1.3.2), die Station steht
+    # im Item der Scheduled Procedure Step Sequence (PS3.4 Tabelle K.6-1).
+    assert "PatientName" not in result.stdout
+    assert "I: (0040,0100) SQ (Sequence with explicit length #=1)" in result.stdout
+    assert "I:     " + dump.element_line(
+        "0040,0001", "AE", "CT5-RAUM3", "ScheduledStationAETitle",
+    ) in result.stdout
 
 
 def test_findscu_dash_w_with_wrong_station_ae_title_returns_empty() -> None:
@@ -129,3 +135,53 @@ def test_nodes_without_worklist_keep_the_pre_p10_11_behaviour() -> None:
     )
 
     assert result.stdout == "I: Number of Matches: 0"
+
+
+def test_split_worklist_keys_knows_dcmtk_paths_tags_and_flat_keys() -> None:
+    top, sps, sps_all = split_worklist_keys({
+        "PatientName": "",
+        "ScheduledProcedureStepSequence[0].ScheduledStationAETitle": "CT01",
+        "(0040,0100)[0].(0008,0060)": "CT",
+        "ScheduledProcedureStepStartDate": "20260913",
+    })
+
+    assert top == {"PatientName": ""}
+    assert sps == {
+        "ScheduledStationAETitle": "CT01",
+        "Modality": "CT",
+        "ScheduledProcedureStepStartDate": "20260913",
+    }
+    assert sps_all is False
+
+
+def test_findscu_dash_w_with_sequence_path_matches_inside_the_item() -> None:
+    state = fresh_state()
+
+    result = rules.exec_command(
+        NODE, state, "workstation",
+        "findscu -W -k PatientName=MEYER* "
+        "-k ScheduledProcedureStepSequence[0].ScheduledStationAETitle=CT5-RAUM3 "
+        "-aet WORKSTATION -aec TEST-ARCHIV 10.0.0.10 104",
+    )
+
+    assert "I: Number of Matches: 1" in result.stdout
+    assert "I: " + dump.element_line(
+        "0010,0010", "PN", "MEYER^HANS", "PatientName",
+    ) in result.stdout
+    assert "PatientID" not in result.stdout
+    assert "Modality" not in result.stdout
+
+
+def test_findscu_dash_w_with_the_empty_sequence_returns_the_whole_item() -> None:
+    state = fresh_state()
+
+    result = rules.exec_command(
+        NODE, state, "workstation",
+        "findscu -W -k PatientName=SCHMIDT* -k ScheduledProcedureStepSequence "
+        "-aet WORKSTATION -aec TEST-ARCHIV 10.0.0.10 104",
+    )
+
+    assert "I: Number of Matches: 1" in result.stdout
+    assert "I:   (fffe,e000) na (Item with explicit length #=3)" in result.stdout
+    assert "ScheduledProcedureStepStartDate" in result.stdout
+    assert "I:     " + dump.element_line("0008,0060", "CS", "CT", "Modality") in result.stdout

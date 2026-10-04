@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from app import find
+from app import dump, find
 from app.content import NodeDefinition, load_dataset
 from app.operations import cli as pacs_cli
 from app.operations import jobs as routing_jobs
@@ -365,24 +365,98 @@ DCMDUMP_FIELD_ORDER = [
 ]
 
 
+MSG_DCMDUMP_USAGE = "usage: dcmdump [-Un] [+P <tag|keyword>]... <datei>..."
+
+
 def _exec_dcmdump(node: NodeDefinition, args: list[str]) -> ExecResult:
-    if not args:
-        return ExecResult(stderr="usage: dcmdump <datei>", exit_code=1)
+    """`dcmdump` im Ausgabeformat von DCMTK 3.6.7 (siehe `app.dump`).
 
-    filename = args[0]
+    Kennt die Optionen, die die Lektionen zeigen: `+P` (nur dieses Element,
+    Tag `gggg,eeee` oder Keyword, mehrfach moeglich, Ausgabe in der
+    Reihenfolge der Optionen), `-Un` (UIDs als Nummer statt als Name) und
+    `+L` (lange Werte vollstaendig -- hier ohne Wirkung, die simulierten
+    Werte sind kurz). Ohne `+P` druckt DCMTK die Kopfzeilen der Datei mit.
+    """
+    map_uid_names = True
+    searches: list[str] = []
+    filenames: list[str] = []
+
+    i = 0
+    while i < len(args):
+        token = args[i]
+
+        if token in ("-Un", "--no-uid-names"):
+            map_uid_names = False
+        elif token in ("+Un", "--map-uid-names"):
+            map_uid_names = True
+        elif token in ("+L", "--print-all"):
+            pass
+        elif token in ("+P", "--search"):
+            i += 1
+            if i >= len(args):
+                return ExecResult(stderr=MSG_DCMDUMP_USAGE, exit_code=1)
+            searches.append(args[i].strip("()").lower())
+        elif token.startswith(("-", "+")):
+            return ExecResult(
+                stderr=(
+                    f"dcmdump: Option {token} kennt diese Simulation nicht "
+                    "(bekannt: +P, -Un, +L)."
+                ),
+                exit_code=1,
+            )
+        else:
+            filenames.append(token)
+
+        i += 1
+
+    if not filenames:
+        return ExecResult(stderr=MSG_DCMDUMP_USAGE, exit_code=1)
+
     objects = node.raw.get("environment", {}).get("objects", [])
-    obj = next((o for o in objects if o["filename"] == filename), None)
+    blocks: list[str] = []
 
-    if obj is None or not any(field in obj for field, _, _, _ in DCMDUMP_FIELD_ORDER):
-        return ExecResult(stderr="dcmdump: keine lokale Datei in dieser Simulation.", exit_code=1)
+    for filename in filenames:
+        obj = next((o for o in objects if o["filename"] == filename), None)
 
-    lines = [
-        _dcmtk_line(tag, vr, obj[field], keyword)
-        for field, tag, vr, keyword in DCMDUMP_FIELD_ORDER
-        if field in obj
-    ]
+        if obj is None or not any(field in obj for field, _, _, _ in DCMDUMP_FIELD_ORDER):
+            return ExecResult(
+                stderr="dcmdump: keine lokale Datei in dieser Simulation.", exit_code=1,
+            )
 
-    return ExecResult(stdout="".join(lines))
+        elements = [
+            (tag.lower(), vr, str(obj[field]), keyword)
+            for field, tag, vr, keyword in DCMDUMP_FIELD_ORDER
+            if field in obj
+        ]
+
+        if searches:
+            blocks += [
+                dump.element_line(tag, vr, value, keyword, map_uid_names=map_uid_names)
+                for search in searches
+                for tag, vr, value, keyword in elements
+                if search in (tag, keyword.lower())
+            ]
+            continue
+
+        meta = [e for e in elements if e[0].startswith("0002,")]
+        data = [e for e in elements if not e[0].startswith("0002,")]
+        transfer_syntax = str(obj.get("transfer_syntax", "1.2.840.10008.1.2.1"))
+        label = dump.TRANSFER_SYNTAX_LABELS.get(transfer_syntax, transfer_syntax)
+
+        blocks += [
+            "",
+            "# Dicom-File-Format",
+            "",
+            "# Dicom-Meta-Information-Header",
+            "# Used TransferSyntax: Little Endian Explicit",
+            *(dump.element_line(*e, map_uid_names=map_uid_names) for e in meta),
+            "",
+            "# Dicom-Data-Set",
+            f"# Used TransferSyntax: {label}",
+            *(dump.element_line(*e, map_uid_names=map_uid_names) for e in data),
+        ]
+
+    return ExecResult(stdout="\n".join(blocks))
 
 
 def _exec_dcmftest(node: NodeDefinition, args: list[str]) -> ExecResult:
@@ -490,8 +564,27 @@ def _series_instance_uid(node: NodeDefinition) -> str:
     return "1.2.276.0.7230010.3.1.3." + str(int(digest[:12], 16)).rjust(12, "0")[:12]
 
 
-def _dcmtk_line(tag: str, vr: str, value: str, keyword: str) -> str:
-    return f"I: ({tag}) {vr} [{value}]  # xx, 1 {keyword}\n"
+def _value(value: Any) -> str | None:
+    return None if value is None else str(value)
+
+
+def _findscu_lines(elements: list[dump.Element]) -> str:
+    """Ein C-FIND-Antwortdatensatz, wie `findscu -v` ihn ueber den Logger
+    ausgibt: jede `dcmdump`-Zeile (`app.dump`) mit `I: ` davor, die Elemente in
+    Tag-Reihenfolge -- DCMTK haelt Datensaetze sortiert."""
+    ordered = sorted(elements, key=lambda element: element[0].lower())
+
+    return "".join(f"I: {dump.element_line(*element)}\n" for element in ordered)
+
+
+def _requested(
+    keys: dict[str, str | None], available: list[dump.Element],
+) -> list[dump.Element]:
+    """PS3.4 C.4.1.1.3.2: Die Antwort enthaelt nur Attribute, die in der
+    Anfrage standen (dazu der Query/Retrieve Level). Angefragte Keys, die das
+    Archiv nicht unterstuetzt, fallen weg (C.2.2.1.3); ein angefragter Key ohne
+    Wert kommt mit Laenge null zurueck."""
+    return [element for element in available if element[3] in keys]
 
 
 def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) -> ExecResult:
@@ -549,15 +642,16 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
         dataset = load_dataset(node.dataset_slug) if node.dataset_slug else None
         series_description = (dataset or {}).get("series", ["?"])[0]
 
-        lines = [
-            _dcmtk_line("0008,0052", "CS", "SERIES", "QueryRetrieveLevel"),
-            _dcmtk_line("0020,000e", "UI", _series_instance_uid(node), "SeriesInstanceUID"),
-            _dcmtk_line("0008,103e", "LO", series_description, "SeriesDescription"),
-        ]
+        lines = _findscu_lines([
+            ("0008,0052", "CS", "SERIES", "QueryRetrieveLevel"),
+            *_requested(parsed["keys"], [
+                ("0020,000d", "UI", study_uid, "StudyInstanceUID"),
+                ("0020,000e", "UI", _series_instance_uid(node), "SeriesInstanceUID"),
+                ("0008,103e", "LO", series_description, "SeriesDescription"),
+            ]),
+        ])
 
-        stdout = "I: # Dicom-Data-Set\n" + "".join(lines) + "I: Number of Matches: 1"
-
-        return ExecResult(stdout=stdout)
+        return ExecResult(stdout="I: # Dicom-Data-Set\n" + lines + "I: Number of Matches: 1")
 
     # STUDY-Ebene (Default, sofern kein anderes Level angegeben ist)
     if bestand["studies"] == 0:
@@ -565,14 +659,31 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
 
     dataset = load_dataset(node.dataset_slug) if node.dataset_slug else None
     dataset = dataset or {}
-    lines = [
-        _dcmtk_line("0008,0052", "CS", "STUDY", "QueryRetrieveLevel"),
-        _dcmtk_line("0010,0020", "LO", dataset.get("patient_id", "?"), "PatientID"),
-        _dcmtk_line("0020,000d", "UI", _study_instance_uid(node), "StudyInstanceUID"),
-        _dcmtk_line("0008,1030", "LO", dataset.get("study", "?"), "StudyDescription"),
-    ]
+    lines = _findscu_lines([
+        ("0008,0052", "CS", "STUDY", "QueryRetrieveLevel"),
+        *_requested(parsed["keys"], [
+            ("0010,0020", "LO", dataset.get("patient_id", "?"), "PatientID"),
+            ("0020,000d", "UI", _study_instance_uid(node), "StudyInstanceUID"),
+            ("0008,1030", "LO", dataset.get("study", "?"), "StudyDescription"),
+        ]),
+    ])
 
-    return ExecResult(stdout="I: # Dicom-Data-Set\n" + "".join(lines) + "I: Number of Matches: 1")
+    return ExecResult(stdout="I: # Dicom-Data-Set\n" + lines + "I: Number of Matches: 1")
+
+
+STUDY_RESPONSE_FIELDS = [
+    ("patient_id", "0010,0020", "LO", "PatientID"),
+    ("patient_name", "0010,0010", "PN", "PatientName"),
+    ("study_uid", "0020,000d", "UI", "StudyInstanceUID"),
+    ("study_description", "0008,1030", "LO", "StudyDescription"),
+    ("study_date", "0008,0020", "DA", "StudyDate"),
+    ("accession_number", "0008,0050", "SH", "AccessionNumber"),
+]
+
+SERIES_RESPONSE_FIELDS = [
+    ("series_uid", "0020,000e", "UI", "SeriesInstanceUID"),
+    ("series_description", "0008,103e", "LO", "SeriesDescription"),
+]
 
 
 def _exec_findscu_against_records(
@@ -590,14 +701,15 @@ def _exec_findscu_against_records(
         series_matches = find.find_series(records, study_uid, keys)
 
         blocks = [
-            "".join([
-                _dcmtk_line("0008,0052", "CS", "SERIES", "QueryRetrieveLevel"),
-                _dcmtk_line(
-                    "0020,000e", "UI", series.get("series_uid", "?"), "SeriesInstanceUID",
-                ),
-                _dcmtk_line(
-                    "0008,103e", "LO", series.get("series_description", "?"), "SeriesDescription",
-                ),
+            _findscu_lines([
+                ("0008,0052", "CS", "SERIES", "QueryRetrieveLevel"),
+                *_requested(keys, [
+                    ("0020,000d", "UI", study_uid, "StudyInstanceUID"),
+                    *(
+                        (tag, vr, _value(series.get(field)), keyword)
+                        for field, tag, vr, keyword in SERIES_RESPONSE_FIELDS
+                    ),
+                ]),
             ])
             for series in series_matches
         ]
@@ -610,29 +722,34 @@ def _exec_findscu_against_records(
     # STUDY-Ebene (Default, sofern kein anderes Level angegeben ist)
     study_matches = find.find_studies(records, keys)
 
-    field_order = [
-        ("patient_id", "0010,0020", "LO", "PatientID"),
-        ("patient_name", "0010,0010", "PN", "PatientName"),
-        ("study_uid", "0020,000d", "UI", "StudyInstanceUID"),
-        ("study_description", "0008,1030", "LO", "StudyDescription"),
-        ("study_date", "0008,0020", "DA", "StudyDate"),
-        ("accession_number", "0008,0050", "SH", "AccessionNumber"),
+    blocks = [
+        _findscu_lines([
+            ("0008,0052", "CS", "STUDY", "QueryRetrieveLevel"),
+            *_requested(keys, [
+                (tag, vr, _value(study.get(field)), keyword)
+                for field, tag, vr, keyword in STUDY_RESPONSE_FIELDS
+            ]),
+        ])
+        for study in study_matches
     ]
-
-    blocks = []
-    for study in study_matches:
-        lines = [_dcmtk_line("0008,0052", "CS", "STUDY", "QueryRetrieveLevel")]
-        lines += [
-            _dcmtk_line(tag, vr, study[field], keyword)
-            for field, tag, vr, keyword in field_order
-            if field in study
-        ]
-        blocks.append("".join(lines))
 
     stdout = "".join(f"I: # Dicom-Data-Set\n{block}" for block in blocks)
     stdout += f"I: Number of Matches: {len(study_matches)}"
 
     return ExecResult(stdout=stdout)
+
+
+WORKLIST_TOP_RESPONSE_FIELDS = [
+    ("patient_id", "0010,0020", "LO", "PatientID"),
+    ("patient_name", "0010,0010", "PN", "PatientName"),
+    ("accession_number", "0008,0050", "SH", "AccessionNumber"),
+]
+
+WORKLIST_SPS_RESPONSE_FIELDS = [
+    ("scheduled_station_ae_title", "0040,0001", "AE", "ScheduledStationAETitle"),
+    ("scheduled_procedure_step_start_date", "0040,0002", "DA", "ScheduledProcedureStepStartDate"),
+    ("modality", "0008,0060", "CS", "Modality"),
+]
 
 
 def _exec_findscu_against_worklist(
@@ -641,32 +758,35 @@ def _exec_findscu_against_worklist(
     """C-FIND gegen die Modality Worklist (P10, Feature 6) -- dasselbe reale
     Wildcard-Matching wie bei STUDY/SERIES (`app/find.py`), nur gegen
     geplante Verfahren statt vorhandener Studies.
-    """
-    matches = find.find_worklist(entries, keys)
 
-    field_order = [
-        ("patient_id", "0010,0020", "LO", "PatientID"),
-        ("patient_name", "0010,0010", "PN", "PatientName"),
-        ("accession_number", "0008,0050", "SH", "AccessionNumber"),
-        (
-            "scheduled_station_ae_title", "0040,0001", "AE",
-            "ScheduledStationAETitle",
-        ),
-        (
-            "scheduled_procedure_step_start_date", "0040,0002", "DA",
-            "ScheduledProcedureStepStartDate",
-        ),
-        ("modality", "0008,0060", "CS", "Modality"),
-    ]
+    Station, Termin und Modalitaet stehen im Item der Scheduled Procedure
+    Step Sequence (0040,0100) (PS3.4 Tabelle K.6-1) und kommen dort zurueck.
+    Angefragt werden sie wie bei DCMTK ueber einen Pfad, etwa
+    `-k ScheduledProcedureStepSequence[0].ScheduledStationAETitle=CT01`.
+    """
+    top_keys, sps_keys, sps_all = find.split_worklist_keys(keys)
+    matches = find.find_worklist(entries, keys)
 
     blocks = []
     for entry in matches:
-        lines = [
-            _dcmtk_line(tag, vr, entry[field], keyword)
-            for field, tag, vr, keyword in field_order
-            if field in entry
+        block = _findscu_lines(_requested(top_keys, [
+            (tag, vr, _value(entry.get(field)), keyword)
+            for field, tag, vr, keyword in WORKLIST_TOP_RESPONSE_FIELDS
+        ]))
+
+        sps = [
+            (tag, vr, _value(entry.get(field)), keyword)
+            for field, tag, vr, keyword in WORKLIST_SPS_RESPONSE_FIELDS
+            if sps_all or keyword in sps_keys
         ]
-        blocks.append("".join(lines))
+
+        if sps:
+            sequence = dump.sequence_lines(
+                "0040,0100", "ScheduledProcedureStepSequence", [sps],
+            )
+            block += "".join(f"I: {line}\n" for line in sequence)
+
+        blocks.append(block)
 
     stdout = "".join(f"I: # Dicom-Data-Set\n{block}" for block in blocks)
     stdout += f"I: Number of Matches: {len(matches)}"
