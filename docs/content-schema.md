@@ -538,8 +538,8 @@ verhalten sich unverändert. Details und Begründung: ADR 0020.
 Modality Worklist ist ein eigenes Query/Retrieve Information Model
 (PS3.4 Annex K, SOP Class Modality Worklist Information Model - FIND,
 real: `1.2.840.10008.5.1.4.31`) — kein `QueryRetrieveLevel` wie
-STUDY/SERIES (Abschnitt 6a), sondern eine flache Liste geplanter
-Verfahren (Scheduled Procedure Steps). Ein Archiv-Host trägt dafür
+STUDY/SERIES (Abschnitt 6a), sondern eine Liste geplanter Verfahren
+(Scheduled Procedure Steps, PS3.4 K.6.1.1). Ein Archiv-Host trägt dafür
 `worklist` statt `records`:
 
 ```yaml
@@ -566,9 +566,17 @@ ist dabei technisch immer eine **gültige** Antwort, kein Fehler — genau
 das macht das typische Fehlerbild "Worklist leer" aus: ein plausibler,
 aber falscher Query-Key (häufig `ScheduledStationAETitle`, real
 Tag `(0040,0001)`) liefert `Number of Matches: 0`, ohne dass irgendwas
-technisch schiefgeht. Die vereinfacht flachen Felder stehen real in der
-Scheduled Procedure Step Sequence `(0040,0100)` — dieselbe Vereinfachung
-wie bei STUDY/SERIES (Abschnitt 6a), keine echte Sequenz-Verschachtelung.
+technisch schiefgeht. Ein `worklist`-Eintrag in `node.yml` trägt alle
+Felder flach; die Engine ordnet sie wie der Standard zu: `patient_id`,
+`patient_name` und `accession_number` auf oberster Ebene, Station, Termin
+und Modalität im Item der Scheduled Procedure Step Sequence `(0040,0100)`
+(PS3.4 Tabelle K.6-1). Angefragt werden diese wie bei DCMTK und pynetdicom
+über einen Pfad (`-k ScheduledProcedureStepSequence[0].ScheduledStationAETitle=CT01`,
+auch mit Tags `(0040,0100)[0].(0040,0001)`) oder mit der leeren Sequenz
+(`-k ScheduledProcedureStepSequence`, dann kommt das ganze Item zurück).
+Flach angegebene SPS-Keys (`-k ScheduledStationAETitle=CT01`) nimmt die
+Engine weiter als SPS-Keys an, damit bestehende Lösungswege gültig bleiben;
+die Antwort zeigt die Werte trotzdem in der Sequenz (Abschnitt 6n).
 Nodes ohne `worklist` verhalten sich unverändert; `-S`/`-P` fragen
 weiterhin ausschließlich `records` ab, nie `worklist`. Details und
 Begründung: ADR 0021.
@@ -615,9 +623,9 @@ Tag-Reihenfolge ausgegeben (siehe `DCMDUMP_FIELD_ORDER` in
 `services/engine/app/rules.py`). Für Nodes, in denen ein gesuchter Wert
 per Tag-**Name**, nicht per Tag-**Nummer**, gefunden werden soll (kein
 Query-Key vorgegeben), reicht ein voller `dcmdump <datei>` — der
-Lernende sucht den Wert im vollständigen Dump, statt ihn per `+P
-<Tag>` gezielt anzufragen (diese Simulation kennt `+P` nicht). Details
-und Begründung: ADR 0023.
+Lernende sucht den Wert im vollständigen Dump. `+P <Tag|Keyword>` und
+`-Un` kennt die Simulation inzwischen auch (Abschnitt 6n). Details und
+Begründung: ADR 0023.
 
 ### 6i. `dcmdump`-Hierarchiefelder (ab P10)
 
@@ -971,6 +979,37 @@ Ein unbekanntes Objekt ist ein Fehler (`pacs: unknown object "..."`, exit
 1) — ein bekanntes Objekt ganz ohne Jobs/Events ist dagegen ein valides,
 diagnostisch anderes Ergebnis (leere Liste, exit 0). Die ungefilterte Form
 bleibt unverändert bestehen, kein Breaking Change.
+
+### 6n. Ausgabeformat und C-FIND-Antworten wie bei DCMTK
+
+Die simulierte Engine gibt `dcmdump`- und `findscu`-Zeilen im Format von
+DCMTK 3.6.7 aus, gegen das Toolbox-Image der Spielwiese abgeglichen
+(`services/engine/app/dump.py`, Goldzeilen in `tests/test_dump_format.py`):
+
+```
+(0008,0060) CS [CT]                                     #   2, 1 Modality
+(0020,000d) UI [1.2.276.0.7230010.3.1.4.541902387012]   #  36, 1 StudyInstanceUID
+(0008,0016) UI =CTImageStorage                          #  26, 1 SOPClassUID
+(0010,0010) PN (no value available)                     #   0, 0 PatientName
+```
+
+- Kleine Hex-Ziffern im Tag, echte Länge (auf eine gerade Zahl aufgefüllt),
+  `(no value available)` für leere Werte.
+- Bekannte UIDs erscheinen wie bei DCMTK als Name; `dcmdump -Un` zeigt die
+  Nummer. Ein Flag, das eine UID-Nummer ist, braucht im Write-up deshalb
+  `-Un`.
+- `dcmdump` ohne `+P` druckt die Kopfzeilen der Datei (`# Dicom-File-Format`,
+  `# Used TransferSyntax: …`), mit `+P` nur die angefragten Elemente in der
+  Reihenfolge der Optionen. `findscu`-Zeilen tragen `I: ` davor.
+
+C-FIND-Antworten folgen PS3.4 C.4.1.1.3.2: Sie enthalten nur die angefragten
+Keys, dazu `QueryRetrieveLevel` und auf STUDY-/SERIES-Ebene den
+`RetrieveAETitle` (0008,0054) des Archivs, den der Standard dort verlangt,
+in Tag-Reihenfolge. Ein angefragter Key
+ohne Wert kommt mit Länge null zurück, nicht unterstützte Keys fallen weg
+(C.2.2.1.3). Auf STUDY-Ebene passt ein Record ohne `study_uid` nie — jeder
+Treffer ist dort eine Study. Hints und Write-ups dürfen sich deshalb nur auf
+Werte stützen, die der gezeigte Befehl auch anfragt.
 
 ## 7. Node — `de.md`
 

@@ -2,7 +2,7 @@
 DICOM-Format ist -- die reale erste Frage vor jedem `dcmdump` (Lektion 1.1).
 """
 
-from app import rules
+from app import dump, rules
 from app.content import NodeDefinition
 
 NODE = NodeDefinition(
@@ -49,8 +49,10 @@ def test_dcmdump_shows_modality_and_study_description() -> None:
 
     result = rules.exec_command(NODE, state, "workstation", "dcmdump datei-ohne-namen")
 
-    assert "(0008,0060) CS [US]  # xx, 1 Modality" in result.stdout
-    assert "(0008,1030) LO [Abdomen komplett]  # xx, 1 StudyDescription" in result.stdout
+    assert dump.element_line("0008,0060", "CS", "US", "Modality") in result.stdout
+    assert dump.element_line(
+        "0008,1030", "LO", "Abdomen komplett", "StudyDescription",
+    ) in result.stdout
 
 
 def test_dcmftest_is_not_gated_behind_node_tools_declaration() -> None:

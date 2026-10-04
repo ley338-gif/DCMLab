@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from app import content, rules
+from app import dump as dcmtk
 
 REAL_CONTENT = Path(__file__).parent.parent.parent.parent / "content"
 
@@ -86,7 +87,7 @@ def test_c_find_mismatch_is_solvable_from_the_real_content() -> None:
         "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=MEYER* "
         "-k PatientName -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.50.0.10 104",
     )
-    assert "I: (0010,0020) LO [MEYER, HANS]  # xx, 1 PatientID" in found.stdout
+    assert "I: " + dcmtk.element_line("0010,0020", "LO", "MEYER, HANS", "PatientID") in found.stdout
     assert "I: Number of Matches: 1" in found.stdout
 
 
@@ -123,8 +124,11 @@ def test_teiltransfer_is_solvable_from_the_real_content() -> None:
     node = content.load_node("teiltransfer")
     state = rules.initial_state(node)
 
+    # Wie echtes dcmdump: bekannte UIDs als Name, mit -Un als Nummer (das Flag).
     dump = rules.exec_command(node, state, "workstation", "dcmdump screenshot.dcm")
-    assert "1.2.840.10008.5.1.4.1.1.7" in dump.stdout
+    assert "(0008,0016) UI =SecondaryCaptureImageStorage" in dump.stdout
+    as_number = rules.exec_command(node, state, "workstation", "dcmdump -Un screenshot.dcm")
+    assert "1.2.840.10008.5.1.4.1.1.7" in as_number.stdout
 
     ct_1 = rules.exec_command(
         node, state, "workstation",
@@ -206,17 +210,20 @@ def test_patient_merge_discovery_is_solvable_from_the_real_content() -> None:
         "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=00123 "
         "-aet DCMLAB-WS -aec KLINIK-ARCHIV 10.80.0.10 104",
     )
-    assert "StudyInstanceUID" not in from_referral.stdout
-    assert "I: Number of Matches: 1" in from_referral.stdout
+    # PS3.4 C.4.1.1.3.2: auf STUDY-Ebene ist jeder Treffer eine Study -- die
+    # Registrierung 00123 ohne Untersuchung liefert dort keinen Treffer.
+    assert from_referral.stdout == "I: Number of Matches: 0"
 
     by_name = rules.exec_command(
         node, state, "workstation",
         "findscu -S -k QueryRetrieveLevel=STUDY -k PatientName=WEBER* -k PatientID "
         "-k StudyInstanceUID -k StudyDescription -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.80.0.10 104",
     )
-    assert "I: Number of Matches: 2" in by_name.stdout
-    assert "I: (0010,0020) LO [000123]  # xx, 1 PatientID" in by_name.stdout
-    assert "I: (0008,1030) LO [CT Abdomen nativ]  # xx, 1 StudyDescription" in by_name.stdout
+    assert "I: Number of Matches: 1" in by_name.stdout
+    assert "I: " + dcmtk.element_line("0010,0020", "LO", "000123", "PatientID") in by_name.stdout
+    assert "I: " + dcmtk.element_line(
+        "0008,1030", "LO", "CT Abdomen nativ", "StudyDescription",
+    ) in by_name.stdout
 
     assert rules.check_flag(node, state, "000123") is True
     assert rules.check_flag(node, state, "00123") is False
@@ -300,7 +307,10 @@ def test_worklist_query_empty_is_solvable_from_the_real_content() -> None:
         "-aet CT-5 -aec RIS-BROKER 10.70.0.10 104",
     )
     assert "I: Number of Matches: 5" in unfiltered.stdout
-    assert "I: (0040,0001) AE [CT5-RAUM3]  # xx, 1 ScheduledStationAETitle" in unfiltered.stdout
+    # Die Station steht im Item der Scheduled Procedure Step Sequence.
+    assert "I:     " + dcmtk.element_line(
+        "0040,0001", "AE", "CT5-RAUM3", "ScheduledStationAETitle",
+    ) in unfiltered.stdout
 
     fixed = rules.exec_command(
         node, state, "workstation",
@@ -356,13 +366,15 @@ def test_halbe_sache_is_solvable_from_the_real_content() -> None:
     assert "abstract-syntax-not-supported" in dosisbericht.stderr
 
     dump_bild_1 = rules.exec_command(node, state, "workstation", "dcmdump bild-1.dcm")
-    assert "1.2.840.10008.1.2.4.70" in dump_bild_1.stdout
+    assert "=JPEGLossless:Non-hierarchical-1stOrderPrediction" in dump_bild_1.stdout
+    bild_1_as_number = rules.exec_command(node, state, "workstation", "dcmdump -Un bild-1.dcm")
+    assert "1.2.840.10008.1.2.4.70" in bild_1_as_number.stdout
 
     dump_dosisbericht = rules.exec_command(
         node, state, "workstation", "dcmdump dosisbericht.dcm",
     )
-    assert "1.2.840.10008.1.2.1" in dump_dosisbericht.stdout
-    assert "1.2.840.10008.5.1.4.1.1.88.67" in dump_dosisbericht.stdout
+    assert "(0002,0010) UI =LittleEndianExplicit" in dump_dosisbericht.stdout
+    assert "(0008,0016) UI =XRayRadiationDoseSRStorage" in dump_dosisbericht.stdout
 
     assert state["bestand"]["archive"] == {"studies": 1, "series": 1, "instances": 3}
     assert rules.check_flag(node, state, "dosisbericht.dcm") is True
@@ -379,8 +391,10 @@ def test_first_contact_is_solvable_from_the_real_content() -> None:
     assert format_check.stdout == "yes: datei-ohne-namen"
 
     dump = rules.exec_command(node, state, "workstation", "dcmdump datei-ohne-namen")
-    assert "(0008,0060) CS [US]  # xx, 1 Modality" in dump.stdout
-    assert "(0008,1030) LO [Abdomen komplett]  # xx, 1 StudyDescription" in dump.stdout
+    assert dcmtk.element_line("0008,0060", "CS", "US", "Modality") in dump.stdout
+    assert dcmtk.element_line(
+        "0008,1030", "LO", "Abdomen komplett", "StudyDescription",
+    ) in dump.stdout
 
     assert rules.check_flag(node, state, "Abdomen komplett") is True
 
@@ -393,9 +407,9 @@ def test_wo_steht_das_is_solvable_from_the_real_content() -> None:
     state = rules.initial_state(node)
 
     dump = rules.exec_command(node, state, "workstation", "dcmdump schicht-0001.dcm")
-    assert "(0008,0022) DA [20260910]  # xx, 1 AcquisitionDate" in dump.stdout
-    assert "(0018,0050) DS [3.0]  # xx, 1 SliceThickness" in dump.stdout
-    assert "(0018,1210) SH [B60f]  # xx, 1 ConvolutionKernel" in dump.stdout
+    assert dcmtk.element_line("0008,0022", "DA", "20260910", "AcquisitionDate") in dump.stdout
+    assert dcmtk.element_line("0018,0050", "DS", "3.0", "SliceThickness") in dump.stdout
+    assert dcmtk.element_line("0018,1210", "SH", "B60f", "ConvolutionKernel") in dump.stdout
 
     assert rules.check_flag(node, state, "B60f") is True
 
@@ -891,3 +905,46 @@ def test_zweiter_hop_is_solvable_from_the_real_content() -> None:
         EXPLICIT_VR_LITTLE_ENDIAN,
     ):
         assert rules.check_flag(node, state, plausible_wrong_value) is False
+
+
+def test_c_find_returns_only_requested_attributes_from_the_real_content() -> None:
+    """PS3.4 C.4.1.1.3.2: "The C-FIND response shall not contain Attributes that
+    were not in the request" -- zwillinge fragt nur AccessionNumber und
+    StudyInstanceUID an; Name, Datum und Beschreibung kommen nicht mit."""
+
+    node = content.load_node("zwillinge")
+    state = rules.initial_state(node)
+
+    by_accession = rules.exec_command(
+        node, state, "workstation",
+        "findscu -S -k QueryRetrieveLevel=STUDY -k AccessionNumber=R2026-08812 "
+        "-k StudyInstanceUID -aet DCMLAB-WS -aec KLINIK-ARCHIV 10.90.0.10 104",
+    )
+
+    for not_requested in ("PatientName", "PatientID", "StudyDate", "StudyDescription"):
+        assert not_requested not in by_accession.stdout
+    # Dazu kommt der Retrieve AE Title, den C.4.1.1.3.2 in jeder Antwort verlangt.
+    assert by_accession.stdout.splitlines()[1:5] == [
+        "I: " + dcmtk.element_line("0008,0050", "SH", "R2026-08812", "AccessionNumber"),
+        "I: " + dcmtk.element_line("0008,0052", "CS", "STUDY", "QueryRetrieveLevel"),
+        "I: " + dcmtk.element_line("0008,0054", "AE", "KLINIK-ARCHIV", "RetrieveAETitle"),
+        "I: " + dcmtk.element_line(
+            "0020,000d", "UI", "1.2.276.0.7230010.3.1.4.541902387012", "StudyInstanceUID",
+        ),
+    ]
+
+
+def test_c_find_returns_a_requested_key_without_value_with_zero_length() -> None:
+    """PS3.4 C.4.1.1.3.2, Note 2: ein angefragter Key ohne Wert im Archiv kommt
+    mit Laenge null zurueck, statt wegzufallen."""
+
+    node = content.load_node("patient-merge-discovery")
+    state = rules.initial_state(node)
+
+    result = rules.exec_command(
+        node, state, "workstation",
+        "findscu -S -k QueryRetrieveLevel=STUDY -k PatientID=000123 -k AccessionNumber "
+        "-aet DCMLAB-WS -aec KLINIK-ARCHIV 10.80.0.10 104",
+    )
+
+    assert "I: " + dcmtk.element_line("0008,0050", "SH", None, "AccessionNumber") in result.stdout

@@ -46,9 +46,12 @@ def test_dcmdump_shows_the_real_transfer_syntax_uid() -> None:
     result = rules.exec_command(NODE, state, "workstation", "dcmdump komprimiert.dcm")
 
     assert result.exit_code == 0
-    assert "(0002,0010)" in result.stdout
-    assert JPEG_BASELINE in result.stdout
+    assert "(0002,0010) UI =JPEGBaseline" in result.stdout
+    assert "# Used TransferSyntax: JPEG Baseline" in result.stdout
     assert "TransferSyntaxUID" in result.stdout
+
+    as_number = rules.exec_command(NODE, state, "workstation", "dcmdump -Un komprimiert.dcm")
+    assert f"(0002,0010) UI [{JPEG_BASELINE}]" in as_number.stdout
 
 
 def test_dcmdump_with_both_transfer_syntax_and_sop_class_shows_both() -> None:

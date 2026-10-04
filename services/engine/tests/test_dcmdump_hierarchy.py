@@ -4,7 +4,7 @@ ein Ordner mit mehreren Objekten per Zaehlschleife je Ebene ausgewertet
 werden soll (Lektion 1.2).
 """
 
-from app import rules
+from app import dump, rules
 from app.content import NodeDefinition
 
 NODE = NodeDefinition(
@@ -35,8 +35,10 @@ def test_dcmdump_shows_patient_study_series_in_ascending_tag_order() -> None:
 
     result = rules.exec_command(NODE, state, "workstation", "dcmdump bild-01.dcm")
 
-    assert result.stdout == (
-        "I: (0010,0020) LO [4711]  # xx, 1 PatientID\n"
-        "I: (0020,000D) UI [1.2.276.0.7230010.3.1.4.1]  # xx, 1 StudyInstanceUID\n"
-        "I: (0020,000E) UI [1.2.276.0.7230010.3.1.3.1]  # xx, 1 SeriesInstanceUID\n"
-    )
+    elements = [line for line in result.stdout.splitlines() if line.startswith("(")]
+
+    assert elements == [
+        dump.element_line("0010,0020", "LO", "4711", "PatientID"),
+        dump.element_line("0020,000d", "UI", "1.2.276.0.7230010.3.1.4.1", "StudyInstanceUID"),
+        dump.element_line("0020,000e", "UI", "1.2.276.0.7230010.3.1.3.1", "SeriesInstanceUID"),
+    ]

@@ -21,8 +21,8 @@ def test_question_mark_matches_exactly_one_character() -> None:
 
 def test_find_studies_matches_on_patient_id() -> None:
     records = [
-        {"patient_id": "MEYER, HANS", "study_description": "MR Kopf"},
-        {"patient_id": "SCHMIDT, ANNA", "study_description": "CT Thorax"},
+        {"patient_id": "MEYER, HANS", "study_description": "MR Kopf", "study_uid": "1.2.1"},
+        {"patient_id": "SCHMIDT, ANNA", "study_description": "CT Thorax", "study_uid": "1.2.2"},
     ]
 
     assert find_studies(records, {"PatientID": "MEYER, HANS"}) == [records[0]]
@@ -32,13 +32,13 @@ def test_find_studies_matches_on_patient_id() -> None:
 
 
 def test_find_studies_ignores_keys_without_a_value() -> None:
-    records = [{"patient_id": "MEYER, HANS"}]
+    records = [{"patient_id": "MEYER, HANS", "study_uid": "1.2.1"}]
 
     assert find_studies(records, {"PatientID": "MEYER, HANS", "StudyDate": None}) == records
 
 
 def test_find_studies_ignores_unknown_keys() -> None:
-    records = [{"patient_id": "MEYER, HANS"}]
+    records = [{"patient_id": "MEYER, HANS", "study_uid": "1.2.1"}]
 
     assert find_studies(records, {"PatientID": "MEYER, HANS", "UnbekannterKey": "x"}) == records
 
@@ -58,6 +58,15 @@ def test_find_studies_disambiguates_look_alike_studies_by_accession_number() -> 
 
     assert find_studies(records, {"PatientID": "4711"}) == records
     assert find_studies(records, {"AccessionNumber": "R2026-08812"}) == [newer]
+
+
+def test_find_studies_never_matches_a_record_without_a_study() -> None:
+    """Auf STUDY-Ebene ist jeder Treffer eine Study (PS3.4 C.4.1.1.3.2): eine
+    angelegte Registrierung ohne Untersuchung liefert dort keinen Treffer."""
+    records = [{"patient_id": "00123"}, {"patient_id": "000123", "study_uid": "1.2.3"}]
+
+    assert find_studies(records, {"PatientID": "00123"}) == []
+    assert find_studies(records, {"PatientID": "*123"}) == [records[1]]
 
 
 def test_find_series_requires_the_right_study_uid() -> None:

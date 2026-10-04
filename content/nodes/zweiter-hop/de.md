@@ -104,15 +104,15 @@ Route matcht `obj-002` unabhängig vom automatischen Lauf. Das schließt
 die Objektselektion endgültig als Ursache aus.
 
 ```
-$ dcmdump ct-enhanced.dcm
-...
-(0002,0010) UI [1.2.840.10008.1.2.1]  # xx, 1 TransferSyntaxUID
-(0008,0016) UI [1.2.840.10008.5.1.4.1.1.2.1]  # xx, 1 SOPClassUID
-(0008,0060) CS [CT]  # xx, 1 Modality
-...
+$ dcmdump -Un +P TransferSyntaxUID +P SOPClassUID +P Modality ct-enhanced.dcm
+(0002,0010) UI [1.2.840.10008.1.2.1]                    #  20, 1 TransferSyntaxUID
+(0008,0016) UI [1.2.840.10008.5.1.4.1.1.2.1]            #  28, 1 SOPClassUID
+(0008,0060) CS [CT]                                     #   2, 1 Modality
 ```
 
-**Was du daran abliest:** `obj-002` trägt die SOP Class UID
+**Was du daran abliest:** `-Un` zeigt die UIDs als Nummer; ohne die Option
+nennt `dcmdump` sie beim Namen (`=EnhancedCTImageStorage`). `+P` holt nur die
+drei Elemente heraus. `obj-002` trägt die SOP Class UID
 `1.2.840.10008.5.1.4.1.1.2.1` — Enhanced CT Image Storage, nicht
 klassisches CT Image Storage (`...1.1.2`), obwohl beide `Modality = CT`
 tragen. Die Transfer Syntax (`1.2.840.10008.1.2.1`, Explicit VR Little
