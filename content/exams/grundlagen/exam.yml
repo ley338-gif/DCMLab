@@ -1,0 +1,152 @@
+track: grundlagen
+title_key: exam.grundlagen.title
+pass_percent: 80
+draw: 8
+duration_minutes: 8
+shuffle: true
+
+# Antwortindizes 0-basiert (single/multi), siehe ADR 0066. Erste Pruefung
+# des Tracks (04.10.2026): Bis dahin hatte der veroeffentlichte Track keine,
+# das Achievement "track-grundlagen" (track_passed) war unerreichbar. Die
+# Fragen setzen die ueberarbeitete Lektion 6.1 voraus (Entwurf vom
+# 04.10.2026); die Anker gibt es in alter und neuer Fassung.
+# Richtig/Falsch bewusst ausgewogen (2 x richtig, 2 x falsch).
+
+questions:
+  - id: f01
+    type: single
+    answer: 1
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 1
+    tags: [security]
+
+  - id: f02
+    type: truefalse
+    answer: true
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 1
+    tags: [security]
+
+  - id: f03
+    type: truefalse
+    answer: false
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f04
+    type: single
+    answer: 2
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "im-alltag-heisst-das" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f05
+    type: multi
+    answer: [0, 2]
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f06
+    type: input
+    answer: "9"
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 1
+    tags: [security]
+
+  - id: f07
+    type: single
+    answer: 2
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f08
+    type: truefalse
+    answer: false
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "im-alltag-heisst-das" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f09
+    type: single
+    answer: 1
+    lesson: "cross"
+    review:
+      - { lesson: "6.1", anchor: "im-alltag-heisst-das" }
+      - { lesson: "6.1", anchor: "lab-anruf-am-empfang" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f10
+    type: multi
+    answer: [0, 1]
+    lesson: "cross"
+    review:
+      - { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+      - { lesson: "6.1", anchor: "im-alltag-heisst-das" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f11
+    type: truefalse
+    answer: true
+    lesson: "cross"
+    review:
+      - { lesson: "6.1", anchor: "ein-anruf-der-harmlos-klingt" }
+      - { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 1
+    tags: [security]
+
+  - id: f12
+    type: single
+    answer: 1
+    lesson: "cross"
+    review:
+      - { lesson: "6.1", anchor: "im-alltag-heisst-das" }
+      - { lesson: "6.1", anchor: "selbstcheck" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f13
+    type: single
+    answer: 1
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "im-alltag-heisst-das" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f14
+    type: multi
+    answer: [0, 1]
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 3
+    tags: [security]
+
+  - id: f15
+    type: multi
+    answer: [0, 1]
+    lesson: "cross"
+    review:
+      - { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+      - { lesson: "6.1", anchor: "im-alltag-heisst-das" }
+    difficulty: 2
+    tags: [security]
+
+  - id: f16
+    type: input
+    answer: "203"
+    lesson: "6.1"
+    review: { lesson: "6.1", anchor: "warum-klingt-plausibel-nicht-reicht" }
+    difficulty: 1
+    tags: [security]
