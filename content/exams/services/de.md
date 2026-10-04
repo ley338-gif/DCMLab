@@ -181,9 +181,9 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 1. Ein `N-SET` mit DISCONTINUED wird bei erfolgreicher Zustellung trotzdem mit Status 0x0 beantwortet
 2. MPPS bestätigt automatisch, dass die Bilddaten ebenfalls angekommen sind
 3. N-CREATE und N-SET dürfen über getrennte Associationen laufen
-4. Im Scheduled Workflow nimmt der PPS Manager — meist RIS oder Broker — die Meldung entgegen und leitet sie weiter, auch an das Archiv
+4. Im Scheduled Workflow nimmt der aktive PPS Manager — beim RIS oder beim PACS — die Meldung entgegen und leitet sie weiter, auch an das Archiv
 
-**Erklärung:** `DISCONTINUED` ist eine erfolgreich zugestellte Meldung wie jede andere; der Standard verlangt keine gemeinsame Association für Beginn und Ende; und im Scheduled Workflow verteilt der PPS Manager die Meldungen an RIS und Archiv (IHE RAD TF-1, Tabelle 34.1-1). MPPS bestätigt aber nichts über den Bildtransfer — das ist Aufgabe von C-STORE, ein unabhängiger Meldeweg.
+**Erklärung:** `DISCONTINUED` ist eine erfolgreich zugestellte Meldung wie jede andere; der Standard verlangt keine gemeinsame Association für Beginn und Ende; und im Scheduled Workflow verteilt der PPS Manager die Meldungen an RIS und Archiv (IHE RAD TF-1, Tabelle 34.1-1). RIS und PACS bringen beide einen PPS Manager mit; aktiv ist genau einer (RAD TF-1, Abschnitt 34.1.1.5). MPPS bestätigt aber nichts über den Bildtransfer — das ist Aufgabe von C-STORE, ein unabhängiger Meldeweg.
 
 ### f24 — Ein Bild ist im Archiv angekommen, aber keine MPPS-Meldung wurde je gesendet — daraus folgt, dass die Untersuchung nicht stattgefunden hat.
 
