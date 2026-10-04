@@ -18,7 +18,7 @@ instance:
 study:
   term: Study
   expansion: Study
-  short: Ein Untersuchungstermin, ein Auftrag. Die Ebene, auf der Menschen von "der Untersuchung" sprechen.
+  short: Eine Untersuchung — die Ebene, auf der Menschen von "der Untersuchung" sprechen. Ein Auftrag kann auch mehrere Studies umfassen.
   see_also: [series, study-instance-uid]
   lesson: "1.2"
 
@@ -32,7 +32,7 @@ series:
 patient-id:
   term: PatientID
   expansion: Patient ID (0010,0020)
-  short: Der Identifikator des Patienten. Der Name ist es nicht.
+  short: Der Identifikator des Patienten — eindeutig nur innerhalb der Stelle, die ihn vergeben hat. Der Name ist es nicht.
   see_also: [study]
   lesson: "1.2"
 
@@ -81,7 +81,7 @@ study-instance-uid:
 sop-instance-uid:
   term: SOP Instance UID
   expansion: SOP Instance UID (0008,0018)
-  short: Die Identität eines einzelnen Objekts. Zwei Objekte mit derselben UID sind dasselbe Objekt.
+  short: Die Identität eines einzelnen Objekts. Zwei Objekte mit derselben UID gelten als dasselbe Objekt — deshalb darf eine UID nie für ein anderes wiederverwendet werden.
   see_also: [uid, instance]
   lesson: "1.4"
 
@@ -109,7 +109,7 @@ scp:
 ae-title:
   term: AE Title
   expansion: Application Entity Title
-  short: Der Name, unter dem sich eine DICOM-Anwendung meldet. Höchstens 16 Zeichen, zeichengenau verglichen.
+  short: Der Name, unter dem sich eine DICOM-Anwendung meldet. Höchstens 16 Zeichen; wer ihn prüft, vergleicht zeichengenau, nur führende und folgende Leerzeichen zählen nicht.
   see_also: [called-ae-title, calling-ae-title]
   lesson: "1.5"
 
@@ -228,7 +228,7 @@ coercion:
 worklist:
   term: Modality Worklist
   expansion: Modality Worklist Information Model - FIND
-  short: Eigenes Informationsmodell für geplante Untersuchungen — kein Query-Retrieve-Level wie STUDY/SERIES, sondern eine flache Liste geplanter Schritte.
+  short: Eigenes Informationsmodell für geplante Untersuchungen — kein Query-Retrieve-Level wie STUDY/SERIES, sondern eine Liste geplanter Schritte (Scheduled Procedure Steps); Station, Modalität und Termin stehen dabei in einer Sequenz.
   see_also: [c-find, dimse]
   lesson: "2.5"
 
@@ -249,7 +249,7 @@ storage-commitment:
 dicomweb:
   term: DICOMweb
   expansion: DICOMweb (QIDO-RS, WADO-RS, STOW-RS)
-  short: Dieselben Grunddienste wie DIMSE, aber als HTTP-REST-API — JSON statt DIMSE-PDUs.
+  short: Vergleichbare Grunddienste wie DIMSE — Suchen, Abrufen, Speichern —, aber über HTTP statt DIMSE-PDUs; Suchergebnisse und Metadaten kommen als JSON oder XML, die Objekte selbst weiterhin als DICOM-Dateien.
   see_also: [dimse, c-find]
   lesson: "2.8"
 
@@ -368,7 +368,7 @@ atna:
 netzsegmentierung:
   term: Netzsegmentierung
   expansion: Netzwerksegmentierung (VLAN-Isolation)
-  short: Trennt Modalitäten/Archive in ein eigenes, von anderen Netzen abgeschottetes Segment — die verbreitetste Kompensation dafür, dass DICOM selbst kaum eingebaute Authentifizierung kennt.
+  short: Trennt Modalitäten/Archive in ein eigenes, von anderen Netzen abgeschottetes Segment — eine verbreitete Kompensation dafür, dass DICOM-Verbindungen oft ohne Authentifizierung laufen; TLS und User Identity Negotiation sieht der Standard vor, beide sind aber optional.
   see_also: [association]
   lesson: "5.6"
 
