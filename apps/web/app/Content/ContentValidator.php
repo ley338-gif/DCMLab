@@ -151,6 +151,7 @@ final class ContentValidator
         }
 
         $this->checkToolPurposes($toolsRaw, $tools);
+        $this->checkToolAnchors($toolsRaw, $tools, $lessons);
 
         foreach ($exams as $trackSlug => $exam) {
             $this->checkExamStructure($trackSlug, $exam, $lessons, $skills);
@@ -1936,6 +1937,43 @@ final class ContentValidator
                     LineFinder::firstLineContaining($raw, $slug.':'),
                     "purpose von \"{$slug}\" ist nicht einzeilig oder laenger als 90 Zeichen",
                 );
+            }
+        }
+    }
+
+    /**
+     * Jeder Werkzeugeintrag verlinkt in der Werkzeugleiste auf `lesson#anchor`.
+     * Ein Anker, der keine Ueberschrift der Lektion ist, laesst den Link oben
+     * auf der Seite landen -- so waren am 04.10.2026 acht Eintraege kaputt,
+     * unbemerkt, weil bisher nur Pruefungsanker geprueft wurden. Gleiche
+     * Slug-Regel wie bei `checkExamReview()`.
+     *
+     * @param  array<string, array<string, mixed>>  $tools
+     * @param  array<string, array<string, mixed>>  $lessons
+     */
+    private function checkToolAnchors(?string $raw, array $tools, array $lessons): void
+    {
+        foreach ($tools as $slug => $definition) {
+            $lessonId = (string) ($definition['lesson'] ?? '');
+            $anchor = (string) ($definition['anchor'] ?? '');
+
+            if ($lessonId === '' || $anchor === '') {
+                continue;
+            }
+
+            $line = $raw === null ? null : LineFinder::firstLineContaining($raw, $slug.':');
+            $lesson = $lessons[$lessonId] ?? null;
+
+            if ($lesson === null) {
+                $this->issue('tools/de.yml', $line, "Werkzeug \"{$slug}\": lesson \"{$lessonId}\" existiert nicht");
+
+                continue;
+            }
+
+            $slugs = HeadingSlug::uniqueSlugs(HeadingSlug::headingsIn((string) ($lesson['md_raw'] ?? '')));
+
+            if (! in_array($anchor, $slugs, true)) {
+                $this->issue('tools/de.yml', $line, "Werkzeug \"{$slug}\": anchor \"{$anchor}\" ist keine Ueberschrift in Lektion \"{$lessonId}\"");
             }
         }
     }

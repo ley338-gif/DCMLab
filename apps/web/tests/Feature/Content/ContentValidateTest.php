@@ -34,9 +34,13 @@ class ContentValidateTest extends TestCase
         $result = $this->validate(base_path('tests/Fixtures/content-real'));
 
         $relevantFiles = ['lessons/1.1/', 'lessons/1.5/', 'tools/de.yml', 'glossary/de.yml', 'datasets.yml', 'tracks.yml'];
+        // Die Fixture traegt nur drei Lektionen; Werkzeuge, die auf eine andere
+        // Lektion verweisen, sind hier kein Befund. Ihre Anker gegen 1.0/1.1/1.5
+        // werden weiterhin geprueft.
         $ownIssues = array_filter(
             explode("\n", $result['output']),
-            fn (string $line) => Str::contains($line, $relevantFiles),
+            fn (string $line) => Str::contains($line, $relevantFiles)
+                && ! (Str::contains($line, 'Werkzeug "') && Str::contains($line, 'existiert nicht')),
         );
 
         $this->assertSame([], array_values($ownIssues), $result['output']);
@@ -262,6 +266,33 @@ class ContentValidateTest extends TestCase
 
         $this->assertSame(1, $result['exitCode']);
         $this->assertStringContainsString('Datensatz "nicht-vorhanden" existiert nicht', $result['output']);
+    }
+
+    public function test_tool_anchor_that_is_no_heading_fails(): void
+    {
+        $dir = $this->buildContentDir([
+            'tools/de.yml' => str_replace('anchor: intro', 'anchor: gibt-es-nicht', $this->validTools()),
+        ]);
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString(
+            'Werkzeug "dcmdump": anchor "gibt-es-nicht" ist keine Ueberschrift in Lektion "1.0"',
+            $result['output'],
+        );
+    }
+
+    public function test_tool_with_unknown_lesson_fails(): void
+    {
+        $dir = $this->buildContentDir([
+            'tools/de.yml' => str_replace('lesson: "1.0"', 'lesson: "9.9"', $this->validTools()),
+        ]);
+
+        $result = $this->validate($dir);
+
+        $this->assertSame(1, $result['exitCode']);
+        $this->assertStringContainsString('Werkzeug "dcmdump": lesson "9.9" existiert nicht', $result['output']);
     }
 
     public function test_tool_purpose_too_long_fails(): void
@@ -792,7 +823,7 @@ class ContentValidateTest extends TestCase
           purpose: Kippt den Inhalt aus.
           example: "dcmdump datei.dcm"
           lesson: "1.0"
-          anchor: x
+          anchor: intro
           needs_sandbox: false
         YAML;
     }
