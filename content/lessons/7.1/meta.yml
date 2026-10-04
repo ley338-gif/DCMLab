@@ -1,7 +1,7 @@
 id: "7.1"
 track: hl7
 order: 1
-duration_minutes: 12
+duration_minutes: 14
 level: einsteiger
 objectives_count: 3
 requires: []
@@ -19,6 +19,12 @@ quiz:
   - id: q2
     type: multi
     answer: [0, 3]
+  - id: q3
+    type: single
+    answer: 2
+  - id: q4
+    type: input
+    answer: "TQ1"
 status: draft
 authors: ["draft-ai"]
-updated: "2026-09-18"
+updated: "2026-10-04"

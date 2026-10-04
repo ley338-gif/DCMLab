@@ -41,9 +41,10 @@ Die referenzierte `Endpoint`-Ressource sagt dir, an welche Basis-URL und
 ### h3
 
 Ein WADO-RS-Retrieve adressiert die Study Instance UID im **Pfad**, nicht
-als Query-Parameter wie QIDO-RS, und liefert für Study- oder Series-Ebene
-immer `multipart/related; type="application/dicom"` zurück — auch wenn
-die Studie nur eine Instanz enthält.
+als Query-Parameter wie QIDO-RS. DICOM-Objekte einer Study oder Series kommen
+als `multipart/related; type="application/dicom"` — ein nacktes
+`application/dicom` ist nur für eine einzelne Instanz vorgesehen (PS3.18,
+Abschnitt 10.4.4), auch wenn die Studie nur eine Instanz enthält.
 
 ## Write-up
 
@@ -68,7 +69,7 @@ Vier Kandidaten, drei davon mit je einem eigenen Fehler:
 ```text
 A) GET https://bildarchiv.example/dicomweb/studies/1.2.276.0.7230010.3.1.2.771205
    Accept: application/dicom
-   → falscher Accept-Header: ein Study-Retrieve liefert immer multipart/related
+   → falscher Accept-Header: application/dicom ohne multipart gilt nur für eine einzelne Instanz
 
 B) GET https://bildarchiv.example/dicomweb/studies/1.2.276.0.7230010.3.1.2.771205
    Accept: multipart/related; type="application/dicom"

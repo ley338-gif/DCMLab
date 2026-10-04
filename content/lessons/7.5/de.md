@@ -32,32 +32,32 @@ HL7-v2-Nachrichten werden häufig über TCP mit MLLP-Rahmung transportiert. MLLP
 
 ## Das ACK lesen
 
-Drei Application-Acknowledgement-Codes stehen in MSA-1:
+Im Original Acknowledgement Mode, dem Normalfall bei IHE, steht in MSA-1 einer von drei Codes (IHE ITI TF-2, Tabelle C.2.3.1-2):
 
 - `AA` — **Application Accept**: die antwortende Anwendung hat die Nachricht gemäß dem vereinbarten Interface-/ACK-Verhalten erfolgreich verarbeitet
-- `AE` — **Application Error**: bei der Verarbeitung trat ein Fehler auf
-- `AR` — **Application Reject**: die Nachricht wurde grundsätzlich abgelehnt
+- `AE` — **Application Error**: die Nachricht enthält Fehler; sie darf nicht unverändert erneut gesendet werden
+- `AR` — **Application Reject**: die Nachricht wurde abgelehnt; liegt das nicht an einem ungültigen Wert im MSH (etwa einem unbekannten Nachrichtentyp), darf der Sender sie später erneut schicken — zum Beispiel, wenn der Empfänger gerade nicht verarbeiten konnte
 
 > Im Enhanced-Mode-Acknowledgement gibt es zusätzlich Commit-ACKs wie `CA`/`CE`/`CR`, die die Übernahme in eine Warteschlange bestätigen, bevor die eigentliche fachliche Verarbeitung überhaupt läuft. Für den Einstieg reicht: Sie sind eine weitere, vorgelagerte Ebene — nicht dein Hauptlernziel hier.
 
 Ein vereinfachtes ACK:
 
 ```text
-MSH|^~\&|RIS|RAD|KIS|HAUS|20260916081600||ACK^O01|ACK7711|P|2.5
+MSH|^~\&|RIS|RAD|KIS|HAUS|20260916081600||ACK^O19^ACK|ACK7711|P|2.5.1
 MSA|AA|MSG4711
 ```
 
-**Was du daran abliest:** `AA` bestätigt, dass die antwortende Anwendung — hier das RIS — diese eine Nachricht gemäß dem vereinbarten Interface-/ACK-Verhalten erfolgreich verarbeitet hat. Das ist mehr als eine bloße Empfangsbestätigung. Es beweist aber noch nicht automatisch, dass nachgelagerte Systeme oder der gesamte klinische End-to-End-Workflow bereits den erwarteten Zustand erreicht haben.
+**Was du daran abliest:** Der Message Type `ACK^O19^ACK` nennt als Trigger den der beantworteten Nachricht (`O19` aus `OMG^O19`), die Struktur einer allgemeinen Quittung heißt immer `ACK` (HL7 v2.5.1, Abschnitt 2.14.1). `MSA-2` wiederholt die Message Control ID der Originalnachricht. `AA` bestätigt, dass die antwortende Anwendung — hier das RIS — diese eine Nachricht gemäß dem vereinbarten Interface-/ACK-Verhalten erfolgreich verarbeitet hat. Das ist mehr als eine bloße Empfangsbestätigung. Es beweist aber noch nicht automatisch, dass nachgelagerte Systeme oder der gesamte klinische End-to-End-Workflow bereits den erwarteten Zustand erreicht haben.
 
 Ein Fehlerfall:
 
 ```text
-MSH|^~\&|RIS|RAD|KIS|HAUS|20260916081602||ACK^O01|ACK7712|P|2.5
-MSA|AE|MSG4712|Unknown procedure code CTTHX2
-ERR|||OBR^4^1|103^Table value not found
+MSH|^~\&|RIS|RAD|KIS|HAUS|20260916081602||ACK^O19^ACK|ACK7712|P|2.5.1
+MSA|AE|MSG4712
+ERR||OBR^1^4^1^1|103^Table value not found^HL70357|E|||Unknown procedure code CTTHX2
 ```
 
-**Was du daran abliest:** In beiden Fällen kam ein ACK zurück. Erst `MSA` und gegebenenfalls `ERR` sagen dir, ob die Nachricht akzeptiert wurde.
+**Was du daran abliest:** In beiden Fällen kam ein ACK zurück. Erst `MSA` und gegebenenfalls `ERR` sagen dir, ob die Nachricht akzeptiert wurde. Das `ERR`-Segment zeigt hier die Stelle (`ERR-2`: Segment `OBR`, erstes Vorkommen, Feld 4 — der Untersuchungscode), den Fehlercode aus HL7-Tabelle 0357 (`ERR-3`: `103` = Table value not found), die Schwere (`ERR-4`: `E` = Error) und einen Klartext für die Fehlersuche (`ERR-7`). Ein Fehlertext direkt in `MSA-3` ist seit v2.4 veraltet (HL7 v2.5.1, Abschnitt 2.15.8.3); IHE sieht ihn nicht vor (IHE RAD TF-2, Abschnitte 2.4.4.3 und 2.4.4.4).
 
 ## Vier Ebenen, die du nicht verwechseln darfst
 
@@ -76,7 +76,7 @@ Im Fehler-ACK steht:
 
 <!-- kein-beispiel -->
 ```text
-MSA|AE|MSG4712|...
+MSA|AE|MSG4712
 ```
 
 `MSG4712` verweist auf die Control ID der ursprünglichen Nachricht.
@@ -123,6 +123,8 @@ Beispiel:
 
 **Was du daran abliest:** Der Timeout beweist nicht, dass die erste Nachricht nicht verarbeitet wurde. Ein System, das Wiederholungen nicht idempotent/duplikatsicher behandelt, kann denselben fachlichen Vorgang zweimal anlegen.
 
+Ob sich ein Wiederholen überhaupt lohnt, sagt der ACK-Code: Nach `AE` kommt ohne Korrektur derselbe Fehler zurück. Nach `AR` kann ein späterer Versuch gelingen — außer der Grund liegt im MSH, etwa ein Nachrichtentyp, den der Empfänger nicht kennt (IHE ITI TF-2, Abschnitt C.2.3).
+
 ## Im Alltag heißt das
 
 Bei jedem HL7-Fehler beantwortest du vier Fragen:
@@ -135,7 +137,7 @@ Bei jedem HL7-Fehler beantwortest du vier Fragen:
 ## Stolperfallen
 
 - **„ACK erhalten = alles gut.“** Falsch. ACK-Inhalt lesen.
-- **Error Queue blind reprocessen.** Erst Ursache beheben, dann gezielt wiederholen.
+- **Error Queue blind reprocessen.** Erst Ursache beheben, dann gezielt wiederholen — nach `AE` verlangt IHE das ausdrücklich.
 - **Timeout = Ziel hat nichts verarbeitet.** Nicht zwingend.
 - **Nur Senderlogs lesen.** Der Empfänger kann eine Nachricht annehmen und anschließend intern verwerfen.
 
@@ -164,3 +166,21 @@ Im Lab bewertest du eine Nachricht anhand ihres ACKs — und danach, was ein zwe
 2. MSA-1 = AA bedeutet einen Application Error
 3. Ein Timeout beweist nicht zwingend, dass die erste Nachricht nicht verarbeitet wurde
 4. Unkontrollierte Retries können denselben fachlichen Vorgang doppelt anlegen
+
+**q3 — Ein ACK enthält `MSA|AE|MSG4712` und `ERR||OBR^1^4^1^1|103^Table value not found^HL70357|E`. Was ist das Problem?**
+1. Die TCP-Verbindung ist abgebrochen
+2. Der Wert in OBR-4, der Untersuchungscode, ist dem Empfänger nicht bekannt
+3. Das PID-Segment fehlt
+4. Die Nachricht kam doppelt an
+
+**q4 — Welcher MSA-1-Code sagt im Original Mode: abgelehnt, ein späterer erneuter Versuch kann aber gelingen, wenn der Grund nicht im MSH liegt? Nur der Code.** *(Freitext)*
+
+**q5 — Nach `MSA|AE|…` wiederholt die Engine die unveränderte Nachricht dreimal automatisch. Was ist zu erwarten?**
+1. Spätestens der dritte Versuch geht durch
+2. Dreimal derselbe Fehler — nach `AE` hilft nur eine Korrektur
+3. Der Empfänger übernimmt die Nachricht beim zweiten Mal ohne Prüfung
+4. Die Wiederholungen bleiben folgenlos, weil der Empfänger sie verwirft
+
+---
+
+Normstellen geprüft am 04.10.2026: HL7 v2.5.1 Abschnitt 2.14.1 (ACK), HL7-Tabellen 0008 (Acknowledgment Code), 0357 (Message Error Condition) und 0516 (Error Severity); IHE RAD TF-2 Rev. 23.0, Abschnitte 2.4.4.3 (MSA) und 2.4.4.4 (ERR); IHE ITI TF-2, Abschnitt C.2.3 (Acknowledgement Modes).

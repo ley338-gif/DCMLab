@@ -53,7 +53,7 @@ Vereinfachtes FHIR-R5-Beispiel:
 
 ## Resource ID ist nicht Patient ID
 
-Das ist eine der wichtigsten Fallen.
+Diese beiden Werte auseinanderzuhalten, ist die Grundlage für alles Weitere in diesem Track.
 
 ```text
 FHIR URL:
@@ -158,3 +158,15 @@ Beim FHIR-Troubleshooting trennst du:
 2. Ein HTTP 200 auf eine FHIR-Anfrage beweist automatisch die fachliche Korrektheit der gelieferten Ressource
 3. FHIR ist nicht dasselbe wie „HL7 v2 in JSON"
 4. `system` + `value` eines Identifiers erfüllen dieselbe Disambiguierungsfunktion wie eine HL7-Assigning-Authority
+
+**q3 — In der Patient-Ressource oben: Welcher Wert ist die Patientennummer aus dem KIS?**
+1. `pat-4711`
+2. `4711` unter `identifier`
+3. `https://hospital.example/mrn`
+4. `Muster`
+
+**q4 — Welchen Media Type schickt ein Client im `Accept`-Header, wenn er eine FHIR-Ressource als JSON haben will? Nur der Typ.** *(Freitext)*
+
+---
+
+Normstellen geprüft am 04.10.2026: FHIR R5 (5.0.0) Ressourcen Patient und ServiceRequest (Pflichtfelder `status`, `intent`, `subject`), RESTful API und Media Type `application/fhir+json`.

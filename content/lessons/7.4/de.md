@@ -39,15 +39,18 @@ Stark gekürzt:
 
 <!-- kein-beispiel -->
 ```text
-MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||ORM^O01|MSG4711|P|2.5
+MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||OMG^O19^OMG_O19|MSG4711|P|2.5.1
 PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA
-ORC|NW|ORD93821^KIS|||||
-OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ|||20260916103000
+PV1|1|O|RAD^ANMELDUNG
+ORC|NW|ORD93821^KIS
+TQ1|1||||||20260916103000
+OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ
 ```
 
 Typisch betrachtet:
 
 - `ORC` beschreibt den Auftrag und seinen Status
+- `TQ1` trägt den gewünschten Zeitpunkt; in der v2.5.1-Variante gehört er dorthin und nicht mehr in `ORC-7` oder `OBR-27` (IHE RAD TF-2, Abschnitt 4.2.4.1.2.2.5)
 - `OBR` beschreibt die angeforderte diagnostische Leistung
 - lokale Profile ergänzen weitere Kennungen, Priorität, Zielbereich, Termin- oder Ressourceninformationen
 
@@ -58,14 +61,17 @@ Typisch betrachtet:
 Eine MWL-Antwort kann unter anderem enthalten:
 
 ```text
-(0010,0020) LO [4711]          PatientID
-(0008,0050) SH [A93821]        AccessionNumber
-(0032,1060) LO [CT Thorax]     RequestedProcedureDescription
-(0040,0001) AE [CT5-RAUM3]     ScheduledStationAETitle
-(0008,0060) CS [CT]            Modality
+(0010,0020) LO [4711]            PatientID
+(0008,0050) SH [A93821]          AccessionNumber
+(0032,1060) LO [CT Thorax]       RequestedProcedureDescription
+(0040,0100) SQ                   ScheduledProcedureStepSequence
+  > (0040,0001) AE [CT5-RAUM3]   ScheduledStationAETitle
+  > (0008,0060) CS [CT]          Modality
+  > (0040,0002) DA [20260916]    ScheduledProcedureStepStartDate
+  > (0040,0003) TM [103000]      ScheduledProcedureStepStartTime
 ```
 
-**Was du daran abliest:** Das Datenmodell ist ein anderes, aber dieselbe reale Untersuchung ist wiedererkennbar. Genau dafür sind stabile Auftrags- und Patientenidentifikatoren so wichtig.
+**Was du daran abliest:** Das Datenmodell ist ein anderes, aber dieselbe reale Untersuchung ist wiedererkennbar. Genau dafür sind stabile Auftrags- und Patientenidentifikatoren so wichtig. Station, Modalität und Termin stehen nicht auf oberster Ebene, sondern als Item der Scheduled Procedure Step Sequence (`>`, PS3.4 Tabelle K.6-1) — dort filtert eine Modalität, die nur ihre eigenen Termine abfragt.
 
 ## Die Brücke heißt Mapping
 
@@ -75,16 +81,17 @@ Beispiel:
 
 ```text
 HL7 / RIS                         DICOM MWL
--------------------------------------------------------------
-Patient Identifier        ───►    PatientID
-Accession / Order context ───►    AccessionNumber
-Procedure code            ───►    Requested Procedure
-Room / device scheduling  ───►    Scheduled Station AE Title
-Planned modality          ───►    Modality
-Date/time                 ───►    Scheduled Procedure Step
+-------------------------------------------------------------------------
+Patient Identifier (PID-3)  ───►  PatientID
+Placer Order Number (ORC-2) ───►  PlacerOrderNumberImagingServiceRequest
+Accession / Order context   ───►  AccessionNumber
+Procedure code              ───►  Requested Procedure
+Room / device scheduling    ───►  > ScheduledStationAETitle
+Planned modality            ───►  > Modality
+Scheduled date/time         ───►  > ScheduledProcedureStepStartDate/-Time
 ```
 
-**Was du daran abliest:** Ein Mappingfehler kann eine Worklist erzeugen, die technisch valide ist, aber fachlich die falsche Modalität, Station oder Untersuchung enthält.
+**Was du daran abliest:** Ein Mappingfehler kann eine Worklist erzeugen, die technisch valide ist, aber fachlich die falsche Modalität, Station oder Untersuchung enthält. Welche HL7-Felder auf welche DICOM-Attribute abgebildet werden, legt für IHE Scheduled Workflow RAD TF-2x Tabelle A.1-1 fest. Den Termin in der Worklist plant das RIS — bei IHE heißt dieser Akteur nicht umsonst Department System Scheduler/Order Filler —, er muss nicht dem Wunschtermin aus dem KIS entsprechen.
 
 ## Ein sauberer Troubleshooting-Pfad
 
@@ -152,3 +159,15 @@ Nach der Untersuchung ergänzt du die Study Instance UID. Damit kannst du densel
 2. Der Worklist-Broker muss Auftrags-/Termindaten in DICOM-MWL-Felder abbilden
 3. Eine technisch valide Worklist ist automatisch auch fachlich korrekt
 4. Ein Mappingfehler kann eine valide, aber fachlich falsche Worklist erzeugen
+
+**q3 — In der MWL-Antwort oben: Wo steht der AE Title der Station, für die die Untersuchung geplant ist?**
+1. Auf oberster Ebene neben `PatientID`
+2. Als Teil des Items der Scheduled Procedure Step Sequence `(0040,0100)`
+3. In der `AccessionNumber`
+4. In einem TQ1-Segment der Worklist-Antwort
+
+**q4 — Wie heißt das DICOM-Attribut (Keyword), das in der Worklist die Accession Number trägt?** *(Freitext)*
+
+---
+
+Normstellen geprüft am 04.10.2026: DICOM PS3.4 2026d Tabelle K.6-1 (Attribute der Modality Worklist); IHE RAD TF-2 Rev. 23.0, Abschnitt 4.2.4.1.2 (RAD-2, TQ1 in der v2.5.1-Variante); IHE RAD TF-2x Rev. 23.0, Tabelle A.1-1 (Zuordnung HL7/DICOM).

@@ -52,16 +52,17 @@ RIS ───────────────► Worklist-Broker
 Ein stark gekürztes Beispiel:
 
 ```text
-MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||ORM^O01|MSG0004711|P|2.5
+MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||OMG^O19^OMG_O19|MSG0004711|P|2.5.1
 PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA||19750314|F
 PV1|1|O|RAD^ANMELDUNG
-ORC|NW|ORD93821^KIS|||
-OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ|||20260916083000
+ORC|NW|ORD93821^KIS
+TQ1|1||||||20260916083000
+OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ
 ```
 
-**Was du daran abliest:** Du siehst keine DICOM-Tags und keine Study Instance UID. Stattdessen stehen dort Segmente wie `PID`, `ORC` und `OBR`. Der Auftrag existiert zu diesem Zeitpunkt fachlich, bevor überhaupt ein Bild erzeugt wurde.
+**Was du daran abliest:** Du siehst keine DICOM-Tags und keine Study Instance UID. Stattdessen stehen dort Segmente wie `PID` (Patient), `ORC` und `OBR` (Auftrag) und `TQ1` (geplanter Termin, hier 08:30 Uhr). Der Auftrag existiert zu diesem Zeitpunkt fachlich, bevor überhaupt ein Bild erzeugt wurde.
 
-> Das konkrete Nachrichtenprofil ist installationsabhängig. Nicht jedes Haus verwendet dieselbe HL7-Version, denselben Message Type oder dieselben Feldbelegungen. Für den Betrieb zählt immer die vereinbarte Schnittstellenspezifikation.
+> Das konkrete Nachrichtenprofil ist installationsabhängig. Nicht jedes Haus verwendet dieselbe HL7-Version, denselben Message Type oder dieselben Feldbelegungen. Schon IHE kennt für genau diesen Schritt — der Auftrag geht vom KIS an das RIS — zwei Varianten: `ORM^O01` nach HL7 v2.3.1 und `OMG^O19^OMG_O19` nach v2.5.1 (IHE RAD TF-2, Abschnitt 4.2.4.1.2). Die Beispiele in diesem Track folgen der v2.5.1-Variante. Für den Betrieb zählt immer die vereinbarte Schnittstellenspezifikation.
 
 ## Vier Ebenen, die du auseinanderhalten musst
 
@@ -134,3 +135,15 @@ Das ist der Unterschied zwischen **Protokoll-Troubleshooting** und **Workflow-Tr
 2. DICOM Worklist entsteht fachlich unabhängig von vorgelagerten KIS/RIS-Aufträgen
 3. Eine funktionierende DICOM-Verbindung beweist, dass der Auftrag im Worklist-System vorhanden ist
 4. Patient, Auftrag und Bildstudie tragen jeweils eigene, unterschiedliche Identifikatoren
+
+**q3 — Welche dieser Kennungen gibt es zum Zeitpunkt der Auftragsnachricht oben noch nicht?**
+1. Die Patient ID `4711`
+2. Die Auftragsnummer `ORD93821`
+3. Die Study Instance UID
+4. Die Message Control ID `MSG0004711`
+
+**q4 — Welches Segment trägt in der Auftragsnachricht oben den geplanten Termin? Nur das Kürzel.** *(Freitext)*
+
+---
+
+Normstellen geprüft am 04.10.2026: HL7 v2.5.1 Kapitel 2 (MSH) und 4 (OMG^O19, TQ1); IHE RAD TF-2 Rev. 23.0, Abschnitt 4.2.4.1.2 (RAD-2 in den Varianten HL7 v2.3.1 und v2.5.1).
