@@ -1,7 +1,7 @@
 id: "8.2"
 track: fhir-web
 order: 2
-duration_minutes: 20
+duration_minutes: 22
 level: fortgeschritten
 objectives_count: 3
 requires: ["8.1", "7.4", "7.6"]
@@ -19,6 +19,12 @@ quiz:
   - id: q2
     type: multi
     answer: [0, 2]
+  - id: q3
+    type: single
+    answer: 1
+  - id: q4
+    type: input
+    answer: "study"
 status: draft
 authors: ["draft-ai"]
-updated: "2026-09-19"
+updated: "2026-10-04"

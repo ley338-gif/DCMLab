@@ -15,7 +15,8 @@ scenario:
       prompt: >
         Die Interface Engine zeigt für MSG8821 den Status „ACK received“.
         Trotzdem wurde die Stammdatenänderung im RIS nicht übernommen.
-        Das ACK enthält: MSA|AE|MSG8821|Patient identifier domain unknown.
+        Das ACK enthält: MSA|AE|MSG8821 und
+        ERR||PID^1^3^1^4|103^Table value not found^HL70357|E|||Patient identifier domain unknown.
         Wie bewertest du den Vorgang?
       options:
         - id: success
@@ -37,9 +38,9 @@ scenario:
 
     reprocessed:
       prompt: >
-        Richtig erkannt: MSA-1 = AE signalisiert einen Application Error. Die
-        Identifier-Domäne wird korrigiert und dieselbe Nachricht MSG8821
-        gezielt erneut verarbeitet. Die Interface Engine erhält jetzt:
+        Richtig erkannt: MSA-1 = AE signalisiert einen Application Error. Im
+        RIS wird die bisher unbekannte Identifier-Domäne eingetragen; danach
+        wird dieselbe, unveränderte Nachricht MSG8821 gezielt erneut verarbeitet. Die Interface Engine erhält jetzt:
         MSA|AA|MSG8821. Was kannst du daraus jetzt sicher schließen?
       options:
         - id: accepted_verify
@@ -107,4 +108,4 @@ hints:
 
 stuck_timeout_minutes: 10
 status: draft
-updated: "2026-09-18"
+updated: "2026-10-04"

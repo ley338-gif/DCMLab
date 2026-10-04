@@ -11,11 +11,12 @@ objectives:
 
 <!-- kein-beispiel -->
 ```text
-MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||ORM^O01|MSG0004711|P|2.5
+MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||OMG^O19^OMG_O19|MSG0004711|P|2.5.1
 PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA||19750314|F
 PV1|1|O|RAD^ANMELDUNG
-ORC|NW|ORD93821^KIS|||
-OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ|||20260916083000
+ORC|NW|ORD93821^KIS
+TQ1|1||||||20260916083000
+OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ
 ```
 
 Auf den ersten Blick wirkt das wie eine CSV-Datei mit zu vielen Sonderzeichen. Tatsächlich ist die Struktur sehr regelmäßig.
@@ -28,6 +29,7 @@ Die ersten drei Zeichen sagen, welche Art Information folgt:
 - `PID` — Patient Identification
 - `PV1` — Patient Visit: Fall-/Aufenthaltskontext
 - `ORC` — Common Order: Status und Identität eines Auftrags
+- `TQ1` — Timing/Quantity: wann die Leistung stattfinden soll (in v2.5.1; ältere Nachrichten tragen den Termin in `ORC-7` und `OBR-27`)
 - `OBR` — Observation Request: angeforderte Untersuchung/Leistung
 - `OBX` — Observation/Result: Ergebnisdaten
 
@@ -35,7 +37,7 @@ Die ersten drei Zeichen sagen, welche Art Information folgt:
 
 ## `|`, `^`, `~`, `\`, `&`
 
-`MSH-1` definiert den Feldtrenner `|`. `MSH-2` enthält in unserem HL7-v2.5-Beispiel die vier Encoding Characters `^~\&`: Component, Repetition, Escape und Subcomponent.
+`MSH-1` definiert den Feldtrenner `|`. `MSH-2` enthält in unserem HL7-v2.5.1-Beispiel die vier Encoding Characters `^~\&`: Component, Repetition, Escape und Subcomponent.
 
 Insgesamt benutzt HL7 v2 damit fünf Trennzeichen:
 
@@ -47,7 +49,7 @@ Insgesamt benutzt HL7 v2 damit fünf Trennzeichen:
 
 Für den Einstieg brauchst du vor allem `|` und `^` sicher. `~` und `&` begegnen dir seltener, `\` fast nur beim Escaping von Sonderzeichen — wichtig ist zunächst, alle fünf wiederzuerkennen, nicht sie auswendig zu produzieren.
 
-> Neuere HL7-v2-Versionen können zusätzliche Encoding Characters definieren — für die hier gezeigten v2.5-Beispiele reicht dieses Bild.
+> Neuere HL7-v2-Versionen können zusätzliche Encoding Characters definieren — für die hier gezeigten v2.5.1-Beispiele reicht dieses Bild.
 
 Nimm diese Zeile:
 
@@ -86,7 +88,7 @@ Der Header trägt unter anderem die Kommunikationsbeziehung:
 
 <!-- kein-beispiel -->
 ```text
-MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||ORM^O01|MSG0004711|P|2.5
+MSH|^~\&|KIS|HAUS|RIS|RAD|20260916081500||OMG^O19^OMG_O19|MSG0004711|P|2.5.1
 ```
 
 Für die Administration interessieren dich zuerst:
@@ -96,12 +98,12 @@ Sending Application: KIS
 Sending Facility:    HAUS
 Receiving Application: RIS
 Receiving Facility:    RAD
-Message Type:          ORM^O01
+Message Type:          OMG^O19^OMG_O19
 Message Control ID:    MSG0004711
-Version:               2.5
+Version:               2.5.1
 ```
 
-**Was du daran abliest:** Die Message Control ID ist ein hervorragender Suchanker für Interface-Engine-Logs. Sie ist etwas anderes als Patient ID, Order Number oder Accession Number.
+**Was du daran abliest:** Der Message Type hat drei Teile: `OMG` (Nachrichtentyp), `O19` (Trigger: allgemeiner klinischer Auftrag) und `OMG_O19` (Nachrichtenstruktur). Seit v2.5 sind alle drei Pflicht (HL7 v2.5.1, Abschnitt 2.A.1.44); ältere Nachrichten zeigen oft nur zwei, etwa `ORM^O01`. Die Message Control ID ist ein guter Suchanker für Interface-Engine-Logs — eindeutig gedacht ist sie zusammen mit der sendenden Anwendung aus MSH-3 (IHE RAD TF-2, Abschnitt 2.4.4.2). Sie ist etwas anderes als Patient ID, Order Number oder Accession Number.
 
 ## Ein Feld ist nicht automatisch „die Wahrheit“
 
@@ -151,6 +153,7 @@ MSH → Wer spricht mit wem? Welcher Typ? Welche Control ID?
 PID → Welcher Patient und aus welcher Identifier-Domäne?
 PV1 → Welcher Fall/Aufenthalt?
 ORC → Was passiert mit dem Auftrag?
+TQ1 → Wann ist die Leistung geplant?
 OBR → Welche Untersuchung ist gemeint?
 OBX → Welches Ergebnis wird übertragen?
 ```
@@ -160,7 +163,7 @@ OBX → Welches Ergebnis wird übertragen?
 - **Feldnummern blind aus einer anderen Schnittstelle übernehmen.** HL7-Version und lokales Profil prüfen.
 - **Patientenname als Primärschlüssel behandeln.** Namen ändern sich, sind nicht eindeutig und können unterschiedlich geschrieben werden.
 - **Message Control ID mit Order Number verwechseln.** Die Control ID identifiziert die Nachricht, nicht die medizinische Leistung.
-- **Leere Felder ignorieren.** Ein leerer Wert kann fachlich entscheidend sein, etwa wenn ein lokales Mapping darauf angewiesen ist.
+- **Leere Felder falsch deuten.** Ein leeres Feld heißt in HL7 v2 „keine Angabe, bisherigen Wert nicht ändern"; erst `""` (zwei Anführungszeichen) heißt „Wert löschen" (IHE ITI TF-2, Abschnitt C.2.6). Und ein leerer Wert kann fachlich entscheidend sein, etwa wenn ein lokales Mapping darauf angewiesen ist.
 
 ## Selbstcheck
 
@@ -183,3 +186,21 @@ OBX → Welches Ergebnis wird übertragen?
 2. Die Message Control ID identifiziert dieselbe medizinische Leistung wie die Order Number
 3. `4711^^^KLINIK^MR` enthält zusätzlich zur ID eine Assigning-Authority-Angabe
 4. Zwei identische numerische Patient-IDs aus unterschiedlichen Assigning Authorities meinen nicht zwangsläufig denselben Patienten
+
+**q3 — In `PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA` — wofür steht `KLINIK`?**
+1. Für den Identifier Type
+2. Für die Assigning Authority, also die Domäne, die die ID `4711` vergeben hat
+3. Für den Nachnamen des Patienten
+4. Für die Sending Facility aus dem MSH
+
+**q4 — Die wievielte Komponente von PID-3 trägt die Assigning Authority? Nur die Zahl.** *(Freitext)*
+
+**q5 — Eine Änderungsnachricht kommt mit leerem PID-7 (Geburtsdatum). Was soll der Empfänger nach der HL7-Konvention mit dem gespeicherten Geburtsdatum tun?**
+1. Es löschen
+2. Es unverändert lassen — ein leeres Feld heißt „keine Angabe"
+3. Die Nachricht ablehnen
+4. Es durch das Datum der Nachricht ersetzen
+
+---
+
+Normstellen geprüft am 04.10.2026: HL7 v2.5.1 Abschnitte 2.15.9 (MSH) und 2.A.1.44 (MSG); IHE RAD TF-2 Rev. 23.0, Abschnitt 2.4.4.2 (MSH-9, MSH-10); IHE ITI TF-2, Abschnitt C.2.6 (leere Felder).

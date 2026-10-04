@@ -34,21 +34,24 @@ beteiligten Systemen.
 Das erste ACK lautet:
 
 ```text
-MSH|^~\&|RIS|RAD|KIS|HAUS|20260916090500||ACK^A08|ACK8821|P|2.5
-MSA|AE|MSG8821|Patient identifier domain unknown
-ERR|||PID^3^1|103^Table value not found
+MSH|^~\&|RIS|RAD|KIS|HAUS|20260916090500||ACK^A08^ACK|ACK8821|P|2.5.1
+MSA|AE|MSG8821
+ERR||PID^1^3^1^4|103^Table value not found^HL70357|E|||Patient identifier domain unknown
 ```
 
 **Was du daran abliest:** Die Nachricht erreichte das Ziel und das Ziel konnte
-antworten. `AE` meldet aber einen Application Error. Der Patient Identifier
-wurde wegen einer unbekannten Identifier-Domäne nicht verarbeitet.
+antworten. `AE` meldet aber einen Application Error. `ERR-2` zeigt auf PID-3,
+Komponente 4 — die Assigning Authority —, `ERR-7` nennt den Grund: Der
+Patient Identifier wurde wegen einer unbekannten Identifier-Domäne nicht
+verarbeitet.
 
 Die richtige Schlussfolgerung ist deshalb nicht „Netzwerkproblem“, sondern:
-Transport okay, fachliche Verarbeitung fehlerhaft. Die Identifier-Domäne wird
-korrigiert und **dieselbe Nachricht** MSG8821 gezielt erneut verarbeitet:
+Transport okay, fachliche Verarbeitung fehlerhaft. Im RIS wird die bisher
+unbekannte Identifier-Domäne eingetragen; danach wird **dieselbe,
+unveränderte Nachricht** MSG8821 gezielt erneut verarbeitet:
 
 ```text
-MSH|^~\&|RIS|RAD|KIS|HAUS|20260916091100||ACK^A08|ACK8834|P|2.5
+MSH|^~\&|RIS|RAD|KIS|HAUS|20260916091100||ACK^A08^ACK|ACK8834|P|2.5.1
 MSA|AA|MSG8821
 ```
 

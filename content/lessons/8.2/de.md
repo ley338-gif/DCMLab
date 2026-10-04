@@ -98,6 +98,7 @@ FHIR R5 kann einen DiagnosticReport mit dem Auftrag und der ImagingStudy verbind
   "resourceType": "DiagnosticReport",
   "id": "dr-93821",
   "status": "final",
+  "code": {"text": "CT Thorax nativ"},
   "subject": {"reference": "Patient/pat-4711"},
   "basedOn": [{"reference": "ServiceRequest/sr-93821"}],
   "study": [{"reference": "ImagingStudy/img-93821"}],
@@ -105,7 +106,7 @@ FHIR R5 kann einen DiagnosticReport mit dem Auftrag und der ImagingStudy verbind
 }
 ```
 
-**Was du daran abliest:** Auftrag, Studie und Befund bleiben getrennte Ressourcen und werden über References verbunden. In FHIR R5 heißt das verbindende Feld `study` (es kann auf `ImagingStudy` oder `GenomicStudy` verweisen) — in R4/R4B trug dasselbe Konzept noch den Namen `imagingStudy`. Für eine reale Schnittstelle zählt wie immer die tatsächlich eingesetzte FHIR-Version.
+**Was du daran abliest:** Auftrag, Studie und Befund bleiben getrennte Ressourcen und werden über References verbunden. Pflicht sind in einem DiagnosticReport nur `status` und `code` (die Art des Befunds); ohne `code` wäre die Ressource ungültig. `subject` ist dagegen optional — für einen Befund, der jemandem zugeordnet werden soll, fachlich trotzdem unverzichtbar. In FHIR R5 heißt das verbindende Feld `study` (es kann auf `ImagingStudy` oder `GenomicStudy` verweisen) — in R4/R4B trug dasselbe Konzept noch den Namen `imagingStudy`. Für eine reale Schnittstelle zählt wie immer die tatsächlich eingesetzte FHIR-Version.
 
 > Versionshinweis: Das Beispiel ist bewusst FHIR R5. Bei einer realen Schnittstelle prüfst du immer die tatsächlich eingesetzte FHIR-Version und das Implementation Guide/Profile, bevor du Feldnamen oder Kardinalitäten übernimmst.
 
@@ -161,3 +162,15 @@ Wenn ein FHIR-basierter Befund „keine Bilder“ findet, prüfst du:
 2. Die FHIR Resource ID einer ImagingStudy ist dasselbe wie die DICOM Study Instance UID
 3. DiagnosticReport kann per Reference auf ServiceRequest und ImagingStudy verweisen
 4. R5-Beispiele lassen sich ungeprüft auf R4/R4B übertragen
+
+**q3 — Im ImagingStudy-Beispiel oben: Wo steht die DICOM Study Instance UID?**
+1. In `id`
+2. In `identifier`, mit System `urn:dicom:uid` und dem Wert `urn:oid:…`
+3. In `endpoint`
+4. In `basedOn`
+
+**q4 — Wie heißt in FHIR R5 das Feld, mit dem ein DiagnosticReport auf die ImagingStudy verweist? Nur der Feldname.** *(Freitext)*
+
+---
+
+Normstellen geprüft am 04.10.2026: FHIR R5 (5.0.0) Ressourcen ServiceRequest, ImagingStudy, Endpoint und DiagnosticReport — Pflichtfelder und Kardinalitäten aus den StructureDefinitions (u. a. `DiagnosticReport.code` 1..1, `Endpoint.connectionType` 1..*).

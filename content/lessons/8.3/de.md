@@ -43,30 +43,36 @@ Accept: multipart/related; type="application/dicom"
 
 **Was du daran abliest:** Weder die Study Instance UID allein noch die Endpoint-Adresse allein reichen. Erst die Kombination ergibt eine gültige WADO-RS-Anfrage: Basis-URL aus `Endpoint.address`, Pfad aus der Study Instance UID, `Accept` passend zur gewünschten WADO-RS-Repräsentation. `connectionType` sagt dir nur, welcher Dienst am Endpoint hängt (hier WADO-RS) — der konkrete Media Type wird über `Accept` ausgehandelt und hängt von der gewünschten Repräsentation und den Serverfähigkeiten ab. Ein Retrieve auf Study- oder Series-Ebene liefert dabei laut PS3.18 immer eine `multipart/related`-Antwort — nicht ein einzelnes `application/dicom`-Objekt ohne Umschlag, selbst wenn die Studie nur eine Instanz enthält.
 
-Die vorhandene Orthanc-Spielwiese kann genau diese Anfrage bereits demonstrieren, jetzt gegen echte Testdaten statt der fiktiven Beispiel-IDs aus 8.2.
+Die vorhandene Orthanc-Spielwiese kann genau diese Anfrage demonstrieren, jetzt gegen echte Testdaten statt der fiktiven Beispiel-IDs aus 8.2. Ihr Archiv startet leer; spiel zuerst die Teststudie ein (Lektion 2.2):
+
+```
+$ storescu -aec ORTHANC 127.0.0.1 4242 daten/ct-thorax-60/
+[Exitcode 0]
+```
+
+**Was du daran abliest:** Keine Ausgabe, Exitcode `0` — ob alles angekommen ist, zeigt gleich die Suche.
 
 ### Suchen mit QIDO-RS
 
-```bash
-$ curl -s http://127.0.0.1:8042/dicom-web/studies
-[{
-  "00100010": { "vr": "PN", "Value": [{ "Alphabetic": "MUSTER^ERIKA" }] },
-  "00100020": { "vr": "LO", "Value": ["4711"] },
-  "0020000D": { "vr": "UI", "Value": ["1.2.826.0.1.3680043.8.498.25891700843541702377744771512561342346"] },
-  "00201208": { "vr": "IS", "Value": [3] }
-}]
+```
+$ curl -s "http://127.0.0.1:8042/dicom-web/studies?PatientID=4711" | tr -d "\n\t"
+[{"00080005" : {"Value" : ["ISO_IR 192"],"vr" : "CS"},"00080061" : {"Value" : ["CT"],"vr" : "CS"},"00081190" : {"Value" : ["http://127.0.0.1:8042/dicom-web/studies/1.2.826.0.1.3680043.8.498.59933747330626005048654467827321321057"],"vr" : "UR"},"00100010" : {"Value" : [{"Alphabetic" : "MUSTER^ERIKA"}],"vr" : "PN"},"00100020" : {"Value" : ["4711"],"vr" : "LO"},"0020000D" : {"Value" : ["1.2.826.0.1.3680043.8.498.59933747330626005048654467827321321057"],"vr" : "UI"},"00201206" : {"Value" : [2],"vr" : "IS"},"00201208" : {"Value" : [60],"vr" : "IS"}}]
+[Exitcode 0]
 ```
 
-**Was du daran abliest:** QIDO-RS liefert DICOM-Metadaten in einer Webrepräsentation — dieselben Tags wie bei DIMSE (`0020000D` ist die Study Instance UID), nur JSON-kodiert. Die Study Instance UID bleibt eine DICOM-Identität, keine FHIR Resource ID.
+**Was du daran abliest:** QIDO-RS liefert DICOM-Metadaten in einer Webrepräsentation — dieselben Tags wie bei DIMSE (`0020000D` ist die Study Instance UID, `00201208` die Zahl der Bilder: 60), nur JSON-kodiert (`tr` fasst Orthancs mehrzeilige Ausgabe nur zu einer Zeile zusammen). `00081190` nennt sogar gleich die URL, unter der die Studie per WADO-RS abrufbar ist — die Kombination aus Endpoint-Adresse und UID von oben. Die Study Instance UID bleibt eine DICOM-Identität, keine FHIR Resource ID; deine ist eine andere, die Testdaten bekommen bei jedem Aufbau neue UIDs.
 
 ### Abruf mit WADO-RS
 
-```bash
-$ curl -s -D - -o /dev/null \
-  -H 'Accept: multipart/related; type="application/dicom"' \
-  http://127.0.0.1:8042/dicom-web/studies/1.2.826.0.1.3680043.8.498.25891700843541702377744771512561342346
+Die UID kommt aus deiner eigenen QIDO-Antwort in eine Datei, der Abruf liest sie von dort:
+
+```
+$ curl -s "http://127.0.0.1:8042/dicom-web/studies?PatientID=4711" | grep -o '1\.2\.826[0-9.]*' | head -1 > studie.uid
+[Exitcode 0]
+$ curl -s -D - -o /dev/null -H 'Accept: multipart/related; type="application/dicom"' "http://127.0.0.1:8042/dicom-web/studies/$(cat studie.uid)" | grep -E "^HTTP|^Content-Type"
 HTTP/1.1 200 OK
-Content-Type: multipart/related; type="application/dicom"; boundary=9c27af7e-...
+Content-Type: multipart/related; type="application/dicom"; boundary=f75c3d1a-7d59-41ef-a75b-d8816be529e3-9cea44f3-d9a4-4a0a-a125-66cf228cf
+[Exitcode 0]
 ```
 
 **Was du daran abliest:** Genau wie eben aus Endpoint-Adresse und Study Instance UID hergeleitet, liefert der reale Abruf gegen die Spielwiese dieselbe `multipart/related`-Antwort mit den angeforderten DICOM-Objekten. Der Bildabruf gehört an diesen DICOMweb-Endpunkt — nicht an einen vermeintlichen Bild-Unterpfad des FHIR-Servers.
@@ -158,3 +164,15 @@ In „FHIR ist nicht WADO” bekommst du eine valide ImagingStudy mit eigenem En
 2. IHE ersetzt DICOM und HL7 als eigenes Transportprotokoll
 3. IHE-Profile legen fest, wie Standards von definierten Akteuren in konkreten Transaktionen eingesetzt werden
 4. Eine FHIR ImagingStudy ersetzt den DICOM-Bildspeicher
+
+**q3 — Welchen Media Type (`Content-Type`) liefert ein WADO-RS-Abruf einer ganzen Studie als DICOM-Objekte? Nur der Typ, ohne Parameter.** *(Freitext)*
+
+**q4 — Eine QIDO-RS-Antwort nennt eine Study Instance UID. Was brauchst du zusätzlich, um die Bilder per WADO-RS abzurufen?**
+1. Die FHIR Resource ID der ImagingStudy
+2. Die Basis-URL des DICOMweb-Endpoints; daraus wird `…/studies/{UID}` mit passendem `Accept`
+3. Einen Eintrag in der Modality Worklist
+4. Nichts, die UID allein genügt
+
+---
+
+Werkzeuglage geprüft am 04.10.2026 (Spielwiese: `curl`, `storescu` aus pynetdicom 3.0.4, Orthanc 1.13.0 im Image `dcmlab/orthanc` mit DICOMweb-Plugin).

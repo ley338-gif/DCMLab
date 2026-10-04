@@ -1,7 +1,7 @@
 id: "7.5"
 track: klinische-workflows
 order: 2
-duration_minutes: 16
+duration_minutes: 20
 level: aufbau
 objectives_count: 3
 requires: ["7.4"]
@@ -19,6 +19,15 @@ quiz:
   - id: q2
     type: multi
     answer: [0, 2, 3]
+  - id: q3
+    type: single
+    answer: 1
+  - id: q4
+    type: input
+    answer: "AR"
+  - id: q5
+    type: single
+    answer: 1
 status: draft
 authors: ["draft-ai"]
-updated: "2026-09-18"
+updated: "2026-10-04"

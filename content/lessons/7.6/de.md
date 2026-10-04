@@ -36,13 +36,13 @@ KIS / EHR
 Vereinfacht:
 
 ```text
-MSH|^~\&|RIS|RAD|KIS|HAUS|20260916121500||ORU^R01|RES88721|P|2.5
+MSH|^~\&|RIS|RAD|KIS|HAUS|20260916121500||ORU^R01^ORU_R01|RES88721|P|2.5.1
 PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA
-OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ|||20260916103000
+OBR|1|ORD93821^KIS||CTTHORAX^CT Thorax nativ|||20260916103000||||||||||||||||||F
 OBX|1|TX|RADREPORT^Radiologischer Befund||Kein Nachweis eines fokalen Infiltrats.|||N|||F
 ```
 
-**Was du daran abliest:** Der Bericht wird nicht dadurch mit der Bildstudie verbunden, dass „irgendwo derselbe Name“ steht. Auftrag, Patient und lokale Befundkennungen müssen konsistent korrelierbar sein.
+**Was du daran abliest:** `OBR-2` nennt denselben Auftrag wie die Auftragsnachricht (`ORD93821`), `OBR-7` den Untersuchungszeitpunkt. Die vielen `|` sind die leeren Felder 8 bis 24; dahinter steht in `OBR-25` der Status des Auftrags (`F`). `OBX-2` = `TX` sagt, dass `OBX-5` Text enthält, `OBX-11` = `F` den Status dieses einzelnen Ergebnisses. Der Bericht wird nicht dadurch mit der Bildstudie verbunden, dass „irgendwo derselbe Name“ steht. Auftrag, Patient und lokale Befundkennungen müssen konsistent korrelierbar sein.
 
 ## Status ist Teil des Workflows
 
@@ -52,7 +52,9 @@ Ein Befund durchläuft typischerweise mehrere Ergebnisstatus (OBX-11 in einer OR
 - `F` — **Final**: abschließend freigegebener Befund
 - `C` — **Correction**: ersetzt einen zuvor finalen Befund
 
-Hier betrachten wir vereinfacht `OBX-11` auf Observation-Ebene. In realen ORU-Profilen kann zusätzlich ein Result Status auf OBR-Ebene, etwa `OBR-25`, relevant sein. Maßgeblich ist wie immer das konkrete Interface-Profil.
+HL7-Tabelle 0085 kennt weitere Werte. Zwei davon betreffen die Radiologie direkt: `U` setzt einen vorläufigen Befund auf final, ohne ihn erneut zu senden — HL7 nennt die Radiologie ausdrücklich als Beispiel —, und `W` markiert ein Ergebnis als falsch, etwa weil es zum falschen Patienten ging.
+
+Den Status gibt es auf zwei Ebenen: `OBX-11` für das einzelne Ergebnis (Pflichtfeld, HL7-Tabelle 0085) und `OBR-25` für den Auftrag als Ganzes (in einer Ergebnisnachricht Pflicht, HL7-Tabelle 0123). Die Werte ähneln sich, sind aber nicht dieselbe Liste. Maßgeblich ist wie immer das konkrete Interface-Profil.
 
 Ein typischer zeitlicher Verlauf:
 
@@ -131,3 +133,21 @@ Die Frage „Ist der Befund da?“ benötigt einen zweiten Trace. Ein guter PACS
 2. „Nachricht zugestellt" und „richtiger Befundstatus im KIS" sind dieselbe Prüfung
 3. Order- und Patient-Identifier sind für die Korrelation belastbarer als der Patientenname
 4. Der Workflow ist für den klinischen Nutzer erst beendet, wenn der Befund im Zielsystem korrekt sichtbar ist
+
+**q3 — `OBX|1|TX|RADREPORT^Radiologischer Befund||Kein Nachweis eines fokalen Infiltrats.|||N|||F` — welchen Status hat dieses Ergebnis?**
+1. Preliminary
+2. Final
+3. Correction
+4. Keinen, das Statusfeld ist leer
+
+**q4 — Welcher Wert steht in OBX-11, wenn ein Ergebnis einen zuvor finalen Befund ersetzt? Nur der Buchstabe.** *(Freitext)*
+
+**q5 — Ein Befund ging an das KIS, gehört aber zu einem anderen Patienten. Mit welchem Ergebnisstatus nach HL7-Tabelle 0085 wird er als falsch markiert?**
+1. `C`
+2. `W`
+3. `U`
+4. `P`
+
+---
+
+Normstellen geprüft am 04.10.2026: HL7 v2.5.1 Kapitel 7 (ORU^R01, OBX-11) und Kapitel 4 (OBR-7, OBR-25); HL7-Tabellen 0085 (Observation Result Status) und 0123 (Result Status).

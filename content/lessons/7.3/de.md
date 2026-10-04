@@ -24,18 +24,19 @@ Für dich ist wichtiger als das Auswendiglernen von Triggernummern:
 **Beispiel: ADT^A08 — Update Patient Information.** Eine Stammdatenkorrektur, keine Zusammenführung:
 
 ```text
-MSH|^~\&|KIS|HAUS|RIS|RAD|20260916090000||ADT^A08|ADT88421|P|2.5
+MSH|^~\&|KIS|HAUS|RIS|RAD|20260916090000||ADT^A08^ADT_A01|ADT88421|P|2.5.1
+EVN||20260916090000
 PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA-SOPHIE||19750314|F
 PV1|1|O|RAD^ANMELDUNG
 ```
 
-**Was du daran abliest:** Die Nachricht transportiert eine Änderung an bestehenden Stammdaten — hier korrigiert sich der Vorname. Die Patient ID bleibt gleich, es entsteht keine neue Identität. Ob das empfangende RIS eine Änderung automatisch übernimmt, hängt vom vereinbarten Profil und seiner Konfiguration ab.
+**Was du daran abliest:** Die Nachricht transportiert eine Änderung an bestehenden Stammdaten — hier korrigiert sich der Vorname. Die Patient ID bleibt gleich, es entsteht keine neue Identität; eine Patient ID lässt sich mit A08 auch gar nicht ändern, dafür ist A40 da (IHE RAD TF-2, Abschnitt 4.12). `EVN` sagt, wann das Ereignis erfasst wurde, und ist in beiden Beispielen dieser Lektion Pflicht. Die Nachrichtenstruktur heißt `ADT_A01`, weil A08 dieselbe Struktur wie die Aufnahme A01 verwendet (HL7-Tabelle 0354; HL7 v2.5.1, Abschnitt 3.3.8). Ob das empfangende RIS eine Änderung automatisch übernimmt, hängt vom vereinbarten Profil und seiner Konfiguration ab.
 
 > Welcher Trigger-Event genau verwendet wird, in welcher HL7-Version und mit welcher lokalen Feldbelegung, ist installationsabhängig. Für den Betrieb zählt die vereinbarte Schnittstellenspezifikation, nicht ein allgemeines Lehrbuchbeispiel.
 
 ## Patient ist nicht Fall ist nicht Untersuchung
 
-Trenne gedanklich drei Ebenen:
+Trenne gedanklich vier Ebenen:
 
 <!-- kein-beispiel -->
 ```text
@@ -74,14 +75,15 @@ Bei einer Patientenzusammenführung reicht es nicht, an einer Stelle die Patient
 **Beispiel: ADT^A40 — Merge Patient – Patient Identifier List.** Stark gekürzt:
 
 ```text
-MSH|^~\&|KIS|HAUS|RIS|RAD|20260916094500||ADT^A40|ADT88433|P|2.5
+MSH|^~\&|KIS|HAUS|RIS|RAD|20260916094500||ADT^A40^ADT_A39|ADT88433|P|2.5.1
+EVN||20260916094500
 PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA
 MRG|4699^^^KLINIK^MR
 ```
 
-**Was du daran abliest:** `PID-3` trägt die weiterhin gültige (überlebende) Patient ID, `MRG-1` die Identität, die aufgelöst wird. Ein empfangendes System muss beide IDs kennen und darf nicht nur die neue speichern, ohne die alte als zusammengeführt zu markieren.
+**Was du daran abliest:** `PID-3` trägt die weiterhin gültige (überlebende) Patient ID, `MRG-1` die Identität, die aufgelöst wird. Nach HL7 wird die alte ID danach logisch nicht mehr verwendet; manche Systeme bewahren sie trotzdem auf, etwa für den Audit-Trail (HL7 v2.5.1, Abschnitt 3.3.40). Wer später noch Untersuchungen unter `4699` findet, muss nachvollziehen können, dass diese ID in `4711` aufgegangen ist.
 
-> Auch hier gilt: Genaues Feldlayout, Version und ob ein Haus A40 überhaupt in dieser Form nutzt, richten sich nach dem lokalen Profil der Installation.
+> Auch hier gilt: Genaues Feldlayout, Version und ob ein Haus A40 überhaupt in dieser Form nutzt, richten sich nach dem lokalen Profil der Installation. In IHE Scheduled Workflow gehören A08 und A40 zur Transaktion Patient Update (RAD-12, IHE RAD TF-2 Abschnitt 4.12).
 
 Für PACS-Administratoren bedeutet das:
 
@@ -109,7 +111,7 @@ Erst dann entscheidest du, ob der Fehler in der Quelle, im Transport, im Mapping
 
 - **Direkt im PACS umbenennen.** Das kann die sichtbare Oberfläche korrigieren und gleichzeitig die Systemkette weiter auseinanderziehen.
 - **Nur die aktuelle KIS-Sicht betrachten.** Entscheidend ist, welche Nachricht zum damaligen Zeitpunkt an die nachgelagerten Systeme ging.
-- **Merge und Update verwechseln.** Eine Stammdatenkorrektur und die Zusammenführung zweier Identitäten sind fachlich verschieden.
+- **Merge und Update verwechseln.** Eine Stammdatenkorrektur (A08) und die Zusammenführung zweier Identitäten (A40) sind fachlich verschieden — und eine Patient ID ändert nur A40.
 - **Issuer/Assigning Authority ignorieren.** Gerade bei mehreren Standorten oder angebundenen Einrichtungen ist das riskant.
 
 ## Selbstcheck
@@ -133,3 +135,21 @@ Erst dann entscheidest du, ob der Fehler in der Quelle, im Transport, im Mapping
 2. Übereinstimmender Name und Geburtsdatum beweisen dieselbe Identifier-Domäne
 3. Ein Merge ist mehr als das Ersetzen einer Patient ID an einer Stelle
 4. Direktes Umbenennen im PACS kann die Systemkette weiter auseinanderziehen
+
+**q3 — Eine A40-Nachricht enthält `PID|1||4711^^^KLINIK^MR||MUSTER^ERIKA` und `MRG|4699^^^KLINIK^MR`. Welche Patient ID gilt danach weiter?**
+1. `4699`
+2. `4711`
+3. Beide gleichberechtigt
+4. Keine — das Zielsystem vergibt eine neue
+
+**q4 — Welches Segment trägt in einer A40-Nachricht die Patient ID, die aufgelöst wird? Nur das Kürzel.** *(Freitext)*
+
+**q5 — Im KIS wurde die falsche Patient ID eines Patienten korrigiert. Mit welcher Nachricht erfährt das RIS davon nach IHE Scheduled Workflow?**
+1. ADT^A08 — Update Patient Information
+2. ADT^A40 — Merge Patient
+3. OMG^O19 — neuer Auftrag
+4. ACK — Bestätigung
+
+---
+
+Normstellen geprüft am 04.10.2026: HL7 v2.5.1 Abschnitte 3.3.8 (A08) und 3.3.40 (A40), HL7-Tabelle 0354 (Nachrichtenstrukturen); IHE RAD TF-2 Rev. 23.0, Abschnitt 4.12 (Patient Update, RAD-12).
