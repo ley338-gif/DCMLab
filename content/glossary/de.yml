@@ -151,7 +151,7 @@ c-find:
 c-move:
   term: C-MOVE
   expansion: Query/Retrieve Move Service
-  short: Anforderung von Objekten, ausgeliefert über eine neue Verbindung — dabei drehen sich die Rollen um.
+  short: Anforderung von Objekten, die die Quelle über eine eigene, neue Verbindung an ein benanntes Ziel liefert — oft an den Anfragenden selbst, dann drehen sich die Rollen um; das Ziel kann auch ein Dritter sein.
   see_also: [scu, scp]
   lesson: "1.5"
 
