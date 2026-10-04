@@ -21,11 +21,11 @@ intro: 10 Fragen aus Track 8 (FHIR & Web). Ab 80 % ist der Track abgeschlossen. 
 
 **Erklärung:** FHIR bildet Beziehungen explizit über References ab, `system`+`value` erfüllen dieselbe Disambiguierungsfunktion wie eine HL7-Assigning-Authority, und FHIR modelliert fachliche Objekte anders als HL7 v2s Ereignisnachrichten. Ein HTTP 200 sagt dagegen nur, dass eine Ressource geliefert wurde — nicht, dass sie fachlich zum gesuchten Fall passt.
 
-### f03 — Eine kopierte FHIR-Ressource behält auf jedem Zielserver zwingend dieselbe `id`.
+### f17 — Eine kopierte FHIR-Ressource kann auf dem Zielserver eine andere technische `id` bekommen.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Die technische Resource ID muss beim Kopieren zwischen Systemen nicht gleich bleiben — der fachliche Identifier mit `system` bleibt deshalb zusätzlich wichtig.
+**Erklärung:** Richtig. Die Resource ID vergibt der jeweilige Server; beim Kopieren muss sie nicht gleich bleiben. Deshalb ist der fachliche Identifier mit `system` und `value` zusätzlich wichtig.
 
 ### f04 — Über welches HTTP-Verb wird eine einzelne FHIR-Ressource typischerweise gelesen? *(Freitext)*
 
@@ -77,11 +77,11 @@ intro: 10 Fragen aus Track 8 (FHIR & Web). Ab 80 % ist der Track abgeschlossen. 
 
 **Erklärung:** IHE beschreibt, wie vorhandene Standards in konkreten Workflows zusammenspielen, und FHIR/DICOMweb konkurrieren nicht um dieselbe Aufgabe. IHE ist aber kein Ersatz-Transportprotokoll, und eine reine Featureliste beantwortet nicht, welche Profile/Rollen/Optionen tatsächlich unterstützt werden.
 
-### f11 — Der Bildabruf einer DICOM-Studie erfolgt korrekt über einen FHIR-Endpunkt wie `/fhir/ImagingStudy/.../pixels`.
+### f18 — Den Bildabruf zu einer FHIR ImagingStudy übernimmt der DICOMweb-Dienst, den die Endpoint-Ressource nennt, etwa WADO-RS — kein FHIR-Unterpfad der ImagingStudy.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. FHIR liefert Kontext über die Studie; der tatsächliche Bildabruf läuft über einen DICOMweb-Endpunkt wie WADO-RS, nicht über einen proprietären FHIR-Unterpfad.
+**Erklärung:** Richtig. FHIR liefert Kontext über die Studie; die Bilder kommen über einen DICOMweb-Endpunkt wie WADO-RS, adressiert mit der Study Instance UID. Einen Pixel-Pfad an der ImagingStudy gibt es nicht.
 
 ### f12 — Welcher DICOMweb-Dienst sucht Studien, Serien und Instanzen?
 

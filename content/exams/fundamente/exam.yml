@@ -66,9 +66,9 @@ questions:
     difficulty: 2
     tags: [datenmodell]
 
-  - id: f08
+  - id: f41
     type: truefalse
-    answer: false
+    answer: true
     lesson: "1.1"
     review: { lesson: "1.1", anchor: "stolperfallen" }
     difficulty: 2
@@ -194,9 +194,9 @@ questions:
     difficulty: 2
     tags: [netzwerk]
 
-  - id: f24
+  - id: f42
     type: truefalse
-    answer: false
+    answer: true
     lesson: "1.5"
     review: { lesson: "1.5", anchor: "stolperfallen" }
     difficulty: 1
@@ -226,9 +226,9 @@ questions:
     difficulty: 2
     tags: [netzwerk]
 
-  - id: f28
+  - id: f43
     type: truefalse
-    answer: false
+    answer: true
     lesson: "1.6"
     review: { lesson: "1.6", anchor: "stolperfallen" }
     difficulty: 3

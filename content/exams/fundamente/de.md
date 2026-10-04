@@ -58,11 +58,11 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** DICOM ist Format und Protokoll zugleich, und ein Structured Report ist ein vollwertiges DICOM-Objekt ganz ohne Pixel. Eine Dateiendung ist dagegen nie Pflicht, und ein Archiv nimmt Objekte ausschließlich über einen Dienst entgegen — kopierte Dateien im Speicherverzeichnis bleiben für das System unsichtbar.
 
-### f08 — Ein Structured Report ist kein vollwertiges DICOM-Objekt, weil er keine Pixeldaten enthält.
+### f41 — Ein Structured Report ist ein vollständiges DICOM-Objekt, obwohl er keine Pixeldaten enthält.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ein Structured Report enthält Messwerte und Befundtexte statt Pixel, ist aber trotzdem ein vollständiges, eigenständiges DICOM-Objekt. „DICOM ist ein Bildformat" gilt also nur zum Teil.
+**Erklärung:** Richtig. Ein Structured Report enthält Messwerte und Befundtexte statt Pixel und ist trotzdem ein eigenständiges DICOM-Objekt mit eigener SOP Class. „DICOM ist ein Bildformat" gilt also nur zum Teil.
 
 ### f09 — Welcher Wert identifiziert eine Untersuchung eindeutig?
 
@@ -185,11 +185,11 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** AE Titles sind auf 16 Zeichen begrenzt und werden zeichengenau verglichen, Groß-/Kleinschreibung zählt also mit. Führende und angehängte Leerzeichen sind laut Standard dagegen bedeutungslos. Mit dem Hostnamen hat der AE Title technisch nichts zu tun, auch wenn viele Häuser sie aus Konvention gleich benennen.
 
-### f24 — Der AE Title ist technisch dasselbe wie der Hostname eines Geräts.
+### f42 — AE Title und Hostname eines Geräts sind technisch unabhängig voneinander — dass sie oft gleich heißen, ist nur eine Konvention.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. AE Title und Hostname sind zwei unabhängige Dinge. Dass viele Häuser sie gleich benennen, ist eine Konvention, die das Leben erleichtert — technisch hat der AE Title mit DNS nichts zu tun.
+**Erklärung:** Richtig. Der AE Title ist der Name einer DICOM-Anwendung und hat mit DNS nichts zu tun. Viele Häuser benennen beides gleich, weil das den Überblick erleichtert — technisch zwingend ist es nicht.
 
 ### f25 — An wie vielen Stellen muss eine neue DICOM-Verbindung eingetragen werden?
 
@@ -218,11 +218,11 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** 16 Zeichen sind die Obergrenze für einen AE Title, und `Calling AE Title Not Recognized` heißt: Die Gegenstelle kennt meinen eigenen Namen nicht. Es gibt aber zwei registrierte Ports (104 und 11112), keinen einzigen zulässigen — und ein C-ECHO verhandelt nur die Verification SOP Class, nichts über Bildübertragung.
 
-### f28 — Ein „Verbindung OK" auf der Gerätekonsole beweist, dass die DICOM-Verbindung funktioniert.
+### f43 — Eine Gerätekonsole kann „Verbindung OK" melden, sobald nur die TCP-Verbindung steht — bevor irgendein DICOM-Name geprüft wurde.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Viele Konsolen melden das schon, wenn nur die TCP-Verbindung zustande kam — bevor irgendein DICOM-Name geprüft wurde. Aussagekräftig ist erst das Log der Gegenstelle: Taucht dort eine Association auf, gab es wirklich ein DICOM-Gespräch.
+**Erklärung:** Richtig. Deshalb beweist die Meldung allein nicht, dass die DICOM-Verbindung funktioniert. Aussagekräftig ist das Log der Gegenstelle: Taucht dort eine Association auf, gab es wirklich ein DICOM-Gespräch.
 
 ### f29 — Welche Transfer Syntax muss jede DICOM-Anwendung beherrschen?
 

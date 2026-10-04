@@ -49,11 +49,11 @@ intro: 10 Fragen aus Track 7 (Klinische Workflows). Ab 80 % ist der Track abgesc
 
 **Erklärung:** `AA` bedeutet akzeptiert, `AE` einen Application Error trotz erfolgreichem Transport, und die Message Control ID verbindet Original und ACK über die beteiligten Systeme. Dass überhaupt ein ACK kam, beweist dagegen nur, dass der Empfänger geantwortet hat — ob er die Nachricht verarbeitet hat, sagt erst MSA-1: `AA` ja, `AE` oder `AR` nein.
 
-### f07 — Ein Timeout beim Warten auf ein ACK beweist, dass die Nachricht beim Empfänger nicht verarbeitet wurde.
+### f17 — Nach einem Timeout beim Warten auf ein ACK kann die Nachricht beim Empfänger trotzdem verarbeitet worden sein.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Der Timeout beweist nicht, dass die erste Nachricht nicht verarbeitet wurde — ein System ohne idempotente Retry-Behandlung kann denselben Vorgang sogar doppelt anlegen.
+**Erklärung:** Richtig. Der Timeout sagt nur, dass keine Antwort kam, nicht, dass nichts verarbeitet wurde. Ein System ohne duplikatsichere Retry-Behandlung kann denselben Vorgang deshalb doppelt anlegen.
 
 ### f08 — Welcher MSA-1-Code signalisiert einen Application Error? *(Freitext)*
 
@@ -77,11 +77,11 @@ intro: 10 Fragen aus Track 7 (Klinische Workflows). Ab 80 % ist der Track abgesc
 
 **Erklärung:** Ein Befund durchläuft Zustände (vorläufig/korrigiert/final), OBX trägt die Ergebnisdaten, und Order-/Patient-Identifier sind belastbarer als der Name. „Zugestellt" und „richtiger Status im KIS" sind dagegen zwei unterschiedliche Prüfungen.
 
-### f11 — Bildverfügbarkeit und Befundverfügbarkeit sind notwendigerweise derselbe Betriebszustand.
+### f18 — Bilder können im PACS vollständig verfügbar sein, während der zugehörige Befund im KIS fehlt.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ein System kann vollständig funktionieren, während der andere Pfad gestört ist — beide sind getrennte Betriebszustände.
+**Erklärung:** Richtig. Bildweg und Befundweg sind getrennte Pfade mit eigenen Systemen und Nachrichten — einer kann funktionieren, während der andere gestört ist.
 
 ### f12 — Welches Segment enthält in einer ORU-Ergebnisnachricht den eigentlichen Befundtext?
 

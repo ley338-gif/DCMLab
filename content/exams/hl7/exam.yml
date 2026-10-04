@@ -58,9 +58,9 @@ questions:
     difficulty: 2
     tags: [integration]
 
-  - id: f07
+  - id: f17
     type: truefalse
-    answer: false
+    answer: true
     lesson: "7.2"
     review: { lesson: "7.2", anchor: "suchanker-nach-fehlerdomaene" }
     difficulty: 1
@@ -136,9 +136,9 @@ questions:
     difficulty: 3
     tags: [integration]
 
-  - id: f16
+  - id: f18
     type: truefalse
-    answer: false
+    answer: true
     lesson: "cross"
     review:
       - { lesson: "7.2", anchor: "zeilen-sind-segmente" }

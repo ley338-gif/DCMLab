@@ -30,11 +30,11 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Das XDS-I-Manifest ist ein echtes KOS, PIR behandelt nachträgliche Patientenkorrekturen, und bei XDS-I.b dient die Registry dem Finden: Mit dem Manifest holt der Consumer die Bilder beim Imaging Document Source der abgebenden Einrichtung (RAD-69, WADO, WADO-RS oder DICOM-Abruf, RAD TF-1 Tabelle 18.1-1). SWF.b definiert dagegen keine neuen Dienste — es legt Reihenfolge, Pflicht-Transaktionen und die Übernahme der Auftragswerte für vorhandene DICOM-Dienste fest.
 
-### f04 — SWF.b führt neue technische Mechanismen ein, die es vor IHE in DICOM nicht gab.
+### f55 — SWF.b legt fest, in welcher Reihenfolge und mit welchen Akteuren vorhandene DICOM-Dienste wie Worklist-Abfrage, C-STORE und MPPS zusammenspielen.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. SWF.b nimmt vorhandene DICOM-Dienste (Worklist-Abfrage, C-STORE, MPPS) und schreibt nur fest, in welcher Reihenfolge und mit welchen Akteuren sie zusammenspielen müssen.
+**Erklärung:** Richtig. SWF.b führt keine neuen technischen Mechanismen ein, sondern nimmt vorhandene DICOM-Dienste und schreibt fest, wer sie in welcher Reihenfolge nutzt — genau das macht ein IHE-Profil aus.
 
 ### f05 — In welchem Abschnitt des aktuellen Conformance-Statement-Musters (PS3.2, Annex N) stehen alle unterstützten Storage-SOP-Klassen mit Rollen und Transfer-Syntaxen?
 
@@ -96,11 +96,11 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Der Bildzahlenvergleich hätte den Fehlerfall nicht erkannt, externe Systeme referenzieren dieselben UIDs, und schrittweise Migration mit Stichproben deckt Fehler früher auf. Eine geänderte ImplementationClassUID ist dagegen normal — sie zeigt nur, welche Implementierung zuletzt geschrieben hat.
 
-### f12 — Anzahl Bilder vorher = Anzahl Bilder nachher ist ein ausreichender Nachweis für eine korrekte Migration.
+### f56 — Ein Migrationswerkzeug, das beim Import alle UIDs neu vergibt, kann die Bildzahl exakt erhalten und trotzdem jede Studie unter ihrer alten UID unauffindbar machen.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ein Werkzeug, das beim Import alle UIDs neu vergibt, besteht diesen Test — die Bildanzahl stimmt, aber keine Studie liegt mehr unter ihrer alten UID. Und einzelne doppelt geschriebene Objekte mit neuen UIDs bilden eigene Studien, die ein reiner Zähler nicht als solche erkennt.
+**Erklärung:** Richtig. Deshalb reicht „Anzahl Bilder vorher = Anzahl Bilder nachher" als Nachweis nicht: Der Zähler stimmt, aber keine Studie liegt mehr unter ihrer alten UID. Und doppelt geschriebene Objekte mit neuen UIDs bilden eigene Studien, die ein reiner Zähler nicht als solche erkennt.
 
 ### f13 — Welchen Aktionscode aus PS3.15 Annex E bekommt StudyInstanceUID bei der De-Identifikation?
 
@@ -115,11 +115,11 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** `K` (keep). Im Basic Profile bekommt allerdings kaum ein Attribut mit Patientenbezug K — die `PatientID` etwa hat **Z/D**. K taucht vor allem in den Optionen auf, etwa „Retain UIDs" für die UIDs.
 
-### f15 — Anonymisierung und Pseudonymisierung unterscheiden sich vor allem darin, wie stark die Daten verschleiert werden.
+### f57 — Pseudonymisierte Daten lassen sich mit zusätzlichen, getrennt aufbewahrten Informationen wieder einer Person zuordnen — anonymisierte nicht.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Der Unterschied ist die Rückführbarkeit: Bei Pseudonymisierung lassen sich die Originaldaten mit einem geschützten Schlüssel wiederherstellen, bei echter Anonymisierung nicht — auch nicht mit einem Schlüssel.
+**Erklärung:** Richtig. Der Unterschied ist die Rückführbarkeit, nicht der Grad der Verschleierung (DSGVO Art. 4 Nr. 5). Pseudonymisierte Daten bleiben personenbezogen; echte Anonymisierung lässt sich auch mit einem Schlüssel nicht zurückdrehen.
 
 ### f16 — In welcher DICOM-Sequenz (Tag) werden bei DICOMs eigenem Pseudonymisierungsmechanismus die verschlüsselten Originalwerte mitgeführt? *(Freitext)*
 
@@ -143,11 +143,11 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** ATNA bringt Node Authentication und einen strukturierten Audit Trail. Node Authentication weist per TLS-Zertifikat aus, welches **System** spricht; der Audit Trail hält fest, wer über welches System auf welche Daten zugegriffen hat — mit Personenidentität, sofern das System sie kennt. ATNA ist ein IHE-Profil, keine Pflicht-Implementierung für jedes DICOM-Gerät.
 
-### f19 — Eine gesetzliche Aufbewahrungspflicht wie § 85 StrlSchG steht laut DSGVO in einem unauflösbaren Widerspruch zum Löschanspruch.
+### f58 — Verlangt eine rechtliche Pflicht wie § 85 StrlSchG die Aufbewahrung, besteht für diese Zeit kein Anspruch auf Löschung nach Art. 17 DSGVO.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Art. 17 Abs. 3 lit. b DSGVO löst diesen scheinbaren Widerspruch ausdrücklich auf: Verlangt eine rechtliche Pflicht die Speicherung, besteht kein Löschanspruch. Nach Ablauf der Frist entfällt dieser Grund wieder.
+**Erklärung:** Richtig. Art. 17 Abs. 3 Buchstabe b DSGVO nimmt die Verarbeitung zur Erfüllung einer rechtlichen Pflicht vom Löschanspruch aus. Der scheinbare Widerspruch ist damit aufgelöst — nach Ablauf der Frist entfällt dieser Grund wieder.
 
 ### f20 — Wie viele Jahre müssen Aufzeichnungen und Bilder einer Röntgenuntersuchung bei einer volljährigen Person nach § 85 StrlSchG in Deutschland mindestens aufbewahrt werden (nur die Zahl)? *(Freitext)*
 
@@ -339,11 +339,11 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Identität und Netzwerkziel (AE Title, IP/DNS, Port), die tatsächlich genutzten Rollen/SOP Classes sowie Owner und Eskalationsweg sind die praktisch relevanten Felder einer Registry. Laufende Systemmetriken wie CPU-Auslastung gehören nicht in eine AE-Registry.
 
-### f45 — Ein stillgelegter AE-Eintrag bleibt auch ohne Entfernung aus der Registry zuverlässig von einem noch gültigen, aber selten genutzten Eintrag unterscheidbar.
+### f59 — Ein stillgelegter AE-Eintrag, der nicht aus der Registry entfernt wird, ist später kaum von einem noch gültigen, aber selten genutzten Ziel zu unterscheiden.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ein verwaister AE-Eintrag ist später kaum von einem noch gültigen, aber selten genutzten Ziel zu unterscheiden — deshalb gehört das Entfernen zum Lebenszyklus, nicht nur das Anlegen.
+**Erklärung:** Richtig. Deshalb gehört das Entfernen zum Lebenszyklus eines AE-Eintrags, nicht nur das Anlegen — ein verwaister Eintrag sieht aus wie ein Ziel, das nur gerade nichts zu tun hat.
 
 ### f46 — Wie lautete der AE Title, den im Lektionsbeispiel ein altes CT, ein neues CT und eine Router-Route gleichzeitig trugen? *(Freitext)*
 
@@ -395,11 +395,11 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Prefetch sucht Voruntersuchungen (Query/Retrieve) und überträgt sie anschließend (Routing). Ein Abnahmetest sollte auch das Fehlerverhalten bei nicht erreichbarem Ziel zeigen, und eine Regel lässt sich in die vier genannten Kernteile zerlegen. Duplikaterkennung allein genügt nicht — die Route sollte zusätzlich so entworfen sein, dass ein Loop erst gar nicht nötig wird.
 
-### f53 — Ein wachsender Queue-Zustand bei einem Routing-Ziel wird laut Lektion am zuverlässigsten dadurch erkannt, dass sich Anwender über fehlende Bilder beschweren.
+### f60 — Eine wachsende Queue bei einem Routing-Ziel gehört in die aktive Betriebsüberwachung mit eigener Grenze und Alarmierung.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Eine wachsende Queue gehört in die aktive Betriebsüberwachung mit eigener Grenze und Alarmierung — nicht in die Warteschleife bis zur ersten Anwenderbeschwerde.
+**Erklärung:** Richtig. Wer erst auf die erste Anwenderbeschwerde über fehlende Bilder wartet, erfährt viel zu spät davon. Eine Queue, die wächst, ist ein messbarer Zustand und bekommt eine Grenze und einen Alarm.
 
 ### f54 — Welcher der vier Kernteile einer Routingregel entscheidet, WANN sie überhaupt aktiv wird?
 
