@@ -6,11 +6,11 @@ intro: 10 Fragen aus Track 7 (Klinische Workflows). Ab 80 % ist der Track abgesc
 ### f01 — Ein Auftrag ist im KIS sichtbar, aber die Modalität zeigt ihn nicht in der Worklist. Welche Kette prüfst du?
 
 1. Nur den DICOM-Port der Modalität
-2. KIS → Interface Engine → RIS → Broker → DICOM MWL, in dieser Reihenfolge
+2. Die Kette KIS → Interface Engine → RIS → Broker → DICOM MWL — beginnend dort, wohin die vorhandene Evidenz zeigt
 3. Nur den Worklist-Filter am Gerät
 4. Nur die Study Instance UID
 
-**Erklärung:** Eine leere Modality Worklist hat mindestens vier mögliche Fehlerdomänen vor dem Netzwerk — die Prüfreihenfolge folgt dem tatsächlichen Weg des Auftrags.
+**Erklärung:** Ein fehlender Worklist-Eintrag kann an jeder Station dieser Kette entstehen, nicht nur am Gerät. Welche Station du zuerst prüfst, entscheidet die vorhandene Evidenz: Erscheinen andere Aufträge normal, ist der Weg genau dieses einen Auftrags verdächtiger als Netzwerk oder Gerätekonfiguration.
 
 ### f02 — Welche Aussagen zum Mapping zwischen HL7-Auftragsdaten und DICOM MWL stimmen? *(Mehrfachauswahl)*
 
@@ -47,7 +47,7 @@ intro: 10 Fragen aus Track 7 (Klinische Workflows). Ab 80 % ist der Track abgesc
 3. Ein erhaltenes ACK beweist für sich allein die fachliche Verarbeitung
 4. Die Message Control ID erlaubt, Original und ACK über Systeme hinweg zu korrelieren
 
-**Erklärung:** `AA` bedeutet akzeptiert, `AE` einen Application Error trotz erfolgreichem Transport, und die Message Control ID verbindet Original und ACK über die beteiligten Systeme. Ein ACK allein beweist dagegen nur den Transport, nicht die fachliche Verarbeitung.
+**Erklärung:** `AA` bedeutet akzeptiert, `AE` einen Application Error trotz erfolgreichem Transport, und die Message Control ID verbindet Original und ACK über die beteiligten Systeme. Dass überhaupt ein ACK kam, beweist dagegen nur, dass der Empfänger geantwortet hat — ob er die Nachricht verarbeitet hat, sagt erst MSA-1: `AA` ja, `AE` oder `AR` nein.
 
 ### f07 — Ein Timeout beim Warten auf ein ACK beweist, dass die Nachricht beim Empfänger nicht verarbeitet wurde.
 
@@ -57,7 +57,7 @@ intro: 10 Fragen aus Track 7 (Klinische Workflows). Ab 80 % ist der Track abgesc
 
 ### f08 — Welcher MSA-1-Code signalisiert einen Application Error? *(Freitext)*
 
-**Erklärung:** `AE`. `AA` signalisiert dagegen Acknowledge Accept — fachlich akzeptiert.
+**Erklärung:** `AE`. `AA` steht dagegen für Application Accept, `AR` für Application Reject (HL7-Tabelle 0008).
 
 ### f09 — Die Studie ist im PACS sichtbar und laut RIS final befundet, im KIS erscheint aber kein Befund. Wo liegt der Fehler mit hoher Wahrscheinlichkeit?
 

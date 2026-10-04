@@ -28,7 +28,7 @@ intro: 10 Fragen aus Track 7. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Für frühes systemübergreifendes Troubleshooting reicht die Study Instance UID allein
 4. Ab der Bildentstehung kommt zusätzlich die Study Instance UID als Identifikator hinzu
 
-**Erklärung:** Vor der Bildentstehung existiert noch keine Study Instance UID — für frühes Troubleshooting brauchst du deshalb mindestens Patient ID und Accession Number, erst ab der Bildentstehung kommt die Study Instance UID dazu.
+**Erklärung:** Vor der Bildentstehung existiert noch keine Study Instance UID — für frühes Troubleshooting brauchst du deshalb mindestens Patient ID und Auftragsnummer (Order- bzw. Accession Number), erst ab der Bildentstehung kommt die Study Instance UID dazu.
 
 ### f04 — Eine funktionierende DICOM-Worklist-Verbindung beweist, dass der erwartete Auftrag im Worklist-Broker vorhanden ist.
 
@@ -52,7 +52,7 @@ intro: 10 Fragen aus Track 7. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Zwei identische numerische Patient-IDs meinen immer denselben Patienten
 4. Die Assigning Authority kann entscheiden, ob zwei gleich aussehende IDs denselben Patienten meinen
 
-**Erklärung:** Segmente sind an ihrem dreistelligen Präfix erkennbar, `^` trennt Komponenten innerhalb eines Feldes, und die Assigning Authority entscheidet über die tatsächliche Identität — zwei gleiche Ziffernfolgen aus unterschiedlichen Domänen können unterschiedliche Patienten meinen.
+**Erklärung:** Segmente sind an ihrem dreistelligen Präfix erkennbar, `^` trennt Komponenten innerhalb eines Feldes, und erst zusammen mit der Assigning Authority ist eine Patient ID eindeutig — zwei gleiche Ziffernfolgen aus unterschiedlichen Domänen können unterschiedliche Patienten meinen.
 
 ### f07 — Die Message Control ID identifiziert dieselbe medizinische Leistung wie die Order Number.
 
@@ -101,14 +101,14 @@ intro: 10 Fragen aus Track 7. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Eine technisch einwandfreie Verbindung beweist weder, dass der Auftrag je im Worklist-System ankam, noch dass Patientenstammdaten über alle Systeme hinweg konsistent sind.
 
-### f14 — Welcher Identifikator eignet sich am wenigsten als technischer Primärschlüssel für Patientenabgleich?
+### f14 — Welcher dieser Werte taugt am wenigsten als technischer Schlüssel, um denselben Patienten in zwei Systemen wiederzufinden?
 
 1. Patient ID mit Assigning Authority
 2. Patientenname
-3. Message Control ID zur Nachrichtenkorrelation
-4. Study Instance UID nach Bildentstehung
+3. Eine systemübergreifende Patientenkennung aus einem Master Patient Index
+4. Patient ID zusammen mit dem Issuer of Patient ID im DICOM-Objekt
 
-**Erklärung:** Namen ändern sich, sind nicht eindeutig und können unterschiedlich geschrieben werden — für technischen Patientenabgleich ist die Patient ID mit Assigning Authority belastbarer.
+**Erklärung:** Namen ändern sich, sind nicht eindeutig und können unterschiedlich geschrieben werden. Die drei anderen sind Kennungen zusammen mit der Domäne, die sie vergeben hat — dafür sind sie gemacht.
 
 ### f15 — Welche Aussagen gelten track-übergreifend für HL7 v2 im Radiologie-Kontext? *(Mehrfachauswahl)*
 
@@ -123,4 +123,4 @@ intro: 10 Fragen aus Track 7. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Welche Segmente vorkommen, hängt vom Nachrichtentyp ab — ein ORM-Auftrag zeigt typischerweise MSH/PID/PV1/ORC/OBR ohne OBX, das Ergebnissegment OBX gehört zur Ergebnisnachricht.
+**Erklärung:** Falsch. Welche Segmente vorkommen, hängt vom Nachrichtentyp ab. Eine Auftragsnachricht (`OMG^O19` oder `ORM^O01`) kommt oft ganz ohne OBX aus — dort ist OBX optional, etwa für Größe und Gewicht (IHE RAD TF-2, Abschnitt 4.2.4.1.2.2) —, und ein ACK enthält nie eines. In der Ergebnisnachricht ORU trägt OBX dagegen die eigentlichen Ergebnisse.

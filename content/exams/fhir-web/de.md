@@ -38,7 +38,7 @@ intro: 10 Fragen aus Track 8 (FHIR & Web). Ab 80 % ist der Track abgeschlossen. 
 3. DiagnosticReport
 4. Observation
 
-**Erklärung:** ImagingStudy beschreibt eine DICOM-Studie und referenziert ihre Study Instance UID — die DICOM-Instanzen selbst liegen nicht als Pixelblöcke in der Ressource.
+**Erklärung:** ImagingStudy beschreibt eine DICOM-Studie und trägt ihre Study Instance UID als Identifier — die DICOM-Instanzen selbst liegen nicht als Pixelblöcke in der Ressource.
 
 ### f06 — Welche Aussagen stimmen? *(Mehrfachauswahl)*
 
@@ -104,20 +104,20 @@ intro: 10 Fragen aus Track 8 (FHIR & Web). Ab 80 % ist der Track abgeschlossen. 
 ### f14 — Ein Portal liest eine ImagingStudy erfolgreich, erhält beim Bildabruf aber 404. Wo liegt der Fehler am wahrscheinlichsten?
 
 1. Die ImagingStudy ist beschädigt
-2. Der Client nutzt die falsche API-Schicht für den Bildabruf statt WADO-RS
+2. Der Client ruft die Bilder nicht über den DICOMweb-Endpoint (WADO-RS) mit der Study Instance UID ab, sondern über die falsche Schicht oder mit der Resource ID
 3. Der HL7-Auftrag muss erneut gesendet werden
 4. QIDO-RS ist nicht erreichbar
 
-**Erklärung:** Die ImagingStudy liefert Kontext und Identifikatoren korrekt — der Fehler liegt darin, dass der Client die Bilder über die falsche Schicht statt über WADO-RS abzurufen versucht.
+**Erklärung:** Die ImagingStudy liefert Kontext und Identifikatoren korrekt. Ein 404 beim Abruf heißt: Unter dieser URL gibt es nichts — typisch, wenn statt `…/studies/{Study Instance UID}` am DICOMweb-Endpoint ein FHIR-Pfad oder die Resource ID verwendet wird. Auch eine falsche Basisadresse führt dorthin. Eine beschädigte ImagingStudy, ein fehlender HL7-Auftrag oder ein nicht erreichbarer QIDO-Dienst erklären dagegen keine 404 auf genau diesen Abruf.
 
 ### f15 — Welche Aussagen gelten track-übergreifend? *(Mehrfachauswahl)*
 
 1. FHIR-Referenzen und DICOMweb-Identifikatoren erfüllen unterschiedliche, aber verwandte Zwecke
 2. Ein HTTP-Statuscode allein reicht für eine vollständige fachliche Diagnose
 3. QIDO-RS, WADO-RS und STOW-RS bilden Suchen, Abrufen und Speichern getrennt ab
-4. Ein Denkmodell mit vier Prüffragen (Workflow, Informationsmodell, Transport/API, Integrationsprofil) hilft bei jeder Integration
+4. Ein Denkmodell mit vier Prüffragen (Workflow, Informationsmodell, Transport/API, Integrationsprofil) hilft, eine Integration strukturiert zu prüfen
 
-**Erklärung:** FHIR-References und DICOMweb-Identifikatoren dienen verwandten, aber unterschiedlichen Zwecken, die drei DICOMweb-Dienste sind sauber getrennt, und das Vier-Fragen-Modell hilft bei jeder Integration. Ein HTTP-Statuscode allein reicht dagegen nie für die fachliche Diagnose.
+**Erklärung:** FHIR-References und DICOMweb-Identifikatoren dienen verwandten, aber unterschiedlichen Zwecken, die drei DICOMweb-Dienste sind sauber getrennt, und das Vier-Fragen-Modell hilft, strukturiert vorzugehen. Ein HTTP-Statuscode allein reicht dagegen nicht für die fachliche Diagnose.
 
 ### f16 — Referenzen in FHIR-Ressourcen machen separate fachliche Identifier (system+value) überflüssig.
 
