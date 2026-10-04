@@ -57,9 +57,9 @@ questions:
     difficulty: 2
     tags: [integration]
 
-  - id: f07
+  - id: f17
     type: truefalse
-    answer: false
+    answer: true
     lesson: "7.5"
     review: { lesson: "7.5", anchor: "retries-und-duplikate" }
     difficulty: 2
@@ -89,9 +89,9 @@ questions:
     difficulty: 2
     tags: [integration]
 
-  - id: f11
+  - id: f18
     type: truefalse
-    answer: false
+    answer: true
     lesson: "7.6"
     review: { lesson: "7.6", anchor: "status-ist-teil-des-workflows" }
     difficulty: 1

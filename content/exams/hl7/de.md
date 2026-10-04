@@ -54,11 +54,11 @@ intro: 10 Fragen aus Track 7. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Segmente sind an ihrem dreistelligen Präfix erkennbar, `^` trennt Komponenten innerhalb eines Feldes, und erst zusammen mit der Assigning Authority ist eine Patient ID eindeutig — zwei gleiche Ziffernfolgen aus unterschiedlichen Domänen können unterschiedliche Patienten meinen.
 
-### f07 — Die Message Control ID identifiziert dieselbe medizinische Leistung wie die Order Number.
+### f17 — Die Message Control ID identifiziert eine einzelne HL7-Nachricht, nicht die medizinische Leistung.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Die Message Control ID identifiziert die Nachricht selbst, nicht die medizinische Leistung — dafür stehen Placer/Filler Order Number und Accession Number.
+**Erklärung:** Richtig. Für die Leistung stehen Placer/Filler Order Number und Accession Number. Die Message Control ID ist der Suchanker für Interface-Engine-Logs und taucht im ACK als `MSA-2` wieder auf.
 
 ### f08 — Welches Segment beschreibt in einer HL7-v2-Nachricht die Patient Identification? *(Freitext)*
 
@@ -119,8 +119,8 @@ intro: 10 Fragen aus Track 7. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** HL7 v2 kann Aufträge fachlich vor der Bildentstehung transportieren, Segmente sind an ihrem Präfix erkennbar, und die drei Identitätsebenen sind grundsätzlich getrennt. Ob eine ADT-Änderung automatisch übernommen wird, hängt dagegen vom Profil und der Konfiguration des Zielsystems ab.
 
-### f16 — Jede HL7-v2-Nachricht muss zwingend ein OBX-Segment enthalten.
+### f18 — Eine HL7-v2-Auftragsnachricht kann ganz ohne OBX-Segment auskommen.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Welche Segmente vorkommen, hängt vom Nachrichtentyp ab. Eine Auftragsnachricht (`OMG^O19` oder `ORM^O01`) kommt oft ganz ohne OBX aus — dort ist OBX optional, etwa für Größe und Gewicht (IHE RAD TF-2, Abschnitt 4.2.4.1.2.2) —, und ein ACK enthält nie eines. In der Ergebnisnachricht ORU trägt OBX dagegen die eigentlichen Ergebnisse.
+**Erklärung:** Richtig. Welche Segmente vorkommen, hängt vom Nachrichtentyp ab. In `OMG^O19` oder `ORM^O01` ist OBX optional, etwa für Größe und Gewicht (IHE RAD TF-2, Abschnitt 4.2.4.1.2.2); in der Ergebnisnachricht ORU trägt OBX dagegen die eigentlichen Ergebnisse.

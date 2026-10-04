@@ -63,11 +63,11 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Falsch. Ein Erfolg gilt nur für das eine Objekt — ein Aufruf kann ausgelassen worden sein, und ein Objekt, dessen SOP-Klasse das Archiv nicht annimmt, erhält gar keinen Status, während `storescu` trotzdem mit Exitcode 0 endet. `NumberOfStudyRelatedInstances` gegen die Soll-Zahl zu prüfen ist der zuverlässige Nachweis.
 
-### f08 — Eine `findscu -W`-Abfrage, die mit `Success` endet, aber keine einzige Antwortzeile liefert, ist ein Fehler der Worklist-Abfrage selbst.
+### f29 — Eine `findscu -W`-Abfrage, die mit `Success` endet und keine Antwortzeile liefert, kann schlicht bedeuten, dass der Filter zu eng war.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Eine leere, erfolgreiche Antwort ist ein gültiges Ergebnis — es war einfach nichts geplant, das zum Filter passte, oder der Filter war zu eng.
+**Erklärung:** Richtig. Eine leere, erfolgreiche Antwort ist ein gültiges Ergebnis: Entweder war nichts geplant, das zum Filter passte, oder der Filter war zu eng — etwa ein falscher Scheduled Station AE Title. Ein Fehler der Abfrage selbst ist das nicht.
 
 ### f09 — Welchen DIMSE-Statuscode liefert ein C-STORE, wenn das Archiv beim Speichern Werte wie die Patient ID an seinen Bestand angleicht (Coercion)? *(Freitext)*
 
@@ -213,8 +213,8 @@ intro: 16 Fragen aus Track 4. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Ein C-STORE-Erfolg belegt ausschließlich, dass der angesprochene Storage SCP das Objekt angenommen hat. Indexierung, Darstellbarkeit im Viewer und Objektart sind davon unabhängige, getrennt zu prüfende Schichten.
 
-### f28 — Eine leere Trefferliste im Viewer beweist, dass das gesuchte Objekt nicht im Archiv gespeichert wurde.
+### f30 — Ein Viewer kann eine leere Trefferliste zeigen, obwohl das gesuchte Objekt korrekt gespeichert und per C-FIND auffindbar ist.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ein Viewer ist nur eine Sicht auf den Archivbestand und kann durch Filter, Berechtigungen oder eine nicht bildhafte SOP Class leer bleiben, obwohl das Objekt korrekt gespeichert und über C-FIND auffindbar ist.
+**Erklärung:** Richtig. Ein Viewer ist nur eine Sicht auf den Archivbestand und kann durch Filter, Berechtigungen oder eine nicht bildhafte SOP Class leer bleiben. Ob das Objekt gespeichert ist, beantwortet eine C-FIND-Abfrage am Archiv.

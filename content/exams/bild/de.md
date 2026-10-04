@@ -30,11 +30,11 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Type 2 erlaubt einen leeren Wert bei vorhandenem Tag, und ein Archiv prüft meist gezielt die für seinen eigenen Betrieb nötigen Attribute. Ein fehlendes Type-3-Attribut ist dagegen kein Verstoß, und innerhalb eines Moduls haben einzelne Attribute unterschiedliche Pflichtgrade — nicht das ganze Modul einheitlich.
 
-### f04 — Ein fehlendes Attribut im Dump bedeutet automatisch, dass die Datei fehlerhaft ist.
+### f39 — Ein Type-3-Attribut darf in einer Datei ganz fehlen, ohne dass die Datei dadurch fehlerhaft ist.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ein Type-3-Attribut darf ganz fehlen, ebenso ein Attribut aus einem weggelassenen U-Modul oder ein 1C/2C-Attribut, dessen Bedingung nicht erfüllt ist — das ist vom Standard so vorgesehen. Ein Type-2-Attribut dagegen darf leer sein, aber nicht fehlen.
+**Erklärung:** Richtig. Type 3 heißt optional; auch ein Attribut aus einem weggelassenen U-Modul oder ein 1C/2C-Attribut, dessen Bedingung nicht erfüllt ist, darf fehlen. Ein Type-2-Attribut dagegen darf leer sein, aber nicht fehlen.
 
 ### f05 — Was bedeutet `PhotometricInterpretation MONOCHROME1`?
 
@@ -87,11 +87,11 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** WindowCenter/WindowWidth bestimmen den sichtbaren HU-Ausschnitt, und für nicht-lineare Umrechnungen stehen Modality- bzw. VOI-LUT-Sequenzen bereit. Ein schwarzes Bild bedeutet aber nicht automatisch eine kaputte Datei, und es gibt je nach Fragestellung (Weichteil, Lunge, Knochen) mehrere sinnvolle Fensterungen.
 
-### f11 — Zwei Viewer, die denselben CT-Datensatz unterschiedlich hell darstellen, haben zwangsläufig einen davon falsch konfiguriert.
+### f40 — Zwei Viewer können denselben CT-Datensatz unterschiedlich hell darstellen, ohne dass einer von beiden falsch konfiguriert ist.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Es gibt eine sinnvolle Fensterung für eine bestimmte Frage (Weichteil, Lunge, Knochen — jeweils andere Center/Width-Werte). Zwei unterschiedliche, beide korrekte Darstellungen desselben Datensatzes sind normal.
+**Erklärung:** Richtig. Für Weichteil, Lunge oder Knochen gibt es jeweils andere sinnvolle Fensterwerte (Center/Width). Zwei unterschiedliche, beide korrekte Darstellungen desselben Datensatzes sind normal.
 
 ### f12 — Auf welchen ungefähren Hounsfield-Wert wird Luft in der CT-Praxis normiert (nur die Zahl, ohne Einheit)? *(Freitext)*
 
@@ -124,11 +124,11 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Ultrasound Multi-frame oder RT Dose erlauben bereits mehrere Frames, ohne Enhanced zu sein (der klassische Secondary-Capture-Typ dagegen ist laut PS3.3 A.8.1.1 ein Einzelbild; für mehrere Frames gibt es eigene Multi-frame-SC-Typen), klassisches multiframe teilt Attribute wie WindowCenter für alle Frames, und ein dateibasiertes Zählskript liegt bei solchen Objekten falsch. `NumberOfFrames > 1` bedeutet aber nicht automatisch Enhanced — das ist eine eigene, zusätzliche Strukturebene.
 
-### f16 — NumberOfFrames > 1 bedeutet automatisch, dass es sich um ein Enhanced-Objekt handelt.
+### f41 — Mehrere Frames in einem Objekt gibt es auch bei klassischen IODs ohne Functional Groups, etwa bei Ultrasound Multi-frame oder RT Dose.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Multiframe ist schon bei klassischen IODs wie Ultrasound Multi-frame oder RT Dose möglich. Enhanced ist eine zusätzliche, eigene Strukturebene (Functional Groups), keine reine Frage der Frame-Zahl.
+**Erklärung:** Richtig. `NumberOfFrames > 1` allein macht ein Objekt nicht zu einem Enhanced-Objekt. Enhanced ist eine eigene Strukturebene mit Shared und Per-Frame Functional Groups, keine Frage der Frame-Zahl.
 
 ### f17 — Welche SOPClassUID hat ein Structured Report in der Lektion?
 
@@ -148,11 +148,11 @@ intro: 16 Fragen aus Track 3. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Ein KOS enthält ein `IMAGE`-Element mit einer `ReferencedSOPSequence` — einem echten Verweis auf die SOPInstanceUID eines bereits vorhandenen Objekts, ohne selbst Pixel mitzubringen.
 
-### f19 — Ein Key Object Selection dupliziert die Pixeldaten des Bilds, auf das es verweist.
+### f42 — Ein Key Object Selection verweist auf vorhandene Bilder, ohne deren Pixeldaten zu enthalten.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ein KOS verweist nur über `ReferencedSOPInstanceUID` — die Pixeldaten existieren weiterhin genau einmal, im ursprünglichen Bildobjekt.
+**Erklärung:** Richtig. Ein KOS verweist über `ReferencedSOPInstanceUID` auf die Bilder — die Pixeldaten existieren weiterhin genau einmal, im ursprünglichen Bildobjekt. Fehlt ein referenziertes Bild, verweist das KOS ins Leere.
 
 ### f20 — Welches Feld einer Study zeigt bei einer C-FIND-Abfrage, dass sie CT-, KO- und SR-Objekte gleichzeitig enthält? *(Freitext)*
 

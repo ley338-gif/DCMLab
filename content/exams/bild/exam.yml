@@ -34,9 +34,9 @@ questions:
     difficulty: 2
     tags: [datenmodell]
 
-  - id: f04
+  - id: f39
     type: truefalse
-    answer: false
+    answer: true
     lesson: "3.1"
     review: { lesson: "3.1", anchor: "stolperfallen" }
     difficulty: 1
@@ -90,9 +90,9 @@ questions:
     difficulty: 2
     tags: [bildgebung]
 
-  - id: f11
+  - id: f40
     type: truefalse
-    answer: false
+    answer: true
     lesson: "3.3"
     review: { lesson: "3.3", anchor: "stolperfallen" }
     difficulty: 2
@@ -130,9 +130,9 @@ questions:
     difficulty: 2
     tags: [datenmodell]
 
-  - id: f16
+  - id: f41
     type: truefalse
-    answer: false
+    answer: true
     lesson: "3.4"
     review: { lesson: "3.4", anchor: "stolperfallen" }
     difficulty: 3
@@ -154,9 +154,9 @@ questions:
     difficulty: 2
     tags: [datenmodell]
 
-  - id: f19
+  - id: f42
     type: truefalse
-    answer: false
+    answer: true
     lesson: "3.5"
     review: { lesson: "3.5", anchor: "stolperfallen" }
     difficulty: 1

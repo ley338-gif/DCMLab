@@ -54,11 +54,11 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Jedes Objekt bekommt eine eigene Bestätigung, `storescp` benennt Dateien nach der SOP Instance UID, und ein Failure-Status lehnt vollständig ab. Ein Warning-Status bedeutet dagegen "angenommen, aber verändert" — nicht unverändert übernommen.
 
-### f07 — Ein Warning-Status wie 0xB000 bedeutet, dass das Objekt ganz normal und unverändert angekommen ist.
+### f39 — Der Warning-Status 0xB000 bei C-STORE kann bedeuten, dass das Archiv Attribute wie die Patient ID beim Speichern an seinen Bestand angeglichen hat.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. `0xB000` heißt "angenommen, aber verändert", etwa wenn Patientendaten aktiv gegen den eigenen Bestand überschrieben wurden (Coercion) — nicht "ganz normal angekommen".
+**Erklärung:** Richtig. Das heißt Coercion: angenommen, aber verändert (PS3.4 B.4.1.3, Status B000 in Tabelle B.2-1). Ein Warning ist also nicht „ganz normal und unverändert angekommen".
 
 ### f08 — Welcher DIMSE-Status-Code steht für einen erfolgreichen C-STORE? *(Freitext)*
 
@@ -91,11 +91,11 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Eine tiefere Ebene kann mehrere Treffer liefern, eine leere, erfolgreiche Antwort ist gültig, und der Identifier — Matching-Keys *und* Rückgabefelder gemeinsam — reist als eigenes `C-FIND-RQ-DATA`-Paket getrennt vom Kommando `C-FIND-RQ`. `*` steht für eine beliebige Zeichenfolge — `?` steht für genau ein Zeichen.
 
-### f12 — Eine `findscu`-Abfrage ohne Treffer, die mit `Success` endet, ist ein technischer Fehler.
+### f40 — Eine `findscu`-Abfrage ohne Treffer, die mit `Success` endet, ist ein gültiges Ergebnis.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Eine leere Antwort mit `Success` ist ein vollständig gültiges Ergebnis — der Dienst hat korrekt gearbeitet, es gab nur nichts, was zum Filter passte.
+**Erklärung:** Richtig. Der Dienst hat korrekt gearbeitet, es gab nur nichts, was zum Filter passte. Ob der Filter zu eng war, ist eine andere Frage als die, ob die Abfrage funktioniert.
 
 ### f13 — Bei einem C-MOVE — wer empfängt die eigentlichen Bilddaten?
 
@@ -152,11 +152,11 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Die Worklist ist flach und ohne `QueryRetrieveLevel`, eine leere, erfolgreiche Antwort ist gültig, und das DCMTK-`findscu` schlägt mit `-W` genau eine Presentation Context vor (Modality Worklist Information Model – FIND). Das `findscu` der Spielwiese (pynetdicom) schlägt dagegen neunzehn vor — die Zahl ist eine Eigenschaft des Werkzeugs, nicht des Dienstes. Wer die Worklist beantwortet, legt jedes Haus selbst fest: häufig ein RIS oder ein Worklist-Broker, nicht zwingend das Bildarchiv.
 
-### f20 — Eine Worklist-Anfrage wird immer vom Bildarchiv selbst beantwortet.
+### f41 — Wer die Modality Worklist beantwortet, legt jedes Haus selbst fest — oft ein RIS oder ein eigener Worklist-Broker, in dieser Spielwiese Orthanc.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Wer die Worklist beantwortet, legt jedes Haus selbst fest — häufig ein RIS oder ein eigener Worklist-Broker, der die Aufträge verwaltet; das Bildarchiv speichert Bilder. Ob beides dieselbe Installation ist, hängt vom Haus ab. In dieser Spielwiese beantwortet Orthanc selbst die Worklist, als bewusste Vereinfachung.
+**Erklärung:** Richtig. Die Worklist verwaltet Aufträge, das Bildarchiv speichert Bilder; ob beides dieselbe Installation ist, hängt vom Haus ab. In der Spielwiese beantwortet Orthanc die Worklist selbst, als bewusste Vereinfachung.
 
 ### f21 — Mit welcher DIMSE-Nachricht meldet eine Modalität den Beginn einer Untersuchung per MPPS?
 
@@ -185,11 +185,11 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** `DISCONTINUED` ist eine erfolgreich zugestellte Meldung wie jede andere, N-CREATE und N-SET laufen über dieselbe Assoziation, und meist ist es ein RIS/Broker, der MPPS entgegennimmt. MPPS bestätigt aber nichts über den Bildtransfer — das ist Aufgabe von C-STORE, ein unabhängiger Meldeweg.
 
-### f24 — Ein Bild ist im Archiv angekommen, aber keine MPPS-Meldung wurde je gesendet — daraus folgt, dass die Untersuchung nicht stattgefunden hat.
+### f42 — C-STORE und MPPS sind unabhängige Meldewege: Ein Bild kann im Archiv ankommen, obwohl nie eine MPPS-Meldung gesendet wurde.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. C-STORE und MPPS sind unabhängige Meldewege für dieselbe Untersuchung. Ein fehlendes MPPS sagt nichts darüber, ob die Untersuchung stattgefunden hat — nur, dass diese eine Meldung nicht ankam.
+**Erklärung:** Richtig. Ein fehlendes MPPS sagt nichts darüber, ob die Untersuchung stattgefunden hat — nur, dass diese eine Meldung nicht ankam. Umgekehrt beweist ein abgeschlossenes MPPS nicht, dass alle Bilder angekommen sind.
 
 ### f25 — Welche zwei Nachrichten bilden einen Storage-Commitment-Zyklus?
 

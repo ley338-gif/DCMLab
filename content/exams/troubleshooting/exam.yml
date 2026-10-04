@@ -74,9 +74,9 @@ questions:
     difficulty: 2
     tags: [datenmodell]
 
-  - id: f08
+  - id: f29
     type: truefalse
-    answer: false
+    answer: true
     lesson: "4.7"
     review: { lesson: "4.7", anchor: "eine-leere-antwort-ist-eine-gueltige-antwort" }
     difficulty: 1
@@ -261,9 +261,9 @@ questions:
     difficulty: 1
     tags: [datenmodell]
 
-  - id: f28
+  - id: f30
     type: truefalse
-    answer: false
+    answer: true
     lesson: "4.12"
     review: { lesson: "4.12", anchor: "im-alltag-heisst-das" }
     difficulty: 2

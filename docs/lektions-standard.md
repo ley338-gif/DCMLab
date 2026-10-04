@@ -157,8 +157,9 @@ Format und Validierung regelt `content-schema.md` Abschnitt 2 (`quiz:`-Block,
 - **Nur die Typen `single`, `multi`, `input`.** Das Lektionsquiz kennt kein
   `truefalse` (`ContentValidator`: „erlaubt: single, multi, input“). Richtig/Falsch
   wird als `single` mit zwei Optionen umgesetzt. (4.1 q3; #178) Besser ist eine Frage
-  mit vier Optionen: Zwei sind zu 50 % ratbar, und die Richtig/Falsch-Fragen der
-  Prüfungen haben zu 55 von 59 die Lösung „Falsch“ (Stand 04.10.2026).
+  mit vier Optionen: Zwei sind zu 50 % ratbar, und einseitige Lösungen machen
+  auch Richtig/Falsch ratbar: In den Prüfungen war bis 04.10.2026 bei 55 von 59 die
+  Lösung „Falsch“, seitdem ist es ausgewogen (29 richtig, 30 falsch).
 - **Mindestens eine `multi`- und eine `input`-Frage.** (4.1 q4/q5. 3.8 hat bisher
   *keine* `input`-Frage und muss nachziehen, siehe Lektions-Backlog.)
 - **Distraktoren aus echten Fehlannahmen**, am besten aus den Stolperfallen der

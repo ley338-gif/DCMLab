@@ -34,9 +34,9 @@ questions:
     difficulty: 2
     tags: [integration]
 
-  - id: f04
+  - id: f55
     type: truefalse
-    answer: false
+    answer: true
     lesson: "5.1"
     review: { lesson: "5.1", anchor: "ein-name-fuer-etwas-das-du-schon-gemacht-hast" }
     difficulty: 2
@@ -98,9 +98,9 @@ questions:
     difficulty: 2
     tags: [integration]
 
-  - id: f12
+  - id: f56
     type: truefalse
-    answer: false
+    answer: true
     lesson: "5.3"
     review: { lesson: "5.3", anchor: "was-ein-einfacher-bildvergleich-nicht-zeigt" }
     difficulty: 2
@@ -122,9 +122,9 @@ questions:
     difficulty: 1
     tags: [security]
 
-  - id: f15
+  - id: f57
     type: truefalse
-    answer: false
+    answer: true
     lesson: "5.4"
     review: { lesson: "5.4", anchor: "anonymisierung-vs-pseudonymisierung-rueckfuehrbarkeit" }
     difficulty: 2
@@ -154,9 +154,9 @@ questions:
     difficulty: 2
     tags: [security, integration]
 
-  - id: f19
+  - id: f58
     type: truefalse
-    answer: false
+    answer: true
     lesson: "5.5"
     review: { lesson: "5.5", anchor: "das-spannungsfeld-aufbewahrungspflicht-vs-loeschanspruch" }
     difficulty: 3
@@ -374,9 +374,9 @@ questions:
     difficulty: 2
     tags: [netzwerk]
 
-  - id: f45
+  - id: f59
     type: truefalse
-    answer: false
+    answer: true
     lesson: "5.10"
     review: { lesson: "5.10", anchor: "lebenszyklus-statt-excel-friedhof" }
     difficulty: 3
@@ -438,9 +438,9 @@ questions:
     difficulty: 2
     tags: [integration]
 
-  - id: f53
+  - id: f60
     type: truefalse
-    answer: false
+    answer: true
     lesson: "5.12"
     review: { lesson: "5.12", anchor: "im-alltag-heisst-das" }
     difficulty: 3

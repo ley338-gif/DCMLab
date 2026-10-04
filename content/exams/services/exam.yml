@@ -59,9 +59,9 @@ questions:
     difficulty: 2
     tags: [datenmodell, netzwerk]
 
-  - id: f07
+  - id: f39
     type: truefalse
-    answer: false
+    answer: true
     lesson: "2.2"
     review: { lesson: "2.2", anchor: "was-der-status-im-detail-bedeutet" }
     difficulty: 2
@@ -99,9 +99,9 @@ questions:
     difficulty: 2
     tags: [datenmodell]
 
-  - id: f12
+  - id: f40
     type: truefalse
-    answer: false
+    answer: true
     lesson: "2.3"
     review: { lesson: "2.3", anchor: "eine-leere-antwort-ist-eine-gueltige-antwort" }
     difficulty: 1
@@ -163,9 +163,9 @@ questions:
     difficulty: 3
     tags: [datenmodell, integration]
 
-  - id: f20
+  - id: f41
     type: truefalse
-    answer: false
+    answer: true
     lesson: "2.5"
     review: { lesson: "2.5", anchor: "wer-die-worklist-in-der-praxis-beantwortet" }
     difficulty: 2
@@ -195,9 +195,9 @@ questions:
     difficulty: 2
     tags: [integration]
 
-  - id: f24
+  - id: f42
     type: truefalse
-    answer: false
+    answer: true
     lesson: "2.6"
     review: { lesson: "2.6", anchor: "was-mpps-nicht-ist" }
     difficulty: 3
