@@ -109,6 +109,25 @@ bis 3.
   `dcmftest` prüft nur Meta-Header/Part-10, keine IOD-/TID-Konformität)
 - **Zahlen im Text stimmen mit den eigenen Tabellen und Diagrammen überein.** (#177
   Befund: „vier Stationen“ im Text, fünf Tabellenzeilen)
+- **In einer frisch gestarteten Spielwiese nachfahrbar, in der gezeigten Reihenfolge.**
+  Was im Aufnahmelauf verdeckt vorbereitet wurde, fehlt den Lernenden. (Nachprüfung
+  der Lektionsentwürfe am 04.10.2026: 2.1, 2.2, 2.3 und 2.5 waren so nicht nachfahrbar)
+  - Das Archiv startet leer. Was eine Abfrage finden soll, wird vorher sichtbar
+    eingespielt. (2.3: Einspielschritt fehlte)
+  - Testgegenstellen, Empfänger und Mitschnitte startet die Lektion selbst, als
+    Einzeiler. Mehrzeilige Skripte und Heredocs lassen sich im Terminal nicht anlegen:
+    Einfügen ersetzt Zeilenumbrüche, jede Eingabe läuft in einer eigenen Shell. (2.1,
+    2.2: `mrecho.py`, `voll.py`; zwei Gegenstellen nur beschrieben)
+  - Lang laufende Programme (`storescp`, `tshark`, Test-SCPs) nie im Vordergrund — das
+    Terminal wartet ohne Zeitgrenze —, sondern `… > datei 2>&1 & sleep 2`. Ohne die
+    Pause kann der erste Austausch verloren gehen. (4.7: leerer Mitschnitt; 4.9)
+  - Keine sitzungsabhängigen Werte im Befehl. UIDs der Testdaten ändern sich mit jedem
+    Aufbau, das Datum der Spielwiese ist UTC. Werte kommen aus einer vorigen Ausgabe
+    (Datei, `$(…)`, „setze deine ein“). (2.3: feste StudyInstanceUID; 2.5: festes
+    Worklist-Datum)
+- **Nach jedem Befehl steht `[Exitcode N]`**, wie das Terminal es schreibt (#196).
+  Gehört der Exitcode zu einem Filter wie `grep`, sagt der Text das. (3.1, 3.2:
+  Entwürfe von vor #196 zeigten ihn nur stellenweise)
 
 ## 5. Ein Diagnosewerkzeug in der Lektion
 
@@ -137,7 +156,9 @@ Format und Validierung regelt `content-schema.md` Abschnitt 2 (`quiz:`-Block,
 - **4–5 Fragen.** (4.1 und 3.8: je 5)
 - **Nur die Typen `single`, `multi`, `input`.** Das Lektionsquiz kennt kein
   `truefalse` (`ContentValidator`: „erlaubt: single, multi, input“). Richtig/Falsch
-  wird als `single` mit zwei Optionen umgesetzt. (4.1 q3; #178)
+  wird als `single` mit zwei Optionen umgesetzt. (4.1 q3; #178) Besser ist eine Frage
+  mit vier Optionen: Zwei sind zu 50 % ratbar, und die Richtig/Falsch-Fragen der
+  Prüfungen haben zu 55 von 59 die Lösung „Falsch“ (Stand 04.10.2026).
 - **Mindestens eine `multi`- und eine `input`-Frage.** (4.1 q4/q5. 3.8 hat bisher
   *keine* `input`-Frage und muss nachziehen, siehe Lektions-Backlog.)
 - **Distraktoren aus echten Fehlannahmen**, am besten aus den Stolperfallen der
@@ -220,6 +241,9 @@ Ja/Nein; ein „Nein“ braucht eine Begründung.
 - [ ] Jede PS3.x-Aussage hat eine Fundstelle und ist gegen den aktuellen Standardtext
       geprüft
 - [ ] Mehrere Fälle im Standard sind nicht auf einen verkürzt
+- [ ] In frischer Spielwiese in der gezeigten Reihenfolge nachfahrbar: Einspielen und
+      Gegenstellen sichtbar (als Einzeiler), nichts Langlaufendes im Vordergrund, keine
+      festen UIDs oder Daten, `[Exitcode N]` nach jedem Befehl
 - [ ] Alle Ausgaben sind live erzeugt und wörtlich übernommen; Nicht Reproduzierbares
       ist als `<!-- kein-beispiel -->` markiert, mit Grund, Datum und Node-Verweis
 - [ ] Aussagen, die nur für den Testaufbau gelten, und synthetische Objekte sind als
