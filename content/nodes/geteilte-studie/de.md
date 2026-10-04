@@ -28,8 +28,9 @@ Vorkenntnisse: Lektion 4.5. Rechne mit 18 Minuten.
 
 ### h1
 
-Zwei Einträge mit derselben Accession Number sind ungewöhnlich. Bevor
-du entscheidest, was das bedeutet, vergleiche die Study Instance UIDs
+Zwei Einträge mit derselben Accession Number können zweierlei sein: ein
+Auftrag mit mehreren Untersuchungen oder ein Fehler. Bevor du entscheidest,
+was es hier ist, vergleiche die Study Instance UIDs
 beider Treffer — sind sie wirklich verschieden?
 
 ### h2
@@ -55,17 +56,21 @@ $ findscu -S -k QueryRetrieveLevel=STUDY -k AccessionNumber=A50231 \
           -k StudyDescription -k StudyDate \
           -aet DCMLAB-WS -aec MR-ARCHIV 10.20.0.10 104
 I: # Dicom-Data-Set
-I: (0010,0020) LO [9310]  # PatientID
-I: (0010,0010) PN [KELLER^ANNA]  # PatientName
-I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410205118834]  # StudyInstanceUID
-I: (0008,1030) LO [MR Wirbelsaeule nativ]  # StudyDescription
-I: (0008,0020) DA [20260304]  # StudyDate
+I: (0008,0020) DA [20260304]                               #   8, 1 StudyDate
+I: (0008,0050) SH [A50231]                                 #   6, 1 AccessionNumber
+I: (0008,0052) CS [STUDY]                                  #   6, 1 QueryRetrieveLevel
+I: (0008,1030) LO [MR Wirbelsaeule nativ]                  #  22, 1 StudyDescription
+I: (0010,0010) PN [KELLER^ANNA]                            #  12, 1 PatientName
+I: (0010,0020) LO [9310]                                   #   4, 1 PatientID
+I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410205118834]   #  36, 1 StudyInstanceUID
 I: # Dicom-Data-Set
-I: (0010,0020) LO [9310]  # PatientID
-I: (0010,0010) PN [KELLER^ANNA]  # PatientName
-I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410288227741]  # StudyInstanceUID
-I: (0008,1030) LO [MR Wirbelsaeule nativ]  # StudyDescription
-I: (0008,0020) DA [20260304]  # StudyDate
+I: (0008,0020) DA [20260304]                               #   8, 1 StudyDate
+I: (0008,0050) SH [A50231]                                 #   6, 1 AccessionNumber
+I: (0008,0052) CS [STUDY]                                  #   6, 1 QueryRetrieveLevel
+I: (0008,1030) LO [MR Wirbelsaeule nativ]                  #  22, 1 StudyDescription
+I: (0010,0010) PN [KELLER^ANNA]                            #  12, 1 PatientName
+I: (0010,0020) LO [9310]                                   #   4, 1 PatientID
+I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410288227741]   #  36, 1 StudyInstanceUID
 I: Number of Matches: 2
 ```
 
@@ -82,9 +87,13 @@ zwei echte, eigenständige Studies.
    weiterhin nur einen Eintrag mit unveränderter Serienzahl zeigen —
    hier gibt es zwei echte, unterschiedliche Study Instance UIDs.
 2. **Zwei echte unterschiedliche Studies (zwei getrennte Untersuchungen).**
-   Unwahrscheinlich: Zwei unabhängige Untersuchungen teilen sich
-   normalerweise keine Accession Number und liegen selten fast auf die
-   Minute zusammen. Beide sprechen dagegen.
+   Grundsätzlich möglich: Die Accession Number identifiziert den Auftrag,
+   und ein Auftrag mit mehreren angeforderten Untersuchungen erzeugt mehrere
+   Studies unter derselben Accession Number; unterschieden werden sie dann
+   durch die Requested Procedure ID (IHE RAD TF-1, Abschnitt 34.4.1.2). Hier
+   spricht dagegen, dass sich die Serien beider Studies zu genau einer
+   Wirbelsäulenuntersuchung ergänzen und das Gerät dazwischen neu gestartet
+   ist.
 3. **PACS-Duplikat durch eine zweite Patientenidentität.** Nicht mit
    letzter Sicherheit ausschließbar: Patient ID allein ist laut Standard
    nicht global eindeutig — erst zusammen mit dem Issuer of Patient ID
@@ -106,16 +115,32 @@ $ findscu -S -k QueryRetrieveLevel=SERIES \
           -k StudyInstanceUID=1.2.276.0.7230010.3.1.4.410205118834 \
           -k SeriesInstanceUID -k SeriesDescription \
           -aet DCMLAB-WS -aec MR-ARCHIV 10.20.0.10 104
-I: (0008,103e) LO [Sag T2]  # SeriesDescription
+I: # Dicom-Data-Set
+I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,103e) LO [Sag T2]                                 #   6, 1 SeriesDescription
+I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410205118834]   #  36, 1 StudyInstanceUID
+I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.410205118901]   #  36, 1 SeriesInstanceUID
 I: Number of Matches: 1
 
 $ findscu -S -k QueryRetrieveLevel=SERIES \
           -k StudyInstanceUID=1.2.276.0.7230010.3.1.4.410288227741 \
           -k SeriesInstanceUID -k SeriesDescription \
           -aet DCMLAB-WS -aec MR-ARCHIV 10.20.0.10 104
-I: (0008,103e) LO [Sag T1]  # SeriesDescription
-I: (0008,103e) LO [Tra T2]  # SeriesDescription
-I: (0008,103e) LO [Cor STIR]  # SeriesDescription
+I: # Dicom-Data-Set
+I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,103e) LO [Sag T1]                                 #   6, 1 SeriesDescription
+I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410288227741]   #  36, 1 StudyInstanceUID
+I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.410288227801]   #  36, 1 SeriesInstanceUID
+I: # Dicom-Data-Set
+I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,103e) LO [Tra T2]                                 #   6, 1 SeriesDescription
+I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410288227741]   #  36, 1 StudyInstanceUID
+I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.410288227802]   #  36, 1 SeriesInstanceUID
+I: # Dicom-Data-Set
+I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,103e) LO [Cor STIR]                               #   8, 1 SeriesDescription
+I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410288227741]   #  36, 1 StudyInstanceUID
+I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.410288227803]   #  36, 1 SeriesInstanceUID
 I: Number of Matches: 3
 ```
 
