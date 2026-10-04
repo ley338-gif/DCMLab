@@ -923,9 +923,11 @@ def test_c_find_returns_only_requested_attributes_from_the_real_content() -> Non
 
     for not_requested in ("PatientName", "PatientID", "StudyDate", "StudyDescription"):
         assert not_requested not in by_accession.stdout
-    assert by_accession.stdout.splitlines()[1:4] == [
+    # Dazu kommt der Retrieve AE Title, den C.4.1.1.3.2 in jeder Antwort verlangt.
+    assert by_accession.stdout.splitlines()[1:5] == [
         "I: " + dcmtk.element_line("0008,0050", "SH", "R2026-08812", "AccessionNumber"),
         "I: " + dcmtk.element_line("0008,0052", "CS", "STUDY", "QueryRetrieveLevel"),
+        "I: " + dcmtk.element_line("0008,0054", "AE", "KLINIK-ARCHIV", "RetrieveAETitle"),
         "I: " + dcmtk.element_line(
             "0020,000d", "UI", "1.2.276.0.7230010.3.1.4.541902387012", "StudyInstanceUID",
         ),

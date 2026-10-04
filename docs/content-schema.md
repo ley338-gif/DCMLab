@@ -1003,7 +1003,9 @@ DCMTK 3.6.7 aus, gegen das Toolbox-Image der Spielwiese abgeglichen
   Reihenfolge der Optionen. `findscu`-Zeilen tragen `I: ` davor.
 
 C-FIND-Antworten folgen PS3.4 C.4.1.1.3.2: Sie enthalten nur die angefragten
-Keys (dazu `QueryRetrieveLevel`), in Tag-Reihenfolge. Ein angefragter Key
+Keys, dazu `QueryRetrieveLevel` und auf STUDY-/SERIES-Ebene den
+`RetrieveAETitle` (0008,0054) des Archivs, den der Standard dort verlangt,
+in Tag-Reihenfolge. Ein angefragter Key
 ohne Wert kommt mit Länge null zurück, nicht unterstützte Keys fallen weg
 (C.2.2.1.3). Auf STUDY-Ebene passt ein Record ohne `study_uid` nie — jeder
 Treffer ist dort eine Study. Hints und Write-ups dürfen sich deshalb nur auf

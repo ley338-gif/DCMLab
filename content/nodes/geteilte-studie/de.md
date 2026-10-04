@@ -59,6 +59,7 @@ I: # Dicom-Data-Set
 I: (0008,0020) DA [20260304]                               #   8, 1 StudyDate
 I: (0008,0050) SH [A50231]                                 #   6, 1 AccessionNumber
 I: (0008,0052) CS [STUDY]                                  #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [MR-ARCHIV]                              #  10, 1 RetrieveAETitle
 I: (0008,1030) LO [MR Wirbelsaeule nativ]                  #  22, 1 StudyDescription
 I: (0010,0010) PN [KELLER^ANNA]                            #  12, 1 PatientName
 I: (0010,0020) LO [9310]                                   #   4, 1 PatientID
@@ -67,6 +68,7 @@ I: # Dicom-Data-Set
 I: (0008,0020) DA [20260304]                               #   8, 1 StudyDate
 I: (0008,0050) SH [A50231]                                 #   6, 1 AccessionNumber
 I: (0008,0052) CS [STUDY]                                  #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [MR-ARCHIV]                              #  10, 1 RetrieveAETitle
 I: (0008,1030) LO [MR Wirbelsaeule nativ]                  #  22, 1 StudyDescription
 I: (0010,0010) PN [KELLER^ANNA]                            #  12, 1 PatientName
 I: (0010,0020) LO [9310]                                   #   4, 1 PatientID
@@ -117,6 +119,7 @@ $ findscu -S -k QueryRetrieveLevel=SERIES \
           -aet DCMLAB-WS -aec MR-ARCHIV 10.20.0.10 104
 I: # Dicom-Data-Set
 I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [MR-ARCHIV]                              #  10, 1 RetrieveAETitle
 I: (0008,103e) LO [Sag T2]                                 #   6, 1 SeriesDescription
 I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410205118834]   #  36, 1 StudyInstanceUID
 I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.410205118901]   #  36, 1 SeriesInstanceUID
@@ -128,16 +131,19 @@ $ findscu -S -k QueryRetrieveLevel=SERIES \
           -aet DCMLAB-WS -aec MR-ARCHIV 10.20.0.10 104
 I: # Dicom-Data-Set
 I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [MR-ARCHIV]                              #  10, 1 RetrieveAETitle
 I: (0008,103e) LO [Sag T1]                                 #   6, 1 SeriesDescription
 I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410288227741]   #  36, 1 StudyInstanceUID
 I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.410288227801]   #  36, 1 SeriesInstanceUID
 I: # Dicom-Data-Set
 I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [MR-ARCHIV]                              #  10, 1 RetrieveAETitle
 I: (0008,103e) LO [Tra T2]                                 #   6, 1 SeriesDescription
 I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410288227741]   #  36, 1 StudyInstanceUID
 I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.410288227802]   #  36, 1 SeriesInstanceUID
 I: # Dicom-Data-Set
 I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [MR-ARCHIV]                              #  10, 1 RetrieveAETitle
 I: (0008,103e) LO [Cor STIR]                               #   8, 1 SeriesDescription
 I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.410288227741]   #  36, 1 StudyInstanceUID
 I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.410288227803]   #  36, 1 SeriesInstanceUID

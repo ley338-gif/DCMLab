@@ -588,7 +588,8 @@ def _requested(
     keys: dict[str, str | None], available: list[dump.Element],
 ) -> list[dump.Element]:
     """PS3.4 C.4.1.1.3.2: Die Antwort enthaelt nur Attribute, die in der
-    Anfrage standen (dazu der Query/Retrieve Level). Angefragte Keys, die das
+    Anfrage standen (dazu der Query/Retrieve Level und -- auf STUDY- und
+    SERIES-Ebene -- der Retrieve AE Title, den der Standard dort verlangt). Angefragte Keys, die das
     Archiv nicht unterstuetzt, fallen weg (C.2.2.1.3); ein angefragter Key ohne
     Wert kommt mit Laenge null zurueck."""
     return [element for element in available if element[3] in keys]
@@ -611,6 +612,9 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
 
     level = parsed["keys"].get("QueryRetrieveLevel")
     archive_name = result.target_host
+    # PS3.4 C.4.1.1.3.2: jede Antwort nennt, von wem sich die Objekte holen
+    # lassen -- hier das Archiv selbst (angenommen ist nur sein eigener Name).
+    retrieve_aet = parsed["aec"]
     archive_host = node.host(archive_name) if archive_name else None
 
     # Feature 6 aus P10: Modality Worklist ist ein eigenes Query/Retrieve
@@ -625,7 +629,7 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
     records = archive_host.get("records", []) if archive_host else []
 
     if records:
-        return _exec_findscu_against_records(records, level, parsed["keys"])
+        return _exec_findscu_against_records(records, level, parsed["keys"], retrieve_aet)
 
     bestand = state["bestand"].get(
         archive_name, {"studies": 0, "series": 0, "instances": 0},
@@ -651,6 +655,7 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
 
         lines = _findscu_lines([
             ("0008,0052", "CS", "SERIES", "QueryRetrieveLevel"),
+            ("0008,0054", "AE", retrieve_aet, "RetrieveAETitle"),
             *_requested(parsed["keys"], [
                 ("0020,000d", "UI", study_uid, "StudyInstanceUID"),
                 ("0020,000e", "UI", _series_instance_uid(node), "SeriesInstanceUID"),
@@ -668,6 +673,7 @@ def _exec_findscu(node: NodeDefinition, state: dict[str, Any], args: list[str]) 
     dataset = dataset or {}
     lines = _findscu_lines([
         ("0008,0052", "CS", "STUDY", "QueryRetrieveLevel"),
+        ("0008,0054", "AE", retrieve_aet, "RetrieveAETitle"),
         *_requested(parsed["keys"], [
             ("0010,0020", "LO", dataset.get("patient_id", "?"), "PatientID"),
             ("0020,000d", "UI", _study_instance_uid(node), "StudyInstanceUID"),
@@ -695,6 +701,7 @@ SERIES_RESPONSE_FIELDS = [
 
 def _exec_findscu_against_records(
     records: list[dict[str, Any]], level: str | None, keys: dict[str, str | None],
+    retrieve_aet: str,
 ) -> ExecResult:
     """C-FIND gegen vordefinierte Archiv-Records (P10, Feature 1) -- echtes
     Matching statt nur "wurde vorher etwas gesendet" (siehe `app/find.py`).
@@ -710,6 +717,7 @@ def _exec_findscu_against_records(
         blocks = [
             _findscu_lines([
                 ("0008,0052", "CS", "SERIES", "QueryRetrieveLevel"),
+                ("0008,0054", "AE", retrieve_aet, "RetrieveAETitle"),
                 *_requested(keys, [
                     ("0020,000d", "UI", study_uid, "StudyInstanceUID"),
                     *(
@@ -732,6 +740,7 @@ def _exec_findscu_against_records(
     blocks = [
         _findscu_lines([
             ("0008,0052", "CS", "STUDY", "QueryRetrieveLevel"),
+            ("0008,0054", "AE", retrieve_aet, "RetrieveAETitle"),
             *_requested(keys, [
                 (tag, vr, _value(study.get(field)), keyword)
                 for field, tag, vr, keyword in STUDY_RESPONSE_FIELDS

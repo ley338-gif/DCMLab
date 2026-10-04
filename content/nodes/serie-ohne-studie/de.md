@@ -87,6 +87,7 @@ $ findscu -S -k QueryRetrieveLevel=STUDY -k AccessionNumber=A66210 \
 I: # Dicom-Data-Set
 I: (0008,0050) SH [A66210]                                 #   6, 1 AccessionNumber
 I: (0008,0052) CS [STUDY]                                  #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [NEURO-PACS]                             #  10, 1 RetrieveAETitle
 I: (0008,1030) LO [MR Kopf nativ]                          #  14, 1 StudyDescription
 I: (0010,0010) PN [HOFFMANN^LARS]                          #  14, 1 PatientName
 I: (0010,0020) LO [7734]                                   #   4, 1 PatientID
@@ -106,11 +107,13 @@ $ findscu -S -k QueryRetrieveLevel=SERIES \
           -aet DCMLAB-WS -aec NEURO-PACS 10.33.0.10 104
 I: # Dicom-Data-Set
 I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [NEURO-PACS]                             #  10, 1 RetrieveAETitle
 I: (0008,103e) LO [T1 sag]                                 #   6, 1 SeriesDescription
 I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.660412998215]   #  36, 1 StudyInstanceUID
 I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.660412998301]   #  36, 1 SeriesInstanceUID
 I: # Dicom-Data-Set
 I: (0008,0052) CS [SERIES]                                 #   6, 1 QueryRetrieveLevel
+I: (0008,0054) AE [NEURO-PACS]                             #  10, 1 RetrieveAETitle
 I: (0008,103e) LO [T2 tra]                                 #   6, 1 SeriesDescription
 I: (0020,000d) UI [1.2.276.0.7230010.3.1.4.660412998215]   #  36, 1 StudyInstanceUID
 I: (0020,000e) UI [1.2.276.0.7230010.3.1.3.660412998302]   #  36, 1 SeriesInstanceUID

@@ -36,10 +36,12 @@ dort etwas Falsches:
 - `dcmdump` kennt `+P` (Tag oder Keyword, mehrfach), `-Un`/`+Un` und `+L`;
   unbekannte Optionen sind ein Fehler. Ohne `+P` kommen die Kopfzeilen der
   Datei mit.
-- C-FIND gibt nur angefragte Keys aus (plus QueryRetrieveLevel), in
-  Tag-Reihenfolge. Angefragte Keys ohne Wert kommen mit Länge null,
-  nicht unterstützte fallen weg (C.2.2.1.3). Das gilt für Records, Worklist
-  und den Bestand-Zweig.
+- C-FIND gibt nur angefragte Keys aus, dazu QueryRetrieveLevel und auf
+  STUDY-/SERIES-Ebene den Retrieve AE Title (0008,0054), den C.4.1.1.3.2
+  verlangt. Ein echtes Orthanc liefert ihn ebenso; geprüft mit DCMTK-`findscu`
+  aus der Toolbox gegen `dcmlab/orthanc`. Alles in Tag-Reihenfolge.
+  Angefragte Keys ohne Wert kommen mit Länge null, nicht unterstützte fallen
+  weg (C.2.2.1.3). Das gilt für Records, Worklist und den Bestand-Zweig.
 - STUDY-Ebene: Records ohne `study_uid` passen nie.
 - Worklist: SPS-Keys über Pfad (`ScheduledProcedureStepSequence[0].X`,
   `(0040,0100)[0].(gggg,eeee)`) oder leere Sequenz. Die Antwort ist
@@ -68,3 +70,11 @@ Simulation kennt `+P` nicht“.
   (`node-review/nodelauf-neu.md`).
 - Die Entwurfs-Nodes ohne `rich_content` (geteilte-studie, serie-ohne-studie,
   zweiter-hop) sind im selben PR nachgezogen.
+
+## Bewusst offen
+
+- **E6:** Echtes DCMTK-`findscu` druckt je Antwort einen Kopf
+  (`I: Find Response: 1 (Pending)`, `I: # Used TransferSyntax: …`) und keine
+  Zeile `Number of Matches`. Die Simulation behält `I: Number of Matches: N`,
+  weil viele Write-ups und Hints darauf aufbauen. Eine Umstellung wäre ein
+  eigener Schritt, mit Studio-Texten.
