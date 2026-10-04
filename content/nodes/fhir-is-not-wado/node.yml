@@ -96,9 +96,9 @@ scenario:
       terminal: true
       outcome: wrong
       prompt: >
-        Ein Retrieve auf Study-Ebene liefert laut PS3.18 immer eine
-        multipart/related-Antwort, kein einzelnes application/dicom-Objekt
-        ohne Umschlag.
+        Ein nacktes application/dicom ist laut PS3.18 (Abschnitt 10.4.4) nur
+        für eine einzelne Instanz vorgesehen. Die Objekte einer Study kommen
+        in einem multipart/related-Umschlag.
     wrong_fhir_pixels:
       terminal: true
       outcome: wrong
@@ -120,8 +120,8 @@ scenario:
         Richtig. Die korrekte Anfrage kombiniert die in Endpoint.address
         hinterlegte Basis-URL, die Study Instance UID im Pfad
         (WADO-RS-Struktur, keine Query-Parameter wie bei QIDO-RS) und den
-        Accept-Header multipart/related; type="application/dicom", wie
-        ihn ein Study-Retrieve laut PS3.18 immer liefert.
+        Accept-Header multipart/related; type="application/dicom" für die
+        DICOM-Objekte einer Study (PS3.18, Abschnitt 10.4.4).
 
 flag:
   type: exact
@@ -139,4 +139,4 @@ hints:
 
 stuck_timeout_minutes: 10
 status: draft
-updated: "2026-09-19"
+updated: "2026-10-04"
