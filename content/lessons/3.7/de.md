@@ -28,6 +28,7 @@ dieselbe SOP Class unterschiedlich gut unterstützen?
 $ dcmdump +P SOPClassUID +P Modality objekt.dcm
 (0008,0016) UI =XRayRadiationDoseSRStorage              #  30, 1 SOPClassUID
 (0008,0060) CS [SR]                                     #   2, 1 Modality
+[Exitcode 0]
 ```
 **Was du daran abliest:** `Modality` meldet nur `SR` — denselben Wert,
 den auch ein einfacher Structured Report melden würde. Erst
@@ -144,7 +145,7 @@ Zusammenspiel anschließend praktisch verifiziert werden.
 
 *Wissenskarten — kommen später zur Wiederholung zurück.*
 
-**q1 — Ein eingescanntes Zuweiserschreiben liegt erfolgreich gespeichert im Archiv und lässt sich per Query finden, aber niemand kann es öffnen. Was ist die wahrscheinlichste einfache Erklärung?**
+**q1 — Ein eingescanntes Zuweiserschreiben liegt erfolgreich gespeichert im Archiv und lässt sich per Query finden, aber niemand kann es öffnen. Welche Erklärung nennt die Lektion für genau diesen Fall?**
 1. Der C-STORE ist fehlgeschlagen
 2. Das Archiv hat das Objekt falsch indexiert
 3. Der verwendete Viewer besitzt für diese SOP Class keinen Renderer — Storage- und Display-Support sind getrennte Fähigkeiten
@@ -157,3 +158,19 @@ Zusammenspiel anschließend praktisch verifiziert werden.
 4. Unterstützt ein System eine SOP Class beim Speichern, unterstützt es dieselbe SOP Class automatisch auch beim Routing
 
 **q3 — Welcher Tag sagt dir präzise, welche Art DICOM-Objekt eine Instance ist — nicht nur grob wie `Modality`?** *(Freitext)*
+
+**q4 — `dcmdump` zeigt für ein Objekt nur `(0008,0060) CS [SR]`. Was weißt du damit?**
+1. Es ist ein Dosisbericht (RDSR)
+2. Es ist ein Structured Report irgendeiner Art — welcher, sagt erst die `SOPClassUID`
+3. Es ist ein Key Object Selection Document
+4. Der Viewer kann es darstellen
+
+**q5 — Was beantwortet das Conformance Statement eines einzelnen Produkts nicht?**
+1. Welche SOP Classes das Produkt als SCP annimmt
+2. Welche Transfer Syntaxes es unterstützt
+3. Ob es mit einem bestimmten anderen Produkt im Haus zusammen funktioniert
+4. Welche Rollen (SCU, SCP) es übernimmt
+
+---
+
+Werkzeuglage geprüft am 04.10.2026: Die `dcmdump`-Ausgabe oben wurde mit `dcmdump` aus DCMTK 3.6.7 (Toolbox-Image der Spielwiese) an einem per pydicom erzeugten Objekt der SOP Class X-Ray Radiation Dose SR Storage nachgefahren und stimmt Zeichen für Zeichen.
