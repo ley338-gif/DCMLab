@@ -165,25 +165,25 @@ intro: 22 Fragen aus Track 2. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. N-SET
 4. C-FIND
 
-**Erklärung:** `N-CREATE` meldet den Beginn mit den vollständigen Stammdaten. Das Ende wird mit `N-SET` gemeldet — beide über dieselbe Assoziation.
+**Erklärung:** `N-CREATE` meldet den Beginn — mit Bezug zum Auftrag, Patient, Station und Startzeit. Das Ende meldet `N-SET`, mit Endzeit und der Liste der erzeugten Bilder. Beide dürfen über getrennte Associationen laufen.
 
-### f22 — Welche drei Endzustände kennt ein MPPS-Zyklus für `PerformedProcedureStepStatus`?
+### f22 — Welche drei Werte kennt `PerformedProcedureStepStatus` in einem MPPS-Zyklus?
 
 1. SUCCESS, WARNING, FAILURE
 2. IN PROGRESS, COMPLETED, DISCONTINUED
 3. PENDING, ACCEPTED, REJECTED
 4. STARTED, STOPPED, CANCELLED
 
-**Erklärung:** `COMPLETED` ist nicht der einzige gültige Endzustand — eine abgebrochene Untersuchung meldet sich genauso gültig als `DISCONTINUED`, beide werden mit demselben Erfolgsstatus `0x0` bestätigt.
+**Erklärung:** `IN PROGRESS` beim Beginn, dazu zwei Endzustände: `COMPLETED` und `DISCONTINUED`. Auch eine abgebrochene Untersuchung ist eine gültige Meldung; nach einem Endzustand darf der Schritt nicht mehr geändert werden.
 
 ### f23 — Welche Aussagen zu MPPS stimmen? *(Mehrfachauswahl)*
 
 1. Ein `N-SET` mit DISCONTINUED wird bei erfolgreicher Zustellung trotzdem mit Status 0x0 beantwortet
 2. MPPS bestätigt automatisch, dass die Bilddaten ebenfalls angekommen sind
-3. N-CREATE und N-SET laufen typischerweise über dieselbe Assoziation
-4. In echten Häusern nimmt meist ein RIS/Broker die MPPS-Meldung entgegen, nicht das Archiv
+3. N-CREATE und N-SET dürfen über getrennte Associationen laufen
+4. Im Scheduled Workflow nimmt der aktive PPS Manager — beim RIS oder beim PACS — die Meldung entgegen und leitet sie weiter, auch an das Archiv
 
-**Erklärung:** `DISCONTINUED` ist eine erfolgreich zugestellte Meldung wie jede andere, N-CREATE und N-SET laufen über dieselbe Assoziation, und meist ist es ein RIS/Broker, der MPPS entgegennimmt. MPPS bestätigt aber nichts über den Bildtransfer — das ist Aufgabe von C-STORE, ein unabhängiger Meldeweg.
+**Erklärung:** `DISCONTINUED` ist eine erfolgreich zugestellte Meldung wie jede andere; der Standard verlangt keine gemeinsame Association für Beginn und Ende; und im Scheduled Workflow verteilt der PPS Manager die Meldungen an RIS und Archiv (IHE RAD TF-1, Tabelle 34.1-1). RIS und PACS bringen beide einen PPS Manager mit; aktiv ist genau einer (RAD TF-1, Abschnitt 34.1.1.5). MPPS bestätigt aber nichts über den Bildtransfer — das ist Aufgabe von C-STORE, ein unabhängiger Meldeweg.
 
 ### f24 — Ein Bild ist im Archiv angekommen, aber keine MPPS-Meldung wurde je gesendet — daraus folgt, dass die Untersuchung nicht stattgefunden hat.
 
