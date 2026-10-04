@@ -69,14 +69,14 @@ intro: 20 Fragen aus Track 5. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Falsch. Ein grüner Abgleich bedeutet nur, dass die Verbindung zustande kommen kann. Er belegt weder Performance noch eine tatsächlich getestete Kombination — und auch nicht, dass sich das Gerät bei unvollständigen Daten so verhält, wie das Dokument es beschreibt. Das zeigt erst ein Test.
 
-### f09 — Was ändert sich bei einer Migration per C-STORE an der Datei, wenn dieselbe Transfer-Syntax ausgehandelt wird wie im Original?
+### f09 — Im Versuch der Lektion wird ein Objekt per C-STORE nach Orthanc migriert, mit derselben Transfer-Syntax wie im Original. Was hat sich an der zurückgeholten Datei geändert?
 
 1. Nur die File-Meta-Signatur (ImplementationClassUID/-VersionName)
 2. Die PatientID
 3. Die Pixeldaten werden neu komprimiert
 4. Nichts ändert sich, auch nicht die Meta-Signatur
 
-**Erklärung:** Der Test der Lektion zeigt: Der Datensatz hinter der File Meta Information bleibt Byte für Byte gleich, Pixeldaten eingeschlossen — es ändert sich nur, welche Implementierung die Datei zuletzt geschrieben hat (samt Gruppenlänge). Wird eine andere Transfer-Syntax ausgehandelt, speichert das Ziel das Objekt in dieser Kodierung; bei Implicit VR verlieren private Attribute dabei ihren Datentyp.
+**Erklärung:** Der Test der Lektion zeigt: Der Datensatz hinter der File Meta Information bleibt Byte für Byte gleich, Pixeldaten eingeschlossen — es ändert sich nur, welche Implementierung die Datei zuletzt geschrieben hat (samt Gruppenlänge). Wird eine andere Transfer-Syntax ausgehandelt, speichert Orthanc das Objekt in dieser Kodierung — andere Archive kodieren beim Speichern teils selbst um; bei Implicit VR verlieren private Attribute dabei ihren Datentyp.
 
 ### f10 — Ein Migrationswerkzeug vergibt beim Import neue StudyInstanceUIDs. Was passiert am Ziel-Archiv mit einer bereits vorhandenen Studie desselben Patienten?
 
