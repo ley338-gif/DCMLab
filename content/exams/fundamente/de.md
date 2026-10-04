@@ -19,13 +19,13 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Ein Viewer ist ein verlässlicher Test dafür, ob ein Archiv ein Objekt annimmt
 4. Wireshark bringt einen DICOM-Dissector mit
 
-**Erklärung:** Die DCMTK-Werkzeuge schweigen bei Erfolg — Erfolg zeigt sich am Exitcode oder mit `-v`. Wireshark erkennt DICOM von Haus aus. Für die ersten Übungen reicht die Spielwiese, ein Produktivarchiv ist nicht nötig; und ein Viewer ist tolerant und ergänzt fehlende Angaben stillschweigend, er beweist also nichts über die Annahme durch ein Archiv.
+**Erklärung:** Die Werkzeuge schweigen bei Erfolg — ob es geklappt hat, zeigt der Exitcode, den das Terminal der Spielwiese nach jedem Befehl anzeigt, oder ein Wiederholen mit `-v`. Wireshark erkennt DICOM von Haus aus. Für die ersten Übungen reicht die Spielwiese, ein Produktivarchiv ist nicht nötig; und ein Viewer ist tolerant und ergänzt fehlende Angaben stillschweigend, er beweist also nichts über die Annahme durch ein Archiv.
 
 ### f03 — Die DCMTK-Werkzeuge geben bei einer erfolgreichen Verbindung viel Textausgabe aus.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ohne `-v` melden die DCMTK-Werkzeuge bei Erfolg gar nichts — diese Stille überrascht viele Einsteiger. Sicherheit gibt der Exitcode (`echo $?`, `0` heißt Erfolg) oder ein Wiederholen mit `-v`.
+**Erklärung:** Falsch. Ohne `-v` melden die Werkzeuge bei Erfolg gar nichts — diese Stille überrascht viele Einsteiger. Einen ersten Hinweis gibt der Exitcode (das Terminal der Spielwiese zeigt ihn als `[Exitcode N]`, in einer eigenen Shell `echo $?`). Verlässlich ist bei Übertragungen erst die Ausgabe mit `-v`: Das `storescu` der Spielwiese endet auch dann mit `0`, wenn das Archiv ein Objekt ablehnt (Lektion 2.2).
 
 ### f04 — Mit welchem Befehl liest du gezielt nur die `SeriesDescription` aus einer Datei? *(Freitext)*
 
