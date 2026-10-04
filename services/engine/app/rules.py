@@ -443,13 +443,20 @@ def _exec_dcmdump(node: NodeDefinition, args: list[str]) -> ExecResult:
         transfer_syntax = str(obj.get("transfer_syntax", "1.2.840.10008.1.2.1"))
         label = dump.TRANSFER_SYNTAX_LABELS.get(transfer_syntax, transfer_syntax)
 
-        blocks += [
-            "",
-            "# Dicom-File-Format",
+        # Die File Meta Information ist immer Explicit VR Little Endian (PS3.10
+        # Abschnitt 7.1). Simuliert ist davon nur die Transfer Syntax; traegt
+        # ein Objekt keine, entfaellt der Meta-Abschnitt statt leer zu bleiben.
+        meta_section = [
             "",
             "# Dicom-Meta-Information-Header",
             "# Used TransferSyntax: Little Endian Explicit",
             *(dump.element_line(*e, map_uid_names=map_uid_names) for e in meta),
+        ] if meta else []
+
+        blocks += [
+            "",
+            "# Dicom-File-Format",
+            *meta_section,
             "",
             "# Dicom-Data-Set",
             f"# Used TransferSyntax: {label}",
