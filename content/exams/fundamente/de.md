@@ -19,13 +19,13 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Ein Viewer ist ein verlässlicher Test dafür, ob ein Archiv ein Objekt annimmt
 4. Wireshark bringt einen DICOM-Dissector mit
 
-**Erklärung:** Die DCMTK-Werkzeuge schweigen bei Erfolg — Erfolg zeigt sich am Exitcode oder mit `-v`. Wireshark erkennt DICOM von Haus aus. Für die ersten Übungen reicht die Spielwiese, ein Produktivarchiv ist nicht nötig; und ein Viewer ist tolerant und ergänzt fehlende Angaben stillschweigend, er beweist also nichts über die Annahme durch ein Archiv.
+**Erklärung:** Die Werkzeuge schweigen bei Erfolg — ob es geklappt hat, zeigt der Exitcode, den das Terminal der Spielwiese nach jedem Befehl anzeigt, oder ein Wiederholen mit `-v`. Wireshark erkennt DICOM von Haus aus. Für die ersten Übungen reicht die Spielwiese, ein Produktivarchiv ist nicht nötig; und ein Viewer ist tolerant und ergänzt fehlende Angaben stillschweigend, er beweist also nichts über die Annahme durch ein Archiv.
 
 ### f03 — Die DCMTK-Werkzeuge geben bei einer erfolgreichen Verbindung viel Textausgabe aus.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Ohne `-v` melden die DCMTK-Werkzeuge bei Erfolg gar nichts — diese Stille überrascht viele Einsteiger. Sicherheit gibt der Exitcode (`echo $?`, `0` heißt Erfolg) oder ein Wiederholen mit `-v`.
+**Erklärung:** Falsch. Ohne `-v` melden die Werkzeuge bei Erfolg gar nichts — diese Stille überrascht viele Einsteiger. Einen ersten Hinweis gibt der Exitcode (das Terminal der Spielwiese zeigt ihn als `[Exitcode N]`, in einer eigenen Shell `echo $?`). Verlässlich ist bei Übertragungen erst die Ausgabe mit `-v`: Das `storescu` der Spielwiese endet auch dann mit `0`, wenn das Archiv ein Objekt ablehnt (Lektion 2.2).
 
 ### f04 — Mit welchem Befehl liest du gezielt nur die `SeriesDescription` aus einer Datei? *(Freitext)*
 
@@ -130,14 +130,14 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Richtig. `DA` ist immer `YYYYMMDD`. Ein Datum wie `11.09.2026` in einem DA-Feld ist ein Fehler, selbst wenn eine Anzeige es klaglos akzeptiert.
 
-### f17 — Zwei Objekte haben dieselbe SOP Instance UID. Wie behandelt ein Archiv sie?
+### f17 — Zwei Objekte haben dieselbe SOP Instance UID, gehören zur selben Studie und Serie, unterscheiden sich aber im Inhalt. Wie behandelt ein Archiv das zweite?
 
 1. Als zwei verschiedene Bilder
-2. Als dasselbe Objekt — es ersetzt oder lehnt ab
+2. Als dasselbe Objekt — je nach Archiv ersetzt es die alte Fassung, lehnt ab oder verwirft die neue still
 3. Es legt beide nebeneinander ab
 4. Das hängt vom Patientennamen ab
 
-**Erklärung:** Identität steckt in der UID, nicht im Dateinamen oder Speicherort. Zwei Objekte mit gleicher SOP Instance UID sind für jedes Archiv dasselbe Objekt — eine neue Fassung ersetzt die alte oder wird abgelehnt, ein drittes Verhalten gibt es nicht.
+**Erklärung:** Identität steckt in den UIDs, nicht im Dateinamen oder Speicherort. Mit derselben SOP Instance UID in derselben Studie und Serie ist es für das Archiv dasselbe Objekt. Was mit der neuen Fassung passiert, entscheidet das Archiv: ersetzen, ablehnen — oder, wie das Orthanc der Spielwiese in der Voreinstellung, mit Success quittieren und verwerfen (Lektion 4.5). Unterscheiden sich Studie oder Patient, kann ein Archiv wie Orthanc beide nebeneinander ablegen; das ist ein Fehler des Erzeugers, denn eine UID muss eindeutig sein.
 
 ### f18 — Welche Aussagen über UIDs stimmen? *(Mehrfachauswahl)*
 
@@ -146,13 +146,13 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Eine gelöschte UID darf wiederverwendet werden
 4. Der Anfang verrät, wer die UID erzeugt hat
 
-**Erklärung:** UIDs bestehen ausschließlich aus Ziffern und Punkten und sind auf höchstens 64 Zeichen begrenzt. Die Wurzel am Anfang verrät den Erzeuger — `1.2.840.10008` etwa gehört dem Standard selbst. Eine einmal vergebene UID wird dagegen nie wiederverwendet, auch nicht nach dem Löschen des Objekts.
+**Erklärung:** UIDs bestehen ausschließlich aus Ziffern und Punkten und sind auf höchstens 64 Zeichen begrenzt. Die Wurzel am Anfang verrät den Erzeuger — `1.2.840.10008` etwa gehört dem Standard selbst. Eine einmal vergebene UID darf dagegen nie wiederverwendet werden, auch nicht nach dem Löschen des Objekts.
 
 ### f19 — Nach dem Löschen eines Objekts darf seine UID später wiederverwendet werden.
 
 **Richtig / Falsch**
 
-**Erklärung:** Falsch. Eine UID wird nie wiederverwendet, auch nicht nach Jahren. Manche Archive führen sogar Listen gelöschter UIDs, damit ein Objekt nicht versehentlich unter alter Identität zurückkommt.
+**Erklärung:** Falsch. Eine UID darf nie wiederverwendet werden, auch nicht nach Jahren. Manche Archive führen sogar Listen gelöschter UIDs, damit ein Objekt nicht versehentlich unter alter Identität zurückkommt.
 
 ### f20 — Welche UID-Wurzel gehört dem DICOM-Standard selbst? *(Freitext)*
 
@@ -198,7 +198,7 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 3. Bei beiden, und meist zusätzlich in der Firewall
 4. Nur im DNS
 
-**Erklärung:** Die Konfiguration ist immer symmetrisch: Der Sender braucht vier Felder (eigener AE Title, Ziel-AE-Title, Ziel-Host, Ziel-Port), der Empfänger muss den Absender als erlaubten AE Title kennen — und oft kommt eine Firewall-Freigabe für Port und Richtung dazu.
+**Erklärung:** Eingetragen wird auf beiden Seiten: Der Sender braucht vier Felder (eigener AE Title, Ziel-AE-Title, Ziel-Host, Ziel-Port), der Empfänger kennt den Absender als erlaubten AE Title — sofern er Absender prüft; das Orthanc der Spielwiese tut das nicht (Lektion 4.1). Oft kommt eine Firewall-Freigabe für Port und Richtung dazu.
 
 ### f26 — Mit welchem Werkzeug machst du dich selbst zum Empfänger, um zu prüfen, ob ein Gerät wirklich sendet?
 
@@ -297,11 +297,11 @@ intro: 24 Fragen aus Track 1. Ab 80 % ist der Track abgeschlossen. Beliebig oft 
 
 **Erklärung:** Objekttyp und Kodierung werden gemeinsam ausgehandelt. Serien, die anders — etwa verlustbehaftet — kodiert sind als der Rest, können an genau dieser Kombination scheitern, während unkomprimierte Serien derselben Untersuchung anstandslos durchgehen. PatientID, Instance-Zahl und Sendereihenfolge erklären ein serienselektives Scheitern dagegen nicht.
 
-### f40 — Ein neues Gerät kommt ins Haus, es sendet nichts ins Archiv. Welche zwei Angaben müssen dafür in jedem Fall stimmen? *(Mehrfachauswahl)*
+### f40 — Ein neues Gerät kommt ins Haus, es sendet nichts ins Archiv. Welche zwei Angaben prüfst du zuerst? *(Mehrfachauswahl)*
 
 1. Der Calling AE Title des neuen Geräts ist beim Archiv als erlaubter Absender eingetragen
 2. Das neue Gerät hat Zugriff auf das Internet
 3. Der Empfänger kennt seinen eigenen AE Title
 4. Der im Gerät eingetragene Called AE Title stimmt zeichengenau mit dem AE Title des Archivs überein
 
-**Erklärung:** Die Konfiguration ist immer symmetrisch: Das Archiv muss den Absender kennen (1), und das Gerät muss das Archiv unter dessen tatsächlichem, zeichengenauen AE Title ansprechen (4). Ob der Empfänger seinen eigenen Namen „kennt" ist keine sinnvolle Fehlerquelle, und ein Internetzugang hat mit einer lokalen DICOM-Verbindung nichts zu tun.
+**Erklärung:** Archive, die AE Titles prüfen, verlangen beides: Das Archiv muss den Absender kennen (1), und das Gerät muss das Archiv unter dessen tatsächlichem, zeichengenauen AE Title ansprechen (4). Nicht jedes Archiv prüft das — das Orthanc der Spielwiese nimmt jeden Namen an (Lektion 4.1) —, ob es dein Archiv tut, weißt du erst nach dem Nachsehen. Ob der Empfänger seinen eigenen Namen „kennt" ist keine sinnvolle Fehlerquelle, und ein Internetzugang hat mit einer lokalen DICOM-Verbindung nichts zu tun.
