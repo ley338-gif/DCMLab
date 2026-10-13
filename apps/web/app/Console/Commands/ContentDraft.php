@@ -3,12 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Activities\ActivityRegistry;
+use App\Console\Commands\Concerns\CreatesContentDrafts;
 use App\Content\ContentVersioningService;
 use App\Content\LessonDraftImporter;
 use App\Models\Activity;
-use App\Models\ContentVersion;
 use App\Models\Lesson;
-use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
@@ -30,9 +29,13 @@ use RuntimeException;
  * wuerde durch `createDraft()` auf `superseded` gesetzt. Der Befehl nennt
  * ihn deshalb und fragt nach; ohne Interaktion bricht er ab, ausser mit
  * `--supersede`.
+ *
+ * Node-Gegenstueck: `content:draft-node` (`ContentDraftNode`).
  */
 class ContentDraft extends Command
 {
+    use CreatesContentDrafts;
+
     protected $signature = 'content:draft
         {lesson : Lesson-ID, z. B. 2.2}
         {--from= : Pfad zur de.md des Entwurfs (Frontmatter + Body inklusive ## Quiz)}
@@ -54,7 +57,7 @@ class ContentDraft extends Command
             return self::FAILURE;
         }
 
-        $author = $this->author();
+        $author = $this->draftAuthor();
 
         if ($author === null) {
             return self::FAILURE;
@@ -115,15 +118,12 @@ class ContentDraft extends Command
         }
 
         if ($issues !== []) {
-            $this->error('Der Entwurf ist ungueltig -- nichts angelegt:');
-            foreach ($issues as $issue) {
-                $this->line("  - {$issue}");
-            }
+            $this->reportInvalidDraft($issues);
 
             return self::FAILURE;
         }
 
-        if (! $this->mayReplaceOpenVersions($activity)) {
+        if (! $this->mayReplaceOpenVersions($activity, 'dieser Lektion')) {
             return self::FAILURE;
         }
 
@@ -135,82 +135,5 @@ class ContentDraft extends Command
         $this->line('Nicht eingereicht, nicht veroeffentlicht: weiter in Studio (Review durch eine zweite Rolle), danach make content-export.');
 
         return self::SUCCESS;
-    }
-
-    private function author(): ?User
-    {
-        $value = $this->stringOption('author');
-
-        if ($value === '') {
-            $this->error('--author ist Pflicht (Nutzer-ID oder E-Mail) -- ein Entwurf braucht eine echte Autorschaft.');
-
-            return null;
-        }
-
-        $author = ctype_digit($value)
-            ? User::query()->find((int) $value)
-            : User::query()->where('email', $value)->first();
-
-        if ($author === null) {
-            $this->error("Nutzer \"{$value}\" existiert nicht.");
-        }
-
-        return $author;
-    }
-
-    private function stringOption(string $name): string
-    {
-        $value = $this->option($name);
-
-        return is_string($value) ? $value : '';
-    }
-
-    private function readOption(string $option, bool $required): ?string
-    {
-        $path = $this->stringOption($option);
-
-        if ($path === '') {
-            if ($required) {
-                $this->error("--{$option} ist Pflicht.");
-            }
-
-            return null;
-        }
-
-        if (! is_file($path)) {
-            $this->error("Datei \"{$path}\" (--{$option}) existiert nicht.");
-
-            return null;
-        }
-
-        return (string) file_get_contents($path);
-    }
-
-    /**
-     * ADR 0121: createDraft() setzt offene Versionen derselben Activity auf
-     * `superseded` -- nie ohne Wissen dessen, der den Befehl ausfuehrt.
-     */
-    private function mayReplaceOpenVersions(Activity $activity): bool
-    {
-        $open = ContentVersion::query()
-            ->where('activity_id', $activity->id)
-            ->whereIn('status', ['draft', 'review'])
-            ->orderBy('id')
-            ->get();
-
-        if ($open->isEmpty() || $this->option('supersede')) {
-            return true;
-        }
-
-        $list = $open->map(fn (ContentVersion $v): string => "#{$v->id} ({$v->status}, {$v->created_at})")->implode(', ');
-        $this->warn("Offene Version(en) dieser Lektion: {$list} -- ein neuer Entwurf setzt sie auf superseded (ADR 0121).");
-
-        if ($this->confirm('Fortfahren?', false)) {
-            return true;
-        }
-
-        $this->warn('Abgebrochen -- nichts angelegt. Mit --supersede ohne Rueckfrage ersetzen.');
-
-        return false;
     }
 }

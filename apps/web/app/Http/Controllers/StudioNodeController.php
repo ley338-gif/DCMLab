@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Activities\ActivityRegistry;
+use App\Concerns\NodeDraftValidationRules;
 use App\Content\ContentRepository;
 use App\Content\ContentVersioningService;
 use App\Content\LearnerViewBuilder;
@@ -42,6 +43,8 @@ use Inertia\Response;
  */
 class StudioNodeController extends Controller
 {
+    use NodeDraftValidationRules;
+
     public function index(ContentRepository $content): Response
     {
         Gate::authorize('viewAny', Node::class);
@@ -354,26 +357,6 @@ class StudioNodeController extends Controller
      */
     private function validatedFields(Request $request): array
     {
-        return $request->validate([
-            'title' => 'required|string',
-            'scenario_title' => 'required|string',
-            'difficulty' => 'required|string|in:easy,medium,hard,insane',
-            'points' => 'required|integer|min:0',
-            'category' => 'required|string',
-            'interaction' => 'required|string|in:terminal,scenario',
-            'estimated_minutes' => 'required|integer|min:0',
-            'skills' => 'array',
-            'skills.*' => 'string|in:'.implode(',', ProfileService::SKILL_CATEGORIES),
-            'related_lessons' => 'array',
-            'related_lessons.*' => 'string',
-            'hints' => 'array',
-            'hints.*.id' => 'required|string',
-            'hints.*.cost' => 'required|integer|min:0',
-            // Nur die grobe Form -- die eigentliche Schema-/Inhaltspruefung
-            // (RichContentValidator, Hint-ID-Konsistenz) laeuft ueber
-            // activity->validate($draft) (CMS-7d.3, ADR 0118). Bewusst KEINE
-            // weiteren `rich_content.*`-Regeln, siehe LessonEditorController.
-            'rich_content' => 'required|array',
-        ]);
+        return $request->validate($this->nodeDraftRules());
     }
 }

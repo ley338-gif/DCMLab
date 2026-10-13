@@ -69,6 +69,52 @@ final class RichContentToMarkdownSerializer
     }
 
     /**
+     * `equivalent()` fuer einen `node_content`-Umschlag (ADR 0115): Briefing,
+     * Write-up und jeder Hint einzeln. Die Reihenfolge der Hint-Schluessel
+     * zaehlt nicht -- `jsonb` sortiert sie um, massgeblich ist die
+     * `hints`-Metadatenliste der Node. `content:export` und
+     * `content:draft-node` ziehen damit dieselbe Grenze.
+     *
+     * @param  array<string, mixed>  $a
+     * @param  array<string, mixed>  $b
+     */
+    public function equivalentNodeContent(array $a, array $b): bool
+    {
+        $hintsA = is_array($a['hints'] ?? null) ? $a['hints'] : [];
+        $hintsB = is_array($b['hints'] ?? null) ? $b['hints'] : [];
+
+        if (self::sortedKeys($hintsA) !== self::sortedKeys($hintsB)) {
+            return false;
+        }
+
+        foreach (['briefing', 'write_up'] as $section) {
+            if (! is_array($a[$section] ?? null) || ! is_array($b[$section] ?? null) || ! $this->equivalent($a[$section], $b[$section])) {
+                return false;
+            }
+        }
+
+        foreach ($hintsA as $hintId => $document) {
+            if (! is_array($document) || ! is_array($hintsB[$hintId] ?? null) || ! $this->equivalent($document, $hintsB[$hintId])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $map
+     * @return list<string>
+     */
+    private static function sortedKeys(array $map): array
+    {
+        $keys = array_map('strval', array_keys($map));
+        sort($keys, SORT_STRING);
+
+        return $keys;
+    }
+
+    /**
      * Letzte Sicherung hinter allen Einzelregeln: das Ergebnis wird mit
      * demselben Konverter zurueckgelesen, den `content:sync`/die Normalizer
      * benutzen. Weicht es ab, ist der Export verlustbehaftet -- z. B. eine

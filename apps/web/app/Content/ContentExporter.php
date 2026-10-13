@@ -348,39 +348,11 @@ final class ContentExporter
 
         $fileContent = (new NodePayloadNormalizer($this->converter))->normalize(['body' => $fileBody])['rich_content'];
 
-        if ($this->sameNodeContent($richContent, $fileContent)) {
+        if ($this->serializer->equivalentNodeContent($richContent, $fileContent)) {
             return null;
         }
 
         return "\n".$this->serializer->serializeNodeContent($richContent, $hintOrder)."\n";
-    }
-
-    /**
-     * @param  array<string, mixed>  $a
-     * @param  array<string, mixed>  $b
-     */
-    private function sameNodeContent(array $a, array $b): bool
-    {
-        $hintsA = is_array($a['hints'] ?? null) ? $a['hints'] : [];
-        $hintsB = is_array($b['hints'] ?? null) ? $b['hints'] : [];
-
-        if (! ContentFieldComparison::same(array_keys($hintsA), array_keys($hintsB)) && ! ContentFieldComparison::same(self::sortedKeys($hintsA), self::sortedKeys($hintsB))) {
-            return false;
-        }
-
-        foreach (['briefing', 'write_up'] as $section) {
-            if (! is_array($a[$section] ?? null) || ! is_array($b[$section] ?? null) || ! $this->serializer->equivalent($a[$section], $b[$section])) {
-                return false;
-            }
-        }
-
-        foreach ($hintsA as $hintId => $document) {
-            if (! is_array($document) || ! is_array($hintsB[$hintId] ?? null) || ! $this->serializer->equivalent($document, $hintsB[$hintId])) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private function exportTracks(ContentRepository $files, ?string $id, ContentExportResult $result): void
@@ -447,18 +419,6 @@ final class ContentExporter
         $lines = explode("\n", $mdRaw);
 
         return implode("\n", array_slice($lines, 0, max(0, $frontMatter['bodyStartLine'] - 1)))."\n".$body;
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $map
-     * @return list<array-key>
-     */
-    private static function sortedKeys(array $map): array
-    {
-        $keys = array_keys($map);
-        sort($keys);
-
-        return $keys;
     }
 
     private static function lf(string $text): string
