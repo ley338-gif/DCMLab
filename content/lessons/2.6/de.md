@@ -14,7 +14,7 @@ Ein C-STORE überträgt Bilder — nichts weiter. Ob eine Untersuchung
 steht in keinem Bildobjekt. Genau diese Lücke füllt {{term:mpps}}: eine
 eigene Meldung der Modalität, unabhängig von jedem Bildtransfer.
 
-## Zwei Nachrichten, eine Assoziation
+## Zwei Nachrichten: Beginn und Ende
 
 MPPS ist ein eigener DIMSE-N-Dienst (N-CREATE/N-SET, nicht C-STORE
 oder C-FIND) — die Modalität meldet den Beginn einer Untersuchung mit
@@ -62,7 +62,7 @@ Prozedur, Startzeit) — `N-SET` meldet nur noch, was sich geändert hat
 (Status, Endzeit). Keine dieser beiden Nachrichten enthält ein
 einziges Pixel.
 
-## Drei mögliche Endzustände, nicht nur zwei
+## Zwei Endzustände: COMPLETED und DISCONTINUED
 
 `COMPLETED` ist nicht der einzige gültige Endzustand — eine
 abgebrochene Untersuchung meldet sich genauso gültig als

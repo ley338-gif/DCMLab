@@ -175,7 +175,7 @@ questions:
     type: single
     answer: 1
     lesson: "2.6"
-    review: { lesson: "2.6", anchor: "zwei-nachrichten-eine-assoziation" }
+    review: { lesson: "2.6", anchor: "zwei-nachrichten-beginn-und-ende" }
     difficulty: 1
     tags: [netzwerk]
 
@@ -183,7 +183,7 @@ questions:
     type: single
     answer: 1
     lesson: "2.6"
-    review: { lesson: "2.6", anchor: "drei-moegliche-endzustaende-nicht-nur-zwei" }
+    review: { lesson: "2.6", anchor: "zwei-endzustaende-completed-und-discontinued" }
     difficulty: 1
     tags: [datenmodell]
 
@@ -191,7 +191,7 @@ questions:
     type: multi
     answer: [0, 2, 3]
     lesson: "2.6"
-    review: { lesson: "2.6", anchor: "drei-moegliche-endzustaende-nicht-nur-zwei" }
+    review: { lesson: "2.6", anchor: "zwei-endzustaende-completed-und-discontinued" }
     difficulty: 2
     tags: [integration]
 
