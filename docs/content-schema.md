@@ -666,7 +666,7 @@ scenario:
           label: Befunde direkt am Telefon mitteilen.
           next: fehler
         - id: identitaet_pruefen
-          label: Nach einer Schweigepflichtentbindung fragen.
+          label: Im KIS nachsehen, ob eine Entbindung hinterlegt ist.
           next: erfolg
     fehler:
       terminal: true
