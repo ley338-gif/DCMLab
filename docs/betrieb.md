@@ -94,6 +94,32 @@ Node oder Track-Einstellung:
    - `--meta=…` übernimmt Metadaten und Quiz-Antworten.
    - `--part=lesson|quiz` wählt den Teil, wenn Lektionsfelder und Quiz beide
      abweichen. Pro Lektion ist nur ein offener Entwurf möglich (ADR 0121).
+
+   Für Nodes gibt es `content:draft-node`. Eine veröffentlichte Node liest
+   Briefing, Hints und Write-up aus `rich_content` (ADR 0118). Eine
+   Änderung an `content/nodes/<slug>/de.md` kommt dort nie an. Die Datei hat
+   das Format, das `content:export` schreibt: Frontmatter mit `title` und
+   `scenario_title`, dann `## Briefing`, `## Hints` mit `### h1` usw. und
+   `## Write-up`. Erst in den Container kopieren, dann den Entwurf anlegen:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml --env-file .env \
+     -f infra/docker-compose.dev.yml cp gefiltert.md app:/tmp/gefiltert.md
+   docker compose -f infra/docker-compose.yml --env-file .env \
+     -f infra/docker-compose.dev.yml exec app php artisan content:draft-node gefiltert \
+     --from=/tmp/gefiltert.md --author=autorin@example.org
+   ```
+
+   Unter Git Bash auf Windows `MSYS_NO_PATHCONV=1` voranstellen, sonst wird
+   `/tmp/…` umgeschrieben. Weitere Regeln:
+   - `--meta=…` nimmt eine `node.yml` und übernimmt daraus nur die
+     Studio-Felder (`difficulty`, `points`, `category`, `interaction`,
+     `estimated_minutes`, `skills`, `related_lessons`) und `hints` (id,
+     cost). Ohne `--meta` gilt der Live-Stand.
+   - Ein neuer oder umbenannter Hint braucht `--meta` mit passender
+     `hints`-Liste. Sonst meldet die Prüfung fehlende Kosten.
+   - `environment`, `flag`, `status` und `themenfeld` bleiben unberührt.
+   - Ein unveränderter Export des Live-Stands legt keinen Entwurf an.
 2. **`make content-export`** schreibt den veröffentlichten Stand nach
    `content/`. Entwürfe und Versionen im Review werden nie exportiert.
 3. **Den Export als eigenen PR einreichen.** Der Commit bekommt das Präfix
